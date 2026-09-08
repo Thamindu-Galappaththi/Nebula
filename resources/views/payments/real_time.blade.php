@@ -36,7 +36,7 @@ let updateInterval;
 // Initialize real-time updates
 document.addEventListener('DOMContentLoaded', function() {
     startLiveUpdates();
-    
+
     // Event delegation for refresh button
     document.getElementById('refreshLiveDataBtn')?.addEventListener('click', refreshLiveData);
 });
@@ -64,7 +64,7 @@ function fetchLivePayments() {
     })
     .catch(error => {
         console.error('Error fetching live payments:', error);
-        document.getElementById('liveIndicator').innerHTML = 
+        document.getElementById('liveIndicator').innerHTML =
             '<i class="bi bi-circle-fill"></i> Offline';
         document.getElementById('liveIndicator').classList.remove('bg-success');
         document.getElementById('liveIndicator').classList.add('bg-danger');
@@ -74,7 +74,7 @@ function fetchLivePayments() {
 function updateLiveFeed(payments) {
     const feed = document.getElementById('livePaymentFeed');
     if (!feed) return;
-    
+
     // Remove "waiting" message if exists
     const waitingMsg = feed.querySelector('.text-muted');
     if (waitingMsg) {
@@ -84,7 +84,7 @@ function updateLiveFeed(payments) {
     payments.forEach(payment => {
         const item = createPaymentItem(payment);
         feed.insertBefore(item, feed.firstChild);
-        
+
         // Limit to 20 items
         if (feed.children.length > 20) {
             feed.removeChild(feed.lastChild);
@@ -95,12 +95,12 @@ function updateLiveFeed(payments) {
 function createPaymentItem(payment) {
     const item = document.createElement('div');
     item.className = 'list-group-item list-group-item-action animate__animated animate__fadeInDown';
-    
-    const statusColor = payment.status === 'paid' ? 'success' : 
+
+    const statusColor = payment.status === 'paid' ? 'success' :
                        payment.status === 'pending' ? 'warning' : 'danger';
-    
+
     const timeAgo = getTimeAgo(payment.created_at);
-    
+
     item.innerHTML = `
         <div class="d-flex justify-content-between align-items-start">
             <div class="flex-grow-1">
@@ -110,7 +110,7 @@ function createPaymentItem(payment) {
                 </div>
                 <p class="mb-1 small">
                     <i class="bi bi-${getPaymentIcon(payment.payment_method)}"></i>
-                    ${payment.payment_method} - 
+                    ${payment.payment_method} -
                     <strong>LKR ${parseFloat(payment.total_fee).toLocaleString()}</strong>
                 </p>
                 <small class="text-muted">${payment.installment_type || 'Miscellaneous'}</small>
@@ -120,7 +120,7 @@ function createPaymentItem(payment) {
             </div>
         </div>
     `;
-    
+
     return item;
 }
 
@@ -139,7 +139,7 @@ function getTimeAgo(timestamp) {
     const now = new Date();
     const then = new Date(timestamp);
     const seconds = Math.floor((now - then) / 1000);
-    
+
     if (seconds < 60) return 'Just now';
     if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
     if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
@@ -148,19 +148,21 @@ function getTimeAgo(timestamp) {
 
 function updateTimestamp() {
     const now = new Date();
-    document.getElementById('lastUpdateTime').textContent = 
+    document.getElementById('lastUpdateTime').textContent =
         'Last updated: ' + now.toLocaleTimeString();
 }
 
-function refreshLiveData() {
+function refreshLiveData(event) {
     fetchLivePayments();
-    
+
     // Add visual feedback
-    const btn = event.target.closest('button');
+    const btn = event?.currentTarget || document.getElementById('refreshLiveDataBtn');
+    if (!btn) return;
+
     const originalHTML = btn.innerHTML;
     btn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Refreshing...';
     btn.disabled = true;
-    
+
     setTimeout(() => {
         btn.innerHTML = originalHTML;
         btn.disabled = false;
