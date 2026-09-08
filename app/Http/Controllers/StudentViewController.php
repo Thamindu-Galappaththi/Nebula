@@ -19,20 +19,7 @@ class StudentViewController extends Controller
 
         $value = trim($value);
 
-        return $value === '' ? null : $value;
-    }
-
-    private function courseHasSpecializations(?Course $course): bool
-    {
-        if (!$course || empty($course->specializations)) {
-            return false;
-        }
-
-        $specializations = is_array($course->specializations)
-            ? $course->specializations
-            : json_decode($course->specializations, true);
-
-        return is_array($specializations) && count(array_filter($specializations)) > 0;
+        return $value === '' || strtolower($value) === 'all' ? null : $value;
     }
 
     public function index()
@@ -60,16 +47,6 @@ class StudentViewController extends Controller
 
                 $registrationQuery->with(['course', 'intake'])->orderByDesc('id');
             }]);
-
-        if ($selectedCourseId) {
-            $course = Course::find($selectedCourseId);
-            if ($this->courseHasSpecializations($course) && !$specialization) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Please select a specialization for this course.'
-                ], 422);
-            }
-        }
 
         if ($request->filled('student_id')) {
             $query->where(function ($q) use ($request) {
@@ -127,7 +104,7 @@ class StudentViewController extends Controller
     public function getStudentCourses(Request $request)
     {
         $studentId = $request->query('student_id');
-        
+
         $student = Student::where('student_id', $studentId)
                     ->orWhere('id_value', $studentId)
                     ->first();

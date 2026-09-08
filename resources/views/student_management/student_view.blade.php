@@ -36,7 +36,7 @@
         <div class="col-md-3" id="specializationFilterWrap" style="display:none;">
           <label class="form-label">Specialization</label>
           <select id="specializationSelect" name="specialization" class="form-select">
-            <option value="">All Specializations</option>
+            <option value="all">All Specializations</option>
           </select>
         </div>
 
@@ -121,7 +121,7 @@ const specializationWrap = document.getElementById('specializationFilterWrap');
 const specializationSelect = document.getElementById('specializationSelect');
 
 function resetSpecializationFilter() {
-  specializationSelect.innerHTML = '<option value="">All Specializations</option>';
+  specializationSelect.innerHTML = '<option value="all">All Specializations</option>';
   specializationWrap.style.display = 'none';
 }
 
@@ -138,7 +138,7 @@ function loadSpecializations(courseId) {
         return;
       }
 
-      let html = '<option value="">All Specializations</option>';
+      let html = '<option value="all">All Specializations</option>';
       data.specializations.forEach(spec => {
         const value = typeof spec === 'object' ? (spec.name || spec.value || spec.specialization || '') : spec;
         if (value) {
@@ -172,12 +172,6 @@ document.getElementById('filterForm').addEventListener('submit', async e => {
   const spin = document.getElementById('searchSpinner');
   const text = document.getElementById('searchText');
   btn.disabled = true; spin.classList.remove('d-none'); text.textContent = 'Loading...';
-
-  if (specializationWrap.style.display !== 'none' && !specializationSelect.value) {
-    btn.disabled = false; spin.classList.add('d-none'); text.textContent = 'Search';
-    alert('Please select a specialization first.');
-    return;
-  }
 
   const payload = {
     student_id: document.getElementById('student_id').value.trim(),
@@ -333,7 +327,7 @@ document.getElementById('exportPdf').addEventListener('click', () => {
 
 document.getElementById('student_id').addEventListener('change', async e => {
   const studentId = e.target.value.trim();
-  
+
   if (!studentId) {
     // Reset to all courses
     document.getElementById('courseSelect').innerHTML = '<option value="">All Courses</option>';
@@ -346,7 +340,7 @@ document.getElementById('student_id').addEventListener('change', async e => {
   try {
     const res = await fetch('{{ route("student_management.courses") }}?student_id=' + encodeURIComponent(studentId));
     const data = await res.json();
-    
+
     if (data.success && data.courses.length > 0) {
       let html = '<option value="">All Courses</option>';
       data.courses.forEach(course => {

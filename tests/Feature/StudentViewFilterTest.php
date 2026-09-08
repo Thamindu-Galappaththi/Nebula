@@ -181,4 +181,23 @@ class StudentViewFilterTest extends TestCase
             'Student should appear when a single registration satisfies both course and intake'
         );
     }
+
+    public function test_all_specializations_is_optional_for_courses_with_specializations(): void
+    {
+        $student = $this->makeStudent('200077776666');
+        $registration = $this->makeRegistration($student->student_id, 30, 300);
+        $registration->course->update([
+            'specializations' => ['Software Engineering', 'Networking'],
+        ]);
+
+        foreach (['all', ''] as $specialization) {
+            $response = $this->actingAs($this->actor)
+                ->postJson($this->route(), [
+                    'course_id' => $registration->course_id,
+                    'specialization' => $specialization,
+                ]);
+
+            $response->assertOk()->assertJsonPath('success', true);
+        }
+    }
 }
