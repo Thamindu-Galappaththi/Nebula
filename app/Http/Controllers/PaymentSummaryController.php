@@ -110,9 +110,9 @@ class PaymentSummaryController extends Controller
             'course_id' => 'required|exists:courses,course_id',
         ]);
 
-        $intakes = Intake::query()
-            ->where('location', $request->input('location'))
-            ->where('course_id', (int) $request->input('course_id'))
+        $course = Course::findOrFail((int) $request->input('course_id'));
+
+        $intakes = Intake::forCourse($course, $request->input('location'))
             ->select('intake_id', 'batch')
             ->orderBy('batch')
             ->get()
@@ -1084,14 +1084,14 @@ class PaymentSummaryController extends Controller
             ->orderBy('course_name')
             ->get();
 
-        $intakes = Intake::query()
-            ->select('intake_id', 'batch')
-            ->when($selectedLocation, function ($q) use ($selectedLocation) {
+        $intakeQuery = $selectedCourseId
+            ? Intake::forCourse(Course::findOrFail($selectedCourseId), $selectedLocation)
+            : Intake::query()->when($selectedLocation, function ($q) use ($selectedLocation) {
                 $q->where('location', $selectedLocation);
-            })
-            ->when($selectedCourseId, function ($q) use ($selectedCourseId) {
-                $q->where('course_id', $selectedCourseId);
-            })
+            });
+
+        $intakes = $intakeQuery
+            ->select('intake_id', 'batch')
             ->orderBy('batch')
             ->get();
 
