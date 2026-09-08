@@ -23,13 +23,14 @@ class PaymentDetail extends Model
         'payment_method',
         'transaction_id',
         'remarks',
+        'payment_date',
         'paid_slip_path',
         'installment_number',
         'payment_name',
         'due_date',
-        'late_fee',           
-        'approved_late_fee',  
-        'total_fee',   
+        'late_fee',
+        'approved_late_fee',
+        'total_fee',
         'remaining_amount',
         'partial_payments',
         'status',
@@ -186,7 +187,7 @@ class PaymentDetail extends Model
     {
         $this->status = $status;
         $this->save();
-        
+
         // Update registration payment status if course-related
         if ($this->course_registration_id && $this->registration) {
             $this->registration->updatePaymentStatus();

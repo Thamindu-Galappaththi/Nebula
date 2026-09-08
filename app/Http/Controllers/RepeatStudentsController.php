@@ -25,12 +25,12 @@ use Carbon\Carbon;
 class RepeatStudentsController extends Controller
 {
 
-    
+
 
     /**
      * Show the repeat students management view.
      */
-    
+
     public function showRepeatStudentsManagement()
     {
         // Only show courses that have at least one intake (treat these as "repeatable" courses)
@@ -59,7 +59,7 @@ class RepeatStudentsController extends Controller
             $course = Course::with(['modules'])->find($courseID);
 
             if ($course) {
-                $years = range(1, (int)$course->duration); 
+                $years = range(1, (int)$course->duration);
                 // Get actual created semesters for this course
                 $semesters = \App\Models\Semester::where('course_id', $courseID)
                     ->whereIn('status', ['active', 'upcoming'])
@@ -79,7 +79,7 @@ class RepeatStudentsController extends Controller
             return response()->json(['error' => 'An internal server error occurred.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    
+
     /**
      * Get student name by ID.
      */
@@ -122,13 +122,13 @@ class RepeatStudentsController extends Controller
             ->get()
             ->filter(function($reg) {
                 // Filter students who have failed or need to repeat
-                return $reg->examResults->where('grade', 'F')->count() > 0 || 
+                return $reg->examResults->where('grade', 'F')->count() > 0 ||
                        $reg->examResults->where('marks', '<', 40)->count() > 0;
             })
             ->map(function($reg) use ($request) {
-                $failedResult = $reg->examResults->where('grade', 'F')->first() ?? 
+                $failedResult = $reg->examResults->where('grade', 'F')->first() ??
                                $reg->examResults->where('marks', '<', 40)->first();
-                
+
                 return [
                     'registration_id' => $reg->course_registration_id ?? $reg->id,
                     'student_id' => $reg->student->student_id,
@@ -160,19 +160,25 @@ class RepeatStudentsController extends Controller
             ->where('intake_id', $request->intake_id)
             ->where('location', $request->location)
             ->eligible()
-            ->with(['student', 'payments'])
+            ->with(['student', 'course', 'intake', 'payments'])
             ->get()
             ->filter(function($reg) {
                 // Filter students with outstanding payments or repeat payment requirements
-                $totalPayments = $reg->payments->sum('payment_amount');
-                $courseFee = $reg->course->course_fee ?? 0;
-                return $totalPayments < $courseFee || $reg->payments->where('payment_status', false)->count() > 0;
+                $totalPayments = $reg->payments
+                    ->where('status', 'paid')
+                    ->sum('amount');
+                $courseFee = $reg->intake->course_fee ?? 0;
+                return $totalPayments < $courseFee || $reg->payments->contains(
+                    fn ($payment) => $payment->status !== 'paid'
+                );
             })
             ->map(function($reg) {
-                $totalPayments = $reg->payments->sum('payment_amount');
-                $courseFee = $reg->course->course_fee ?? 0;
+                $totalPayments = $reg->payments
+                    ->where('status', 'paid')
+                    ->sum('amount');
+                $courseFee = $reg->intake->course_fee ?? 0;
                 $outstanding = $courseFee - $totalPayments;
-                
+
                 return [
                     'registration_id' => $reg->course_registration_id ?? $reg->id,
                     'student_id' => $reg->student->student_id,
@@ -258,14 +264,14 @@ class RepeatStudentsController extends Controller
             foreach ($validatedData['payments'] as $payment) {
                 PaymentDetail::create([
                     'student_id' => $payment['student_id'],
-                    'course_id' => $request->course_id,
-                    'registration_id' => $request->registration_id,
+                    'course_registration_id' => $request->registration_id,
+                    'amount' => $payment['payment_amount'],
+                    'total_fee' => $payment['payment_amount'],
                     'payment_method' => $payment['payment_method'],
-                    'payment_amount' => $payment['payment_amount'],
                     'payment_date' => $payment['payment_date'],
-                    'payment_reference' => $payment['payment_reference'] ?? null,
-                    'payment_status' => true, // Assuming successful payment
-                    'payment_type' => 'Repeat Student Payment',
+                    'transaction_id' => $payment['payment_reference'] ?? null,
+                    'status' => 'paid',
+                    'payment_name' => 'Repeat Student Payment',
                     'remarks' => $payment['remarks'] ?? null,
                 ]);
             }
@@ -315,7 +321,7 @@ class RepeatStudentsController extends Controller
         }
     }
 
-    
+
     public function getRepeatStudentByNic(Request $request)
     {
         $nic = $request->input('nic');
@@ -711,4 +717,4 @@ public function updateSemesterRegistration(Request $request)
         $semesters = $query->orderBy('name')->get();
         return response()->json(['success' => true, 'semesters' => $semesters, 'data' => $semesters]);
     }
-} 
+}

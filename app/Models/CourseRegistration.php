@@ -66,7 +66,7 @@ class CourseRegistration extends Model
 
     public function payments()
     {
-        return $this->hasMany(PaymentDetail::class, 'registration_id', 'id');
+        return $this->hasMany(PaymentDetail::class, 'course_registration_id', 'id');
     }
 
     public function attendance()
@@ -138,7 +138,7 @@ class CourseRegistration extends Model
             'Not eligible' => 'Not Eligible',
             'Special approval required' => 'Special Approval Required'
         ];
-        
+
         return $statuses[$this->status] ?? $this->status;
     }
 
@@ -150,7 +150,7 @@ class CourseRegistration extends Model
             'Rejected' => 'Rejected',
             'Pending' => 'Pending'
         ];
-        
+
         return $approvalStatuses[$this->approval_status] ?? $this->approval_status;
     }
 
