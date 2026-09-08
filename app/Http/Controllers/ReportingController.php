@@ -32,8 +32,8 @@ class ReportingController extends Controller
             return view('reporting.dashboard');
         }
 
-        if (view()->exists('dashboards.dgm_dashboard')) {
-            return view('dashboards.dgm_dashboard');
+        if (view()->exists('dashboards.dgmdashboard')) {
+            return view('dashboards.dgmdashboard');
         }
 
         return redirect()->route('dashboard');
@@ -182,7 +182,7 @@ class ReportingController extends Controller
                                            $course = $group->first()->course;
                                            $totalStudents = $group->count();
                                            $studentIds = $group->pluck('student_id')->filter();
-                                           
+
                                            // Get attendance data (status is boolean: 1=Present, 0=Absent)
                                            $attendanceQuery = Attendance::whereIn('student_id', $studentIds)
                                                                       ->where('course_id', $course->course_id);
@@ -190,9 +190,9 @@ class ReportingController extends Controller
                                                $attendanceQuery->where('semester', $semesterFilter);
                                            }
                                            $attendanceData = $attendanceQuery->get();
-                                           
+
                                            $presentCount = $attendanceData->filter(fn($a) => (bool)$a->status)->count();
-                                           $avgAttendance = $attendanceData->count() > 0 
+                                           $avgAttendance = $attendanceData->count() > 0
                                                ? round(($presentCount / $attendanceData->count()) * 100, 2)
                                                : 0;
 
@@ -204,7 +204,7 @@ class ReportingController extends Controller
                                            }
                                            $examData = $examQuery->get();
 
-                                           $avgScore = $examData->count() > 0 
+                                           $avgScore = $examData->count() > 0
                                                ? round((float)$examData->avg(fn($e) => $e->marks ?? $e->score ?? 0), 2)
                                                : 0;
 
@@ -800,7 +800,7 @@ class ReportingController extends Controller
     {
         $total = $registrations->count();
         $completed = $registrations->filter(fn($r) => in_array(strtolower($r->status ?? ''), ['completed', 'graduated']))->count();
-        
+
         return $total > 0 ? round(($completed / $total) * 100, 2) : 0;
     }
 }
