@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hostel;
-use App\Models\Students;
+use App\Models\Student;
 use App\Models\ClearanceRequest;
 use App\Models\Course;
 use App\Models\Intake;
@@ -45,7 +45,7 @@ class HostelClearanceController extends Controller
     public function getStudentDetails(Request $request)
     {
         $studentId = $request->get('student_id');
-        $student = Students::where('student_id', $studentId)->first();
+        $student = Student::where('student_id', $studentId)->first();
 
         if ($student) {
             return response()->json([
@@ -101,7 +101,7 @@ class HostelClearanceController extends Controller
 
         try {
             $clearanceRequest = ClearanceRequest::findOrFail($request->request_id);
-            
+
             if ($clearanceRequest->clearance_type !== ClearanceRequest::TYPE_HOSTEL) {
                 return response()->json([
                     'success' => false,
@@ -140,7 +140,7 @@ class HostelClearanceController extends Controller
 
         try {
             $clearanceRequest = ClearanceRequest::findOrFail($request->request_id);
-            
+
             if ($clearanceRequest->clearance_type !== ClearanceRequest::TYPE_HOSTEL) {
                 return response()->json([
                     'success' => false,

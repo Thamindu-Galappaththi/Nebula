@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
-use App\Models\Students;
+use App\Models\Student;
 use App\Models\ClearanceRequest;
 use App\Models\Course;
 use App\Models\Intake;
@@ -20,10 +20,10 @@ class ProjectClearanceController extends Controller
     use ClearanceRequestFilters;
 
     public function showProjectClearanceFormManagement(Request $request)
-    {   
+    {
         if (Auth::check() && Auth::user()->status) {
             return view('clearance.project_clearance', $this->clearancePageData($request, ClearanceRequest::TYPE_PROJECT));
-        } 
+        }
         else {
         // Log unauthorized access attempt
             Log::warning('Unauthorized access attempt to project clearance page.');
@@ -63,7 +63,7 @@ class ProjectClearanceController extends Controller
         $studentId = $request->get('student_id');
 
         // Fetch the student by student_id
-        $student = Students::where('student_id', $studentId)->first();
+        $student = Student::where('student_id', $studentId)->first();
 
         if ($student) {
             return response()->json([
@@ -88,7 +88,7 @@ class ProjectClearanceController extends Controller
             'is_cleared' => 'required|boolean',
         ]);
 
-        
+
         // Find the record for the student
         $record = Project::where('student_id', $validated['student_id'])
         ->where('course', $validated['course'])
@@ -99,7 +99,7 @@ class ProjectClearanceController extends Controller
             return redirect()->back()->with('error', 'Record not found for the specified student and date.');
         }
 
-        
+
 
         // Update the date_received field
         $record->update([
@@ -130,7 +130,7 @@ class ProjectClearanceController extends Controller
 
         try {
             $clearanceRequest = ClearanceRequest::findOrFail($request->request_id);
-            
+
             if ($clearanceRequest->clearance_type !== ClearanceRequest::TYPE_PROJECT) {
                 return response()->json([
                     'success' => false,
@@ -164,7 +164,7 @@ class ProjectClearanceController extends Controller
 
         try {
             $clearanceRequest = ClearanceRequest::findOrFail($request->request_id);
-            
+
             if ($clearanceRequest->clearance_type !== ClearanceRequest::TYPE_PROJECT) {
                 return response()->json([
                     'success' => false,
@@ -190,5 +190,5 @@ class ProjectClearanceController extends Controller
 
 
 
-  
+
 }
