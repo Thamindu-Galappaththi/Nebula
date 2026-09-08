@@ -446,15 +446,11 @@
                                                     <strong>Registration Fee:</strong> <span id="registration-fee-display">-</span>
                                                 </div>
                                                 <div class="mb-2">
-                                                    <strong>Franchise Fee:</strong> <span id="franchise-amount-display">-</span>
+                                                    <strong>Franchise Fee:</strong> <span class="franchise-amount-display">-</span>
                                                 </div>
                                                 <div class="mb-2">
                                                     <strong>Total Fee:</strong> <span id="total-amount-display">-</span>
                                                 </div>
-
-                                                <!-- <div class="mb-2">
-                                                <strong>Franchise Fee:</strong> <span id="franchise-amount-display">-</span>
-                                                </div> -->
 
                                             </div>
                                         </div>
@@ -1822,10 +1818,9 @@ function populatePaymentPlanForm(studentData) {
     }
 
     // Show franchise fee (with currency)
-    const frEl = document.getElementById('franchise-amount-display');
-    if (frEl) {
+    document.querySelectorAll('.franchise-amount-display').forEach((frEl) => {
         frEl.textContent = intlFee > 0 ? `${fmt2(intlFee)} ${intlCur}` : '-';
-    }
+    });
 
 
 
