@@ -541,10 +541,10 @@ function autofillFromIntake() {
     }
   });
 }
-$('#course, #location, #intake').on('change', autofillFromIntake);
+$('#intake').on('change', autofillFromIntake);
 
 // Intake dropdown population
-$('#course, #location').on('change', function() {
+$('#course').on('change', function() {
     $('#intake').val('').prop('disabled', true);
 
     // Clear the fee fields when course/location changes

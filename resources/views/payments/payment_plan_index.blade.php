@@ -54,7 +54,7 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-2">
                     <label class="form-label small">Intake</label>
-                    <select name="intake_id" id="filter-intake" class="form-select form-select-sm form-select-md" @selected(request('course_id'))>
+                    <select name="intake_id" id="filter-intake" class="form-select form-select-sm form-select-md">
                         <option value="">All</option>
                         @foreach($intakes as $i)
                             <option value="{{ $i->intake_id }}" @selected((string)request('intake_id')===(string)$i->intake_id)>
