@@ -58,16 +58,25 @@ definitions:
               PORT: $SERVER_PORT
               SSH_KEY: $SSH_PRIVATE_KEY
               COMMAND: |
+                set -e
+                export GIT_TERMINAL_PROMPT=0 CI=true COMPOSER_ALLOW_SUPERUSER=1
                 cd /var/www/html/nebula
-                git pull origin master
-                composer install --no-dev --prefer-dist --no-interaction --no-progress
-                npm install
+                echo "=== git ==="
+                git fetch origin
+                git reset --hard origin/master
+                echo "=== composer ==="
+                composer install --no-dev --prefer-dist --no-interaction --no-progress --no-ansi --optimize-autoloader
+                echo "=== npm ==="
+                npm ci --no-audit --no-fund
+                echo "=== build ==="
                 npm run build
+                echo "=== artisan ==="
                 php artisan migrate --force
                 php artisan config:cache
                 php artisan route:cache
                 php artisan view:cache
                 php artisan queue:restart
+                echo "=== deploy done ==="
 
 pipelines:
   branches:
