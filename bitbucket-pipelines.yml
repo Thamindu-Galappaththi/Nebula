@@ -1,0 +1,78 @@
+image: php:8.4
+
+definitions:
+  steps:
+    - step: &test
+        name: Test
+        image: php:8.4
+        caches:
+          - composer
+          - node
+        script:
+          # Install system deps + PHP extensions
+          - apt-get update && apt-get install -y unzip git libsqlite3-dev libzip-dev libcurl4-openssl-dev libxml2-dev
+          - docker-php-ext-install mbstring xml curl zip pdo_sqlite sqlite3
+
+          # Install Composer
+          - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+          # Install Node 20
+          - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          - apt-get install -y nodejs
+
+          # Install PHP dependencies
+          - composer install --prefer-source --no-progress --no-interaction
+
+          # Prepare environment file
+          - cp .env.example .env
+          - php artisan key:generate
+
+          # Install Node dependencies
+          - npm install
+
+          # Run Laravel tests
+          - export APP_ENV=testing
+          - export CACHE_STORE=array
+          - export DB_CONNECTION=sqlite
+          - export DB_DATABASE=":memory:"
+          - export QUEUE_CONNECTION=sync
+          - export SESSION_DRIVER=array
+          - php artisan test
+
+          # Build frontend assets
+          - npm run build
+
+    - step: &deploy
+        name: Deploy to production
+        deployment: production
+        script:
+          - pipe: atlassian/ssh-run:0.8.1
+            variables:
+              SSH_USER: $SERVER_USER
+              SERVER: $SERVER_HOST
+              PORT: $SERVER_PORT
+              SSH_KEY: $SSH_PRIVATE_KEY
+              COMMAND: |
+                cd /var/www/html/nebula
+                git pull origin main
+                composer install --no-dev --prefer-dist --no-interaction --no-progress
+                npm install
+                npm run build
+                php artisan migrate --force
+                php artisan config:cache
+                php artisan route:cache
+                php artisan view:cache
+                php artisan queue:restart
+
+pipelines:
+  pull-requests:
+    '**':
+      - step: *test
+
+  branches:
+    main:
+      - step: *test
+      - step: *deploy
+    master:
+      - step: *test
+      - step: *deploy
