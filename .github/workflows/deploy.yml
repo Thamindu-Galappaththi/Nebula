@@ -61,7 +61,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /var/www/html/nebula
+            cd /var/www/html/Nebula
             git pull origin main
             composer install --no-dev --prefer-dist --no-interaction --no-progress
             npm install
