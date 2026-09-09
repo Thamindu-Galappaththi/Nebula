@@ -10,9 +10,11 @@ definitions:
           - node
         script:
           # php:8.4 already includes mbstring, xml, curl, pdo_sqlite, sqlite3.
-          # Reinstalling those fails (config.m4 missing). Only zip needs compiling.
-          - apt-get update && apt-get install -y unzip git libzip-dev
-          - docker-php-ext-install zip
+          # zip and gd are not included; gd is required by phpoffice/phpspreadsheet.
+          - apt-get update && apt-get install -y unzip git libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev
+          - docker-php-ext-configure gd --with-freetype --with-jpeg
+          - docker-php-ext-install zip gd
+          - export COMPOSER_ALLOW_SUPERUSER=1
 
           # Install Composer
           - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
