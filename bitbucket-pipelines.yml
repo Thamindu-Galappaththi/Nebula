@@ -15,6 +15,8 @@ definitions:
           - docker-php-ext-configure gd --with-freetype --with-jpeg
           - docker-php-ext-install zip gd
           - export COMPOSER_ALLOW_SUPERUSER=1
+          - export COMPOSER_CACHE_DIR="${HOME}/.composer/cache"
+          - mkdir -p "$COMPOSER_CACHE_DIR"
 
           # Install Composer
           - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
@@ -23,15 +25,15 @@ definitions:
           - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
           - apt-get install -y nodejs
 
-          # Install PHP dependencies
-          - composer install --prefer-source --no-progress --no-interaction
+          # Dist zips, not git clones. --prefer-source made this step ~12m and teardown ~7m.
+          - composer install --prefer-dist --no-progress --no-interaction --no-ansi
 
           # Prepare environment file
           - cp .env.example .env
           - php artisan key:generate
 
           # Install Node dependencies
-          - npm install
+          - npm ci
 
           # Run Laravel tests
           - export APP_ENV=testing
