@@ -57,9 +57,11 @@ definitions:
               SERVER: $SERVER_HOST
               PORT: $SERVER_PORT
               SSH_KEY: $SSH_PRIVATE_KEY
+              EXTRA_ARGS: "-o ForwardAgent=no"
               COMMAND: |
                 set -e
                 export GIT_TERMINAL_PROMPT=0 CI=true COMPOSER_ALLOW_SUPERUSER=1
+                export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/bitbucket_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
                 cd /var/www/html/nebula
                 echo "=== git ==="
                 git fetch origin
