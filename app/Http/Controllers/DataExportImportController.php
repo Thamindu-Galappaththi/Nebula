@@ -314,13 +314,13 @@ class DataExportImportController extends Controller
 
             $file = $request->file('file');
             $path = $file->getRealPath();
-            
+
             // Read file with proper encoding handling
             $content = file_get_contents($path);
             if (!mb_check_encoding($content, 'UTF-8')) {
                 $content = mb_convert_encoding($content, 'UTF-8', 'auto');
             }
-            
+
             // Split into lines and parse each line
             $lines = str_getcsv($content, "\n");
             $data = [];
@@ -329,14 +329,14 @@ class DataExportImportController extends Controller
                     $data[] = str_getcsv($line);
                 }
             }
-            
+
             if (empty($data)) {
                 return response()->json(['success' => false, 'message' => 'File is empty'], 400);
             }
 
             $headers = array_shift($data); // Remove header row
-            
-            // Determine format and import accordingly  
+
+            // Determine format and import accordingly
             if ($this->isNewExamResultFormat($headers)) {
                 $result = $this->importExamResultWithNamesSimple($data, $headers);
             } else {
@@ -358,7 +358,7 @@ class DataExportImportController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Error importing file: ' . $e->getMessage()
             ], 500);
         }
@@ -367,14 +367,14 @@ class DataExportImportController extends Controller
     private function importExamResultWithNamesSimple($data, $headers)
     {
         \Log::info('importExamResultWithNamesSimple started', ['data_count' => count($data), 'headers' => $headers]);
-        
+
         $importedCount = 0;
         $failedRows = [];
 
         foreach ($data as $rowIndex => $row) {
             try {
                 \Log::info("Processing row {$rowIndex}", ['row_data' => $row]);
-                
+
                 // Map CSV row to associative array using headers
                 $rowData = array_combine($headers, $row);
                 \Log::info("Row data mapped", ['row_data' => $rowData]);
@@ -462,7 +462,7 @@ class DataExportImportController extends Controller
                 // Validate that at least marks or grade is provided
                 $hasMarks = !empty($marks) && is_numeric($marks);
                 $hasGrade = !empty($grade);
-                
+
                 if (!$hasMarks && !$hasGrade) {
                     \Log::warning("Neither marks nor grade provided", ['marks' => $marks, 'grade' => $grade]);
                     $failedRows[] = "Row " . ($rowIndex + 1) . ": Either marks or grade must be provided";
@@ -482,7 +482,7 @@ class DataExportImportController extends Controller
                 }
 
                 // Prepare data for database - use null for empty values
-                $finalMarks = $hasMarks ? (int)$marks : null;
+                $finalMarks = $hasMarks ? (float) $marks : null;
                 $finalGrade = $hasGrade ? trim($grade) : null;
 
                 \Log::info("Creating exam result", [
@@ -592,7 +592,7 @@ class DataExportImportController extends Controller
 
         $callback = function() use ($data, $type) {
             $file = fopen('php://output', 'w');
-            
+
             // Write headers based on type
             switch ($type) {
                 case 'students':
@@ -700,7 +700,7 @@ class DataExportImportController extends Controller
     private function exportToJSON($data, $filename, $type)
     {
         $jsonData = $data->toArray();
-        
+
         $headers = [
             'Content-Type' => 'application/json',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
@@ -801,12 +801,12 @@ class DataExportImportController extends Controller
     {
         // Log the data being imported for debugging
         Log::info('ImportExamResult called with data:', ['data' => $data]);
-        
+
         // Check if this is the new format with names instead of IDs
         $isNewFormat = $this->isNewExamResultFormat($data);
-        
+
         Log::info('Import format detected:', ['is_new_format' => $isNewFormat, 'first_column' => $data[0]]);
-        
+
         if ($isNewFormat) {
             return $this->importExamResultWithNames($data);
         } else {
@@ -834,7 +834,7 @@ class DataExportImportController extends Controller
     private function importExamResultWithNames($data)
     {
         Log::info('ImportExamResultWithNames called with:', ['data' => $data]);
-        
+
         // Validate required fields
         if (empty($data[0]) || empty($data[1]) || empty($data[2]) || empty($data[3])) {
             throw new \Exception('Required fields missing: Student Name, Course Name, Module Name, Intake');
@@ -897,11 +897,11 @@ class DataExportImportController extends Controller
             ->where('location', $location)
             ->where('semester', $semester)
             ->first();
-        
+
         // Validate marks (if provided)
         $marks = null;
         if (!empty($data[6])) {
-            $marks = (int) $data[6];
+            $marks = (float) $data[6];
             if ($marks < 0 || $marks > 100) {
                 throw new \Exception('Marks must be between 0 and 100');
             }
@@ -912,7 +912,7 @@ class DataExportImportController extends Controller
         if ($marks !== null && empty($grade)) {
             $grade = ExamResult::calculateGradeFromMarks($marks);
         }
-        
+
         $examResultData = [
             'student_id' => $student->student_id,
             'course_id' => $course->course_id,
@@ -924,9 +924,9 @@ class DataExportImportController extends Controller
             'grade' => $grade,
             'remarks' => $data[8] ?? null
         ];
-        
+
         Log::info('Creating/updating exam result with data:', $examResultData);
-        
+
         if ($existingResult) {
             // Update existing result
             $existingResult->update([
@@ -945,7 +945,7 @@ class DataExportImportController extends Controller
     }
 
     /**
-     * Import exam result data with IDs (old format) 
+     * Import exam result data with IDs (old format)
      * CSV format: Student ID, Course ID, Module ID, Intake ID, Location, Semester, Marks, Grade, Remarks
      */
     private function importExamResultWithIds($data)
@@ -985,7 +985,7 @@ class DataExportImportController extends Controller
             ->where('module_id', $data[2])
             ->where('intake_id', $data[3])
             ->first();
-        
+
         if ($existingResult) {
             throw new \Exception("Exam result already exists for Student ID {$data[0]}, Course ID {$data[1]}, Module ID {$data[2]}, Intake ID {$data[3]}");
         }
@@ -993,7 +993,7 @@ class DataExportImportController extends Controller
         // Validate marks (if provided)
         $marks = null;
         if (!empty($data[6])) {
-            $marks = (int) $data[6];
+            $marks = (float) $data[6];
             if ($marks < 0 || $marks > 100) {
                 throw new \Exception('Marks must be between 0 and 100');
             }
@@ -1043,7 +1043,7 @@ class DataExportImportController extends Controller
 
         $callback = function() use ($type) {
             $file = fopen('php://output', 'w');
-            
+
             switch ($type) {
                 case 'students':
                     fputcsv($file, [

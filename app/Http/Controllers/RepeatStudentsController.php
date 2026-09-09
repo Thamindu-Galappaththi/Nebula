@@ -210,7 +210,7 @@ class RepeatStudentsController extends Controller
                 'module_id' => 'required|exists:modules,module_id',
                 'results' => 'required|array|min:1',
                 'results.*.student_id' => 'required|exists:students,student_id',
-                'results.*.marks' => 'required|integer|min:0|max:100',
+                'results.*.marks' => 'required|numeric|min:0|max:100',
                 'results.*.grade' => 'required|string|max:5',
                 'results.*.remarks' => 'nullable|string|max:255',
             ]);

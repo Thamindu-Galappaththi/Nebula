@@ -245,7 +245,7 @@ class ExamResult extends Model
             return null;
         }
 
-        $marksNum = (int) $marks;
+        $marksNum = (float) $marks;
 
         if ($marksNum >= 80) return 'A';
         if ($marksNum >= 70) return 'B';
