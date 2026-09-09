@@ -10,7 +10,7 @@ definitions:
           - node
         script:
           # Install system deps + PHP extensions
-          - apt-get update && apt-get install -y unzip git libsqlite3-dev libzip-dev libcurl4-openssl-dev libxml2-dev
+          - apt-get update && apt-get install -y unzip git libsqlite3-dev libzip-dev libcurl4-openssl-dev libxml2-dev libonig-dev
           - docker-php-ext-install mbstring xml curl zip pdo_sqlite sqlite3
 
           # Install Composer
@@ -54,7 +54,7 @@ definitions:
               SSH_KEY: $SSH_PRIVATE_KEY
               COMMAND: |
                 cd /var/www/html/nebula
-                git pull origin main
+                git pull origin master
                 composer install --no-dev --prefer-dist --no-interaction --no-progress
                 npm install
                 npm run build
@@ -65,14 +65,7 @@ definitions:
                 php artisan queue:restart
 
 pipelines:
-  pull-requests:
-    '**':
-      - step: *test
-
   branches:
-    main:
-      - step: *test
-      - step: *deploy
     master:
       - step: *test
       - step: *deploy
