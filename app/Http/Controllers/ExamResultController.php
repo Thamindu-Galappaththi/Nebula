@@ -111,6 +111,18 @@ class ExamResultController extends Controller
                     'results.*.grade' => 'nullable|string|max:5',
                     'results.*.remarks' => 'nullable|string|max:255',
                 ]);
+
+                $certificateModuleId = $this->resolveCertificateModuleId(
+                    (int) $validatedData['course_id'],
+                    (int) $validatedData['intake_id']
+                );
+
+                if ($certificateModuleId === null) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No module is assigned to this certificate intake.'
+                    ], 422);
+                }
             } else {
                 $validatedData = $request->validate([
                     'course_id' => 'required|exists:courses,course_id',
@@ -601,7 +613,7 @@ class ExamResultController extends Controller
             ->value('module_id');
 
         if ($moduleId === null) {
-            $moduleId = DB::table('course_module')
+            $moduleId = DB::table('course_modules')
                 ->where('course_id', $courseId)
                 ->orderBy('module_id')
                 ->value('module_id');
