@@ -64,8 +64,8 @@ definitions:
                 export GIT_SSH_COMMAND="ssh -i /home/cpo_admin/.ssh/bitbucket_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
                 cd /var/www/html/nebula
                 echo "=== git ==="
-                git fetch origin
-                git reset --hard origin/master
+                git fetch origin master
+                git reset --hard FETCH_HEAD
                 echo "=== composer ==="
                 composer install --no-dev --prefer-dist --no-interaction --no-progress --no-ansi --optimize-autoloader
                 echo "=== npm ==="
