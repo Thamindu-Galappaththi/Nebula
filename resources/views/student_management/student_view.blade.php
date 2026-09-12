@@ -9,11 +9,15 @@
   .student-view-page .card-body {
     min-width: 0;
     max-width: 100%;
+    overflow: visible;
   }
-  .student-view-page {
-    overflow-x: hidden;
+  .student-view-page [class*="col-"] {
+    min-width: 0;
   }
-  .student-view-page .form-label { font-weight: 600; }
+  .student-view-page .form-select {
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
   .student-view-toolbar {
     display: flex;
     justify-content: space-between;
@@ -68,6 +72,7 @@
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
+    padding-bottom: 0.25rem;
   }
   .student-view-page-size {
     display: flex;
@@ -108,11 +113,11 @@
     }
     .student-view-page-size {
       width: 100%;
-      justify-content: space-between;
     }
     .student-view-page-size select {
-      min-width: 0;
-      flex: 1;
+      width: 5.75rem;
+      min-width: 5.75rem;
+      flex: 0 0 5.75rem;
     }
     .student-view-pagination .pagination {
       justify-content: center;
@@ -247,7 +252,7 @@
         <div class="student-view-footer mt-3" id="paginationBar" style="display:none;">
           <div class="student-view-page-size">
             <label class="form-label mb-0 small text-muted" for="perPageSelect">Per page</label>
-            <select id="perPageSelect" class="form-select form-select-sm">
+            <select id="perPageSelect" class="form-select form-select-sm page-size-select">
               <option value="10" selected>10</option>
               <option value="25">25</option>
               <option value="50">50</option>

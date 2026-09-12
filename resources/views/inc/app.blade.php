@@ -33,6 +33,7 @@
     @endunless
     <!-- Global utilities for error handling and CSRF management -->
     <script nonce="{{ $cspNonce }}" src="{{ asset('js/global-utilities.js') }}"></script>
+    <script nonce="{{ $cspNonce }}" src="{{ asset('js/nebula-select.js') }}"></script>
     <style nonce="{{ $cspNonce }}">
         body {
             background: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E') no-repeat center center fixed;
@@ -85,6 +86,104 @@
         /* Apply the class to your dropdown menu */
         .dropdown-menu.dropdown-menu-end.dropdown-menu-animate-up.bg-light-primary.outline-shadow {
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        select.form-select,
+        select.form-control {
+            max-width: 100%;
+        }
+        .nebula-select {
+            position: relative;
+            width: 100%;
+            min-width: 0;
+        }
+        .nebula-select-sm {
+            width: 5.75rem;
+            max-width: 5.75rem;
+            flex: 0 0 5.75rem;
+        }
+        .nebula-select-native {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            opacity: 0;
+            pointer-events: none;
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+        .nebula-select-toggle {
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: left;
+        }
+        .nebula-select-menu {
+            display: none;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 4px);
+            z-index: 1080;
+            max-height: min(240px, 50vh);
+            overflow-x: hidden;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #d9e0ea;
+            border-radius: 8px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+        }
+        .nebula-select.is-open .nebula-select-menu {
+            display: block;
+        }
+        .nebula-select.drop-up .nebula-select-menu {
+            top: auto;
+            bottom: calc(100% + 4px);
+        }
+        .nebula-select-option {
+            display: block;
+            width: 100%;
+            border: 0;
+            background: #fff;
+            color: #1f2937;
+            text-align: left;
+            padding: 0.55rem 0.75rem;
+            font-size: 0.9rem;
+            line-height: 1.35;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .nebula-select-option:hover,
+        .nebula-select-option:focus {
+            background: #eef4ff;
+            color: #1f2937;
+        }
+        .nebula-select-option.is-selected {
+            background: #0d6efd;
+            color: #fff;
+        }
+        .nebula-select-option.is-disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        select.page-size-select,
+        select#perPageSelect {
+            width: 5.75rem;
+            max-width: 5.75rem;
+            flex: 0 0 5.75rem;
+        }
+        @media (max-width: 767.98px) {
+            select.form-select,
+            select.form-control,
+            .nebula-select-toggle {
+                font-size: 16px;
+            }
+            .dropdown-menu {
+                max-width: min(calc(100vw - 1.5rem), 24rem);
+            }
         }
     </style>
 

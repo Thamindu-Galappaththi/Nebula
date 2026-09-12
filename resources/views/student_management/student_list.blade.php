@@ -4,7 +4,13 @@
 
 @section('content')
 <style nonce="{{ $cspNonce }}">
-  .student-list-filters .form-label { font-weight: 600; }
+  .student-list-filters [class*="col-"] {
+    min-width: 0;
+  }
+  .student-list-filters .form-select {
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
   .student-list-toolbar {
     display: flex;
     justify-content: space-between;

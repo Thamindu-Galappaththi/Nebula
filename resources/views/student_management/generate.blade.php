@@ -9,9 +9,14 @@
   .badge-generate-page .card-body {
     min-width: 0;
     max-width: 100%;
+    overflow: visible;
   }
-  .badge-generate-page {
-    overflow-x: hidden;
+  .badge-generate-page [class*="col-"] {
+    min-width: 0;
+  }
+  .badge-generate-page .form-select {
+    max-width: 100%;
+    text-overflow: ellipsis;
   }
   .badge-generate-page .form-label { font-weight: 600; }
   .badge-generate-toolbar {
@@ -60,6 +65,7 @@
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
+    padding-bottom: 0.25rem;
   }
   .badge-generate-page-size {
     display: flex;
@@ -124,11 +130,11 @@
     }
     .badge-generate-page-size {
       width: 100%;
-      justify-content: space-between;
     }
     .badge-generate-page-size select {
-      min-width: 0;
-      flex: 1;
+      width: 5.75rem;
+      min-width: 5.75rem;
+      flex: 0 0 5.75rem;
     }
     .badge-generate-pagination .pagination {
       justify-content: center;
@@ -239,7 +245,7 @@
         <div class="badge-generate-footer mt-3" id="paginationBar" style="display:none;">
           <div class="badge-generate-page-size">
             <label class="form-label mb-0 small text-muted" for="perPageSelect">Per page</label>
-            <select id="perPageSelect" class="form-select form-select-sm">
+            <select id="perPageSelect" class="form-select form-select-sm page-size-select">
               <option value="10" selected>10</option>
               <option value="25">25</option>
               <option value="50">50</option>
