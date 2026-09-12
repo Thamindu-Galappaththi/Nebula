@@ -1,9 +1,3 @@
-@extends('inc.app')
-
-@section('title', 'NEBULA | Program Administrator Dashboard')
-
-@section('content')
-<link nonce="{{ $cspNonce }}" rel="stylesheet" href="{{ asset('css/styles.min.css') }}">
 <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha384-3B6NwesSXE7YJlcLI9RpRqGf2p/EgVH8BgoKTaUrmKNDkHPStTQ3EyoYjCGXaOTS" crossorigin="anonymous">
 <script nonce="{{ $cspNonce }}" src="{{ asset('libs/chartjs/chart.min.js') }}"></script>
 
@@ -58,6 +52,10 @@
     .modal-backdrop.show {
         opacity: 0.7;
     }
+    .kpi-card[onclick],
+    .kpi-card.kpi-clickable {
+        cursor: pointer;
+    }
     .chart-container {
         position: relative;
         height: 300px;
@@ -80,10 +78,10 @@
                         </div>
                     </div>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-outline-primary btn-sm" onclick="refreshAllData()">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="refreshAllData()">
                             <i class="fas fa-sync-alt me-1"></i> Refresh
                         </button>
-                        <button class="btn btn-primary btn-sm" onclick="exportDashboard()">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="exportDashboard()">
                             <i class="fas fa-download me-1"></i> Export
                         </button>
                     </div>
@@ -112,7 +110,7 @@
     <!-- KPI Cards Row 1 - Students -->
     <div class="row mb-4">
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card kpi-card card-hover border-left-primary" onclick="showStudentDetails()">
+            <div class="card kpi-card kpi-clickable card-hover border-left-primary" onclick="showStudentDetails()">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="stat-icon bg-primary bg-opacity-10 text-primary">
@@ -130,7 +128,7 @@
         </div>
 
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card kpi-card card-hover border-left-success" onclick="showRegistrationDetails()">
+            <div class="card kpi-card kpi-clickable card-hover border-left-success" onclick="showRegistrationDetails()">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="stat-icon bg-success bg-opacity-10 text-success">
@@ -148,7 +146,7 @@
         </div>
 
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card kpi-card card-hover border-left-warning" onclick="showClearanceDetails()">
+            <div class="card kpi-card kpi-clickable card-hover border-left-warning" onclick="showClearanceDetails()">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="stat-icon bg-warning bg-opacity-10 text-warning">
@@ -306,7 +304,7 @@
                             <h5 class="card-title mb-1">⚡ Action Items</h5>
                             <p class="text-muted mb-0">Items requiring attention</p>
                         </div>
-                        <button class="btn btn-sm btn-outline-primary" onclick="refreshActionItems()">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="refreshActionItems()">
                             <i class="fas fa-sync-alt"></i>
                         </button>
                     </div>
@@ -327,7 +325,7 @@
                             <h5 class="card-title mb-1">🔔 Recent Activities</h5>
                             <p class="text-muted mb-0">Latest system activities</p>
                         </div>
-                        <button class="btn btn-sm btn-outline-primary" onclick="refreshActivities()">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="refreshActivities()">
                             <i class="fas fa-sync-alt"></i>
                         </button>
                     </div>
@@ -396,7 +394,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <canvas id="studentStatsChart"></canvas>
+                <div class="chart-container">
+                    <canvas id="studentStatsChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -411,7 +411,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <canvas id="registrationStatsChart"></canvas>
+                <div class="chart-container">
+                    <canvas id="registrationStatsChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -474,13 +476,14 @@
 </div>
 
 <script nonce="{{ $cspNonce }}">
-const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 let currentPeriod = 'month';
 let chartInstances = {};
 
 document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
-    setInterval(() => loadDashboardData(), 300000); // Refresh every 5 minutes
+    setInterval(() => loadDashboardData(), 300000);
 });
 
 function loadDashboardData() {
@@ -493,20 +496,21 @@ function loadDashboardData() {
 
 function setTimePeriod(period, buttonElement = null) {
     currentPeriod = period;
-
     document.querySelectorAll('.time-filter-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.period === period);
     });
-
-    if (buttonElement) {
-        buttonElement.blur();
-    }
-
+    if (buttonElement) buttonElement.blur();
     loadDashboardData();
 }
 
 function formatMetricValue(value) {
     return Number(value ?? 0).toLocaleString();
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
 }
 
 function getPeriodLabels() {
@@ -516,16 +520,47 @@ function getPeriodLabels() {
         month: { short: 'this month', title: 'This Month' },
         year: { short: 'this year', title: 'This Year' }
     };
-
     return labels[currentPeriod] || { short: 'this period', title: 'This Period' };
+}
+
+async function fetchJson(url) {
+    const response = await fetch(url, {
+        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+        credentials: 'same-origin'
+    });
+    if (!response.ok) {
+        throw new Error('Request failed: ' + response.status);
+    }
+    return response.json();
+}
+
+function renderChart(key, canvasId, config) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (chartInstances[key]) {
+        chartInstances[key].destroy();
+    }
+    chartInstances[key] = new Chart(canvas.getContext('2d'), config);
+}
+
+function openModalThen(modalId, callback) {
+    const el = document.getElementById(modalId);
+    if (!el || typeof bootstrap === 'undefined') return;
+    const modal = bootstrap.Modal.getOrCreateInstance(el);
+    const run = () => {
+        el.removeEventListener('shown.bs.modal', run);
+        callback();
+    };
+    el.addEventListener('shown.bs.modal', run);
+    modal.show();
+    if (el.classList.contains('show')) {
+        run();
+    }
 }
 
 async function fetchOverviewMetrics() {
     try {
-        const response = await fetch(`/api/admin-l1/overview?period=${currentPeriod}`, {
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-        });
-        const data = await response.json();
+        const data = await fetchJson(`/api/admin-l1/overview?period=${currentPeriod}`);
         const periodLabels = getPeriodLabels();
 
         document.getElementById('totalStudents').textContent = formatMetricValue(data.total_students);
@@ -555,41 +590,31 @@ async function fetchOverviewMetrics() {
 
 async function fetchStudentStats() {
     try {
-        const response = await fetch(`/api/admin-l1/student-stats?period=${currentPeriod}`, {
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-        });
-        const data = await response.json();
+        const data = await fetchJson(`/api/admin-l1/student-stats?period=${currentPeriod}`);
         const periodLabels = getPeriodLabels();
         const trendSubtitle = document.getElementById('registrationTrendSubtitle');
+        if (trendSubtitle) trendSubtitle.textContent = `For ${periodLabels.short}`;
 
-        if (trendSubtitle) {
-            trendSubtitle.textContent = `For ${periodLabels.short}`;
-        }
-
-        if (data.registration_trend) {
-            const ctx = document.getElementById('registrationTrendChart');
-            if (chartInstances.registrationTrend) chartInstances.registrationTrend.destroy();
-            
-            chartInstances.registrationTrend = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.registration_trend.map(item => item.month),
-                    datasets: [{
-                        label: 'Students',
-                        data: data.registration_trend.map(item => item.count),
-                        borderColor: 'rgba(102, 126, 234, 1)',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
+        const trend = Array.isArray(data.registration_trend) ? data.registration_trend : [];
+        renderChart('registrationTrend', 'registrationTrendChart', {
+            type: 'line',
+            data: {
+                labels: trend.map(item => item.month),
+                datasets: [{
+                    label: 'Students',
+                    data: trend.map(item => item.count),
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
     } catch (error) {
         console.error('Error fetching student stats:', error);
     }
@@ -597,39 +622,32 @@ async function fetchStudentStats() {
 
 async function fetchCourseRegistrationStats() {
     try {
-        const response = await fetch(`/api/admin-l1/course-registration-stats?period=${currentPeriod}`, {
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-        });
-        const data = await response.json();
+        const data = await fetchJson(`/api/admin-l1/course-registration-stats?period=${currentPeriod}`);
         const periodLabels = getPeriodLabels();
         const topCoursesSubtitle = document.getElementById('topCoursesSubtitle');
+        if (topCoursesSubtitle) topCoursesSubtitle.textContent = `By registrations in ${periodLabels.short}`;
 
-        if (topCoursesSubtitle) {
-            topCoursesSubtitle.textContent = `By registrations in ${periodLabels.short}`;
-        }
-        
-        if (data.top_courses) {
-            const ctx = document.getElementById('topCoursesChart');
-            if (chartInstances.topCourses) chartInstances.topCourses.destroy();
-            
-            chartInstances.topCourses = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.top_courses.map(item => item.course_name.length > 20 ? item.course_name.substring(0, 20) + '...' : item.course_name),
-                    datasets: [{
-                        label: 'Registrations',
-                        data: data.top_courses.map(item => item.registrations),
-                        backgroundColor: 'rgba(118, 75, 162, 0.8)'
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
+        const courses = Array.isArray(data.top_courses) ? data.top_courses : [];
+        renderChart('topCourses', 'topCoursesChart', {
+            type: 'bar',
+            data: {
+                labels: courses.map(item => {
+                    const name = item.course_name || 'Unknown';
+                    return name.length > 20 ? name.substring(0, 20) + '...' : name;
+                }),
+                datasets: [{
+                    label: 'Registrations',
+                    data: courses.map(item => item.registrations),
+                    backgroundColor: 'rgba(118, 75, 162, 0.8)'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
     } catch (error) {
         console.error('Error fetching course stats:', error);
     }
@@ -637,73 +655,68 @@ async function fetchCourseRegistrationStats() {
 
 async function fetchRecentActivities() {
     try {
-        const response = await fetch(`/api/admin-l1/recent-activities?limit=20`, {
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-        });
-        const data = await response.json();
+        const data = await fetchJson(`/api/admin-l1/recent-activities?limit=20`);
         renderActivities(data);
     } catch (error) {
         console.error('Error fetching activities:', error);
+        const container = document.getElementById('activitiesContainer');
+        if (container) container.innerHTML = '<p class="text-danger text-center py-3">Could not load activities</p>';
     }
 }
 
 function renderActivities(activities) {
     const container = document.getElementById('activitiesContainer');
-    if (!activities || activities.length === 0) {
+    if (!container) return;
+    if (!Array.isArray(activities) || activities.length === 0) {
         container.innerHTML = '<p class="text-muted text-center py-3">No recent activities</p>';
         return;
     }
-    
-    let html = '';
-    activities.forEach(activity => {
-        const icons = {
-            'Student Registration': 'fa-user-plus text-primary',
-            'Course Registration': 'fa-graduation-cap text-success',
-            'Payment': 'fa-money-bill-wave text-info',
-            'Clearance Request': 'fa-clipboard-check text-warning'
-        };
-        
-        html += `
-            <div class="activity-item mb-2">
-                <div class="d-flex align-items-start">
-                    <i class="fas ${icons[activity.type] || 'fa-circle'} me-3 mt-1"></i>
-                    <div class="flex-grow-1">
-                        <div class="fw-medium">${activity.description}</div>
-                        <small class="text-muted">${new Date(activity.created_at).toLocaleString()}</small>
-                    </div>
+
+    const icons = {
+        'Student Registration': 'fa-user-plus text-primary',
+        'Course Registration': 'fa-graduation-cap text-success',
+        'Payment': 'fa-money-bill-wave text-info',
+        'Clearance Request': 'fa-clipboard-check text-warning'
+    };
+
+    container.innerHTML = activities.map(activity => `
+        <div class="activity-item mb-2">
+            <div class="d-flex align-items-start">
+                <i class="fas ${icons[activity.type] || 'fa-circle'} me-3 mt-1"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-medium">${escapeHtml(activity.description)}</div>
+                    <small class="text-muted">${activity.created_at ? new Date(activity.created_at).toLocaleString() : ''}</small>
                 </div>
             </div>
-        `;
-    });
-    
-    container.innerHTML = html;
+        </div>
+    `).join('');
 }
 
 async function fetchActionItems() {
     try {
-        const response = await fetch(`/api/admin-l1/action-items`, {
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-        });
-        const data = await response.json();
+        const data = await fetchJson(`/api/admin-l1/action-items`);
         renderActionItems(data);
     } catch (error) {
         console.error('Error fetching action items:', error);
+        const container = document.getElementById('actionItemsContainer');
+        if (container) container.innerHTML = '<p class="text-danger text-center py-3">Could not load action items</p>';
     }
 }
 
 function renderActionItems(items) {
     const container = document.getElementById('actionItemsContainer');
+    if (!container) return;
     let html = '';
-    
-    if (items.pending_registrations && items.pending_registrations.length > 0) {
-        html += '<h6 class="text-muted mb-3">📋 Pending Registrations</h6>';
+
+    if (items && items.pending_registrations && items.pending_registrations.length > 0) {
+        html += '<h6 class="text-muted mb-3">Pending Registrations</h6>';
         items.pending_registrations.forEach(reg => {
             html += `
                 <div class="activity-item mb-2">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="fw-medium">${reg.student_name}</div>
-                            <small class="text-muted">${reg.course_name}</small>
+                            <div class="fw-medium">${escapeHtml(reg.student_name)}</div>
+                            <small class="text-muted">${escapeHtml(reg.course_name)}</small>
                         </div>
                         <span class="action-badge bg-warning text-dark">Pending</span>
                     </div>
@@ -711,16 +724,16 @@ function renderActionItems(items) {
             `;
         });
     }
-    
-    if (items.pending_clearances && items.pending_clearances.length > 0) {
-        html += '<h6 class="text-muted mb-3 mt-4">✅ Pending Clearances</h6>';
+
+    if (items && items.pending_clearances && items.pending_clearances.length > 0) {
+        html += '<h6 class="text-muted mb-3 mt-4">Pending Clearances</h6>';
         items.pending_clearances.forEach(clearance => {
             html += `
                 <div class="activity-item mb-2">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="fw-medium">${clearance.student_name}</div>
-                            <small class="text-muted">${clearance.clearance_type} clearance</small>
+                            <div class="fw-medium">${escapeHtml(clearance.student_name)}</div>
+                            <small class="text-muted">${escapeHtml(clearance.clearance_type)} clearance</small>
                         </div>
                         <span class="action-badge bg-info text-white">Review</span>
                     </div>
@@ -728,150 +741,99 @@ function renderActionItems(items) {
             `;
         });
     }
-    
+
     container.innerHTML = html || '<p class="text-muted text-center py-3">No action items</p>';
 }
 
-async function showStudentDetails() {
-    const modal = new bootstrap.Modal(document.getElementById('studentDetailsModal'));
-    modal.show();
-    
-    try {
-        const response = await fetch(`/api/admin-l1/student-stats?period=${currentPeriod}`, {
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-        });
-        const data = await response.json();
-        
-        const ctx = document.getElementById('studentStatsChart');
-        if (chartInstances.studentStats) chartInstances.studentStats.destroy();
-        
-        chartInstances.studentStats = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: data.by_location.map(item => item.institute_location),
-                datasets: [{
-                    data: data.by_location.map(item => item.count),
-                    backgroundColor: [
-                        'rgba(102, 126, 234, 0.8)',
-                        'rgba(118, 75, 162, 0.8)',
-                        'rgba(59, 130, 246, 0.8)'
-                    ]
-                }]
+function showStudentDetails() {
+    openModalThen('studentDetailsModal', async () => {
+        try {
+            const data = await fetchJson(`/api/admin-l1/student-stats?period=${currentPeriod}`);
+            const locations = Array.isArray(data.by_location) ? data.by_location : [];
+            renderChart('studentStats', 'studentStatsChart', {
+                type: 'doughnut',
+                data: {
+                    labels: locations.map(item => item.institute_location || 'Unknown'),
+                    datasets: [{
+                        data: locations.map(item => item.count),
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(118, 75, 162, 0.8)',
+                            'rgba(59, 130, 246, 0.8)'
+                        ]
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        } catch (error) {
+            console.error('Error loading student details:', error);
+        }
+    });
+}
+
+function showRegistrationDetails() {
+    openModalThen('registrationDetailsModal', async () => {
+        try {
+            const data = await fetchJson(`/api/admin-l1/course-registration-stats?period=${currentPeriod}`);
+            const statuses = Array.isArray(data.by_status) ? data.by_status : [];
+            renderChart('registrationStats', 'registrationStatsChart', {
+                type: 'pie',
+                data: {
+                    labels: statuses.map(item => item.status || 'Unknown'),
+                    datasets: [{
+                        data: statuses.map(item => item.count),
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(59, 130, 246, 0.8)'
+                        ]
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        } catch (error) {
+            console.error('Error loading registration details:', error);
+        }
+    });
+}
+
+function showClearanceDetails() {
+    openModalThen('clearanceDetailsModal', async () => {
+        const container = document.getElementById('clearanceTableContainer');
+        try {
+            const data = await fetchJson(`/api/admin-l1/clearance-stats`);
+            const list = Array.isArray(data.pending_list) ? data.pending_list : [];
+            if (!list.length) {
+                container.innerHTML = '<p class="text-muted text-center py-3">No pending clearances</p>';
+                return;
             }
-        });
-    } catch (error) {
-        console.error('Error loading student details:', error);
-    }
-}
 
-async function showRegistrationDetails() {
-    const modal = new bootstrap.Modal(document.getElementById('registrationDetailsModal'));
-    modal.show();
-    
-    try {
-        const response = await fetch(`/api/admin-l1/course-registration-stats?period=${currentPeriod}`, {
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-        });
-        const data = await response.json();
-        
-        const ctx = document.getElementById('registrationStatsChart');
-        if (chartInstances.registrationStats) chartInstances.registrationStats.destroy();
-        
-        chartInstances.registrationStats = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: data.by_status.map(item => item.status),
-                datasets: [{
-                    data: data.by_status.map(item => item.count),
-                    backgroundColor: [
-                        'rgba(16, 185, 129, 0.8)',
-                        'rgba(245, 158, 11, 0.8)',
-                        'rgba(239, 68, 68, 0.8)',
-                        'rgba(59, 130, 246, 0.8)'
-                    ]
-                }]
-            }
-        });
-    } catch (error) {
-        console.error('Error loading registration details:', error);
-    }
-}
-
-async function showClearanceDetails() {
-    const modal = new bootstrap.Modal(document.getElementById('clearanceDetailsModal'));
-    modal.show();
-    
-    try {
-        const response = await fetch(`/api/admin-l1/clearance-stats`, {
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-        });
-        const data = await response.json();
-        
-        let html = '<table class="table table-hover"><thead><tr>' +
-                   '<th>Student</th><th>Type</th><th>Course</th><th>Date</th><th>Status</th>' +
-                   '</tr></thead><tbody>';
-        
-        data.pending_list.forEach(clearance => {
-            html += `
-                <tr>
-                    <td>${clearance.student_name}</td>
-                    <td><span class="badge bg-info">${clearance.clearance_type}</span></td>
-                    <td>${clearance.course_name}</td>
-                    <td>${new Date(clearance.created_at).toLocaleDateString()}</td>
-                    <td><span class="badge bg-warning">${clearance.status}</span></td>
-                </tr>
-            `;
-        });
-        
-        html += '</tbody></table>';
-        document.getElementById('clearanceTableContainer').innerHTML = html;
-    } catch (error) {
-        console.error('Error loading clearance details:', error);
-    }
-}
-
-async function showFinancialDetails() {
-    const modal = new bootstrap.Modal(document.getElementById('financialDetailsModal'));
-    modal.show();
-    
-    try {
-        const response = await fetch(`/api/admin-l1/financial-stats?period=${currentPeriod}`, {
-            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-        });
-        const data = await response.json();
-        
-        document.getElementById('modalTotalRevenue').textContent = 
-            'LKR ' + (data.revenue_summary.total_revenue?.toLocaleString() || '0');
-        document.getElementById('modalPeriodRevenue').textContent = 
-            'LKR ' + (data.revenue_summary.revenue_this_period?.toLocaleString() || '0');
-        document.getElementById('modalPendingAmount').textContent = 
-            'LKR ' + (data.revenue_summary.pending_amount?.toLocaleString() || '0');
-        
-        let html = '<h6 class="mt-4 mb-3">Late Payments</h6><table class="table table-hover"><thead><tr>' +
-                   '<th>Student</th><th>Due Date</th><th>Amount</th><th>Late Fee</th></tr></thead><tbody>';
-        
-        data.late_payments.forEach(payment => {
-            html += `
-                <tr>
-                    <td>${payment.student_name}</td>
-                    <td>${new Date(payment.due_date).toLocaleDateString()}</td>
-                    <td>LKR ${payment.amount?.toLocaleString()}</td>
-                    <td class="text-danger">LKR ${payment.calculated_late_fee?.toLocaleString()}</td>
-                </tr>
-            `;
-        });
-        
-        html += '</tbody></table>';
-        document.getElementById('latePaymentsContainer').innerHTML = html;
-    } catch (error) {
-        console.error('Error loading financial details:', error);
-    }
+            let html = '<table class="table table-hover"><thead><tr>' +
+                       '<th>Student</th><th>Type</th><th>Course</th><th>Date</th><th>Status</th>' +
+                       '</tr></thead><tbody>';
+            list.forEach(clearance => {
+                html += `
+                    <tr>
+                        <td>${escapeHtml(clearance.student_name)}</td>
+                        <td><span class="badge bg-info">${escapeHtml(clearance.clearance_type)}</span></td>
+                        <td>${escapeHtml(clearance.course_name || '-')}</td>
+                        <td>${clearance.created_at ? new Date(clearance.created_at).toLocaleDateString() : '-'}</td>
+                        <td><span class="badge bg-warning">${escapeHtml(clearance.status)}</span></td>
+                    </tr>
+                `;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        } catch (error) {
+            console.error('Error loading clearance details:', error);
+            if (container) container.innerHTML = '<p class="text-danger text-center py-3">Could not load clearances</p>';
+        }
+    });
 }
 
 function refreshAllData() {
-    document.body.style.opacity = '0.6';
     loadDashboardData();
-    setTimeout(() => { document.body.style.opacity = '1'; }, 1000);
 }
 
 function refreshActionItems() {
@@ -883,7 +845,29 @@ function refreshActivities() {
 }
 
 function exportDashboard() {
-    alert('Export feature coming soon!');
+    const period = getPeriodLabels().title;
+    const rows = [
+        ['Metric', 'Value'],
+        ['Period', period],
+        ['Total Students', document.getElementById('totalStudents')?.textContent || '0'],
+        ['Course Registrations', document.getElementById('totalRegistrations')?.textContent || '0'],
+        ['Clearance Requests', document.getElementById('pendingClearances')?.textContent || '0'],
+        ['Total Courses', document.getElementById('totalCourses')?.textContent || '0'],
+        ['Active Intakes', document.getElementById('activeIntakes')?.textContent || '0'],
+        ['Attendance', document.getElementById('attendanceToday')?.textContent || '0'],
+        ['System Users', document.getElementById('totalUsers')?.textContent || '0'],
+        ['New Students', document.getElementById('newStudents')?.textContent || '0']
+    ];
+    const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `program-admin-dashboard-${currentPeriod}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
 }
 </script>
-@endsection
+
