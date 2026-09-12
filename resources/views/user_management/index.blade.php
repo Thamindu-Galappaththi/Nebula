@@ -4,29 +4,34 @@
 
 @section('content')
 <style nonce="{{ $cspNonce }}">
-    .user-mgmt-card {
+    .body-wrapper > .container-fluid {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    .user-mgmt-page {
         max-width: 1100px;
-        margin: 40px auto 0 auto;
+        width: 100%;
+        min-width: 0;
+        margin: 0 auto;
+    }
+    .user-mgmt-card {
         border-radius: 18px;
         box-shadow: 0 4px 24px 0 rgba(60, 72, 100, 0.08);
         background: #fff;
-        padding: 2.5rem 2rem 2rem 2rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-    .user-mgmt-title {
-        font-size: 2.1rem;
-        font-weight: 700;
-        color: #222b45;
-        margin-bottom: 2.5rem;
-        letter-spacing: -1px;
-        text-align: center;
-        width: 100%;
+        padding: 2rem 1.5rem 1.5rem 1.5rem;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
     }
     .user-mgmt-table-wrap {
-        margin-top: 1.5rem;
         width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+    #usersTable {
+        width: 100% !important;
+        min-width: 980px;
     }
     .table thead th {
         position: sticky;
@@ -37,55 +42,143 @@
         font-weight: 600;
         font-size: 0.95rem;
         border-bottom: 2px solid #dbeafe;
+        white-space: nowrap;
     }
     .table td, .table th {
         vertical-align: middle;
         font-size: 0.93rem;
         padding: 0.7rem 0.6rem;
     }
+    .user-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        min-width: 170px;
+    }
+    .user-actions .btn {
+        margin: 0 !important;
+        white-space: nowrap;
+    }
+    .created-at-cell {
+        white-space: nowrap;
+    }
+    .dataTables_wrapper {
+        width: 100% !important;
+        max-width: 100%;
+        min-width: 0;
+        overflow: hidden;
+    }
     .dataTables_wrapper .row {
         margin-bottom: 0.5rem;
+        --bs-gutter-x: 0;
+        min-width: 0;
     }
-    .dataTables_length, .dataTables_filter {
+    .dataTables_wrapper .col-12,
+    .dataTables_wrapper [class*="col-"] {
+        min-width: 0;
+        max-width: 100%;
+    }
+    .user-mgmt-table-scroll {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: auto;
+    }
+    .user-mgmt-table-scroll::-webkit-scrollbar {
+        height: 10px;
+    }
+    .user-mgmt-table-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 8px;
+    }
+    .user-mgmt-table-scroll::-webkit-scrollbar-thumb {
+        background: #b0b0b0;
+        border-radius: 8px;
+    }
+    .dataTables_length,
+    .dataTables_filter {
         margin-bottom: 1rem;
     }
-    .dataTables_length {
-        float: left;
-    }
     .dataTables_filter {
-        float: right;
         text-align: right;
+        float: right;
+        width: 100%;
     }
     .dataTables_length label,
     .dataTables_filter label {
         display: flex;
         align-items: center;
+        flex-wrap: nowrap;
         gap: 0.5rem;
         margin-bottom: 0;
+    }
+    .dataTables_filter label {
+        justify-content: flex-end;
+        width: 100%;
     }
     .dataTables_length select {
         width: auto;
         display: inline-block;
     }
     .dataTables_filter input {
-        width: auto;
+        width: 280px !important;
+        max-width: 100%;
         display: inline-block;
         margin-left: 0.5rem;
     }
-    @media (max-width: 991px) {
-        .user-mgmt-card { padding: 1.2rem 0.5rem; }
-        .user-mgmt-title { font-size: 1.4rem; }
+    div.dataTables_wrapper div.dataTables_info,
+    div.dataTables_wrapper div.dataTables_paginate {
+        overflow: visible !important;
+        white-space: normal;
     }
-    @media (max-width: 600px) {
-        .user-mgmt-title { font-size: 1.1rem; }
+    @media (max-width: 991.98px) {
+        .user-mgmt-card {
+            padding: 1.1rem 0.75rem 1rem 0.75rem;
+            border-radius: 12px;
+        }
+    }
+    @media (max-width: 767.98px) {
+        div.dataTables_wrapper div.dataTables_length,
+        div.dataTables_wrapper div.dataTables_filter,
+        div.dataTables_wrapper div.dataTables_info,
+        div.dataTables_wrapper div.dataTables_paginate {
+            float: none !important;
+            text-align: left !important;
+            width: 100%;
+        }
+        .dataTables_filter label {
+            justify-content: flex-start;
+            flex-wrap: wrap;
+        }
+        div.dataTables_wrapper div.dataTables_filter input {
+            width: 100% !important;
+            margin-left: 0;
+            display: block;
+        }
+        .dataTables_wrapper .pagination {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+        .user-actions {
+            flex-direction: column;
+        }
+        .user-actions .btn {
+            width: 100%;
+        }
+        .modal-dialog {
+            margin: 0.5rem;
+        }
     }
 </style>
 
-<div class="container mt-5">
-    <div class="p-4 rounded shadow w-100 bg-white mt-4">
+<div class="container-fluid px-2 px-md-3">
+    <div class="user-mgmt-page">
+    <div class="user-mgmt-card">
         <h3 class="text-center mb-4">User Management</h3>
         <div class="user-mgmt-table-wrap">
-            <table class="table table-striped table-bordered" id="usersTable" style="width: 100%;">
+            <table class="table table-striped table-bordered" id="usersTable">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -107,11 +200,13 @@
                         <td>{{ $user['employee_id'] }}</td>
                         <td>{{ $user['user_role'] }}</td>
                         <td>{{ $user['user_location'] }}</td>
-                        <td>{{ $user['created_at'] }}</td>
+                        <td class="created-at-cell">{{ $user['created_at'] }}</td>
                         <td>
-                            <button class="btn btn-sm btn-primary btn-edit-user" data-user-id="{{ $user['user_id'] }}">Edit</button>
-                            <button class="btn btn-sm btn-danger ms-1 btn-delete-user" data-user-id="{{ $user['user_id'] }}" data-user-name="{{ $user['user_name'] }}">Delete</button>
-                            <button class="btn btn-sm btn-warning ms-1 btn-reset-password" data-user-id="{{ $user['user_id'] }}" data-user-name="{{ $user['user_name'] }}">Reset Password</button>
+                            <div class="user-actions">
+                                <button type="button" class="btn btn-sm btn-primary btn-edit-user" data-user-id="{{ $user['user_id'] }}">Edit</button>
+                                <button type="button" class="btn btn-sm btn-danger btn-delete-user" data-user-id="{{ $user['user_id'] }}" data-user-name="{{ $user['user_name'] }}">Delete</button>
+                                <button type="button" class="btn btn-sm btn-warning btn-reset-password" data-user-id="{{ $user['user_id'] }}" data-user-name="{{ $user['user_name'] }}">Reset Password</button>
+                            </div>
                         </td>
                     </tr>
                     @endforeach
@@ -119,11 +214,12 @@
             </table>
         </div>
     </div>
+    </div>
 </div>
 
 <!-- Edit User Modal -->
 <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
@@ -214,11 +310,11 @@
             </div>
         </div>
     </div>
-}</div>
+</div>
 
 <!-- Reset Password Modal -->
 <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="resetPasswordModalLabel">Reset Password for <span id="resetUserName"></span></h5>
@@ -246,9 +342,6 @@
         </div>
     </div>
 </div>
-
-<!-- Toast Container -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
 <!-- Include DataTables CSS and JS -->
 <link nonce="{{ $cspNonce }}" rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" integrity="sha384-Dv1j0mqPOKbG6R+/4/adHCn5JaMBLG3iu8uTXFBM2MjEZuKwtsyLedRcRMR0cq7P" crossorigin="anonymous">
@@ -323,21 +416,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize DataTable
     $('#usersTable').DataTable({
-        responsive: true,
-        order: [], // No initial ordering
-        pageLength: 25,
+        order: [],
+        pageLength: 10,
+        autoWidth: false,
         language: {
             search: "Search users:",
             lengthMenu: "Show _MENU_ users per page",
             info: "Showing _START_ to _END_ of _TOTAL_ users"
         },
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-             '<"row"<"col-sm-12"tr>>' +
-             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        dom: '<"row align-items-center"<"col-12 col-md-6"l><"col-12 col-md-6"f>>' +
+             '<"row"<"col-12 user-mgmt-table-scroll"tr>>' +
+             '<"row align-items-center"<"col-12 col-md-5"i><"col-12 col-md-7"p>>',
         lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
         columnDefs: [
-            { orderable: false, targets: 0 }, // Disable sorting for serial number column
-            { orderable: false, targets: [1,2,3,4,5,6,7] } // Disable sorting for all other columns
+            { orderable: false, targets: '_all' }
         ]
     });
 
@@ -360,7 +452,9 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     showToast(data.message, 'success');
-                    $('#editUserModal').modal('hide');
+                    const editModalEl = document.getElementById('editUserModal');
+                    const editModal = bootstrap.Modal.getInstance(editModalEl) || bootstrap.Modal.getOrCreateInstance(editModalEl);
+                    editModal.hide();
                     // Reload page to show updated data
                     setTimeout(() => location.reload(), 1500);
                 } else {
@@ -402,7 +496,7 @@ function editUser(userId) {
             document.getElementById('edit_user_location').value = user.user_location;
             document.getElementById('edit_status').value = user.status;
             
-            $('#editUserModal').modal('show');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('editUserModal')).show();
         } else {
             showToast(data.message || 'Error fetching user details', 'danger');
         }
