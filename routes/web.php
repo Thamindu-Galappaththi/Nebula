@@ -185,6 +185,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Bursar,Marketing Manager,Developer'])->group(function () {
         Route::get('/students/view', [StudentViewController::class, 'index'])->name('student_management.view');
         Route::post('/students/filter', [StudentViewController::class, 'filter'])->name('student_management.filter');
+        Route::post('/students/view/export-excel', [StudentViewController::class, 'exportExcel'])->name('student_management.view.export.excel');
+        Route::post('/students/view/export-pdf', [StudentViewController::class, 'exportPdf'])->name('student_management.view.export.pdf');
         Route::get('/students/courses', [StudentViewController::class, 'getStudentCourses'])->name('student_management.courses');
         Route::get('/students/intakes', [StudentViewController::class, 'getCourseIntakes'])->name('student_management.intakes');
     });
