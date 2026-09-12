@@ -1,5 +1,8 @@
+@php
+    $isEmbed = request()->boolean('embed');
+@endphp
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}"@if($isEmbed) class="embed-mode"@endif>
 <!-- ϥϙϜϞϧϰαα -->
 
 <head>
@@ -22,10 +25,12 @@
     <!-- JS -->
     <script nonce="{{ $cspNonce }}" src="{{ asset('js/jquery-3.6.0.min.js') }}"></script>
     <script nonce="{{ $cspNonce }}" src="{{ asset('libs/bootstrap/dist/js/bootstrap.bundle.min.js') }}"></script>
+    @unless($isEmbed)
     <script nonce="{{ $cspNonce }}" src="{{ asset('libs/simplebar/dist/simplebar.js') }}"></script>
     <!-- Sidebar + layout interactions (hamburger toggle, responsive sidebar) -->
     <script nonce="{{ $cspNonce }}" src="{{ asset('js/app.min.js') }}"></script>
     <script nonce="{{ $cspNonce }}" src="{{ asset('js/sidebarmenu.js') }}"></script>
+    @endunless
     <!-- Global utilities for error handling and CSRF management -->
     <script nonce="{{ $cspNonce }}" src="{{ asset('js/global-utilities.js') }}"></script>
     <style nonce="{{ $cspNonce }}">
@@ -38,6 +43,35 @@
 
         body.loaded {
             background-image: url('{{ asset('images/backgrounds/nebula.jpg') }}');
+        }
+
+        html.embed-mode,
+        body.embed-mode {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow-x: auto;
+        }
+
+        body.embed-mode {
+            display: block !important;
+            background-image: none !important;
+            background-color: #f6f8fb;
+        }
+
+        body.embed-mode .page-wrapper {
+            min-height: 0 !important;
+            height: auto !important;
+        }
+
+        body.embed-mode .body-wrapper {
+            margin-left: 0 !important;
+            min-height: 0 !important;
+            height: auto !important;
+        }
+
+        body.embed-mode #main-wrapper[data-layout=vertical][data-header-position=fixed] .body-wrapper > .container-fluid {
+            padding: 12px !important;
+            max-width: 100% !important;
         }
 
         .navbar {
@@ -62,12 +96,13 @@
     </script>
 </head>
 
-<body class="d-flex flex-column">
+<body class="d-flex flex-column{{ $isEmbed ? ' embed-mode' : '' }}">
     
 
     <!--  Body Wrapper -->
     <div class="page-wrapper" id="main-wrapper" data-layout="vertical" data-navbarbg="skin6" data-sidebartype="full"
         data-sidebar-position="fixed" data-header-position="fixed">
+        @unless($isEmbed)
         <!-- Sidebar Start -->
         <aside class="left-sidebar">
             <!-- Sidebar scroll-->
@@ -89,8 +124,10 @@
 
 
         <!--  Sidebar End -->
+        @endunless
         <!--  Main wrapper -->
         <div class="body-wrapper d-flex flex-column min-vh-100">
+            @unless($isEmbed)
             <!--  Header Start -->
             <header class="app-header">
                 <nav class="navbar navbar-expand-lg navbar-light">
@@ -145,9 +182,11 @@
                 </nav>
             </header>
             <!--  Header End -->
+            @endunless
             <div class="container-fluid flex-grow-1">
                 @yield('content')
             </div>
+            @unless($isEmbed)
             <div class="footer-wrapper mt-auto">
                 <footer class="footer bg-dark text-light text-center py-3">
                     <div class="container">
@@ -167,11 +206,17 @@
                     </div>
                 </footer>
             </div>
+            @endunless
         </div>
     </div>
 
     <script nonce="{{ $cspNonce }}">
         document.addEventListener("DOMContentLoaded", function() {
+            var greetingEl = document.getElementById("greeting");
+            if (!greetingEl) {
+                return;
+            }
+
             // Get the current time
             var currentTime = new Date();
             var currentHour = currentTime.getHours();
@@ -191,7 +236,7 @@
 
             // Display the greeting and user's name
             if (userName) {
-                document.getElementById("greeting").innerHTML = greeting + ", <b>" + userName + "</b>";
+                greetingEl.innerHTML = greeting + ", <b>" + userName + "</b>";
             }
         });
     </script>
@@ -217,6 +262,93 @@
         });
     </script>
     <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+    @if($isEmbed)
+    <script nonce="{{ $cspNonce }}">
+        (function() {
+            let lastHeight = 0;
+            let timer = null;
+
+            function contentRoot() {
+                return document.getElementById('pageContent')
+                    || document.querySelector('.body-wrapper > .container-fluid')
+                    || document.body;
+            }
+
+            function measureHeight() {
+                const content = contentRoot();
+                if (!content) {
+                    return 0;
+                }
+                const container = document.querySelector('.body-wrapper > .container-fluid');
+                let height = Math.max(content.scrollHeight, content.offsetHeight);
+                if (container && content !== container) {
+                    const styles = window.getComputedStyle(container);
+                    height += (parseFloat(styles.paddingTop) || 0) + (parseFloat(styles.paddingBottom) || 0);
+                }
+                return Math.ceil(height);
+            }
+
+            function postEmbedHeight(force) {
+                const height = measureHeight();
+                if (!height) {
+                    return;
+                }
+                if (!force && Math.abs(height - lastHeight) < 2) {
+                    return;
+                }
+                lastHeight = height;
+                window.parent.postMessage({ type: 'nebula-embed-height', height: height }, window.location.origin);
+            }
+
+            function schedulePost() {
+                if (timer) {
+                    clearTimeout(timer);
+                }
+                timer = setTimeout(function() {
+                    postEmbedHeight(false);
+                }, 80);
+            }
+
+            window.addEventListener('load', function() { postEmbedHeight(true); });
+            window.addEventListener('resize', schedulePost);
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', schedulePost);
+            }
+            window.addEventListener('message', function(e) {
+                if (e.origin !== window.location.origin || !e.data || e.data.type !== 'nebula-embed-remeasure') {
+                    return;
+                }
+                postEmbedHeight(true);
+            });
+
+            function startObservers() {
+                const content = contentRoot();
+                if (!content) {
+                    return;
+                }
+                if (typeof ResizeObserver !== 'undefined') {
+                    new ResizeObserver(schedulePost).observe(content);
+                }
+                new MutationObserver(schedulePost).observe(content, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['class', 'style']
+                });
+            }
+
+            if (document.body) {
+                startObservers();
+            } else {
+                document.addEventListener('DOMContentLoaded', startObservers);
+            }
+
+            [150, 400, 900, 1800, 3500].forEach(function(ms) {
+                setTimeout(function() { postEmbedHeight(true); }, ms);
+            });
+        })();
+    </script>
+    @endif
 </body>
 </html>
 

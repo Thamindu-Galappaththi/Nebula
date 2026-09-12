@@ -41,7 +41,7 @@
         <!-- Navigation Tabs -->
         <nav class="bg-white shadow-sm">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex space-x-1 py-3">
+                <div class="flex flex-wrap gap-1 py-3">
                     <button data-tab="overview" id="tab-overview"
                         class="px-4 py-2 rounded-lg text-sm font-medium tab-active">
                         <i class="fas fa-chart-line mr-2"></i>Overview
@@ -70,8 +70,8 @@
             <!-- Overview Tab -->
             <div id="content-overview" class="tab-content active">
                 <!-- Key Metrics Cards -->
-                <div class="flex gap-10">
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-sky-500">
+                <div class="flex flex-wrap gap-4">
+                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-sky-500 flex-1" style="min-width: 160px;">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Total Students</p>
@@ -81,7 +81,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-green-500">
+                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-green-500 flex-1" style="min-width: 160px;">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Yearly Revenue</p>
@@ -91,7 +91,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-orange-500">
+                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-orange-500 flex-1" style="min-width: 160px;">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Due this year</p>
@@ -100,7 +100,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2  rounded-xl shadow-sm border-4 border-red-500">
+                    <div class="stat-card bg-white p-2  rounded-xl shadow-sm border-4 border-red-500 flex-1" style="min-width: 160px;">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Outstanding</p>
@@ -715,11 +715,11 @@
         }
 
         .tab-content {
-            display: none;
+            display: none !important;
         }
 
         .tab-content.active {
-            display: block;
+            display: block !important;
         }
 
         select:disabled {
