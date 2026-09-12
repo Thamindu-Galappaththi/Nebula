@@ -33,7 +33,7 @@
     @endunless
     <!-- Global utilities for error handling and CSRF management -->
     <script nonce="{{ $cspNonce }}" src="{{ asset('js/global-utilities.js') }}"></script>
-    <script nonce="{{ $cspNonce }}" src="{{ asset('js/nebula-select.js') }}"></script>
+    <script nonce="{{ $cspNonce }}" src="{{ asset('js/nebula-select.js') }}?v={{ file_exists(public_path('js/nebula-select.js')) ? filemtime(public_path('js/nebula-select.js')) : time() }}"></script>
     <style nonce="{{ $cspNonce }}">
         body {
             background: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E') no-repeat center center fixed;
@@ -103,15 +103,24 @@
             max-width: 5.75rem;
             flex: 0 0 5.75rem;
         }
+        select.form-select.nebula-select-native,
+        select.form-control.nebula-select-native,
         .nebula-select-native {
+            display: none !important;
             position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 1px !important;
             height: 1px !important;
-            opacity: 0;
-            pointer-events: none;
-            margin: 0;
-            padding: 0;
-            border: 0;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            overflow: hidden !important;
+            clip: rect(0, 0, 0, 0) !important;
+            clip-path: inset(50%) !important;
+            appearance: none !important;
         }
         .nebula-select-toggle {
             width: 100%;
@@ -131,15 +140,38 @@
             max-width: min(100vw - 24px, 24rem);
             box-sizing: border-box;
             max-height: min(240px, 50vh);
-            overflow-x: hidden;
-            overflow-y: auto;
+            overflow: hidden;
             background: #fff;
             border: 1px solid #d9e0ea;
             border-radius: 8px;
             box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
         }
         .nebula-select.is-open .nebula-select-menu {
-            display: block;
+            display: flex;
+            flex-direction: column;
+        }
+        .nebula-select-search {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            padding: 0.45rem 0.45rem 0.35rem;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .nebula-select-search-input {
+            width: 100%;
+            min-height: 34px;
+        }
+        .nebula-select-options {
+            overflow-x: hidden;
+            overflow-y: auto;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        .nebula-select-empty {
+            padding: 0.65rem 0.75rem;
+            color: #64748b;
+            font-size: 0.85rem;
         }
         .nebula-select-option {
             display: block;

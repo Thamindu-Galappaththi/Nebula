@@ -5,7 +5,7 @@
     if (!select || select.tagName !== 'SELECT') {
       return false;
     }
-    if (select.dataset.nebulaSelect === '1') {
+    if (select.dataset.nebulaSelect === '1' || select.dataset.nebulaSelect === 'off') {
       return false;
     }
     if (select.multiple || Number(select.getAttribute('size') || 1) > 1) {
@@ -25,6 +25,10 @@
     return style.display === 'none' || style.visibility === 'hidden';
   }
 
+  function triggerChange(select) {
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
   function enhance(select) {
     if (!shouldEnhance(select)) {
       return;
@@ -37,7 +41,8 @@
     if (
       select.classList.contains('form-select-sm') ||
       select.classList.contains('page-size-select') ||
-      select.id === 'perPageSelect'
+      select.id === 'perPageSelect' ||
+      select.id === 'terminationPerPage'
     ) {
       wrap.classList.add('nebula-select-sm');
     }
@@ -61,6 +66,22 @@
     const menu = document.createElement('div');
     menu.className = 'nebula-select-menu';
     menu.setAttribute('role', 'listbox');
+
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'nebula-select-search';
+    const searchInput = document.createElement('input');
+    searchInput.type = 'search';
+    searchInput.className = 'form-control form-control-sm nebula-select-search-input';
+    searchInput.placeholder = 'Search...';
+    searchInput.setAttribute('aria-label', 'Search options');
+    searchInput.autocomplete = 'off';
+    searchWrap.appendChild(searchInput);
+
+    const optionsWrap = document.createElement('div');
+    optionsWrap.className = 'nebula-select-options';
+
+    menu.appendChild(searchWrap);
+    menu.appendChild(optionsWrap);
     wrap.appendChild(menu);
 
     function syncVisibility() {
@@ -79,6 +100,7 @@
       menu.style.width = '';
       menu.style.maxWidth = '';
       menu.style.maxHeight = '';
+      searchInput.value = '';
     }
 
     function positionMenu() {
@@ -103,7 +125,7 @@
       const spaceBelow = window.innerHeight - toggleRect.bottom - pad;
       const spaceAbove = toggleRect.top - pad;
       const dropUp = spaceBelow < 160 && spaceAbove > spaceBelow;
-      const maxHeight = Math.max(120, dropUp ? spaceAbove - 8 : spaceBelow - 8);
+      const maxHeight = Math.max(160, dropUp ? spaceAbove - 8 : spaceBelow - 8);
 
       if (dropUp) {
         wrap.classList.add('drop-up');
@@ -117,6 +139,10 @@
       menu.style.maxHeight = maxHeight + 'px';
     }
 
+    function shouldShowSearch() {
+      return !wrap.classList.contains('nebula-select-sm');
+    }
+
     function open() {
       if (select.disabled || isNativeHidden(select)) {
         return;
@@ -128,19 +154,28 @@
       });
       wrap.classList.add('is-open');
       toggle.setAttribute('aria-expanded', 'true');
+      searchInput.value = '';
+      renderOptions();
       positionMenu();
+      if (shouldShowSearch() && window.innerWidth > 767) {
+        requestAnimationFrame(function () {
+          searchInput.focus();
+        });
+      }
     }
 
-    function render() {
-      const selected = select.options[select.selectedIndex];
-      toggle.textContent = selected ? selected.text : '';
-      toggle.title = toggle.textContent;
-      toggle.disabled = select.disabled;
-      wrap.classList.toggle('is-disabled', select.disabled);
-      syncVisibility();
+    function renderOptions() {
+      const query = String(searchInput.value || '').trim().toLowerCase();
+      const showSearch = shouldShowSearch();
+      searchWrap.style.display = showSearch ? '' : 'none';
+      optionsWrap.replaceChildren();
 
-      menu.replaceChildren();
+      let visibleCount = 0;
       Array.from(select.options).forEach(function (opt, index) {
+        if (query && String(opt.text || '').toLowerCase().indexOf(query) === -1) {
+          return;
+        }
+        visibleCount += 1;
         const optionBtn = document.createElement('button');
         optionBtn.type = 'button';
         optionBtn.className = 'nebula-select-option';
@@ -156,20 +191,34 @@
         optionBtn.setAttribute('role', 'option');
         optionBtn.addEventListener('click', function (e) {
           e.preventDefault();
+          e.stopPropagation();
           if (opt.disabled) {
             return;
           }
           select.selectedIndex = index;
-          if (window.jQuery) {
-            window.jQuery(select).trigger('change');
-          } else {
-            select.dispatchEvent(new Event('change', { bubbles: true }));
-          }
           close();
           render();
+          triggerChange(select);
         });
-        menu.appendChild(optionBtn);
+        optionsWrap.appendChild(optionBtn);
       });
+
+      if (!visibleCount) {
+        const empty = document.createElement('div');
+        empty.className = 'nebula-select-empty';
+        empty.textContent = 'No matching options';
+        optionsWrap.appendChild(empty);
+      }
+    }
+
+    function render() {
+      const selected = select.options[select.selectedIndex];
+      toggle.textContent = selected ? selected.text : '';
+      toggle.title = toggle.textContent;
+      toggle.disabled = select.disabled;
+      wrap.classList.toggle('is-disabled', select.disabled);
+      syncVisibility();
+      renderOptions();
     }
 
     wrap._nebulaPosition = positionMenu;
@@ -187,7 +236,28 @@
       }
     });
 
-    select.addEventListener('change', render);
+    searchInput.addEventListener('click', function (e) {
+      e.stopPropagation();
+    });
+    searchInput.addEventListener('input', function () {
+      renderOptions();
+    });
+    searchInput.addEventListener('keydown', function (e) {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const first = optionsWrap.querySelector('.nebula-select-option:not(.is-disabled)');
+        if (first) {
+          first.click();
+        }
+      }
+    });
+
+    select.addEventListener('change', function () {
+      const selected = select.options[select.selectedIndex];
+      toggle.textContent = selected ? selected.text : '';
+      toggle.title = toggle.textContent;
+    });
 
     new MutationObserver(render).observe(select, {
       childList: true,
