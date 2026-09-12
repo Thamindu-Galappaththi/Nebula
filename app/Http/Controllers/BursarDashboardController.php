@@ -2,63 +2,49 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\ClearanceRequest;
-use App\Models\Student;
-use App\Models\Course;
-use App\Models\Intake;
 
 class BursarDashboardController extends Controller
 {
-    private function normalizeLocation(?string $location): string
+    private function paymentQuery()
     {
-        $location = $location ?? 'Welisara';
-        $location = str_replace([
-            'Nebula Institute of Technology – ',
-            'Nebula Institute of Technology - '
-        ], '', $location);
-
-        return trim($location);
-    }
-
-    private function applyLocationScope($query, string $location)
-    {
-        return $query->whereRaw(
-            "LOWER(TRIM(REPLACE(REPLACE(location, 'Nebula Institute of Technology – ', ''), 'Nebula Institute of Technology - ', ''))) = ?",
-            [strtolower($location)]
-        );
+        return ClearanceRequest::query()->where('clearance_type', ClearanceRequest::TYPE_PAYMENT);
     }
 
     public function index()
     {
-        // Total pending payment or bursary clearances
-        $pendingCount = ClearanceRequest::where('clearance_type', 'payment')
-            ->where('status', 'pending')
+        $pendingCount = $this->paymentQuery()
+            ->where('status', ClearanceRequest::STATUS_PENDING)
             ->count();
 
-        $approvedCount = ClearanceRequest::where('clearance_type', 'payment')
-            ->where('status', 'approved')
+        $approvedCount = $this->paymentQuery()
+            ->where('status', ClearanceRequest::STATUS_APPROVED)
             ->whereMonth('approved_at', now()->month)
             ->whereYear('approved_at', now()->year)
             ->count();
 
-        $rejectedCount = ClearanceRequest::where('clearance_type', 'payment')
-            ->where('status', 'rejected')
+        $rejectedCount = $this->paymentQuery()
+            ->where('status', ClearanceRequest::STATUS_REJECTED)
             ->whereMonth('approved_at', now()->month)
             ->whereYear('approved_at', now()->year)
             ->count();
 
-        // List of pending student financial clearances
-        $pendingList = ClearanceRequest::with(['student', 'course', 'intake'])
-            ->where('clearance_type', 'payment')
-            ->where('status', 'pending')
-            ->orderBy('requested_at', 'asc')
-            ->get();
+        $pendingList = $this->paymentQuery()
+            ->with(['student', 'course', 'intake'])
+            ->where('status', ClearanceRequest::STATUS_PENDING)
+            ->orderByRaw('COALESCE(requested_at, created_at) ASC')
+            ->orderBy('id', 'asc')
+            ->paginate(10, ['*'], 'pending_page')
+            ->withQueryString();
 
-        // Recently updated payment clearances
-        $recent = ClearanceRequest::with(['student', 'course', 'intake'])
-            ->where('clearance_type', 'payment')
-            ->orderBy('updated_at', 'desc')
+        $recent = $this->paymentQuery()
+            ->with(['student', 'course', 'intake'])
+            ->whereIn('status', [
+                ClearanceRequest::STATUS_APPROVED,
+                ClearanceRequest::STATUS_REJECTED,
+            ])
+            ->orderByRaw('COALESCE(approved_at, updated_at) DESC')
+            ->orderByDesc('id')
             ->limit(10)
             ->get();
 

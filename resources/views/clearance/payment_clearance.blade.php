@@ -44,7 +44,7 @@
                                                     <td>{{ $request->course->course_name }}</td>
                                                     <td>{{ $request->intake->batch }}</td>
                                                     <td>{{ $request->location }}</td>
-                                                    <td>{{ $request->requested_at->format('d/m/Y H:i') }}</td>
+                                                    <td>{{ $request->requestedAtSriLanka()?->format('d/m/Y H:i') ?? 'N/A' }}</td>
                                                     <td>
                                                         <button class="btn btn-success btn-sm approve-btn"
                                                             data-request-id="{{ $request->id }}"
@@ -108,8 +108,7 @@
                                                             <span class="badge bg-danger">Rejected</span>
                                                         @endif
                                                     </td>
-                                                    <td>{{ $request->approved_at ? $request->approved_at->format('d/m/Y H:i') : 'N/A' }}
-                                                    </td>
+                                                    <td>{{ $request->processedAtSriLanka()?->format('d/m/Y H:i') ?? 'N/A' }}</td>
                                                     <td>{{ $request->remarks ?: 'No remarks' }}</td>
                                                 </tr>
                                             @endforeach
