@@ -886,6 +886,8 @@
                         </div>
                         <div class="col-md-6">
                           <p><strong>Registration Date:</strong> <span id="summary-registration-date"></span></p>
+                          <p><strong>Local Course Fee (LKR):</strong> <span id="summary-course-fee"></span></p>
+                          <p><strong>Registration Fee (LKR):</strong> <span id="summary-registration-fee"></span></p>
                           <p><strong>Total Local + Registration Fee (LKR):</strong> <span id="summary-total-local-fee"></span></p>
                           <p><strong>Total Franchise Fee:</strong> <span id="summary-total-franchise-fee"></span></p>
                           <p><strong>Total Paid (LKR):</strong> <span id="summary-total-local-paid"></span></p>
@@ -2397,37 +2399,61 @@ $(function(){
     $.get('/api/student/' + sid + '/course/' + courseId + '/payment-summary', function(res) {
       if (res.success && res.summary) {
         const summary = res.summary;
+        const formatRs = function(value) {
+          const n = Number(value);
+          if (!Number.isFinite(n)) {
+            return 'Rs. 0.00';
+          }
+          return 'Rs. ' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        const formatNum = function(value) {
+          const n = Number(value);
+          if (!Number.isFinite(n)) {
+            return '0.00';
+          }
+          return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        const paymentTypeKey = function(detailsType) {
+          if (detailsType === 'course') return 'course_fee';
+          if (detailsType === 'franchise') return 'franchise_fee';
+          if (detailsType === 'registration') return 'registration_fee';
+          if (detailsType === 'hostel') return 'hostel_fee';
+          if (detailsType === 'library') return 'library_fee';
+          return 'other';
+        };
         $('#paymentSummarySection').show();
         $('#summary-student-id').text(summary.student.student_id || '');
         $('#summary-student-name').text(summary.student.student_name || '');
         $('#summary-course-name').text(summary.student.course_name || '');
         $('#summary-registration-date').text(summary.student.registration_date || '');
-        $('#summary-total-local-fee').text('Rs. ' + (summary.total_local_amount || 0));
-        $('#summary-total-franchise-fee').text((summary.total_franchise_amount || 0) + ' ' + (summary.franchise_currency || 'USD'));
-        $('#summary-total-local-paid').text('Rs. ' + (summary.local_paid || 0));
-        $('#summary-total-franchise-paid').text((summary.franchise_paid || 0) + ' ' + (summary.franchise_currency || 'USD'));
-        $('#total-local-amount').text('Rs. ' + (summary.total_local_amount || 0));
-        $('#total-franchise-amount').text((summary.total_franchise_amount || 0) + ' ' + (summary.franchise_currency || 'USD'));
-        $('#total-local-paid').text('Rs. ' + (summary.local_paid || 0));
-        $('#total-franchise-paid').text((summary.franchise_paid || 0) + ' ' + (summary.franchise_currency || 'USD'));
-        $('#total-local-outstanding').text('Rs. ' + (summary.local_outstanding || 0));
+        $('#summary-course-fee').text(formatRs(summary.course_fee));
+        $('#summary-registration-fee').text(formatRs(summary.registration_fee));
+        $('#summary-total-local-fee').text(formatRs(summary.total_local_amount));
+        $('#summary-total-franchise-fee').text(formatNum(summary.total_franchise_amount) + ' ' + (summary.franchise_currency || 'USD'));
+        $('#summary-total-local-paid').text(formatRs(summary.local_paid));
+        $('#summary-total-franchise-paid').text(formatNum(summary.franchise_paid) + ' ' + (summary.franchise_currency || 'USD'));
+        $('#total-local-amount').text(formatRs(summary.total_local_amount));
+        $('#total-franchise-amount').text(formatNum(summary.total_franchise_amount) + ' ' + (summary.franchise_currency || 'USD'));
+        $('#total-local-paid').text(formatRs(summary.local_paid));
+        $('#total-franchise-paid').text(formatNum(summary.franchise_paid) + ' ' + (summary.franchise_currency || 'USD'));
+        $('#total-local-outstanding').text(formatRs(summary.local_outstanding));
         $('#payment-rate').text((summary.payment_rate || 0) + '%');
 
         // Helper to fill tables by payment type
         function fillTable(tableId, detailsType) {
-          const details = (summary.payment_details || []).find(d => d.payment_type.toLowerCase().includes(detailsType));
+          const details = (summary.payment_details || []).find(d => d.payment_type === paymentTypeKey(detailsType));
           const $tb = $(tableId).empty();
           if (details && details.payments && details.payments.length) {
             details.payments.forEach(row => {
               if (detailsType === 'franchise') {
                 $tb.append(`<tr>
-                  <td>${row.amount_currency !== undefined ? row.amount_currency : '-'}</td>
+                  <td>${row.amount_currency !== undefined ? formatNum(row.amount_currency) : '-'}</td>
                   <td>${row.currency || '-'}</td>
-                  <td>${row.sscl_tax !== undefined ? 'Rs. ' + row.sscl_tax : '-'}</td>
-                  <td>${row.bank_charges !== undefined ? 'Rs. ' + row.bank_charges : '-'}</td>
-                  <td>${row.total_amount_lkr !== undefined ? 'Rs. ' + row.total_amount_lkr : '-'}</td>
-                  <td>Rs. ${row.paid_amount || '-'}</td>
-                  <td>Rs. ${row.outstanding || '-'}</td>
+                  <td>${row.sscl_tax !== undefined ? formatRs(row.sscl_tax) : '-'}</td>
+                  <td>${row.bank_charges !== undefined ? formatRs(row.bank_charges) : '-'}</td>
+                  <td>${row.total_amount_lkr !== undefined ? formatRs(row.total_amount_lkr) : '-'}</td>
+                  <td>${formatRs(row.paid_amount)}</td>
+                  <td>${formatRs(row.outstanding)}</td>
                   <td>${row.payment_date || '-'}</td>
                   <td>${row.due_date || '-'}</td>
                   <td>${row.receipt_no || '-'}</td>
@@ -2436,9 +2462,9 @@ $(function(){
                 </tr>`);
               } else {
                 $tb.append(`<tr>
-                  <td>Rs. ${row.total_amount || '-'}</td>
-                  <td>Rs. ${row.paid_amount || '-'}</td>
-                  <td>Rs. ${row.outstanding || '-'}</td>
+                  <td>${formatRs(row.total_amount)}</td>
+                  <td>${formatRs(row.paid_amount)}</td>
+                  <td>${formatRs(row.outstanding)}</td>
                   <td>${row.payment_date || '-'}</td>
                   <td>${row.due_date || '-'}</td>
                   <td>${row.receipt_no || '-'}</td>
