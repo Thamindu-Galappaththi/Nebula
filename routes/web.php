@@ -755,9 +755,10 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // BADGES
     // ========================================================================
     Route::middleware(['auth', 'role:DGM,Marketing Manager,Developer,Student Counselor,Program Administrator (level 01),Program Administrator (level 02)'])->group(function () {
-        Route::get('/badges', [BadgeController::class, 'index'])->name('badges.index');
-        Route::post('/badges/search', [BadgeController::class, 'searchStudent'])->name('badges.search');
-        Route::post('/badges/search-by-course', [BadgeController::class, 'searchByCourse'])->name('badges.searchByCourse');
+        Route::get('/badges', [BadgeController::class, 'index'])->name('badges.generate');
+        Route::post('/badges/search', [BadgeController::class, 'search'])->name('badges.search');
+        Route::post('/badges/search-by-course', [BadgeController::class, 'search'])->name('badges.searchByCourse');
+        Route::get('/badges/intakes', [BadgeController::class, 'getCourseIntakes'])->name('badges.intakes');
         Route::post('/badges/complete', [BadgeController::class, 'completeCourse'])->name('badges.complete');
         Route::delete('/badges/cancel', [BadgeController::class, 'cancelBadge'])->name('badges.cancel');
         Route::get('/badges/details/{code}', [BadgeController::class, 'details'])->name('badges.details');

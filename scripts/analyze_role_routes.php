@@ -122,7 +122,7 @@ $routesInWebPhp = [
     'developer.dashboard',
     
     // Badges
-    'badges.index',
+    'badges.generate',
     'course.badge',
 ];
 

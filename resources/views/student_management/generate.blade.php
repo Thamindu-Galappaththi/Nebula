@@ -3,99 +3,261 @@
 @section('title', 'Generate Course Badge')
 
 @section('content')
-<div class="container mt-5 mb-5">
+<style nonce="{{ $cspNonce }}">
+  .badge-generate-page,
+  .badge-generate-page .card,
+  .badge-generate-page .card-body {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .badge-generate-page {
+    overflow-x: hidden;
+  }
+  .badge-generate-page .form-label { font-weight: 600; }
+  .badge-generate-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .badge-generate-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .badge-generate-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .badge-generate-table-scroll::-webkit-scrollbar { height: 10px; }
+  .badge-generate-table-scroll::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 8px;
+  }
+  .badge-generate-table-scroll::-webkit-scrollbar-thumb {
+    background: #b0b0b0;
+    border-radius: 8px;
+  }
+  .badge-generate-table-scroll table {
+    min-width: 920px;
+    width: 100%;
+    margin-bottom: 0;
+  }
+  .badge-generate-table-scroll th { white-space: nowrap; }
+  .badge-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  #searchBtn { width: 100%; }
+  .badge-generate-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .badge-generate-page-size {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .badge-generate-page-size select {
+    width: auto;
+    min-width: 4.5rem;
+  }
+  .badge-generate-pagination {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .badge-generate-pagination .pagination {
+    flex-wrap: wrap;
+    margin-bottom: 0;
+  }
+  .error-message,
+  .success-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 14px;
+    max-width: min(400px, calc(100vw - 32px));
+    transform: translateX(120%);
+    transition: transform 0.3s ease-in-out;
+    border-left: 4px solid #fff;
+  }
+  .error-message {
+    background: linear-gradient(135deg, #dc3545, #e74c3c);
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+  }
+  .success-message {
+    background: linear-gradient(135deg, #198754, #20c997);
+    box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3);
+  }
+  .error-message.show,
+  .success-message.show { transform: translateX(0); }
+  .error-message .error-icon,
+  .success-message .success-icon {
+    margin-right: 10px;
+    font-size: 18px;
+  }
+  @media (max-width: 767.98px) {
+    .badge-generate-toolbar,
+    .badge-generate-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .badge-generate-actions,
+    .badge-generate-actions .btn {
+      width: 100%;
+    }
+    .badge-generate-page .card-body {
+      padding: 1rem 0.75rem;
+    }
+    .badge-generate-page-size {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .badge-generate-page-size select {
+      min-width: 0;
+      flex: 1;
+    }
+    .badge-generate-pagination .pagination {
+      justify-content: center;
+    }
+    .badge-row-actions,
+    .badge-row-actions .btn {
+      width: 100%;
+    }
+    .error-message,
+    .success-message {
+      right: 16px;
+      left: 16px;
+      max-width: none;
+    }
+  }
+</style>
+
+<div class="container-fluid px-2 px-md-3 badge-generate-page">
   <div class="card shadow border-0">
     <div class="card-body">
-            @if (session('success'))
-          <div class="alert alert-success alert-dismissible fade show" role="alert">
-              {{ session('success') }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
+      @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          {{ session('success') }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
       @endif
 
       @if (session('error'))
-          <div class="alert alert-danger alert-dismissible fade show" role="alert">
-              {{ session('error') }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          {{ session('error') }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
       @endif
-      <h3 class="text-primary mb-4">Course Completion & Badge Generation</h3>
-      
 
-      <!-- 🔹 Unified Search Form -->
+      <h3 class="text-center mb-4">Course Completion &amp; Badge Generation</h3>
+      <hr>
+
       <form id="searchForm" class="row g-3 mb-4">
         @csrf
-        <div class="col-md-3">
-          <label class="form-label">Student ID / NIC</label>
-          <input type="text" id="student_id" name="student_id" class="form-control" placeholder="Enter Student ID or NIC">
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label" for="student_id">Student ID / NIC</label>
+          <input type="text" id="student_id" name="student_id" class="form-control" placeholder="Enter Student ID or NIC" autocomplete="off">
         </div>
 
-        <div class="col-md-3">
-          <label class="form-label">Course</label>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label" for="courseSelect">Course</label>
           <select id="courseSelect" name="course_id" class="form-select">
             <option value="">All Courses</option>
-            @foreach(\App\Models\Course::orderBy('course_name')->get() as $course)
+            @foreach($courses as $course)
               <option value="{{ $course->course_id }}">{{ $course->course_name }} ({{ $course->location }})</option>
             @endforeach
           </select>
         </div>
 
-        <div class="col-md-3">
-          <label class="form-label">Intake</label>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label" for="intakeSelect">Intake</label>
           <select id="intakeSelect" name="intake_id" class="form-select">
             <option value="">All Intakes</option>
           </select>
         </div>
 
-        <div class="col-md-2">
-          <label class="form-label">Mode</label>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label" for="modeSelect">Mode</label>
           <select id="modeSelect" name="mode" class="form-select">
             <option value="">All</option>
             <option value="Online">Online</option>
             <option value="Physical">Physical</option>
+            <option value="Hybrid">Hybrid</option>
           </select>
         </div>
 
-        <div class="col-md-1 d-flex align-items-end">
-          <button id="searchBtn" class="btn btn-primary w-auto" type="submit">
+        <div class="col-12 col-md-6 col-lg-4 d-flex align-items-end">
+          <button id="searchBtn" class="btn btn-primary w-100" type="submit">
             <span class="spinner-border spinner-border-sm d-none" id="searchSpinner" role="status"></span>
             <span id="searchText">Search</span>
           </button>
         </div>
       </form>
 
-      <div class="text-end mb-3">
-        <button class="btn btn-outline-secondary btn-sm" id="clearFilters">
-          <i class="ti ti-refresh me-1"></i> Clear Filters
-        </button>
+      <div class="badge-generate-toolbar mb-3">
+        <div class="text-muted small align-self-center" id="resultCount"></div>
+        <div class="badge-generate-actions">
+          <button class="btn btn-outline-secondary btn-sm" id="clearFilters" type="button">
+            <i class="ti ti-refresh me-1"></i> Clear Filters
+          </button>
+        </div>
       </div>
 
-      <!-- 📋 Results -->
       <div id="resultSection" style="display:none;">
         <h5 class="fw-bold text-secondary mb-3">Search Results</h5>
-        <table class="table table-bordered align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>#</th>
-              <th>Student</th>
-              <th>Course</th>
-              <th>Type</th>
-              <th>Intake</th>
-              <th>Mode</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="courseRows"></tbody>
-        </table>
+        <div class="badge-generate-table-scroll">
+          <table class="table table-bordered table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Student</th>
+                <th>Course</th>
+                <th>Type</th>
+                <th>Intake</th>
+                <th>Mode</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="courseRows"></tbody>
+          </table>
+        </div>
+        <div class="badge-generate-footer mt-3" id="paginationBar" style="display:none;">
+          <div class="badge-generate-page-size">
+            <label class="form-label mb-0 small text-muted" for="perPageSelect">Per page</label>
+            <select id="perPageSelect" class="form-select form-select-sm">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <div class="text-muted small align-self-center" id="resultRange"></div>
+          <nav class="badge-generate-pagination" aria-label="Badge results pages">
+            <ul class="pagination pagination-sm" id="badgePagination"></ul>
+          </nav>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 🔹 Certificate Modal -->
 <div class="modal fade" id="viewCertModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title"><i class="ti ti-certificate me-2"></i>Certificate Details</h5>
@@ -106,311 +268,420 @@
           <div class="spinner-border text-primary"></div>
         </div>
       </div>
-      <div class="modal-footer d-flex justify-content-between">
+      <div class="modal-footer flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-2">
         <small class="text-muted fst-italic">Generated by Nebula Institute of Technology</small>
-        <a id="viewCertLink" href="#" target="_blank" class="btn btn-outline-primary">
+        <a id="viewCertLink" href="#" target="_blank" rel="noopener" class="btn btn-outline-primary">
           <i class="ti ti-external-link"></i> View Certificate
         </a>
       </div>
     </div>
   </div>
 </div>
-<style nonce="{{ $cspNonce }}">
-  .error-message {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
-    background: linear-gradient(135deg, #dc3545, #e74c3c);
-    color: white;
-    padding: 15px 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
-    font-weight: 500;
-    font-size: 14px;
-    max-width: 400px;
-    transform: translateX(100%);
-    transition: transform 0.3s ease-in-out;
-    border-left: 4px solid #fff;
-}
+@endsection
 
-.error-message.show {
-    transform: translateX(0);
-}
-
-.error-message .error-icon {
-    margin-right: 10px;
-    font-size: 18px;
-}
-</style>
+@push('scripts')
 <script nonce="{{ $cspNonce }}">
-  // ---------- Notifications ----------
-function showSuccessMessage(message){
-  document.querySelectorAll('.success-message,.error-message').forEach(m=>m.remove());
-  const n=document.createElement('div'); n.className='success-message';
-  n.innerHTML=`<i class="ti ti-check-circle success-icon"></i>${message}`;
-  document.body.appendChild(n); setTimeout(()=>n.classList.add('show'),100);
-  setTimeout(()=>{n.classList.remove('show'); setTimeout(()=>n.remove(),300)},4000);
-}
-function showErrorMessage(message){
-  document.querySelectorAll('.success-message,.error-message').forEach(m=>m.remove());
-  const n=document.createElement('div'); n.className='error-message';
-  n.innerHTML=`<i class="ti ti-alert-circle error-icon"></i>${message}`;
-  document.body.appendChild(n); setTimeout(()=>n.classList.add('show'),100);
-  setTimeout(()=>{n.classList.remove('show'); setTimeout(()=>n.remove(),300)},5000);
+const allCourses = @json($courses);
+let currentPage = 1;
+let lastPage = 1;
+let totalCount = 0;
+let hasSearched = false;
+
+const courseSelect = document.getElementById('courseSelect');
+const intakeSelect = document.getElementById('intakeSelect');
+
+function escapeHtml(text) {
+  const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+  return String(text ?? '').replace(/[&<>"']/g, m => map[m]);
 }
 
-/* -------------------------------
-   🔹 Dynamic Intake Dropdown
---------------------------------*/
-document.getElementById('courseSelect').addEventListener('change', async e => {
-  const courseId = e.target.value;
-  const intakeSelect = document.getElementById('intakeSelect');
-  intakeSelect.innerHTML = '<option>Loading...</option>';
+function showMessage(message, type) {
+  document.querySelectorAll('.success-message,.error-message').forEach(m => m.remove());
+  const n = document.createElement('div');
+  n.className = type === 'success' ? 'success-message' : 'error-message';
+  const icon = type === 'success' ? 'ti-check-circle success-icon' : 'ti-alert-circle error-icon';
+  n.innerHTML = `<i class="ti ${icon}"></i>${escapeHtml(message)}`;
+  document.body.appendChild(n);
+  setTimeout(() => n.classList.add('show'), 100);
+  setTimeout(() => {
+    n.classList.remove('show');
+    setTimeout(() => n.remove(), 300);
+  }, type === 'success' ? 4000 : 5000);
+}
 
-  if (!courseId) {
-    intakeSelect.innerHTML = '<option value="">All Intakes</option>';
-    return;
-  }
+function showSuccessMessage(message) { showMessage(message, 'success'); }
+function showErrorMessage(message) { showMessage(message, 'error'); }
 
-  try {
-    const res = await fetch(`/api/intakes-by-course/${courseId}`);
-    const data = await res.json();
-    intakeSelect.innerHTML = '<option value="">All Intakes</option>';
-    data.forEach(intake => {
-      intakeSelect.innerHTML += `<option value="${intake.intake_id}">${intake.batch} - ${intake.location}</option>`;
-    });
-  } catch (err) {
-    intakeSelect.innerHTML = '<option value="">Error loading intakes</option>';
-  }
-});
+function resetIntakeFilter() {
+  intakeSelect.innerHTML = '';
+  intakeSelect.add(new Option('All Intakes', ''));
+}
 
-/* -------------------------------
-   🔹 Clear Filters
---------------------------------*/
-document.getElementById('clearFilters').addEventListener('click', () => {
-  document.getElementById('student_id').value = '';
-  document.getElementById('courseSelect').value = '';
-  document.getElementById('intakeSelect').innerHTML = '<option value="">All Intakes</option>';
-  document.getElementById('modeSelect').value = '';
-  document.getElementById('courseRows').innerHTML = '';
-  document.getElementById('resultSection').style.display = 'none';
-});
+function fillCourseSelect(courses, emptyLabel = 'All Courses') {
+  courseSelect.innerHTML = '';
+  courseSelect.add(new Option(emptyLabel, ''));
+  (courses || []).forEach(course => {
+    if (!course) return;
+    const label = `${course.course_name || ''} (${course.location || '-'})`;
+    courseSelect.add(new Option(label, course.course_id));
+  });
+}
 
-/* -------------------------------
-   🔹 Unified Search Function
---------------------------------*/
-document.getElementById('searchForm').addEventListener('submit', async e => {
-  e.preventDefault();
+function currentFilters(page = currentPage) {
+  return {
+    student_id: document.getElementById('student_id').value.trim(),
+    course_id: courseSelect.value,
+    intake_id: intakeSelect.value,
+    mode: document.getElementById('modeSelect').value,
+    page,
+    per_page: Number(document.getElementById('perPageSelect')?.value || 10)
+  };
+}
+
+function setSearchBusy(isBusy) {
   const btn = document.getElementById('searchBtn');
   const spin = document.getElementById('searchSpinner');
   const text = document.getElementById('searchText');
-  btn.disabled = true; spin.classList.remove('d-none'); text.textContent = 'Searching...';
-
-  const payload = {
-    student_id: document.getElementById('student_id').value.trim(),
-    course_id: document.getElementById('courseSelect').value,
-    intake_id: document.getElementById('intakeSelect').value,
-    mode: document.getElementById('modeSelect').value
-  };
-
-  const route = payload.student_id ? '{{ route("badges.search") }}' : '{{ route("badges.searchByCourse") }}';
-
-  const res = await fetch(route, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json();
-  if (!data.success) {
-    showErrorMessage(data.message);
-} 
-
-// In your markComplete function:
-if (!data.success) {
-    showErrorMessage(data.message);
+  btn.disabled = isBusy;
+  spin.classList.toggle('d-none', !isBusy);
+  text.textContent = isBusy ? 'Searching...' : 'Search';
 }
 
-// In your cancelBadge function:
-if (!data.success) {
-    showErrorMessage(data.message);
+function formatStatus(status) {
+  const value = String(status || '').trim();
+  if (!value || value === '-') return '-';
+  if (value.toLowerCase() === 'completed') return 'Completed';
+  if (value.toLowerCase() === 'pending') return 'Pending';
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
-  else renderResults(data.courses || data.data);
 
-  btn.disabled = false; spin.classList.add('d-none'); text.textContent = 'Search';
-});
+function isCompleted(status) {
+  return String(status || '').toLowerCase() === 'completed';
+}
 
-/* -------------------------------
-   🔹 Render Results
---------------------------------*/
-function renderResults(items) {
-  const table = document.getElementById('courseRows');
-  table.innerHTML = '';
+function actionButtons(row) {
+  const allow = !!row.eligible_for_badge;
+  const badgeCode = row.badge?.verification_code;
+  const badgeId = row.badge?.id;
 
-  if (!items?.length) {
-    table.innerHTML = `<tr><td colspan="8" class="text-center text-muted p-3">No records found.</td></tr>`;
-    document.getElementById('resultSection').style.display = 'block';
+  if (!allow) {
+    return '<span class="text-muted">Not Eligible</span>';
+  }
+
+  if (isCompleted(row.status)) {
+    if (badgeCode) {
+      return `<div class="badge-row-actions">
+        <button class="btn btn-info btn-sm btn-view-cert" type="button" data-code="${escapeHtml(badgeCode)}">
+          <i class="ti ti-eye"></i> View
+        </button>
+        <button class="btn btn-danger btn-sm btn-cancel-badge" type="button" data-badge-id="${escapeHtml(badgeId || '')}" data-reg-id="${escapeHtml(row.id)}">
+          <i class="ti ti-trash"></i> Cancel
+        </button>
+      </div>`;
+    }
+    return `<div class="badge-row-actions">
+      <button class="btn btn-secondary btn-sm" type="button" disabled><i class="ti ti-badge"></i> Badge Missing</button>
+      <button class="btn btn-danger btn-sm btn-cancel-badge" type="button" data-reg-id="${escapeHtml(row.id)}">
+        <i class="ti ti-trash"></i> Cancel
+      </button>
+    </div>`;
+  }
+
+  return `<div class="badge-row-actions">
+    <button class="btn btn-success btn-sm btn-mark-complete" type="button" data-reg-id="${escapeHtml(row.id)}">
+      <i class="ti ti-badge"></i> Mark Completed &amp; Generate Badge
+    </button>
+  </div>`;
+}
+
+function renderPagination(meta) {
+  const bar = document.getElementById('paginationBar');
+  const ul = document.getElementById('badgePagination');
+  const rangeEl = document.getElementById('resultRange');
+  ul.innerHTML = '';
+
+  const total = Number(meta.total || 0);
+  const page = Number(meta.current_page || 1);
+  const pages = Math.max(1, Number(meta.last_page || 1));
+  currentPage = page;
+  lastPage = pages;
+  totalCount = total;
+  bar.style.display = hasSearched ? 'flex' : 'none';
+
+  if (!total) {
+    rangeEl.textContent = '';
     return;
   }
 
-  items.forEach((r, i) => {
-    const student = r.student?.full_name || r.student?.name_with_initials || '-';
-    const course = r.course?.course_name || '-';
-    const type = r.course?.course_type || '-';
-    const intake = r.intake?.batch || '-';
-    const mode = r.intake?.intake_mode || '-';
-    const status = r.status || '-';
-    const badgeCode = r.badge?.verification_code;
-    const badgeId = r.badge?.id;
-    const allow = (type === 'certificate' && mode === 'Online');
+  rangeEl.textContent = `Showing ${meta.from} to ${meta.to} of ${total}`;
 
-    let action = '';
-    if (allow) {
-      if (status === 'Completed') {
-        if (badgeCode) {
-          action = `
-            <button class="btn btn-info btn-sm me-2 btn-view-cert" data-code="${badgeCode}">
-              <i class='ti ti-eye'></i> View
-            </button>
-            <button class="btn btn-danger btn-sm btn-cancel-badge" data-badge-id="${badgeId}" data-reg-id="${r.id}">
-              <i class='ti ti-trash'></i> Cancel
-            </button>`;
-        } else {
-          action = `
-            <button class="btn btn-secondary btn-sm me-2" disabled><i class='ti ti-badge'></i> Badge Missing</button>
-            <button class="btn btn-danger btn-sm btn-cancel-badge" data-reg-id="${r.id}"><i class='ti ti-trash'></i> Cancel</button>`;
-        }
-      } else {
-        action = `
-          <button class="btn btn-success btn-sm btn-mark-complete" data-reg-id="${r.id}">
-            <i class='ti ti-badge'></i> Mark Completed & Generate Badge
-          </button>`;
-      }
-    } else {
-      action = '<span class="text-muted">Not Eligible</span>';
+  const addItem = (label, targetPage, options = {}) => {
+    const li = document.createElement('li');
+    li.className = 'page-item';
+    if (options.disabled) li.classList.add('disabled');
+    if (options.active) li.classList.add('active');
+    const btn = document.createElement(options.disabled || options.active ? 'span' : 'button');
+    btn.className = 'page-link';
+    btn.textContent = label;
+    if (btn.tagName === 'BUTTON') {
+      btn.type = 'button';
+      btn.addEventListener('click', () => searchRecords(targetPage));
     }
+    li.appendChild(btn);
+    ul.appendChild(li);
+  };
 
-    table.innerHTML += `
-      <tr id="row-${r.id}">
-        <td>${i + 1}</td>
-        <td>${student}</td>
-        <td>${course}</td>
-        <td>${type}</td>
-        <td>${intake}</td>
-        <td>${mode}</td>
-        <td id="status-${r.id}">${status}</td>
-        <td id="action-${r.id}">${action}</td>
-      </tr>`;
-  });
-
-  document.getElementById('resultSection').style.display = 'block';
+  addItem('Previous', page - 1, { disabled: page <= 1 });
+  const start = Math.max(1, page - 2);
+  const end = Math.min(pages, page + 2);
+  if (start > 1) {
+    addItem('1', 1);
+    if (start > 2) addItem('...', page, { disabled: true });
+  }
+  for (let i = start; i <= end; i++) {
+    addItem(String(i), i, { active: i === page });
+  }
+  if (end < pages) {
+    if (end < pages - 1) addItem('...', page, { disabled: true });
+    addItem(String(pages), pages);
+  }
+  addItem('Next', page + 1, { disabled: page >= pages });
 }
 
-/* -------------------------------
-   🔹 Mark Complete (Row Update Only)
---------------------------------*/
+function renderResults(items, meta = {}) {
+  const table = document.getElementById('courseRows');
+  const countEl = document.getElementById('resultCount');
+  table.innerHTML = '';
+
+  const total = Number(meta.total ?? items.length);
+  const from = Number(meta.from || (items.length ? 1 : 0));
+
+  if (!items.length) {
+    table.innerHTML = `<tr><td colspan="8" class="text-center text-muted p-3">No records found.</td></tr>`;
+    document.getElementById('resultSection').style.display = 'block';
+    countEl.textContent = '0 records';
+    renderPagination({ total: 0, current_page: 1, last_page: 1 });
+    return;
+  }
+
+  table.innerHTML = items.map((row, i) => {
+    const student = row.student?.full_name || row.student?.name_with_initials || '-';
+    const course = row.course?.course_name || '-';
+    const type = row.course?.course_type || '-';
+    const intake = row.intake?.batch || '-';
+    const mode = row.intake?.intake_mode || '-';
+    const status = formatStatus(row.status);
+
+    return `<tr id="row-${escapeHtml(row.id)}">
+      <td>${from + i}</td>
+      <td>${escapeHtml(student)}</td>
+      <td>${escapeHtml(course)}</td>
+      <td>${escapeHtml(type)}</td>
+      <td>${escapeHtml(intake)}</td>
+      <td>${escapeHtml(mode)}</td>
+      <td id="status-${escapeHtml(row.id)}">${escapeHtml(status)}</td>
+      <td id="action-${escapeHtml(row.id)}">${actionButtons(row)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('resultSection').style.display = 'block';
+  countEl.textContent = total + (total === 1 ? ' record' : ' records');
+  renderPagination(meta);
+}
+
+async function searchRecords(page = 1) {
+  setSearchBusy(true);
+  currentPage = page;
+
+  try {
+    const res = await fetch('{{ route("badges.search") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(currentFilters(page))
+    });
+
+    if (!res.ok) {
+      throw new Error('Search failed');
+    }
+
+    const data = await res.json();
+    hasSearched = true;
+    renderResults(data.data || data.courses || [], data);
+  } catch (error) {
+    totalCount = 0;
+    showErrorMessage('Could not load records. Please try again.');
+  } finally {
+    setSearchBusy(false);
+  }
+}
+
+async function loadIntakes(courseId) {
+  resetIntakeFilter();
+  if (!courseId) return;
+
+  try {
+    const res = await fetch('{{ route("badges.intakes") }}?course_id=' + encodeURIComponent(courseId));
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.intakes)) return;
+    data.intakes.forEach(intake => {
+      const mode = intake.intake_mode ? ` (${intake.intake_mode})` : '';
+      const location = intake.location ? ` - ${intake.location}` : '';
+      intakeSelect.add(new Option(`${intake.batch}${location}${mode}`, intake.intake_id));
+    });
+  } catch (error) {
+    resetIntakeFilter();
+  }
+}
+
+document.getElementById('searchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  searchRecords(1);
+});
+
+document.getElementById('clearFilters').addEventListener('click', () => {
+  document.getElementById('searchForm').reset();
+  fillCourseSelect(allCourses);
+  resetIntakeFilter();
+  hasSearched = false;
+  currentPage = 1;
+  lastPage = 1;
+  totalCount = 0;
+  document.getElementById('courseRows').innerHTML = '';
+  document.getElementById('resultSection').style.display = 'none';
+  document.getElementById('resultCount').textContent = '';
+  document.getElementById('paginationBar').style.display = 'none';
+  document.getElementById('badgePagination').innerHTML = '';
+  document.getElementById('resultRange').textContent = '';
+});
+
+document.getElementById('perPageSelect').addEventListener('change', () => {
+  if (hasSearched) searchRecords(1);
+});
+
+document.getElementById('student_id').addEventListener('input', resetIntakeFilter);
+
+courseSelect.addEventListener('change', () => loadIntakes(courseSelect.value));
+
 async function markComplete(id, btn) {
   if (!confirm('Mark this course as completed and generate a badge?')) return;
 
+  const original = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Processing...`;
 
-  const res = await fetch('{{ route("badges.complete") }}', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-    body: JSON.stringify({ id })
-  });
-  const data = await res.json();
+  try {
+    const res = await fetch('{{ route("badges.complete") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
 
-  if (data.success) {
-    const rowStatus = document.getElementById(`status-${id}`);
-    const rowAction = document.getElementById(`action-${id}`);
-    rowStatus.innerHTML = `<span class="text-success fw-bold">Completed</span>`;
-    rowAction.innerHTML = `
-      <button class="btn btn-info btn-sm me-2 btn-view-cert" data-code="${data.verification_url.split('/').pop()}">
-        <i class='ti ti-eye'></i> View
-      </button>
-      <button class="btn btn-danger btn-sm btn-cancel-badge" data-reg-id="${id}">
-        <i class='ti ti-trash'></i> Cancel
-      </button>`;
-
-    // Success flash effect
-    const tr = document.getElementById(`row-${id}`);
-    tr.classList.add('table-success');
-    setTimeout(() => tr.classList.remove('table-success'), 1200);
-  } else {
-    showErrorMessage(data.message);
+    if (data.success) {
+      const code = data.verification_code || String(data.verification_url || '').split('/').pop();
+      document.getElementById(`status-${id}`).innerHTML = `<span class="text-success fw-bold">Completed</span>`;
+      document.getElementById(`action-${id}`).innerHTML = actionButtons({
+        id,
+        status: 'completed',
+        eligible_for_badge: true,
+        badge: { id: data.badge_id, verification_code: code }
+      });
+      const tr = document.getElementById(`row-${id}`);
+      tr.classList.add('table-success');
+      setTimeout(() => tr.classList.remove('table-success'), 1200);
+      showSuccessMessage(data.message || 'Badge generated successfully.');
+    } else {
+      showErrorMessage(data.message || 'Could not generate the badge.');
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  } catch (error) {
+    showErrorMessage('Could not generate the badge. Please try again.');
+    btn.disabled = false;
+    btn.innerHTML = original;
   }
-
-  btn.disabled = false;
-  btn.innerHTML = `<i class='ti ti-badge'></i> Mark Completed & Generate Badge`;
 }
 
-/* -------------------------------
-   🔹 Cancel Badge
---------------------------------*/
 async function cancelBadge(badgeId, registrationId, btn) {
   if (!confirm('Cancel this certificate?')) return;
+  const original = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
 
-  const res = await fetch('{{ route("badges.cancel") }}', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-    body: JSON.stringify({ badge_id: badgeId, registration_id: registrationId })
-  });
-  const data = await res.json();
+  try {
+    const res = await fetch('{{ route("badges.cancel") }}', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ badge_id: badgeId, registration_id: registrationId })
+    });
+    const data = await res.json();
 
-  if (data.success) {
-    document.getElementById(`status-${registrationId}`).innerHTML = `<span class="text-warning fw-bold">Pending</span>`;
-    document.getElementById(`action-${registrationId}`).innerHTML = `
-      <button class="btn btn-success btn-sm btn-mark-complete" data-reg-id="${registrationId}">
-        <i class='ti ti-badge'></i> Mark Completed & Generate Badge
-      </button>`;
-  } else {
-    showErrorMessage(data.message);
+    if (data.success) {
+      document.getElementById(`status-${registrationId}`).innerHTML = `<span class="text-warning fw-bold">Pending</span>`;
+      document.getElementById(`action-${registrationId}`).innerHTML = actionButtons({
+        id: registrationId,
+        status: 'Pending',
+        eligible_for_badge: true,
+        badge: null
+      });
+      showSuccessMessage(data.message || 'Certificate cancelled.');
+    } else {
+      showErrorMessage(data.message || 'Could not cancel the certificate.');
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  } catch (error) {
+    showErrorMessage('Could not cancel the certificate. Please try again.');
+    btn.disabled = false;
+    btn.innerHTML = original;
   }
 }
 
-/* -------------------------------
-   🔹 View Certificate
---------------------------------*/
 async function viewCertificate(code) {
   const body = document.getElementById('viewCertBody');
   const link = document.getElementById('viewCertLink');
   body.innerHTML = `<div class="text-center p-5"><div class="spinner-border text-primary"></div></div>`;
-  const res = await fetch(`/badges/details/${code}`);
-  const html = await res.text();
-  body.innerHTML = html;
-  link.href = `/verify-badge/${code}`;
-  new bootstrap.Modal(document.getElementById('viewCertModal')).show();
+  try {
+    const res = await fetch(`{{ url('/badges/details') }}/${encodeURIComponent(code)}`);
+    const html = await res.text();
+    body.innerHTML = html;
+    link.href = `/verify-badge/${encodeURIComponent(code)}`;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('viewCertModal')).show();
+  } catch (error) {
+    body.innerHTML = `<div class="text-danger text-center p-3 fw-bold">Could not load certificate details.</div>`;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('viewCertModal')).show();
+  }
 }
 
-/* -------------------------------
-   🔹 Event Delegation for Dynamic Buttons (CSP Compliant)
---------------------------------*/
 document.addEventListener('click', e => {
-  // View Certificate
-  if (e.target.closest('.btn-view-cert')) {
-    const btn = e.target.closest('.btn-view-cert');
-    const code = btn.dataset.code;
-    viewCertificate(code);
+  const viewBtn = e.target.closest('.btn-view-cert');
+  if (viewBtn) {
+    viewCertificate(viewBtn.dataset.code);
+    return;
   }
-  
-  // Cancel Badge
-  if (e.target.closest('.btn-cancel-badge')) {
-    const btn = e.target.closest('.btn-cancel-badge');
-    const badgeId = btn.dataset.badgeId || null;
-    const regId = btn.dataset.regId;
-    cancelBadge(badgeId, regId, btn);
+
+  const cancelBtn = e.target.closest('.btn-cancel-badge');
+  if (cancelBtn) {
+    cancelBadge(cancelBtn.dataset.badgeId || null, cancelBtn.dataset.regId, cancelBtn);
+    return;
   }
-  
-  // Mark Complete
-  if (e.target.closest('.btn-mark-complete')) {
-    const btn = e.target.closest('.btn-mark-complete');
-    const regId = btn.dataset.regId;
-    markComplete(regId, btn);
+
+  const completeBtn = e.target.closest('.btn-mark-complete');
+  if (completeBtn) {
+    markComplete(completeBtn.dataset.regId, completeBtn);
   }
 });
 </script>
-@endsection
+@endpush
