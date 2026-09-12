@@ -298,6 +298,7 @@ class StudentProfileController extends Controller
                 'status' => $registration->status ?? 'N/A',
                 'full_grade' => $registration->full_grade ?? '',
                 'specialization' => $semesterReg ? $semesterReg->specialization : ($registration->specialization ?? ''),
+                'specializations' => $this->specializationsForCourse($registration->course),
             ];
         });
 
@@ -314,38 +315,7 @@ class StudentProfileController extends Controller
             return response()->json(['success' => false, 'message' => 'Course not found.'], 404);
         }
 
-        $specializations = [];
-        if ($course->specializations) {
-            if (is_string($course->specializations)) {
-                try {
-                    $specializations = json_decode($course->specializations, true);
-                } catch (\Exception $e) {
-                    $specializations = [];
-                }
-            } elseif (is_array($course->specializations)) {
-                $specializations = $course->specializations;
-            }
-        }
-
-        $specializations = array_filter($specializations, function ($s) {
-            return $s && trim((string) $s) !== '';
-        });
-
-        $specializations = array_values(array_map('strval', $specializations));
-
-        $hasCommonModule = \DB::table('semester_module')
-            ->join('semesters', 'semesters.id', '=', 'semester_module.semester_id')
-            ->where('semesters.course_id', $course->course_id)
-            ->where(function ($query) {
-                $query->whereNull('semester_module.specializations')
-                    ->orWhere('semester_module.specializations', '[]')
-                    ->orWhere('semester_module.specializations', 'null');
-            })
-            ->exists();
-
-        if ($hasCommonModule) {
-            $specializations = array_values(array_unique(array_merge(['Common'], $specializations)));
-        }
+        $specializations = $this->specializationsForCourse($course);
 
         return response()->json(['success' => true, 'specializations' => $specializations]);
     }
@@ -600,16 +570,28 @@ class StudentProfileController extends Controller
 
     public function getStudentDetailsByNic(Request $request)
     {
-        $nic = $request->query('nic');
-        if (!$nic) {
-            return response()->json(['success' => false, 'message' => 'NIC is required.'], 400);
+        $nic = strtoupper(preg_replace('/\s+/', '', trim((string) $request->query('nic', ''))));
+        if ($nic === '') {
+            return response()->json(['success' => false, 'message' => 'Please enter a NIC number.'], 400);
         }
-        $student = \App\Models\Student::with(['parentGuardian', 'otherInformation', 'exams'])->where('id_value', $nic)->first();
+
+        $student = Student::with(['parentGuardian', 'otherInformation', 'exams'])
+            ->whereRaw("UPPER(REPLACE(id_value, ' ', '')) = ?", [$nic])
+            ->first();
+
         if (!$student) {
-            return response()->json(['success' => false, 'message' => 'Student not found.'], 404);
+            return response()->json(['success' => false, 'message' => 'No student profile found for this NIC.'], 404);
         }
-        
-        return response()->json(['success' => true, 'student' => $student]);
+
+        $payload = $student->toArray();
+        $payload['parent'] = $student->parentGuardian;
+        $payload['other_information'] = $student->otherInformation;
+        $payload['birthday'] = $student->birthday
+            ? \Illuminate\Support\Carbon::parse($student->birthday)->format('Y-m-d')
+            : null;
+        $payload['academic_status'] = $student->academic_status;
+
+        return response()->json(['success' => true, 'student' => $payload]);
     }
     // Other methods (academic details, attendance, clearance, certificates, etc.) remain unchanged
 
@@ -628,50 +610,63 @@ class StudentProfileController extends Controller
 
     public function getSemesters($studentId, $courseId)
     {
-        // Get semesters from both ExamResult and Attendance tables to ensure we have all available semesters
+        $semestersList = \App\Models\Semester::where('course_id', (int) $courseId)
+            ->orderBy('id')
+            ->get();
+
+        $courseSemesters = $semestersList->map(function ($s) {
+            return trim((string) ($s->name ?: $s->id));
+        })->filter()->unique()->values();
+
         $examSemesters = \App\Models\ExamResult::where('student_id', $studentId)
             ->where('course_id', $courseId)
-            ->pluck('semester')
-            ->toArray();
+            ->pluck('semester');
 
         $attendanceSemesters = \App\Models\Attendance::where('student_id', $studentId)
             ->where('course_id', $courseId)
-            ->pluck('semester')
-            ->toArray();
+            ->pluck('semester');
 
-        $semestersList = \App\Models\Semester::where('course_id', (int)$courseId)->get();
-
-        // Merge and get unique values, mapping IDs to names if applicable
-        $allSemesters = collect(array_merge($examSemesters, $attendanceSemesters))
-            ->filter() // Remove nulls
+        $fromRecords = $examSemesters->merge($attendanceSemesters)
+            ->filter()
             ->map(function ($sem) use ($semestersList) {
                 foreach ($semestersList as $sModel) {
-                    if ((string)$sModel->id === (string)$sem) {
-                        return trim((string)$sModel->name);
+                    if ((string) $sModel->id === (string) $sem || (string) $sModel->name === (string) $sem) {
+                        return trim((string) $sModel->name);
                     }
                 }
-                return (string)$sem;
-            })
-            ->unique()
-            ->sort()
-            ->values();
+                return (string) $sem;
+            });
 
-        \Log::debug('getSemesters result', [
-            'student_id' => $studentId,
-            'course_id' => $courseId,
-            'exam_semesters' => $examSemesters,
-            'attendance_semesters' => $attendanceSemesters,
-            'all_semesters' => $allSemesters->toArray()
-        ]);
+        $allSemesters = $courseSemesters->merge($fromRecords)->filter()->unique()->values();
+
+        if ($allSemesters->isEmpty()) {
+            $course = \App\Models\Course::find($courseId);
+            $count = (int) ($course->no_of_semesters ?? 0);
+            if ($count > 0) {
+                $allSemesters = collect(range(1, $count))->map(fn ($n) => (string) $n)->values();
+            }
+        }
 
         return response()->json(['success' => true, 'semesters' => $allSemesters]);
     }
 
     public function getModuleResults($studentId, $courseId, $semester)
     {
+        $semesterIds = \App\Models\Semester::where('course_id', (int) $courseId)
+            ->where(function ($q) use ($semester) {
+                $q->where('name', $semester)->orWhere('id', $semester);
+            })
+            ->pluck('id')
+            ->all();
+
         $results = \App\Models\ExamResult::where('student_id', $studentId)
             ->where('course_id', $courseId)
-            ->where('semester', $semester)
+            ->where(function ($q) use ($semester, $semesterIds) {
+                $q->where('semester', $semester);
+                if ($semesterIds) {
+                    $q->orWhereIn('semester', $semesterIds);
+                }
+            })
             ->with('module')
             ->get()
             ->map(function ($r) {
@@ -1635,7 +1630,8 @@ class StudentProfileController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Profile picture updated successfully.',
-                'url' => asset('storage/' . $path),
+                'path' => $path,
+                'url' => '/storage/' . ltrim($path, '/'),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update student profile picture', [
@@ -1758,5 +1754,54 @@ class StudentProfileController extends Controller
                 'message' => 'Failed to update A/L exam results. Please try again.',
             ], 500);
         }
+    }
+
+    private function specializationsForCourse($course): array
+    {
+        if (!$course) {
+            return [];
+        }
+
+        $specializations = $this->normalizeSpecializationList($course->specializations ?? []);
+
+        $hasCommonModule = \DB::table('semester_module')
+            ->join('semesters', 'semesters.id', '=', 'semester_module.semester_id')
+            ->where('semesters.course_id', $course->course_id)
+            ->where(function ($query) {
+                $query->whereNull('semester_module.specializations')
+                    ->orWhere('semester_module.specializations', '[]')
+                    ->orWhere('semester_module.specializations', 'null');
+            })
+            ->exists();
+
+        if ($hasCommonModule) {
+            $specializations = array_values(array_unique(array_merge(['Common'], $specializations)));
+        }
+
+        return $specializations;
+    }
+
+    private function normalizeSpecializationList($raw): array
+    {
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : preg_split('/\s*,\s*/', $raw);
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($raw as $item) {
+            if (is_array($item)) {
+                $item = $item['name'] ?? $item['specialization'] ?? $item['title'] ?? reset($item);
+            }
+            $item = trim((string) $item);
+            if ($item !== '' && strtolower($item) !== 'null') {
+                $out[] = $item;
+            }
+        }
+
+        return array_values(array_unique($out));
     }
 }

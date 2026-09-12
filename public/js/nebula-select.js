@@ -17,6 +17,14 @@
     return select.matches(SELECTOR);
   }
 
+  function isNativeHidden(select) {
+    if (select.hidden) {
+      return true;
+    }
+    const style = select.style;
+    return style.display === 'none' || style.visibility === 'hidden';
+  }
+
   function enhance(select) {
     if (!shouldEnhance(select)) {
       return;
@@ -55,30 +63,72 @@
     menu.setAttribute('role', 'listbox');
     wrap.appendChild(menu);
 
+    function syncVisibility() {
+      wrap.style.display = isNativeHidden(select) ? 'none' : '';
+      if (isNativeHidden(select)) {
+        close();
+      }
+    }
+
     function close() {
       wrap.classList.remove('is-open', 'drop-up');
       toggle.setAttribute('aria-expanded', 'false');
+      menu.style.top = '';
+      menu.style.left = '';
+      menu.style.bottom = '';
+      menu.style.width = '';
+      menu.style.maxWidth = '';
+      menu.style.maxHeight = '';
+    }
+
+    function positionMenu() {
+      const pad = 12;
+      const toggleRect = toggle.getBoundingClientRect();
+      const width = Math.max(120, Math.min(toggleRect.width, window.innerWidth - pad * 2));
+      let left = toggleRect.left;
+      if (left + width > window.innerWidth - pad) {
+        left = window.innerWidth - pad - width;
+      }
+      if (left < pad) {
+        left = pad;
+      }
+
+      menu.style.position = 'fixed';
+      menu.style.left = left + 'px';
+      menu.style.width = width + 'px';
+      menu.style.maxWidth = width + 'px';
+      menu.style.right = 'auto';
+      menu.style.zIndex = '2000';
+
+      const spaceBelow = window.innerHeight - toggleRect.bottom - pad;
+      const spaceAbove = toggleRect.top - pad;
+      const dropUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(120, dropUp ? spaceAbove - 8 : spaceBelow - 8);
+
+      if (dropUp) {
+        wrap.classList.add('drop-up');
+        menu.style.top = 'auto';
+        menu.style.bottom = (window.innerHeight - toggleRect.top + 4) + 'px';
+      } else {
+        wrap.classList.remove('drop-up');
+        menu.style.top = (toggleRect.bottom + 4) + 'px';
+        menu.style.bottom = 'auto';
+      }
+      menu.style.maxHeight = maxHeight + 'px';
     }
 
     function open() {
+      if (select.disabled || isNativeHidden(select)) {
+        return;
+      }
       document.querySelectorAll('.nebula-select.is-open').forEach(function (el) {
         if (el !== wrap) {
           el.classList.remove('is-open', 'drop-up');
         }
       });
       wrap.classList.add('is-open');
-      wrap.classList.remove('drop-up');
       toggle.setAttribute('aria-expanded', 'true');
-
-      const rect = menu.getBoundingClientRect();
-      if (rect.bottom > window.innerHeight - 12 && toggle.getBoundingClientRect().top > rect.height + 24) {
-        wrap.classList.add('drop-up');
-      }
-
-      const active = menu.querySelector('.is-selected');
-      if (active) {
-        active.scrollIntoView({ block: 'nearest' });
-      }
+      positionMenu();
     }
 
     function render() {
@@ -87,6 +137,7 @@
       toggle.title = toggle.textContent;
       toggle.disabled = select.disabled;
       wrap.classList.toggle('is-disabled', select.disabled);
+      syncVisibility();
 
       menu.replaceChildren();
       Array.from(select.options).forEach(function (opt, index) {
@@ -109,7 +160,11 @@
             return;
           }
           select.selectedIndex = index;
-          select.dispatchEvent(new Event('change', { bubbles: true }));
+          if (window.jQuery) {
+            window.jQuery(select).trigger('change');
+          } else {
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+          }
           close();
           render();
         });
@@ -117,8 +172,11 @@
       });
     }
 
+    wrap._nebulaPosition = positionMenu;
+
     toggle.addEventListener('click', function (e) {
       e.preventDefault();
+      e.stopPropagation();
       if (select.disabled) {
         return;
       }
@@ -135,7 +193,7 @@
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['disabled']
+      attributeFilter: ['disabled', 'style', 'hidden', 'class']
     });
 
     render();
@@ -153,21 +211,39 @@
     }
   }
 
+  function closeAll() {
+    document.querySelectorAll('.nebula-select.is-open').forEach(function (el) {
+      el.classList.remove('is-open', 'drop-up');
+    });
+  }
+
+  function repositionOpen() {
+    document.querySelectorAll('.nebula-select.is-open').forEach(function (el) {
+      if (typeof el._nebulaPosition === 'function') {
+        el._nebulaPosition();
+      }
+    });
+  }
+
   document.addEventListener('click', function (e) {
     if (!e.target.closest('.nebula-select')) {
-      document.querySelectorAll('.nebula-select.is-open').forEach(function (el) {
-        el.classList.remove('is-open', 'drop-up');
-      });
+      closeAll();
     }
   });
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-      document.querySelectorAll('.nebula-select.is-open').forEach(function (el) {
-        el.classList.remove('is-open', 'drop-up');
-      });
+      closeAll();
     }
   });
+
+  window.addEventListener('resize', repositionOpen);
+  window.addEventListener('scroll', function (e) {
+    if (e.target && e.target.closest && e.target.closest('.nebula-select-menu')) {
+      return;
+    }
+    repositionOpen();
+  }, true);
 
   document.addEventListener('DOMContentLoaded', function () {
     enhanceAll(document);

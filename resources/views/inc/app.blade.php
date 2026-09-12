@@ -95,6 +95,7 @@
         .nebula-select {
             position: relative;
             width: 100%;
+            max-width: 100%;
             min-width: 0;
         }
         .nebula-select-sm {
@@ -122,11 +123,13 @@
         }
         .nebula-select-menu {
             display: none;
-            position: absolute;
+            position: fixed;
             left: 0;
-            right: 0;
-            top: calc(100% + 4px);
-            z-index: 1080;
+            top: 0;
+            z-index: 2000;
+            width: 100%;
+            max-width: min(100vw - 24px, 24rem);
+            box-sizing: border-box;
             max-height: min(240px, 50vh);
             overflow-x: hidden;
             overflow-y: auto;
@@ -138,13 +141,11 @@
         .nebula-select.is-open .nebula-select-menu {
             display: block;
         }
-        .nebula-select.drop-up .nebula-select-menu {
-            top: auto;
-            bottom: calc(100% + 4px);
-        }
         .nebula-select-option {
             display: block;
             width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
             border: 0;
             background: #fff;
             color: #1f2937;

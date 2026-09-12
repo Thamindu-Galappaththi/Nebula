@@ -71,15 +71,204 @@
     font-size: 18px;
 }
 
+.student-profile-page,
+.student-profile-page .bg-white,
+#profileSection,
+.student-profile-page .tab-content,
+.student-profile-page .tab-pane {
+    min-width: 0;
+    max-width: 100%;
+}
+.student-profile-page .bg-white {
+    overflow-x: clip;
+}
+.student-profile-page [class*="col-"] {
+    min-width: 0;
+}
+.student-profile-page .form-select,
+.student-profile-page .nebula-select,
+.student-profile-page .nebula-select-menu {
+    max-width: 100%;
+}
+.student-profile-tabs-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+.student-profile-tabs {
+    flex-wrap: nowrap;
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: 100%;
+    margin-bottom: 0;
+    gap: 0;
+}
+.student-profile-tabs .nav-item {
+    flex: 0 0 auto;
+}
+.student-profile-tabs .nav-link {
+    white-space: nowrap;
+}
+.student-profile-page .tab-pane {
+    overflow: visible;
+}
+.student-profile-page table {
+    width: 100%;
+}
+.student-profile-page .table-responsive table {
+    margin-bottom: 0;
+}
+.student-profile-status-bar,
+.student-profile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+.student-profile-page .payment-kpi-card h5 {
+    font-size: 0.95rem;
+    word-break: break-word;
+}
+.student-profile-page .payment-kpi-card h3 {
+    font-size: 1.25rem;
+    word-break: break-word;
+}
+.history-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+.specialization-cell {
+    min-width: 0;
+    max-width: 16rem;
+}
+.specialization-cell .nebula-select {
+    min-width: 0;
+}
+.student-profile-tabs-wrap::-webkit-scrollbar {
+    height: 8px;
+}
+.student-profile-tabs-wrap::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 8px;
+}
+.student-profile-tabs-wrap::-webkit-scrollbar-thumb {
+    background: #b0b0b0;
+    border-radius: 8px;
+}
+.student-profile-search .input-group > .form-control {
+    min-width: 0;
+}
+.student-profile-search #nicSearchBtn {
+    min-width: 6.5rem;
+    flex: 0 0 auto;
+}
+@media (max-width: 767.98px) {
+    .student-profile-page h2 {
+        font-size: 1.35rem;
+        margin-bottom: 1rem !important;
+    }
+    .student-profile-page .p-4 {
+        padding: 1rem 0.75rem !important;
+    }
+    .student-profile-page #profileSection {
+        padding: 0.75rem !important;
+    }
+    .student-profile-page .mx-3 {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    .student-profile-page .row.align-items-center > [class*="col-sm-"],
+    .student-profile-page .row.mb-3 > [class*="col-sm-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+        text-align: left !important;
+        padding-left: 0;
+        padding-right: 0;
+    }
+    .student-profile-page .offset-sm-2 {
+        margin-left: 0;
+    }
+    .student-profile-search {
+        padding: 0.75rem !important;
+    }
+    .student-profile-search #nicSearchBtn {
+        min-width: 5.5rem;
+    }
+    .student-profile-tabs .nav-link {
+        padding: 0.5rem 0.7rem;
+        font-size: 0.875rem;
+    }
+    .student-profile-status-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .student-profile-status-bar .btn,
+    .student-profile-actions .btn,
+    .student-profile-generate-btn,
+    .student-profile-modal .modal-footer .btn {
+        width: 100%;
+        margin-left: 0 !important;
+    }
+    .student-profile-modal .modal-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .student-profile-page .alert.d-flex {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.75rem;
+    }
+    .student-profile-page .d-flex.gap-2 {
+        flex-wrap: wrap;
+    }
+    .student-profile-page .d-flex.gap-2 .btn {
+        flex: 1 1 100%;
+    }
+    .history-action-buttons {
+        flex-direction: column;
+    }
+    .history-action-buttons .btn {
+        width: 100%;
+    }
+    .success-message,
+    .error-message {
+        top: 12px;
+        right: 12px;
+        left: 12px;
+        max-width: none;
+        transform: translateY(-120%);
+    }
+    .success-message.show,
+    .error-message.show {
+        transform: translateY(0);
+    }
+}
+
 </style>
 
 @php
-  $status = $student->academic_status ?? 'active';
+  $student = $student ?? null;
+  $status = $student?->academic_status ?? 'active';
+  $studentDob = $student?->birthday
+    ? \Illuminate\Support\Carbon::parse($student->birthday)->format('Y-m-d')
+    : '';
+  $certificateUrl = function (?string $path): string {
+    if (!$path) {
+      return '';
+    }
+    $clean = ltrim(preg_replace('#^storage/#', '', $path), '/');
+    if (!str_starts_with($clean, 'certificates/')) {
+      $clean = 'certificates/' . $clean;
+    }
+    return asset('storage/' . $clean);
+  };
 @endphp
 
-<div class="container-fluid">
+<div class="container-fluid px-2 px-md-3 student-profile-page">
   <div class="row justify-content-center mt-4">
-    <div class="col-md-11">
+    <div class="col-12 col-xl-11">
       <div class="p-4 rounded shadow w-100 bg-white">
         @if (session('success'))
           <div class="alert alert-success">{{ session('success') }}</div>
@@ -93,23 +282,24 @@
 
         {{-- NIC Search --}}
         <div class="row mb-4 justify-content-center">
-          <div class="col-md-10">
-            <div class="p-3 rounded" style="background-color:#e0f1ff;">
+          <div class="col-12 col-md-10">
+            <div class="p-3 rounded student-profile-search" style="background-color:#e0f1ff;">
               <form id="nicSearchForm" autocomplete="off">
                 <div class="input-group">
                   <input type="text" class="form-control" id="nicInput" name="nic" placeholder="Enter NIC number" required>
-                  <button class="btn btn-primary" type="submit" style="min-width:120px;">Search</button>
+                  <button class="btn btn-primary" type="submit" id="nicSearchBtn">Search</button>
                 </div>
               </form>
             </div>
           </div>
         </div>
 
-        <div class="container mt-4 rounded border p-3" id="profileSection" style="{{ isset($student) ? '' : 'display:none;' }}">
-          <input type="hidden" id="studentIdHidden" value="{{ $student->student_id ?? '' }}">
+        <div class="mt-4 rounded border p-3" id="profileSection" style="{{ $student ? '' : 'display:none;' }}">
+          <input type="hidden" id="studentIdHidden" value="{{ $student?->student_id ?? '' }}">
 
           {{-- Tabs --}}
-          <ul class="nav nav-tabs" id="studentTabs">
+          <div class="student-profile-tabs-wrap">
+          <ul class="nav nav-tabs student-profile-tabs" id="studentTabs">
             <li class="nav-item"><a class="nav-link active bg-primary text-white" id="personal-tab" data-bs-toggle="tab" href="#personal">Personal Info</a></li>
             <li class="nav-item"><a class="nav-link" id="parent-tab" data-bs-toggle="tab" href="#parent">Parent/Guardian Info</a></li>
             <li class="nav-item"><a class="nav-link" id="academic-tab" data-bs-toggle="tab" href="#academic">Academic</a></li>
@@ -122,17 +312,18 @@
             <li class="nav-item"><a class="nav-link" id="status-history-tab" data-bs-toggle="tab" href="#status-history">Status History <span id="statusHistoryCount" class="badge bg-danger ms-1" style="display:none;">0</span></a></li>
             <li class="nav-item"><a class="nav-link" id="other-info-tab" data-bs-toggle="tab" href="#other-info">Other Information</a></li>
           </ul>
+          </div>
 
           <div class="tab-content mt-2">
             {{-- PERSONAL TAB --}}
             <div class="tab-pane fade show active" id="personal">
               {{-- Status + Actions --}}
-              <div class="d-flex align-items-center justify-content-between mt-3 mb-3 px-2">
+              <div class="student-profile-status-bar justify-content-between mt-3 mb-3 px-2">
                 <div>
                   <span class="fw-bold me-2">Academic Status:</span>
                   <span id="studentStatusBadge" class="badge {{ strtolower($status)==='terminated' ? 'bg-danger' : 'bg-success' }}">{{ strtoupper($status) }}</span>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="student-profile-actions">
                   <button type="button" id="terminateBtn" class="btn btn-outline-danger" style="{{ strtolower($status)==='terminated' ? 'display:none;' : '' }}">
                     <i class="ti ti-user-x me-1"></i> Terminate
                   </button>
@@ -143,103 +334,99 @@
               </div>
 
               {{-- Profile Picture --}}
-              <div class="mb-3 mt-4 text-center position-relative">
-                <div class="d-flex justify-content-end">
-                  <div class="rounded-circle overflow-hidden mx-auto mb-3 position-relative" style="width:150px;height:150px;border:2px solid #ccc;">
-                    <img src="{{ !empty($student->user_photo) ? asset('storage/' . $student->user_photo) : asset('images/profile/user-1.jpg') }}" alt="Student Profile" width="150" height="150" class="rounded-circle" id="studentProfilePictureImg">
-                  </div>
+              <div class="mb-3 mt-4 text-center">
+                <div class="rounded-circle overflow-hidden mx-auto mb-3" style="width:150px;height:150px;border:2px solid #ccc;">
+                  <img src="{{ !empty($student?->user_photo) ? asset('storage/' . $student->user_photo) : asset('images/profile/user-1.jpg') }}" alt="Student Profile" width="150" height="150" class="rounded-circle" id="studentProfilePictureImg">
                 </div>
                 <input type="file" class="form-control visually-hidden" id="profilePicture" accept="image/*">
-                <div class="d-flex justify-content-end mx-4">
-                  <button type="button" class="btn btn-sm btn-primary align-self-end" data-bs-toggle="modal" data-bs-target="#editPictureModal" id="editPictureBtn" style="display:none;">Edit Picture</button>
-                </div>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editPictureModal" id="editPictureBtn" style="{{ $student ? '' : 'display:none;' }}">Edit Picture</button>
               </div>
 
               {{-- Personal Details --}}
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentTitle" class="col-sm-3 col-form-label fw-bold">Title <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" id="studentTitle" value="{{ $student->title ?? '' }}" readonly>
+                  <input type="text" class="form-control" id="studentTitle" value="{{ $student?->title ?? '' }}" readonly>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentName" class="col-sm-3 col-form-label fw-bold">Name <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" id="studentName" value="{{ $student->full_name ?? '' }}" readonly>
+                  <input type="text" class="form-control" id="studentName" value="{{ $student?->full_name ?? '' }}" readonly>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentNIC" class="col-sm-3 col-form-label fw-bold">NIC <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" id="studentNIC" value="{{ $student->id_value ?? '' }}" readonly>
+                  <input type="text" class="form-control" id="studentNIC" value="{{ $student?->id_value ?? '' }}" readonly>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentInstitute" class="col-sm-3 col-form-label fw-bold">Institute <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" id="studentInstitute" value="{{ $student->institute_location ?? '' }}" readonly>
+                  <input type="text" class="form-control" id="studentInstitute" value="{{ $student?->institute_location ?? '' }}" readonly>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentDOB" class="col-sm-3 col-form-label fw-bold">Date of Birth <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" id="studentDOB" readonly>
+                  <input type="text" class="form-control" id="studentDOB" value="{{ $studentDob }}" readonly>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentGender" class="col-sm-3 col-form-label fw-bold">Gender <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" id="studentGender" value="{{ $student->gender ?? '' }}" readonly>
+                  <input type="text" class="form-control" id="studentGender" value="{{ $student?->gender ?? '' }}" readonly>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentEmail" class="col-sm-3 col-form-label fw-bold">Email <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <input type="email" class="form-control" id="studentEmail" value="{{ $student->email ?? '' }}" readonly>
+                  <input type="email" class="form-control" id="studentEmail" value="{{ $student?->email ?? '' }}" readonly>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentMobile" class="col-sm-3 col-form-label fw-bold">Mobile Phone No <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <input type="tel" class="form-control" id="studentMobile" value="{{ $student->mobile_phone ?? '' }}" readonly>
+                  <input type="tel" class="form-control" id="studentMobile" value="{{ $student?->mobile_phone ?? '' }}" readonly>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentHomePhone" class="col-sm-3 col-form-label fw-bold">Home Phone No</label>
                 <div class="col-sm-9">
-                  <input type="tel" class="form-control" id="studentHomePhone" value="{{ $student->home_phone ?? '' }}" readonly>
+                  <input type="tel" class="form-control" id="studentHomePhone" value="{{ $student?->home_phone ?? '' }}" readonly>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentAddress" class="col-sm-3 col-form-label fw-bold">Address <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <textarea class="form-control" id="studentAddress" rows="2" readonly>{{ $student->address ?? '' }}</textarea>
+                  <textarea class="form-control" id="studentAddress" rows="2" readonly>{{ $student?->address ?? '' }}</textarea>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentSpecialNeeds" class="col-sm-3 col-form-label fw-bold">Special Needs</label>
                 <div class="col-sm-9">
-                  <textarea class="form-control" id="studentSpecialNeeds" rows="2" readonly>{{ $student->special_needs ?? '' }}</textarea>
+                  <textarea class="form-control" id="studentSpecialNeeds" rows="2" readonly>{{ $student?->special_needs ?? '' }}</textarea>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentExtraCurricular" class="col-sm-3 col-form-label fw-bold">Extra Curricular Activities</label>
                 <div class="col-sm-9">
-                  <textarea class="form-control" id="studentExtraCurricular" rows="2" readonly>{{ $student->extracurricular_activities ?? '' }}</textarea>
+                  <textarea class="form-control" id="studentExtraCurricular" rows="2" readonly>{{ $student?->extracurricular_activities ?? '' }}</textarea>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentFuturePotentials" class="col-sm-3 col-form-label fw-bold">Future Potentials</label>
                 <div class="col-sm-9">
-                  <textarea class="form-control" id="studentFuturePotentials" rows="2" readonly>{{ $student->future_potentials ?? '' }}</textarea>
+                  <textarea class="form-control" id="studentFuturePotentials" rows="2" readonly>{{ $student?->future_potentials ?? '' }}</textarea>
                 </div>
               </div>
 
               {{-- Edit Buttons --}}
-              <div class="mt-4 mb-3">
+              <div class="student-profile-actions mt-4 mb-3">
                 <button type="button" class="btn btn-primary" id="showEditPersonalInfoBtn">Edit Personal Info</button>
-                <button type="button" class="btn btn-success ms-2" id="updatePersonalInfoBtn" style="display:none;">Update Personal Info</button>
-                <button type="button" class="btn btn-secondary ms-2" id="cancelEditBtn" style="display:none;">Cancel</button>
+                <button type="button" class="btn btn-success" id="updatePersonalInfoBtn" style="display:none;">Update Personal Info</button>
+                <button type="button" class="btn btn-secondary" id="cancelEditBtn" style="display:none;">Cancel</button>
               </div>
             </div>
 
@@ -249,49 +436,49 @@
     <div class="mb-3 row align-items-center mx-3">
         <label for="parentName" class="col-sm-3 col-form-label fw-bold">Name <span class="text-danger">*</span></label>
         <div class="col-sm-9">
-          <input type="text" class="form-control" id="parentName" value="{{ $student->parent->guardian_name ?? '' }}" readonly>
+          <input type="text" class="form-control" id="parentName" value="{{ $student?->parent?->guardian_name ?? '' }}" readonly>
           <div class="invalid-feedback" id="parentNameFeedback" style="display:none;"></div>
         </div>
       </div>
             <div class="mb-3 row align-items-center mx-3">
                 <label for="parentProfession" class="col-sm-3 col-form-label fw-bold">Profession</label>
         <div class="col-sm-9">
-          <input type="text" class="form-control" id="parentProfession" value="{{ $student->parent->guardian_profession ?? '' }}" readonly>
+          <input type="text" class="form-control" id="parentProfession" value="{{ $student?->parent?->guardian_profession ?? '' }}" readonly>
           <div class="invalid-feedback" id="parentProfessionFeedback" style="display:none;"></div>
         </div>
             </div>
             <div class="mb-3 row align-items-center mx-3">
                 <label for="parentContactNo" class="col-sm-3 col-form-label fw-bold">Contact Number <span class="text-danger">*</span></label>
         <div class="col-sm-9">
-          <input type="tel" class="form-control" id="parentContactNo" value="{{ $student->parent->guardian_contact_number ?? '' }}" readonly>
+          <input type="tel" class="form-control" id="parentContactNo" value="{{ $student?->parent?->guardian_contact_number ?? '' }}" readonly>
           <div class="invalid-feedback" id="parentContactNoFeedback" style="display:none;"></div>
         </div>
             </div>
             <div class="mb-3 row align-items-center mx-3">
                 <label for="parentEmail" class="col-sm-3 col-form-label fw-bold">Email</label>
         <div class="col-sm-9">
-          <input type="email" class="form-control" id="parentEmail" value="{{ $student->parent->guardian_email ?? '' }}" readonly>
+          <input type="email" class="form-control" id="parentEmail" value="{{ $student?->parent?->guardian_email ?? '' }}" readonly>
           <div class="invalid-feedback" id="parentEmailFeedback" style="display:none;"></div>
         </div>
             </div>
             <div class="mb-3 row align-items-center mx-3">
                 <label for="parentAddress" class="col-sm-3 col-form-label fw-bold">Address <span class="text-danger">*</span></label>
         <div class="col-sm-9">
-          <textarea class="form-control" id="parentAddress" rows="2" readonly>{{ $student->parent->guardian_address ?? '' }}</textarea>
+          <textarea class="form-control" id="parentAddress" rows="2" readonly>{{ $student?->parent?->guardian_address ?? '' }}</textarea>
           <div class="invalid-feedback" id="parentAddressFeedback" style="display:none;"></div>
         </div>
             </div>
             <div class="mb-3 row align-items-center mx-3">
                 <label for="parentEmergencyContact" class="col-sm-3 col-form-label fw-bold">Emergency Contact Number <span class="text-danger">*</span></label>
         <div class="col-sm-9">
-          <input type="text" class="form-control bg-danger text-white" id="parentEmergencyContact" value="{{ $student->parent->emergency_contact_number ?? '' }}" readonly>
+          <input type="text" class="form-control bg-danger text-white" id="parentEmergencyContact" value="{{ $student?->parent?->emergency_contact_number ?? '' }}" readonly>
           <div class="invalid-feedback" id="parentEmergencyContactFeedback" style="display:none;"></div>
         </div>
             </div>
-              <div class="mt-4 mb-3">
+              <div class="student-profile-actions mt-4 mb-3">
                 <button type="button" class="btn btn-primary" id="showEditParentInfoBtn">Edit Parent/Guardian Info</button>
-                <button type="button" class="btn btn-success ms-2" id="updateParentInfoBtn" style="display:none;">Update Parent/Guardian Info</button>
-                <button type="button" class="btn btn-secondary ms-2" id="cancelEditParentBtn" style="display:none;">Cancel</button>
+                <button type="button" class="btn btn-success" id="updateParentInfoBtn" style="display:none;">Update Parent/Guardian Info</button>
+                <button type="button" class="btn btn-secondary" id="cancelEditParentBtn" style="display:none;">Cancel</button>
               </div>
             </div>
 
@@ -299,7 +486,8 @@
             <div class="tab-pane fade" id="academic">
               @php
                 $ol_pending = true; $al_pending = true; $ol_exam=null; $al_exam=null;
-                if (isset($student->exams) && !$student->exams->isEmpty()) {
+                $ol_subjects = []; $al_subjects = [];
+                if (isset($student?->exams) && !$student->exams->isEmpty()) {
                   $exam = $student->exams->first();
                   if ($exam) {
                     $ol_subjects = is_array($exam->ol_exam_subjects) ? $exam->ol_exam_subjects : json_decode($exam->ol_exam_subjects, true);
@@ -374,6 +562,7 @@
                       </div>
                       <div class="row mb-3">
                         <div class="col-sm-10 offset-sm-2">
+                          <div class="table-responsive">
                           <table class="table table-bordered">
                             <thead class="bg-primary text-white">
                               <tr>
@@ -386,6 +575,7 @@
                               <!-- JS will add results here -->
                             </tbody>
                           </table>
+                          </div>
                         </div>
                       </div>
                       <div class="d-flex gap-2">
@@ -413,21 +603,23 @@
                   <div class="mb-3 row align-items-center mx-3">
                     <label class="col-sm-3 col-form-label fw-bold">Subjects & Results</label>
                     <div class="col-sm-9">
+                      <div class="table-responsive">
                       <table class="table table-bordered mb-0">
                         <thead class="bg-primary text-white"><tr><th>Subject</th><th>Result</th></tr></thead>
                         <tbody>
-                          @foreach (json_decode($ol_exam->ol_exam_subjects, true) ?? [] as $subject)
+                          @foreach ($ol_subjects ?? [] as $subject)
                             <tr><td>{{ $subject['subject'] ?? '' }}</td><td>{{ $subject['result'] ?? '' }}</td></tr>
                           @endforeach
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   </div>
                   <div class="mb-3 row align-items-center mx-3">
                     <label class="col-sm-3 col-form-label fw-bold">O/L Certificate</label>
                     <div class="col-sm-9">
                       @if (!empty($ol_exam->ol_certificate))
-                        <a href="{{ asset('storage/certificates/' . $ol_exam->ol_certificate) }}" target="_blank">View Certificate</a>
+                        <a href="{{ $certificateUrl($ol_exam->ol_certificate) }}" target="_blank">View Certificate</a>
                       @else
                         <span class="text-muted">Not uploaded</span>
                       @endif
@@ -507,6 +699,7 @@
                       </div>
                       <div class="row mb-3">
                         <div class="col-sm-10 offset-sm-2">
+                          <div class="table-responsive">
                           <table class="table table-bordered">
                             <thead class="bg-primary text-white">
                               <tr>
@@ -519,6 +712,7 @@
                               <!-- JS will add results here -->
                             </tbody>
                           </table>
+                          </div>
                         </div>
                       </div>
                       <div class="d-flex gap-2">
@@ -551,21 +745,23 @@
                   <div class="mb-3 row align-items-center mx-3">
                     <label class="col-sm-3 col-form-label fw-bold">Subjects & Results</label>
                     <div class="col-sm-9">
+                      <div class="table-responsive">
                       <table class="table table-bordered mb-0">
                         <thead class="bg-primary text-white"><tr><th>Subject</th><th>Result</th></tr></thead>
                         <tbody>
-                          @foreach (json_decode($al_exam->al_exam_subjects, true) ?? [] as $subject)
+                          @foreach ($al_subjects ?? [] as $subject)
                             <tr><td>{{ $subject['subject'] ?? '' }}</td><td>{{ $subject['result'] ?? '' }}</td></tr>
                           @endforeach
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   </div>
                   <div class="mb-3 row align-items-center mx-3">
                     <label class="col-sm-3 col-form-label fw-bold">A/L Certificate</label>
                     <div class="col-sm-9">
                       @if (!empty($al_exam->al_certificate))
-                        <a href="{{ asset('storage/certificates/' . $al_exam->al_certificate) }}" target="_blank">View Certificate</a>
+                        <a href="{{ $certificateUrl($al_exam->al_certificate) }}" target="_blank">View Certificate</a>
                       @else
                         <span class="text-muted">Not uploaded</span>
                       @endif
@@ -578,13 +774,13 @@
             {{-- EXAMS TAB --}}
             <div class="tab-pane fade" id="exams">
               <div class="row mb-3">
-                <div class="col-md-6">
+                <div class="col-12 col-md-6">
                   <label for="examCourseSelect" class="form-label fw-bold">Select Course</label>
                   <select id="examCourseSelect" class="form-select">
                     <option value="">Select a course</option>
                   </select>
                 </div>
-                <div class="col-md-6">
+                <div class="col-12 col-md-6">
                   <label for="examSemesterSelect" class="form-label fw-bold">Select Semester</label>
                   <select id="examSemesterSelect" class="form-select" disabled>
                     <option value="">Select a semester</option>
@@ -593,18 +789,21 @@
               </div>
               <div id="examResultsTableWrapper" style="display:none;">
                 <h5 class="fw-bold mb-3">Module Results</h5>
+                <div class="table-responsive">
                 <table class="table table-bordered">
                   <thead class="bg-primary text-white">
                     <tr><th>Module Name</th><th>Marks</th><th>Grade</th></tr>
                   </thead>
                   <tbody id="examResultsTableBody"></tbody>
                 </table>
+                </div>
               </div>
             </div>
 
             {{-- HISTORY TAB --}}
             <div class="tab-pane fade" id="history">
               <h5 class="fw-bold mb-3">Course Registration History</h5>
+              <div class="table-responsive">
               <table class="table table-bordered">
                 <thead class="bg-primary text-white">
                   <tr>
@@ -617,32 +816,32 @@
                   </tr>
                 </thead>
                 <tbody id="historyTableBody"></tbody>
-                  <!-- Populated by JS -->
-                </tbody>
               </table>
+              </div>
             </div>
 
             {{-- ATTENDANCE TAB --}}
             <div class="tab-pane fade" id="attendance">
               <div class="row mb-3">
-                <div class="col-md-6">
+                <div class="col-12 col-md-6">
                   <label for="attendanceCourseSelect" class="form-label fw-bold">Select Course</label>
                   <select id="attendanceCourseSelect" class="form-select"><option value="">Select a course</option></select>
                 </div>
-                <div class="col-md-6" id="semesterSelectContainer" style="display:none;">
+                <div class="col-12 col-md-6" id="semesterSelectContainer" style="display:none;">
                   <label for="attendanceSemesterSelect" class="form-label fw-bold">Select Semester</label>
-                  <!-- Start not disabled in markup; JS will control enabled/disabled state -->
                   <select id="attendanceSemesterSelect" class="form-select"><option value="">Select a semester</option></select>
                 </div>
               </div>
               <div id="attendanceTableWrapper" style="display:none;">
                 <h5 class="fw-bold mb-3">Module Attendance</h5>
+                <div class="table-responsive">
                 <table class="table table-bordered">
                   <thead class="bg-primary text-white">
                     <tr><th>Module Name</th><th>Total Days</th><th>Present Days</th><th>Absent Days</th><th>Attendance %</th></tr>
                   </thead>
                   <tbody id="attendanceTableBody"></tbody>
                 </table>
+                </div>
               </div>
             </div>
 
@@ -652,8 +851,8 @@
                 <!-- Filters -->
                 <div class="mb-4">
                   <div class="row mb-3 align-items-center">
-                    <label class="col-sm-2 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+                    <label class="col-12 col-md-2 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-10">
                       <select class="form-select" id="summary-course" required>
                         <option value="" selected disabled>Select a Course</option>
                       </select>
@@ -661,7 +860,7 @@
                   </div>
                   <div class="row">
                     <div class="col-12 text-center">
-                      <button type="button" class="btn btn-primary" id="generatePaymentSummaryBtn">
+                      <button type="button" class="btn btn-primary student-profile-generate-btn" id="generatePaymentSummaryBtn">
                         <i class="ti ti-chart-pie me-2"></i>Generate Summary
                       </button>
                     </div>
@@ -697,32 +896,32 @@
                   </div>
                   <!-- Summary Cards -->
                   <div class="row mb-4">
-                    <div class="col-md-3">
-                      <div class="card bg-primary text-white">
+                    <div class="col-12 col-sm-6 col-lg-3">
+                      <div class="card bg-primary text-white payment-kpi-card">
                         <div class="card-body text-center">
                           <h5>Total Local + Registration (LKR)</h5>
                           <h3 id="total-local-amount">Rs. 0</h3>
                         </div>
                       </div>
                     </div>
-                    <div class="col-md-3">
-                      <div class="card bg-success text-white">
+                    <div class="col-12 col-sm-6 col-lg-3">
+                      <div class="card bg-success text-white payment-kpi-card">
                         <div class="card-body text-center">
                           <h5>Total Franchise</h5>
                           <h3 id="total-franchise-amount">USD 0</h3>
                         </div>
                       </div>
                     </div>
-                    <div class="col-md-3">
-                      <div class="card bg-warning text-white">
+                    <div class="col-12 col-sm-6 col-lg-3">
+                      <div class="card bg-warning text-white payment-kpi-card">
                         <div class="card-body text-center">
                           <h5>Total Paid (LKR)</h5>
                           <h3 id="total-local-paid">Rs. 0</h3>
                         </div>
                       </div>
                     </div>
-                    <div class="col-md-3">
-                      <div class="card bg-info text-white">
+                    <div class="col-12 col-sm-6 col-lg-3">
+                      <div class="card bg-info text-white payment-kpi-card">
                         <div class="card-body text-center">
                           <h5>Total Paid (Franchise)</h5>
                           <h3 id="total-franchise-paid">USD 0</h3>
@@ -951,12 +1150,14 @@
             {{-- CLEARANCE TAB --}}
             <div class="tab-pane fade" id="clearance">
               <h5 class="fw-bold mb-3">Student Clearance Status</h5>
+              <div class="table-responsive">
               <table class="table table-bordered">
                 <thead class="bg-primary text-white">
                   <tr><th>Clearance Type</th><th>Status</th><th>Approved Date</th><th>Remarks</th><th>Uploaded Document</th></tr>
                 </thead>
                 <tbody id="clearanceTableBody"></tbody>
               </table>
+              </div>
             </div>
 
             {{-- CERTIFICATES TAB --}}
@@ -965,19 +1166,19 @@
               <div class="mb-3 row align-items-center mx-3">
                 <label class="col-sm-3 col-form-label fw-bold">O/L Certificate</label>
                 <div class="col-sm-9" id="olCertificate">
-                  <span class="text-muted">Loading...</span>
+                  <span class="text-muted">Not uploaded</span>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label class="col-sm-3 col-form-label fw-bold">A/L Certificate</label>
                 <div class="col-sm-9" id="alCertificate">
-                  <span class="text-muted">Loading...</span>
+                  <span class="text-muted">Not uploaded</span>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
                 <label class="col-sm-3 col-form-label fw-bold">Disciplinary Issue Document</label>
                 <div class="col-sm-9" id="disciplinaryDocument">
-                  <span class="text-muted">Loading...</span>
+                  <span class="text-muted">Not uploaded</span>
                 </div>
               </div>
             </div>
@@ -1005,17 +1206,17 @@
             {{-- OTHER INFO TAB --}}
             <div class="tab-pane fade" id="other-info">
               <h5 class="mt-4 mb-3 fw-bold">Other Information</h5>
-              @if(isset($student->other_information))
+              @if($student?->other_information)
                 <div class="mb-3 row align-items-center mx-3">
                   <label class="col-sm-3 col-form-label fw-bold">Disciplinary Issues</label>
                   <div class="col-sm-9">
-                    <textarea class="form-control" rows="2" readonly>{{ $student->other_information->disciplinary_issues ?? '' }}</textarea>
+                    <textarea class="form-control" rows="2" readonly>{{ $student?->other_information?->disciplinary_issues ?? '' }}</textarea>
                   </div>
                 </div>
                 <div class="mb-3 row align-items-center mx-3">
                   <label class="col-sm-3 col-form-label fw-bold">Disciplinary Document</label>
                   <div class="col-sm-9">
-                    @if($student->other_information->disciplinary_issue_document)
+                    @if($student?->other_information?->disciplinary_issue_document)
                       <a href="{{ asset('storage/' . $student->other_information->disciplinary_issue_document) }}" target="_blank">View Document</a>
                     @else
                       <span class="text-muted">Not uploaded</span>
@@ -1024,24 +1225,24 @@
                 </div>
                 <div class="mb-3 row align-items-center mx-3">
                   <label class="col-sm-3 col-form-label fw-bold">Institute</label>
-                  <div class="col-sm-9"><input type="text" class="form-control" readonly value="{{ $student->other_information->institute ?? '' }}"></div>
+                  <div class="col-sm-9"><input type="text" class="form-control" readonly value="{{ $student?->other_information?->institute ?? '' }}"></div>
                 </div>
                 <div class="mb-3 row align-items-center mx-3">
                   <label class="col-sm-3 col-form-label fw-bold">Field of Study</label>
-                  <div class="col-sm-9"><input type="text" class="form-control" readonly value="{{ $student->other_information->field_of_study ?? '' }}"></div>
+                  <div class="col-sm-9"><input type="text" class="form-control" readonly value="{{ $student?->other_information?->field_of_study ?? '' }}"></div>
                 </div>
                 <div class="mb-3 row align-items-center mx-3">
                   <label class="col-sm-3 col-form-label fw-bold">Job Title</label>
-                  <div class="col-sm-9"><input type="text" class="form-control" readonly value="{{ $student->other_information->job_title ?? '' }}"></div>
+                  <div class="col-sm-9"><input type="text" class="form-control" readonly value="{{ $student?->other_information?->job_title ?? '' }}"></div>
                 </div>
                 <div class="mb-3 row align-items-center mx-3">
                   <label class="col-sm-3 col-form-label fw-bold">Workplace</label>
-                  <div class="col-sm-9"><input type="text" class="form-control" readonly value="{{ $student->other_information->workplace ?? '' }}"></div>
+                  <div class="col-sm-9"><input type="text" class="form-control" readonly value="{{ $student?->other_information?->workplace ?? '' }}"></div>
                 </div>
                 <div class="mb-3 row align-items-center mx-3">
                   <label class="col-sm-3 col-form-label fw-bold">Other Information</label>
                   <div class="col-sm-9">
-                    <textarea class="form-control" rows="2" readonly>{{ $student->other_information->other_information ?? '' }}</textarea>
+                    <textarea class="form-control" rows="2" readonly>{{ $student?->other_information?->other_information ?? '' }}</textarea>
                   </div>
                 </div>
               @else
@@ -1057,17 +1258,29 @@
 
 <script nonce="{{ $cspNonce }}">
 // ---------- Notifications ----------
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+}
+function certificateUrl(path){
+  if (!path) return '';
+  const clean = String(path).replace(/^\/+/, '').replace(/^storage\//, '');
+  if (clean.startsWith('certificates/')) {
+    return '/storage/' + clean;
+  }
+  return '/storage/certificates/' + clean;
+}
+
 function showSuccessMessage(message){
   document.querySelectorAll('.success-message,.error-message').forEach(m=>m.remove());
   const n=document.createElement('div'); n.className='success-message';
-  n.innerHTML=`<i class="ti ti-check-circle success-icon"></i>${message}`;
+  n.innerHTML=`<i class="ti ti-check-circle success-icon"></i>${String(message ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]))}`;
   document.body.appendChild(n); setTimeout(()=>n.classList.add('show'),100);
   setTimeout(()=>{n.classList.remove('show'); setTimeout(()=>n.remove(),300)},4000);
 }
 function showErrorMessage(message){
   document.querySelectorAll('.success-message,.error-message').forEach(m=>m.remove());
   const n=document.createElement('div'); n.className='error-message';
-  n.innerHTML=`<i class="ti ti-alert-circle error-icon"></i>${message}`;
+  n.innerHTML=`<i class="ti ti-alert-circle error-icon"></i>${String(message ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]))}`;
   document.body.appendChild(n); setTimeout(()=>n.classList.add('show'),100);
   setTimeout(()=>{n.classList.remove('show'); setTimeout(()=>n.remove(),300)},5000);
 }
@@ -1086,32 +1299,54 @@ function isValidEmail(email) {
 
 // ---------- O/L and A/L Results Update Functions ----------
 window.showOLUpdateForm = function() {
-  document.getElementById('olUpdateForm').style.display = 'block';
-  const alerts = document.querySelectorAll('.alert-warning');
-  if (alerts[0]) alerts[0].style.display = 'none';
+  const form = document.getElementById('olUpdateForm');
+  if (!form) return;
+  form.style.display = 'block';
+  const alertEl = form.previousElementSibling;
+  if (alertEl && alertEl.classList.contains('alert-warning')) alertEl.style.display = 'none';
 };
 
 window.hideOLUpdateForm = function() {
-  document.getElementById('olUpdateForm').style.display = 'none';
-  const alerts = document.querySelectorAll('.alert-warning');
-  if (alerts[0]) alerts[0].style.display = 'flex';
-  document.getElementById('olResultsForm').reset();
-  document.getElementById('profile_ol_table_body').innerHTML = '';
+  const form = document.getElementById('olUpdateForm');
+  if (!form) return;
+  form.style.display = 'none';
+  const alertEl = form.previousElementSibling;
+  if (alertEl && alertEl.classList.contains('alert-warning')) alertEl.style.display = 'flex';
+  const resultsForm = document.getElementById('olResultsForm');
+  if (resultsForm) resultsForm.reset();
+  const tableBody = document.getElementById('profile_ol_table_body');
+  if (tableBody) tableBody.innerHTML = '';
 };
 
 window.showALUpdateForm = function() {
-  document.getElementById('alUpdateForm').style.display = 'block';
-  const alerts = document.querySelectorAll('.alert-warning');
-  if (alerts.length > 1) alerts[alerts.length - 1].style.display = 'none';
+  const form = document.getElementById('alUpdateForm');
+  if (!form) return;
+  form.style.display = 'block';
+  const alertEl = form.previousElementSibling;
+  if (alertEl && alertEl.classList.contains('alert-warning')) alertEl.style.display = 'none';
 };
 
 window.hideALUpdateForm = function() {
-  document.getElementById('alUpdateForm').style.display = 'none';
-  const alerts = document.querySelectorAll('.alert-warning');
-  if (alerts.length > 1) alerts[alerts.length - 1].style.display = 'flex';
-  document.getElementById('alResultsForm').reset();
-  document.getElementById('profile_al_table_body').innerHTML = '';
+  const form = document.getElementById('alUpdateForm');
+  if (!form) return;
+  form.style.display = 'none';
+  const alertEl = form.previousElementSibling;
+  if (alertEl && alertEl.classList.contains('alert-warning')) alertEl.style.display = 'flex';
+  const resultsForm = document.getElementById('alResultsForm');
+  if (resultsForm) resultsForm.reset();
+  const tableBody = document.getElementById('profile_al_table_body');
+  if (tableBody) tableBody.innerHTML = '';
 };
+
+function reloadStudentProfile() {
+  const nic = ($('#nicInput').val() || $('#studentNIC').val() || '').trim();
+  if (nic) {
+    $('#nicInput').val(nic);
+    $('#nicSearchForm').trigger('submit');
+  } else {
+    window.location.reload();
+  }
+}
 
 // A/L Stream Subjects Mapping
 const profileAlStreamSubjects = {
@@ -1398,16 +1633,6 @@ function setStatusUI(status){
 
 // ---------- Document Ready ----------
 $(function(){
-  // Restore tab
-  var lastTab = localStorage.getItem('studentProfileActiveTab');
-  if (lastTab) {
-    var tabTrigger = document.querySelector('a[href="' + lastTab + '"]');
-    if (tabTrigger) new bootstrap.Tab(tabTrigger).show();
-  }
-  $('a[data-bs-toggle="tab"]').on('shown.bs.tab', e => {
-    localStorage.setItem('studentProfileActiveTab', $(e.target).attr('href'));
-  });
-
   // If server provided $student, set initial status badge
   setStatusUI('{{ $status }}');
 
@@ -1415,7 +1640,10 @@ $(function(){
   $('#nicSearchForm').on('submit', function(e){
     e.preventDefault();
     const nic=$('#nicInput').val().trim();
-    if(!nic) return;
+    if(!nic){
+      showErrorMessage('Please enter a NIC number.');
+      return;
+    }
     $.ajax({
       url:'/api/student-details-by-nic',
       method:'GET',
@@ -1425,19 +1653,22 @@ $(function(){
           populateStudentProfile(res.student);
           $('#studentIdHidden').val(res.student.student_id);
           $('#profileSection').show();
-          $('#personal-tab').tab('show');
+          const personalTabEl = document.getElementById('personal-tab');
+          if (personalTabEl && window.bootstrap?.Tab) {
+            bootstrap.Tab.getOrCreateInstance(personalTabEl).show();
+          }
           setStatusUI(res.student.academic_status || 'active');
           fetchRegisteredCourses(); // for Exams tab
         }else{
           $('#profileSection').hide();
           $('#editPictureBtn').hide();
-          showErrorMessage('Student not found!');
+          showErrorMessage(res.message || 'No student profile found for this NIC.');
         }
       },
-      error:function(){
+      error:function(xhr){
         $('#profileSection').hide();
         $('#editPictureBtn').hide();
-        showErrorMessage('Error fetching student details.');
+        showErrorMessage(xhr.responseJSON?.message || 'No student profile found for this NIC.');
       }
     });
   });
@@ -1451,7 +1682,12 @@ $(function(){
     $('#studentNIC').val(student.id_value || '');
     $('#studentIndexNo').val(student.registration_id || '');
     $('#studentInstitute').val(student.institute_location || '');
-    $('#studentDOB').val(student.birthday || '');
+    if (student.birthday) {
+      const raw = String(student.birthday).split('T')[0];
+      $('#studentDOB').val(window.toLocalDateString ? window.toLocalDateString(raw) : raw);
+    } else {
+      $('#studentDOB').val('');
+    }
     $('#studentGender').val(student.gender || '');
     $('#studentEmail').val(student.email || '');
     $('#studentMobile').val(student.mobile_phone || '');
@@ -1466,24 +1702,15 @@ $(function(){
     // Show edit picture button and update profile image
     $('#editPictureBtn').show();
     updateStudentProfileImage(student.user_photo);
-    
-    if (student.birthday) {
-      const dob = new Date(student.birthday);
-      const formatted = window.toLocalDateString(dob);
-      $('#studentDOB').val(formatted);
-    } else {
-      $('#studentDOB').val('');
-    }
 
     // PARENT
-    if(student.parent){
-      $('#parentName').val(student.parent.guardian_name || '');
-      $('#parentProfession').val(student.parent.guardian_profession || '');
-      $('#parentContactNo').val(student.parent.guardian_contact_number || '');
-      $('#parentEmail').val(student.parent.guardian_email || '');
-      $('#parentAddress').val(student.parent.guardian_address || '');
-      $('#parentEmergencyContact').val(student.parent.emergency_contact_number || '');
-    }
+    const parent = student.parent || student.parent_guardian || {};
+    $('#parentName').val(parent.guardian_name || '');
+    $('#parentProfession').val(parent.guardian_profession || '');
+    $('#parentContactNo').val(parent.guardian_contact_number || '');
+    $('#parentEmail').val(parent.guardian_email || '');
+    $('#parentAddress').val(parent.guardian_address || '');
+    $('#parentEmergencyContact').val(parent.emergency_contact_number || '');
 
     // Academic (client-rendered summary)
     const $academic = $('#academic'); $academic.empty();
@@ -1597,7 +1824,7 @@ $(function(){
           </div>
           <div class="mb-3 row align-items-center mx-3">
             <label class="col-sm-3 col-form-label fw-bold">O/L Certificate</label>
-            <div class="col-sm-9">${ol_exam.ol_certificate?`<a href="/storage/certificates/${ol_exam.ol_certificate}" target="_blank">View Certificate</a>`:'<span class="text-muted">Not uploaded</span>'}</div>
+            <div class="col-sm-9">${ol_exam.ol_certificate?`<a href="${certificateUrl(ol_exam.ol_certificate)}" target="_blank">View Certificate</a>`:'<span class="text-muted">Not uploaded</span>'}</div>
           </div>
         </div>`);
     }
@@ -1710,23 +1937,23 @@ $(function(){
           </div>
           <div class="mb-3 row align-items-center mx-3">
             <label class="col-sm-3 col-form-label fw-bold">A/L Certificate</label>
-            <div class="col-sm-9">${al_exam.al_certificate?`<a href="/storage/certificates/${al_exam.al_certificate}" target="_blank">View Certificate</a>`:'<span class="text-muted">Not uploaded</span>'}</div>
+            <div class="col-sm-9">${al_exam.al_certificate?`<a href="${certificateUrl(al_exam.al_certificate)}" target="_blank">View Certificate</a>`:'<span class="text-muted">Not uploaded</span>'}</div>
           </div>
         </div>`);
     }
 
     // Other Info tab (client refresh)
     const $otherInfoTab=$('#other-info'); $otherInfoTab.empty().append('<h5 class="mt-4 mb-3 fw-bold">Other Information</h5>');
-    const oi=student.other_information;
+    const oi=student.other_information || student.otherInformation;
     if(!!oi){
       $otherInfoTab.append(`
-        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Disciplinary Issues</label><div class="col-sm-9"><textarea class="form-control" rows="2" readonly>${oi.disciplinary_issues||''}</textarea></div></div>
-        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Disciplinary Document</label><div class="col-sm-9">${oi.disciplinary_issue_document?`<a href="/storage/${oi.disciplinary_issue_document}" target="_blank">View Document</a>`:'<span class="text-muted">Not uploaded</span>'}</div></div>
-        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Institute</label><div class="col-sm-9"><input class="form-control" readonly value="${oi.institute||'-'}"></div></div>
-        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Field of Study</label><div class="col-sm-9"><input class="form-control" readonly value="${oi.field_of_study||'-'}"></div></div>
-        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Job Title</label><div class="col-sm-9"><input class="form-control" readonly value="${oi.job_title||'-'}"></div></div>
-        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Workplace</label><div class="col-sm-9"><input class="form-control" readonly value="${oi.workplace||'-'}"></div></div>
-        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Other Information</label><div class="col-sm-9"><textarea class="form-control" rows="2" readonly>${oi.other_information||'-'}</textarea></div></div>
+        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Disciplinary Issues</label><div class="col-sm-9"><textarea class="form-control" rows="2" readonly>${escapeHtml(oi.disciplinary_issues||'')}</textarea></div></div>
+        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Disciplinary Document</label><div class="col-sm-9">${oi.disciplinary_issue_document?`<a href="/storage/${encodeURI(oi.disciplinary_issue_document)}" target="_blank">View Document</a>`:'<span class="text-muted">Not uploaded</span>'}</div></div>
+        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Institute</label><div class="col-sm-9"><input class="form-control" readonly value="${escapeHtml(oi.institute||'-')}"></div></div>
+        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Field of Study</label><div class="col-sm-9"><input class="form-control" readonly value="${escapeHtml(oi.field_of_study||'-')}"></div></div>
+        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Job Title</label><div class="col-sm-9"><input class="form-control" readonly value="${escapeHtml(oi.job_title||'-')}"></div></div>
+        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Workplace</label><div class="col-sm-9"><input class="form-control" readonly value="${escapeHtml(oi.workplace||'-')}"></div></div>
+        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Other Information</label><div class="col-sm-9"><textarea class="form-control" rows="2" readonly>${escapeHtml(oi.other_information||'-')}</textarea></div></div>
       `);
     }else{
       $otherInfoTab.append('<div class="alert alert-warning">No other information found for this student.</div>');
@@ -1864,11 +2091,34 @@ $(function(){
       if(res.success && res.courses.length){ res.courses.forEach(c=>$s.append(`<option value="${c.course_id}">${c.course_name}</option>`)); }
     });
   }
+  function resetExamsTab(){
+    fetchRegisteredCourses();
+    $('#examSemesterSelect').empty().append('<option value="">Select a semester</option>').prop('disabled',true);
+    $('#examResultsTableWrapper').hide();
+    $('#examResultsTableBody').empty();
+  }
   function fetchSemesters(courseId){
     const sid=getStudentId(); if(!sid||!courseId) return;
+    const $s=$('#examSemesterSelect');
+    $s.empty().append('<option value="">Loading semesters...</option>').prop('disabled', true);
     $.get('/api/student/'+sid+'/course/'+courseId+'/semesters', res=>{
-      const $s=$('#examSemesterSelect'); $s.empty().append('<option value="">Select a semester</option>');
-      if(res.success && res.semesters.length){ res.semesters.forEach(v=>$s.append(`<option value="${v}">${v}</option>`)); $s.prop('disabled',false); } else { $s.prop('disabled',true); }
+      $s.empty().append('<option value="">Select a semester</option>');
+      let semesters = [];
+      if (Array.isArray(res)) semesters = res;
+      else if (res && Array.isArray(res.semesters)) semesters = res.semesters;
+      if (semesters.length) {
+        semesters.forEach(function(v){
+          if (v === null || typeof v === 'undefined' || v === '') return;
+          const val = (typeof v === 'object') ? (v.name || v.semester || v.id || '') : v;
+          if (val === '') return;
+          $s.append(`<option value="${escapeHtml(val)}">${escapeHtml(val)}</option>`);
+        });
+        $s.prop('disabled', false);
+      } else {
+        $s.append('<option value="">No semesters found</option>').prop('disabled', true);
+      }
+    }).fail(function(){
+      $s.empty().append('<option value="">Failed to load semesters</option>').prop('disabled', true);
     });
   }
   function fetchModuleResults(courseId, sem){
@@ -1880,7 +2130,6 @@ $(function(){
       $('#examResultsTableWrapper').show();
     });
   }
-  $('a[data-bs-toggle="tab"][href="#exams"]').on('shown.bs.tab', function(){ fetchRegisteredCourses(); $('#examSemesterSelect').empty().append('<option value="">Select a semester</option>').prop('disabled',true); $('#examResultsTableWrapper').hide(); });
   $('#examCourseSelect').on('change', function(){ const c=$(this).val(); if(c){ fetchSemesters(c); $('#examResultsTableWrapper').hide(); } else { $('#examSemesterSelect').empty().append('<option value="">Select a semester</option>').prop('disabled',true); $('#examResultsTableWrapper').hide(); }});
   $('#examSemesterSelect').on('change', function(){ const c=$('#examCourseSelect').val(), s=$(this).val(); if(c&&s){ fetchModuleResults(c,s); } else { $('#examResultsTableWrapper').hide(); }});
 
@@ -1992,7 +2241,13 @@ $(function(){
     });
   }
   
-  $('a[data-bs-toggle="tab"][href="#attendance"]').on('shown.bs.tab', function(){ fetchAttendanceCourses(); $('#attendanceSemesterSelect').empty().append('<option value="">Select a semester</option>').prop('disabled',true); $('#semesterSelectContainer').hide(); $('#attendanceTableWrapper').hide(); });
+  function resetAttendanceTab(){
+    fetchAttendanceCourses();
+    $('#attendanceSemesterSelect').empty().append('<option value="">Select a semester</option>').prop('disabled',true);
+    $('#semesterSelectContainer').hide();
+    $('#attendanceTableWrapper').hide();
+    $('#attendanceTableBody').empty();
+  }
   $('#attendanceCourseSelect').on('change', function(){
     const c=$(this).val();
     const courseType = $(this).find('option:selected').data('course-type');
@@ -2054,7 +2309,6 @@ $(function(){
       }else{ $tb.append('<tr><td colspan="5" class="text-center">No payment schedule found for this intake.</td></tr>'); }
     });
   }
-  $('a[data-bs-toggle="tab"][href="#payment"]').on('shown.bs.tab', function(){ fetchPaymentCourses(); $('#paymentIntakeSelect').empty().append('<option value="">Select an intake</option>').prop('disabled',true); $('#paymentTableWrapper').hide(); $('#paymentHistory').empty(); $('#paymentScheduleTableBody').empty(); });
   $('#paymentCourseSelect').on('change', function(){ const c=$(this).val(); if(c){ fetchPaymentIntakes(c); $('#paymentIntakeSelect').empty().append('<option value="">Select an intake</option>').prop('disabled',true); $('#paymentTableWrapper').hide(); $('#paymentHistory').empty(); $('#paymentScheduleTableBody').empty(); } else { $('#paymentIntakeSelect').empty().append('<option value="">Select an intake</option>').prop('disabled',true); $('#paymentTableWrapper').hide(); $('#paymentHistory').empty(); $('#paymentScheduleTableBody').empty(); }});
   $('#paymentIntakeSelect').on('change', function(){ const c=$('#paymentCourseSelect').val(), i=$(this).val(); if(c&&i){ fetchPaymentDetails(c,i); fetchPaymentHistory(c,i); fetchPaymentSchedule(c,i); } else { $('#paymentTableWrapper').hide(); $('#paymentHistory').empty(); $('#paymentScheduleTableBody').empty(); }});
 
@@ -2065,11 +2319,11 @@ $(function(){
       const $tb=$('#clearanceTableBody').empty();
       if(res.success && res.clearances && res.clearances.length){
         res.clearances.forEach(info=>$tb.append(`<tr>
-          <td>${info.label}</td>
+          <td>${escapeHtml(info.label)}</td>
           <td>${info.status?'<span class="badge bg-success">Approved</span>':'<span class="badge bg-warning text-dark">Pending</span>'}</td>
-          <td>${info.approved_date||'N/A'}</td>
-          <td>${info.remarks||'-'}</td>
-          <td><a href="/storage/${info.clearance_slip||''}" target="_blank" class="btn btn-outline-primary btn-sm" ${info.clearance_slip?'':'disabled'}><i class="ti ti-download"></i> Download</a>${!info.clearance_slip?'<span class="text-muted ms-2">No Document</span>':''}</td>
+          <td>${escapeHtml(info.approved_date||'N/A')}</td>
+          <td>${escapeHtml(info.remarks||'-')}</td>
+          <td><a href="/storage/${encodeURI(info.clearance_slip||'')}" target="_blank" class="btn btn-outline-primary btn-sm" ${info.clearance_slip?'':'disabled'}><i class="ti ti-download"></i> Download</a>${!info.clearance_slip?'<span class="text-muted ms-2">No Document</span>':''}</td>
         </tr>`));
         if(!$tb.children().length){ $tb.append('<tr><td colspan="5" class="text-center">No uploaded clearance documents found.</td></tr>'); }
       }else{
@@ -2077,7 +2331,6 @@ $(function(){
       }
     });
   }
-  $('a[data-bs-toggle="tab"][href="#clearance"]').on('shown.bs.tab', function(){ fetchStudentClearances(); });
 
   // ----- Status History tab -----
   function fetchStatusHistory(){
@@ -2091,12 +2344,12 @@ $(function(){
           const rowClass = (h.to_status || '').toString().toLowerCase() === 'terminated' ? 'table-danger' : '';
           $tb.append(`<tr class="${rowClass}">
             <td>${idx+1}</td>
-            <td>${h.from_status || 'N/A'}</td>
-            <td>${h.to_status || 'N/A'}</td>
-            <td>${h.reason || ''}</td>
+            <td>${escapeHtml(h.from_status || 'N/A')}</td>
+            <td>${escapeHtml(h.to_status || 'N/A')}</td>
+            <td>${escapeHtml(h.reason || '')}</td>
             <td>${docLink}</td>
-            <td>${h.changed_by_name || h.changed_by || 'System'}</td>
-            <td>${h.created_at || ''}</td>
+            <td>${escapeHtml(h.changed_by_name || h.changed_by || 'System')}</td>
+            <td>${escapeHtml(h.created_at || '')}</td>
           </tr>`);
         });
         // highlight tab in red and show count
@@ -2113,7 +2366,6 @@ $(function(){
       $('#statusHistoryCount').hide();
     });
   }
-  $('a[data-bs-toggle="tab"][href="#status-history"]').on('shown.bs.tab', function(){ fetchStatusHistory(); });
 
   //-- payment summary tab --
   function fetchCoursesForPaymentSummary() {
@@ -2122,11 +2374,18 @@ $(function(){
     $.get('/api/student/' + sid + '/courses', function(courseRes) {
       const $courseSelect = $('#summary-course').empty().append('<option value="" selected disabled>Select a Course</option>');
       if (courseRes.success && courseRes.courses.length) {
-        courseRes.courses.forEach(c => $courseSelect.append(`<option value="${c.course_id}">${c.course_name}</option>`));
+        courseRes.courses.forEach(c => $courseSelect.append(`<option value="${escapeHtml(c.course_id)}">${escapeHtml(c.course_name)}</option>`));
       }
     });
   }
-  $('a[data-bs-toggle="tab"][href="#payment-summary"]').on('shown.bs.tab', fetchCoursesForPaymentSummary);
+  function resetPaymentSummary() {
+    $('#paymentSummarySection').hide();
+    $('#summary-course').empty().append('<option value="" selected disabled>Select a Course</option>');
+  }
+  function refreshPaymentSummaryTab() {
+    resetPaymentSummary();
+    fetchCoursesForPaymentSummary();
+  }
 
   $('#generatePaymentSummaryBtn').on('click', function() {
     const sid = $('#studentIdHidden').val();
@@ -2245,22 +2504,33 @@ $(function(){
       const $tb = $('#historyTableBody').empty();
       if (res.success && res.history && res.history.length) {
         res.history.forEach(h => {
-          $tb.append(`<tr data-id="${h.id}" data-course-id="${h.course_id}">
-            <td>${h.course_name}</td>
-            <td>${h.intake}</td>
-            <td>${h.status}</td>
+          const specs = Array.isArray(h.specializations) ? h.specializations : [];
+          const currentSpec = h.specialization || '';
+          const specOptions = [`<option value="">(No Specialization)</option>`]
+            .concat(specs.map(spec => {
+              const value = String(spec ?? '');
+              const selected = value === String(currentSpec) ? ' selected' : '';
+              return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(value)}</option>`;
+            }))
+            .join('');
+          $tb.append(`<tr data-id="${escapeHtml(h.id)}" data-course-id="${escapeHtml(h.course_id)}">
+            <td>${escapeHtml(h.course_name)}</td>
+            <td>${escapeHtml(h.intake)}</td>
+            <td>${escapeHtml(h.status)}</td>
             <td class="specialization-cell">
-              <span class="specialization-text">${h.specialization || ''}</span>
-              <select class="form-select specialization-select" style="display:none;"></select>
+              <span class="specialization-text">${escapeHtml(currentSpec)}</span>
+              <select class="form-select form-select-sm specialization-select" style="display:none;">${specOptions}</select>
             </td>
             <td class="full-grade-cell">
-              <span class="grade-text">${h.full_grade || ''}</span>
-              <input type="text" class="form-control grade-input" style="display:none;" value="${h.full_grade || ''}">
+              <span class="grade-text">${escapeHtml(h.full_grade || '')}</span>
+              <input type="text" class="form-control grade-input" style="display:none;" value="${escapeHtml(h.full_grade || '')}">
             </td>
             <td>
-              <button type="button" class="btn btn-sm btn-primary edit-grade-btn">Edit</button>
-              <button type="button" class="btn btn-sm btn-success save-grade-btn" style="display:none;">Save</button>
-              <button type="button" class="btn btn-sm btn-secondary cancel-grade-btn" style="display:none;">Cancel</button>
+              <div class="history-action-buttons">
+                <button type="button" class="btn btn-sm btn-primary edit-grade-btn">Edit</button>
+                <button type="button" class="btn btn-sm btn-success save-grade-btn" style="display:none;">Save</button>
+                <button type="button" class="btn btn-sm btn-secondary cancel-grade-btn" style="display:none;">Cancel</button>
+              </div>
             </td>
           </tr>`);
         });
@@ -2271,9 +2541,6 @@ $(function(){
       $('#historyTableBody').html('<tr><td colspan="6" class="text-center text-danger">Error loading history.</td></tr>');
     });
   }
-  $('a[data-bs-toggle="tab"][href="#history"]').on('shown.bs.tab', function(){
-    fetchCourseRegistrationHistory();
-  });
 
   // --- Grade & Specialization Edit/Save/Cancel Handlers ---
   $(document).on('click', '.edit-grade-btn', function(){
@@ -2316,20 +2583,6 @@ $(function(){
     $tr.find('.edit-grade-btn').show();
     $tr.find('.save-grade-btn,.cancel-grade-btn').hide();
 
-    const $specCell = $tr.find('.specialization-cell');
-    $specCell.find('.specialization-select').hide();
-    $specCell.find('.specialization-text').show();
-  });
-
-
-  $(document).on('click', '.cancel-grade-btn', function(){
-    const $tr = $(this).closest('tr');
-    $tr.find('.grade-input').hide();
-    $tr.find('.grade-text').show();
-    $tr.find('.edit-grade-btn').show();
-    $tr.find('.save-grade-btn,.cancel-grade-btn').hide();
-
-    // Specialization dropdown
     const $specCell = $tr.find('.specialization-cell');
     $specCell.find('.specialization-select').hide();
     $specCell.find('.specialization-text').show();
@@ -2431,19 +2684,26 @@ $(function(){
   
   // Certificates tab (lazy load)
   function fetchStudentCertificates(){
-    const sid=$('#studentIdHidden').val(); if(!sid) return;
+    const sid=$('#studentIdHidden').val();
+    const showEmpty = function(label){
+      $('#olCertificate,#alCertificate,#disciplinaryDocument').html('<span class="text-muted">' + (label || 'Not uploaded') + '</span>');
+    };
+    if(!sid){
+      showEmpty('Not uploaded');
+      return;
+    }
     $.get('/api/student/'+sid+'/certificates', res=>{
       if(res.success){
         // OL Certificate
         if(res.ol_certificate){
-          $('#olCertificate').html(`<a href="/storage/certificates/${res.ol_certificate}" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Certificate</a>`);
+          $('#olCertificate').html(`<a href="${certificateUrl(res.ol_certificate)}" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Certificate</a>`);
         } else {
           $('#olCertificate').html(`<span class="text-muted">Pending</span> <button class="btn btn-sm btn-primary ms-2" onclick="uploadOLCertificate()"><i class="fas fa-upload"></i> Upload OL Certificate</button>`);
         }
         
         // AL Certificate
         if(res.al_certificate){
-          $('#alCertificate').html(`<a href="/storage/certificates/${res.al_certificate}" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Certificate</a>`);
+          $('#alCertificate').html(`<a href="${certificateUrl(res.al_certificate)}" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Certificate</a>`);
         } else {
           $('#alCertificate').html(`<span class="text-muted">Pending</span> <button class="btn btn-sm btn-primary ms-2" onclick="uploadALCertificate()"><i class="fas fa-upload"></i> Upload AL Certificate</button>`);
         }
@@ -2451,16 +2711,18 @@ $(function(){
         // Disciplinary Document
         $('#disciplinaryDocument').html(res.disciplinary_issue_document?`<a href="/storage/${res.disciplinary_issue_document}" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Document</a>`:'<span class="text-muted">Not uploaded</span>');
       }else{
-        $('#olCertificate,#alCertificate,#disciplinaryDocument').html('<span class="text-muted">Not uploaded</span>');
+        showEmpty('Not uploaded');
       }
+    }).fail(function(){
+      showEmpty('Not uploaded');
     });
   }
-  $('a[data-bs-toggle="tab"][href="#certificates"]').on('shown.bs.tab', function(){ fetchStudentCertificates(); });
 
   // Upload OL Certificate
   function uploadOLCertificate(){
     $('#olCertificateInput').click();
   }
+  window.uploadOLCertificate = uploadOLCertificate;
   
   $('#olCertificateInput').on('change', function(){
     const file = this.files[0];
@@ -2506,6 +2768,7 @@ $(function(){
   function uploadALCertificate(){
     $('#alCertificateInput').click();
   }
+  window.uploadALCertificate = uploadALCertificate;
   
   $('#alCertificateInput').on('change', function(){
     const file = this.files[0];
@@ -2614,29 +2877,71 @@ $(function(){
     new bootstrap.Modal(document.getElementById('terminateModal')).show();
   });
 
-  // Tab coloring
-  $('#studentTabs a[data-bs-toggle="tab"]').on('shown.bs.tab', e=>{
+  // Tab coloring + refresh on every tab click
+  function refreshProfileTab(href) {
+    switch (href) {
+      case '#exams':
+        resetExamsTab();
+        break;
+      case '#attendance':
+        resetAttendanceTab();
+        break;
+      case '#history':
+        fetchCourseRegistrationHistory();
+        break;
+      case '#payment-summary':
+        refreshPaymentSummaryTab();
+        break;
+      case '#clearance':
+        fetchStudentClearances();
+        break;
+      case '#certificates':
+        fetchStudentCertificates();
+        break;
+      case '#status-history':
+        fetchStatusHistory();
+        break;
+    }
+  }
+
+  $('#studentTabs a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+    const href = $(e.target).attr('href');
+    localStorage.setItem('studentProfileActiveTab', href);
     $('#studentTabs a.nav-link').removeClass('bg-primary text-white');
     $(e.target).addClass('bg-primary text-white');
+    refreshProfileTab(href);
   });
+
+  $('#studentTabs a[data-bs-toggle="tab"]').on('hidden.bs.tab', function (e) {
+    if ($(e.target).attr('href') === '#payment-summary') {
+      resetPaymentSummary();
+    }
+  });
+
+  var lastTab = localStorage.getItem('studentProfileActiveTab');
+  if (lastTab) {
+    var tabTrigger = document.querySelector('#studentTabs a[href="' + lastTab + '"]');
+    if (tabTrigger) {
+      bootstrap.Tab.getOrCreateInstance(tabTrigger).show();
+    }
+  }
 
   // Helper function to update profile image
   window.updateStudentProfileImage = function(imagePath) {
     const profileImg = document.getElementById('studentProfilePictureImg');
-    if (profileImg) {
-      if (imagePath) {
-        profileImg.src = '{{ asset("storage/") }}/' + imagePath + '?' + Date.now();
-      } else {
-        profileImg.src = '{{ asset("images/profile/user-1.jpg") }}';
-      }
+    if (!profileImg) return;
+    if (imagePath) {
+      const clean = String(imagePath).replace(/^\/+/, '').replace(/^storage\//, '');
+      profileImg.src = '/storage/' + clean + '?' + Date.now();
+    } else {
+      profileImg.src = '{{ asset("images/profile/user-1.jpg") }}';
     }
   };
 
   // (email validation helper is defined earlier)
 
-  // On initial load, populate from server (if provided)
-  @if(isset($student))
-    populateStudentProfile(@json($student));
+  // Server-rendered profile already has personal/parent/academic fields filled.
+  @if($student)
     $('#profileSection').show();
     $('#editPictureBtn').show();
   @endif
@@ -2675,37 +2980,17 @@ $(function(){
       .then(resp => resp.json())
       .then(data => {
         if (data.success) {
-          // Update the profile image immediately
           const profileImg = document.getElementById('studentProfilePictureImg');
-          if (profileImg && data.url) {
-            // Force image reload by updating src with cache busting
-            const newUrl = data.url + '?' + Date.now();
-            
-            // Create new image object to preload and verify the image
-            const newImage = new Image();
-            newImage.onload = function() {
-              // Image loaded successfully, now update the profile image
-              profileImg.src = newUrl;
-              console.log('Profile image successfully updated to:', newUrl);
-            };
-            
-            newImage.onerror = function() {
-              console.error('Failed to load new profile image:', newUrl);
-              // Keep the current image if new one fails to load
-              showErrorMessage('Uploaded image could not be displayed');
-            };
-            
-            // Start loading the new image
-            newImage.src = newUrl;
-            
-          } else {
-            console.warn('Profile image element not found or URL missing', {
-              profileImg: !!profileImg, 
-              url: data.url,
-              fullResponse: data
-            });
+          const fileInput = document.getElementById('newStudentProfilePicture');
+          if (profileImg) {
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+              profileImg.src = URL.createObjectURL(fileInput.files[0]);
+            } else if (data.url) {
+              profileImg.src = data.url + (data.url.includes('?') ? '&' : '?') + Date.now();
+            } else if (data.path) {
+              updateStudentProfileImage(data.path);
+            }
           }
-          
           const modalEl = document.getElementById('editPictureModal');
           const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
           modal.hide();
@@ -2782,7 +3067,7 @@ $(function(){
           hideOLUpdateForm();
           // Reload student data to show updated results
           setTimeout(() => {
-            $('#searchBtn').click();
+            reloadStudentProfile();
           }, 1000);
         } else {
           showErrorMessage(res.message || 'Failed to update O/L results.');
@@ -2851,7 +3136,7 @@ $(function(){
           hideALUpdateForm();
           // Reload student data to show updated results
           setTimeout(() => {
-            $('#searchBtn').click();
+            reloadStudentProfile();
           }, 1000);
         } else {
           showErrorMessage(res.message || 'Failed to update A/L results.');
@@ -2868,8 +3153,8 @@ $(function(){
 
 {{-- Terminate Modal --}}
 <!-- Edit Picture Modal -->
-<div class="modal fade" id="editPictureModal" tabindex="-1" role="dialog" aria-labelledby="editPictureModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+<div class="modal fade student-profile-modal" id="editPictureModal" tabindex="-1" role="dialog" aria-labelledby="editPictureModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="editPictureModalLabel">Edit Profile Picture</h5>
@@ -2892,8 +3177,8 @@ $(function(){
     </div>
 </div>
 
-<div class="modal fade" id="terminateModal" tabindex="-1" aria-labelledby="terminateModalLabel" aria-hidden="true">
-  <div class="modal-dialog"><div class="modal-content">
+<div class="modal fade student-profile-modal" id="terminateModal" tabindex="-1" aria-labelledby="terminateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header">
       <h5 class="modal-title" id="terminateModalLabel">Terminate Student</h5>
       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -2917,8 +3202,8 @@ $(function(){
 </div>
 
 {{-- Re‑Register Modal --}}
-<div class="modal fade" id="reinstateModal" tabindex="-1" aria-labelledby="reinstateModalLabel" aria-hidden="true">
-  <div class="modal-dialog"><div class="modal-content">
+<div class="modal fade student-profile-modal" id="reinstateModal" tabindex="-1" aria-labelledby="reinstateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header">
       <h5 class="modal-title" id="reinstateModalLabel">Re‑Register Student</h5>
       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -2942,8 +3227,8 @@ $(function(){
 </div>
 
 <!-- Modal shown when student has existing clearances -->
-<div class="modal fade" id="terminateClearanceModal" tabindex="-1" aria-labelledby="terminateClearanceModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg"><div class="modal-content">
+<div class="modal fade student-profile-modal" id="terminateClearanceModal" tabindex="-1" aria-labelledby="terminateClearanceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header">
       <h5 class="modal-title" id="terminateClearanceModalLabel">Student has existing clearances</h5>
       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
