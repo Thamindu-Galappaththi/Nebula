@@ -258,16 +258,7 @@ class DGMDashboardController extends Controller
             $locationsArray = array_filter(array_map('trim', explode(',', $location)));
         }
 
-        // Accept multiple possible parameter names for start/end and use Request::boolean for flags
-        $fromYear = $request->input('from_year') ?? $request->input('range_start_year') ?? $request->input('from') ?? null;
-        $toYear = $request->input('to_year') ?? $request->input('range_end_year') ?? $request->input('to') ?? null;
-
-        $compareMode = $request->boolean('compare');
-        $rangeMode = $request->boolean('range');
-
-        // normalize numeric strings to ints when present
-        $fromYearInt = $fromYear !== null && is_numeric($fromYear) ? (int) $fromYear : null;
-        $toYearInt = $toYear !== null && is_numeric($toYear) ? (int) $toYear : null;
+        $periodBuckets = $this->buildPeriodBuckets($request);
 
         $coursesSelected = [];
         $courseIds = [];
@@ -294,94 +285,67 @@ class DGMDashboardController extends Controller
             }
         }
 
-        // determine years list (inclusive)
-        if ($rangeMode && $fromYearInt && $toYearInt) {
-            $start = min($fromYearInt, $toYearInt);
-            $end = max($fromYearInt, $toYearInt);
-            $years = range($start, $end);
-        } elseif ($compareMode && $fromYearInt && $toYearInt) {
-            // compare: include exactly the two years for side-by-side comparison
-            $years = [$fromYearInt, $toYearInt];
-        } elseif ($year === 'all') {
-            $bulkMin = \DB::table('bulk_student_uploads')->min('year');
-            $bulkMax = \DB::table('bulk_student_uploads')->max('year');
-            $regMin = CourseRegistration::min(DB::raw('YEAR(created_at)'));
-            $regMax = CourseRegistration::max(DB::raw('YEAR(created_at)'));
-
-            $candidates = array_filter([
-                $bulkMin ? (int) $bulkMin : null,
-                $bulkMax ? (int) $bulkMax : null,
-                $regMin ? (int) $regMin : null,
-                $regMax ? (int) $regMax : null,
-            ]);
-
-            if (empty($candidates)) {
-                $years = [(int) date('Y')];
-            } else {
-                $min = min($candidates);
-                $max = max($candidates);
-                $years = range($min, $max);
-            }
-        } else {
-            $years = [$year ?: (int) date('Y')];
-        }
-
         $locations = empty($locationsArray) ? ['Welisara', 'Moratuwa', 'Peradeniya'] : $locationsArray;
-
         $aggregate = [];
 
-        // Resolve possible course name if course is numeric id (bulk table may store names)
+        // 1) bulk rows + 2) registrations, scoped to each compare/range/single period
         $courseNameForMatch = null;
         if ($course !== 'all' && is_numeric($course)) {
             $courseNameForMatch = Course::where('course_id', $course)->value('course_name');
         }
 
-        // 1) bulk rows
-        $bulkQuery = \DB::table('bulk_student_uploads')
-            ->whereIn('year', $years)
-            ->whereIn('location', $locations);
+        foreach ($periodBuckets as $bucket) {
+            $y = $bucket['year'];
+            $month = $bucket['month'];
+            $day = $bucket['day'];
 
-        if ($course !== 'all') {
-            // Support multi-select: match stored id or stored name
-            $bulkQuery->where(function ($q) use ($course, $courseNameForMatch, $courseIds, $courseNames) {
-                // if we have numeric ids in the filter, match those
-                if (!empty($courseIds)) {
-                    $q->whereIn('course', $courseIds);
-                }
-                // if we have name filters, match those too
-                if (!empty($courseNames)) {
-                    $q->orWhereIn('course', $courseNames);
-                }
-                // keep backwards compatibility with single-course string value
-                $q->orWhere('course', $course);
-                if ($courseNameForMatch) {
-                    $q->orWhere('course', $courseNameForMatch);
-                }
-            });
-        }
+            $bulkQuery = DB::table('bulk_student_uploads')
+                ->where('year', $y)
+                ->whereIn('location', $locations);
 
-        $bulkRows = $bulkQuery->get();
-
-        foreach ($bulkRows as $row) {
-            $c = $row->course ?? ($course !== 'all' ? $course : 'all');
-            if (empty($c))
-                $c = 'all';
-            $key = "{$row->year}|{$row->location}|{$c}";
-            if (!isset($aggregate[$key])) {
-                $aggregate[$key] = [
-                    'year' => (int) $row->year,
-                    'institute_location' => $row->location,
-                    'course' => $c,
-                    'count' => 0
-                ];
+            if ($month) {
+                $bulkQuery->where('month', $month);
             }
-            $aggregate[$key]['count'] += (int) ($row->student_count ?? 0);
-        }
+            if ($day) {
+                $bulkQuery->where('day', $day);
+            }
 
-        // 2) registrations
-        foreach ($years as $y) {
+            if ($course !== 'all') {
+                $bulkQuery->where(function ($q) use ($course, $courseNameForMatch, $courseIds, $courseNames) {
+                    if (!empty($courseIds)) {
+                        $q->whereIn('course', $courseIds);
+                    }
+                    if (!empty($courseNames)) {
+                        $q->orWhereIn('course', $courseNames);
+                    }
+                    $q->orWhere('course', $course);
+                    if ($courseNameForMatch) {
+                        $q->orWhere('course', $courseNameForMatch);
+                    }
+                });
+            }
+
+            foreach ($bulkQuery->get() as $row) {
+                $c = $row->course ?? ($course !== 'all' ? $course : 'all');
+                if (empty($c)) {
+                    $c = 'all';
+                }
+                $key = "{$bucket['period']}|{$row->location}|{$c}";
+                if (!isset($aggregate[$key])) {
+                    $aggregate[$key] = [
+                        'year' => $y,
+                        'month' => $month,
+                        'period' => $bucket['period'],
+                        'label' => $bucket['label'],
+                        'institute_location' => $row->location,
+                        'course' => $c,
+                        'count' => 0
+                    ];
+                }
+                $aggregate[$key]['count'] += (int) ($row->student_count ?? 0);
+            }
+
             foreach ($locations as $loc) {
-                // build list of courses to iterate (id + name)
                 $courseLoop = [];
 
                 if ($course === 'all') {
@@ -390,14 +354,12 @@ class DGMDashboardController extends Controller
                         $courseLoop[] = ['id' => $cObj->course_id, 'name' => $cObj->course_name];
                     }
                 } else {
-                    // prefer numeric ids if provided
                     if (!empty($courseIds)) {
                         $rows = Course::whereIn('course_id', $courseIds)->get();
                         foreach ($rows as $r) {
                             $courseLoop[] = ['id' => $r->course_id, 'name' => $r->course_name];
                         }
                     }
-                    // also accept course names from multi-select
                     if (!empty($courseNames)) {
                         $rows = Course::whereIn('course_name', $courseNames)->get();
                         foreach ($rows as $r) {
@@ -413,7 +375,6 @@ class DGMDashboardController extends Controller
                             }
                         }
                     }
-                    // fallback: if nothing resolved, attempt to treat $course as single id/name
                     if (empty($courseLoop)) {
                         $singleRows = Course::where('course_id', $course)->orWhere('course_name', $course)->get();
                         foreach ($singleRows as $r) {
@@ -422,29 +383,25 @@ class DGMDashboardController extends Controller
                     }
                 }
 
-                // iterate each course and count registrations matching year/month/day
                 foreach ($courseLoop as $cInfo) {
                     $courseId = $cInfo['id'];
                     $courseName = $cInfo['name'];
 
                     $regQuery = Student::where('institute_location', $loc)
-                        ->whereHas('courseRegistrations', function ($q) use ($y, $month, $day, $courseId) {
+                        ->whereHas('courseRegistrations', function ($q) use ($courseId, $bucket) {
                             $q->where('course_id', $courseId)
-                                ->whereYear('created_at', $y);
-                            if (!empty($month)) {
-                                $q->whereMonth('created_at', $month);
-                            }
-                            if (!empty($day)) {
-                                $q->whereDay('created_at', $day);
-                            }
+                                ->whereBetween('created_at', [$bucket['periodStart'], $bucket['periodEnd']]);
                         });
 
                     $count = $regQuery->distinct()->count('students.student_id');
 
-                    $key = "{$y}|{$loc}|{$courseName}";
+                    $key = "{$bucket['period']}|{$loc}|{$courseName}";
                     if (!isset($aggregate[$key])) {
                         $aggregate[$key] = [
-                            'year' => (int) $y,
+                            'year' => $y,
+                            'month' => $month,
+                            'period' => $bucket['period'],
+                            'label' => $bucket['label'],
                             'institute_location' => $loc,
                             'course_name' => $courseName,
                             'count' => 0
@@ -475,6 +432,14 @@ class DGMDashboardController extends Controller
             if (!isset($item['institute_location']) && isset($item['location'])) {
                 $item['institute_location'] = $item['location'];
             }
+            if (empty($item['period'])) {
+                $item['period'] = isset($item['month']) && $item['month']
+                    ? sprintf('%d-%02d', (int) $item['year'], (int) $item['month'])
+                    : (string) ($item['year'] ?? '');
+            }
+            if (empty($item['label'])) {
+                $item['label'] = (string) ($item['year'] ?? '');
+            }
         }
         unset($item);
 
@@ -486,9 +451,6 @@ class DGMDashboardController extends Controller
      */
     public function getRevenueByYearCourse(Request $request)
     {
-        $year = $request->input('year');
-        $month = $request->input('month');
-        $day = $request->input('date');
         $location = $request->input('location', 'all');
         $course = $request->input('course', 'all');
 
@@ -497,45 +459,10 @@ class DGMDashboardController extends Controller
             $locationsArray = array_filter(array_map('trim', explode(',', $location)));
         }
 
-        // Accept multiple possible names for from/to and range flags
-        $fromYear = $request->input('from_year') ?? $request->input('range_start_year') ?? $request->input('from');
-        $toYear = $request->input('to_year') ?? $request->input('range_end_year') ?? $request->input('to');
-
-        $compareMode = $request->boolean('compare');
-        $rangeMode = $request->boolean('range');
-
         $courseIds = [];
         if ($course !== 'all' && !empty($course)) {
             $courseIds = array_filter(explode(',', $course));
             $courseIds = array_map('intval', $courseIds);
-        }
-
-        // normalize years
-        $fromInt = is_numeric($fromYear) ? (int) $fromYear : null;
-        $toInt = is_numeric($toYear) ? (int) $toYear : null;
-
-        if ($request->filled('range_start_year') && $request->filled('range_end_year')) {
-            $start = min((int) $request->input('range_start_year'), (int) $request->input('range_end_year'));
-            $end = max((int) $request->input('range_start_year'), (int) $request->input('range_end_year'));
-            $years = range($start, $end);
-        } elseif ($request->filled('from_year') && $request->filled('to_year')) {
-            if ($compareMode) {
-                $years = [(int) $request->input('from_year'), (int) $request->input('to_year')];
-            } else {
-                $start = min((int) $request->input('from_year'), (int) $request->input('to_year'));
-                $end = max((int) $request->input('from_year'), (int) $request->input('to_year'));
-                $years = range($start, $end);
-            }
-        } elseif ($rangeMode && $fromInt && $toInt) {
-            $start = min($fromInt, $toInt);
-            $end = max($fromInt, $toInt);
-            $years = range($start, $end);
-        } elseif ($compareMode && $fromInt && $toInt) {
-            $years = [$fromInt, $toInt];
-        } elseif (!empty($year) && is_numeric($year)) {
-            $years = [(int) $year];
-        } else {
-            $years = [date('Y')];
         }
 
         $locations = empty($locationsArray) ? ['Welisara', 'Moratuwa', 'Peradeniya'] : $locationsArray;
@@ -558,40 +485,30 @@ class DGMDashboardController extends Controller
 
         // Pre-resolve numeric course id -> name mapping for bulk matching
         $courseIdToName = Course::pluck('course_name', 'course_id')->toArray();
+        $periodBuckets = $this->buildPeriodBuckets($request);
 
-        foreach ($years as $y) {
-            // Build period bounds for this year
-            $base = Carbon::create($y, $month ?: 1, $day ?: 1);
-            if ($day) {
-                $periodStart = $base->copy()->startOfDay();
-                $periodEnd = $base->copy()->endOfDay();
-            } elseif ($month) {
-                $periodStart = $base->copy()->startOfMonth();
-                $periodEnd = $base->copy()->endOfMonth();
-            } else {
-                $periodStart = $base->copy()->startOfYear();
-                $periodEnd = $base->copy()->endOfYear();
-            }
+        foreach ($periodBuckets as $bucket) {
+            $y = $bucket['year'];
+            $periodStart = $bucket['periodStart'];
+            $periodEnd = $bucket['periodEnd'];
 
             foreach ($locations as $loc) {
-                // --- 1) Bulk revenue rows for this year/location (and optional month/day/course) ---
+                // --- 1) Bulk revenue rows for this period/location ---
                 $bulkQ = DB::table('bulk_revenue_uploads')
                     ->where('year', $y)
                     ->where('location', $loc);
 
-                if ($month) {
-                    // incoming month may be "01" or "1" — cast to int for comparison
-                    $bulkQ->where('month', intval($month));
+                if ($bucket['month']) {
+                    $bulkQ->where('month', $bucket['month']);
                 }
-                if ($day) {
-                    $bulkQ->where('day', intval($day));
+                if ($bucket['day']) {
+                    $bulkQ->where('day', $bucket['day']);
                 }
 
                 // If frontend requested specific course, match either stored id or stored name
                 if ($course !== 'all') {
                     $bulkQ->where(function ($q) use ($course, $courseIdToName) {
                         $q->where('course', $course);
-                        // if stored bulk uses course name and we have a mapping, match that too
                         $name = $courseIdToName[$course] ?? null;
                         if ($name)
                             $q->orWhere('course', $name);
@@ -601,18 +518,14 @@ class DGMDashboardController extends Controller
                 $bulkRows = $bulkQ->get();
 
                 foreach ($bulkRows as $r) {
-                    // Normalize course name for output:
                     $bulkCourseRaw = $r->course;
                     $courseNameOut = null;
 
-                    // If bulk stored course is numeric id -> map to name
                     if (is_numeric($bulkCourseRaw)) {
                         $courseNameOut = $courseIdToName[intval($bulkCourseRaw)] ?? (string) $bulkCourseRaw;
                     } elseif ($bulkCourseRaw) {
-                        // if it's a name, keep it
                         $courseNameOut = (string) $bulkCourseRaw;
                     } else {
-                        // if no course in bulk row and frontend asked for a specific course, use that name
                         if ($course !== 'all') {
                             $courseNameOut = Course::where('course_id', $course)->value('course_name') ?? (string) $course;
                         } else {
@@ -620,20 +533,21 @@ class DGMDashboardController extends Controller
                         }
                     }
 
-                    // If frontend filtered by course but courseNameOut doesn't match the requested course name, skip
                     if ($course !== 'all') {
                         $requestedCourseName = Course::where('course_id', $course)->value('course_name') ?? (string) $course;
                         if ($courseNameOut !== $requestedCourseName && (string) $r->course !== (string) $course) {
-                            // not matching either id or name
                             continue;
                         }
                     }
 
-                    $key = "{$y}|{$loc}|{$courseNameOut}";
+                    $key = "{$bucket['period']}|{$loc}|{$courseNameOut}";
 
                     if (!isset($aggregate[$key])) {
                         $aggregate[$key] = [
-                            'year' => (int) $y,
+                            'year' => $y,
+                            'month' => $bucket['month'],
+                            'period' => $bucket['period'],
+                            'label' => $bucket['label'],
                             'location' => $loc,
                             'course_name' => $courseNameOut,
                             'revenue' => 0.0
@@ -643,49 +557,42 @@ class DGMDashboardController extends Controller
                     $aggregate[$key]['revenue'] += floatval($r->revenue ?? 0);
                 }
 
-                // --- 2) PaymentDetail partials for this year/location/course ---
+                // --- 2) PaymentDetail partials for this period/location/course ---
                 foreach ($courses as $courseName => $courseId) {
-                    // If a specific course filter was provided, this loop will only contain that course
                     $paymentQ = PaymentDetail::whereHas('student', function ($q) use ($loc) {
                         $q->where('institute_location', $loc);
                     });
 
-                    // If course filter provided, restrict by registration/course
-                    if ($course !== 'all') {
-                        $paymentQ->whereHas('registration', function ($q) use ($courseId) {
-                            $q->where('course_id', $courseId);
-                        });
-                    } else {
-                        // when course = all, but we are iterating courses list we still want payments for that course id
-                        $paymentQ->whereHas('registration', function ($q) use ($courseId) {
-                            $q->where('course_id', $courseId);
-                        });
-                    }
+                    $paymentQ->whereHas('registration', function ($q) use ($courseId) {
+                        $q->where('course_id', $courseId);
+                    });
 
-                    // We don't restrict payment created_at here because partial_payments have their own dates.
                     $payments = $paymentQ->get();
 
                     foreach ($payments as $p) {
-                    $contribution = $this->getPaymentContributionForPeriod($p, $periodStart, $periodEnd);
-                    if ($contribution <= 0) {
-                        continue;
-                    }
+                        $contribution = $this->getPaymentContributionForPeriod($p, $periodStart, $periodEnd);
+                        if ($contribution <= 0) {
+                            continue;
+                        }
 
-                    $key = "{$y}|{$loc}|{$courseName}";
-                    if (!isset($aggregate[$key])) {
-                        $aggregate[$key] = [
-                            'year' => (int) $y,
-                            'location' => $loc,
-                            'course_name' => $courseName,
-                            'revenue' => 0.0
-                        ];
+                        $key = "{$bucket['period']}|{$loc}|{$courseName}";
+                        if (!isset($aggregate[$key])) {
+                            $aggregate[$key] = [
+                                'year' => $y,
+                                'month' => $bucket['month'],
+                                'period' => $bucket['period'],
+                                'label' => $bucket['label'],
+                                'location' => $loc,
+                                'course_name' => $courseName,
+                                'revenue' => 0.0
+                            ];
+                        }
+                        $aggregate[$key]['revenue'] += $contribution;
                     }
-                    $aggregate[$key]['revenue'] += $contribution;
-                } // end payments loop
-                } // end courses loop
+                }
 
-            } // end locations
-        } // end years
+            }
+        }
 
         // Normalize output: ensure revenue rounded, and include entries for combinations with zero if needed
         $result = array_values(array_map(function ($item) {
@@ -1357,5 +1264,118 @@ class DGMDashboardController extends Controller
         }
         
         return response()->json($months);
+    }
+
+    /**
+     * Build compare / range / single-period buckets so month filters are applied
+     * instead of collapsing everything into a full year.
+     *
+     * Compare: exactly two periods (from and to), each using its own month when set.
+     * Range: each month in the inclusive span when any month is set; otherwise each year.
+     * Single: the selected year, optionally month and day.
+     */
+    private function buildPeriodBuckets(Request $request): array
+    {
+        $monthNames = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'];
+
+        $makeBucket = function ($year, $month = null, $day = null) use ($monthNames) {
+            $year = (int) $year;
+            $monthInt = ($month !== null && $month !== '' && is_numeric($month)) ? (int) $month : null;
+            $dayInt = ($day !== null && $day !== '' && is_numeric($day)) ? (int) $day : null;
+
+            if ($monthInt && $dayInt) {
+                $periodStart = Carbon::create($year, $monthInt, $dayInt)->startOfDay();
+                $periodEnd = $periodStart->copy()->endOfDay();
+                $label = sprintf('%02d %s %d', $dayInt, $monthNames[$monthInt], $year);
+                $period = sprintf('%d-%02d-%02d', $year, $monthInt, $dayInt);
+            } elseif ($monthInt) {
+                $periodStart = Carbon::create($year, $monthInt, 1)->startOfMonth();
+                $periodEnd = $periodStart->copy()->endOfMonth();
+                $label = $monthNames[$monthInt] . ' ' . $year;
+                $period = sprintf('%d-%02d', $year, $monthInt);
+            } else {
+                $periodStart = Carbon::create($year, 1, 1)->startOfYear();
+                $periodEnd = Carbon::create($year, 12, 31)->endOfYear();
+                $label = (string) $year;
+                $period = (string) $year;
+            }
+
+            return [
+                'year' => $year,
+                'month' => $monthInt,
+                'day' => $dayInt,
+                'period' => $period,
+                'label' => $label,
+                'periodStart' => $periodStart,
+                'periodEnd' => $periodEnd,
+            ];
+        };
+
+        $compareMode = $request->boolean('compare');
+        $rangeMode = $request->boolean('range');
+
+        $fromYear = $request->input('from_year') ?? $request->input('range_start_year') ?? $request->input('from');
+        $toYear = $request->input('to_year') ?? $request->input('range_end_year') ?? $request->input('to');
+        $fromYearInt = is_numeric($fromYear) ? (int) $fromYear : null;
+        $toYearInt = is_numeric($toYear) ? (int) $toYear : null;
+
+        if ($compareMode && $fromYearInt && $toYearInt) {
+            return [
+                $makeBucket($fromYearInt, $request->input('from_month') ?: null),
+                $makeBucket($toYearInt, $request->input('to_month') ?: null),
+            ];
+        }
+
+        if ($rangeMode && $fromYearInt && $toYearInt) {
+            $startMonth = $request->input('range_start_month') ?: null;
+            $endMonth = $request->input('range_end_month') ?: null;
+
+            if ($startMonth || $endMonth) {
+                $cursor = Carbon::create($fromYearInt, $startMonth ? (int) $startMonth : 1, 1)->startOfMonth();
+                $end = Carbon::create($toYearInt, $endMonth ? (int) $endMonth : 12, 1)->startOfMonth();
+                $buckets = [];
+                while ($cursor->lte($end)) {
+                    $buckets[] = $makeBucket($cursor->year, $cursor->month);
+                    $cursor->addMonth();
+                }
+                return $buckets;
+            }
+
+            $buckets = [];
+            $startY = min($fromYearInt, $toYearInt);
+            $endY = max($fromYearInt, $toYearInt);
+            for ($y = $startY; $y <= $endY; $y++) {
+                $buckets[] = $makeBucket($y);
+            }
+            return $buckets;
+        }
+
+        $year = $request->input('year');
+        $month = $request->input('month');
+        $day = $request->input('date');
+
+        if ($year === 'all') {
+            $bulkMin = DB::table('bulk_student_uploads')->min('year');
+            $bulkMax = DB::table('bulk_student_uploads')->max('year');
+            $regMin = CourseRegistration::min(DB::raw('YEAR(created_at)'));
+            $regMax = CourseRegistration::max(DB::raw('YEAR(created_at)'));
+            $candidates = array_filter([
+                $bulkMin ? (int) $bulkMin : null,
+                $bulkMax ? (int) $bulkMax : null,
+                $regMin ? (int) $regMin : null,
+                $regMax ? (int) $regMax : null,
+            ]);
+            if (empty($candidates)) {
+                return [$makeBucket((int) date('Y'))];
+            }
+            $buckets = [];
+            for ($y = min($candidates); $y <= max($candidates); $y++) {
+                $buckets[] = $makeBucket($y);
+            }
+            return $buckets;
+        }
+
+        $yearInt = is_numeric($year) ? (int) $year : (int) date('Y');
+        return [$makeBucket($yearInt, $month ?: null, $day ?: null)];
     }
 }
