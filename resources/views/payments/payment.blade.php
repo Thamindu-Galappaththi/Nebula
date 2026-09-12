@@ -897,7 +897,7 @@
 
                                 <!-- Footer -->
                                 <div style="text-align: center; border-top: 2px solid #000; padding-top: 20px; margin-top: 30px;">
-                                    <p style="margin: 5px 0; font-size: 12px;">© 2024 SLTMOBITEL NEBULA INSTITUTE OF TECHNOLOGY. All rights reserved.</p>
+                                    <p style="margin: 5px 0; font-size: 12px;">© {{ date('Y') }} SLTMOBITEL NEBULA INSTITUTE OF TECHNOLOGY. All rights reserved.</p>
                                     <p style="margin: 5px 0; font-size: 10px;">This is a computer-generated document. No signature required.</p>
                                 </div>
                             </div>
