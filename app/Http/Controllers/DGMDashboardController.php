@@ -670,10 +670,16 @@ class DGMDashboardController extends Controller
             $years = range($start, $end);
         }
 
-        // Get all locations
-        $locations = $location === 'all'
-            ? ['Welisara', 'Moratuwa', 'Peradeniya']
-            : array_map('trim', explode(',', $location));
+        $allLocations = ['Welisara', 'Moratuwa', 'Peradeniya'];
+        $locations = ($location === 'all' || $location === null || $location === '')
+            ? $allLocations
+            : array_values(array_filter(
+                array_map('trim', explode(',', $location)),
+                fn ($loc) => $loc !== '' && $loc !== 'all' && in_array($loc, $allLocations, true)
+            ));
+        if (empty($locations)) {
+            $locations = $allLocations;
+        }
 
         // We'll aggregate outstanding by year|location|course_name
         $aggregate = [];
@@ -1320,10 +1326,14 @@ class DGMDashboardController extends Controller
         $toYearInt = is_numeric($toYear) ? (int) $toYear : null;
 
         if ($compareMode && $fromYearInt && $toYearInt) {
-            return [
-                $makeBucket($fromYearInt, $request->input('from_month') ?: null),
-                $makeBucket($toYearInt, $request->input('to_month') ?: null),
-            ];
+            $fromBucket = $makeBucket($fromYearInt, $request->input('from_month') ?: null);
+            $toBucket = $makeBucket($toYearInt, $request->input('to_month') ?: null);
+
+            if ($fromBucket['period'] === $toBucket['period']) {
+                return [$fromBucket];
+            }
+
+            return [$fromBucket, $toBucket];
         }
 
         if ($rangeMode && $fromYearInt && $toYearInt) {
