@@ -89,7 +89,7 @@ class StudentListExport implements FromArray, WithHeadings, WithStyles, WithColu
         ]);
 
         // Style all cells
-        $sheet->getStyle('A4:F' . (count($this->data) + 3))->applyFromArray([
+        $sheet->getStyle('A4:F' . (count($this->data) + 4))->applyFromArray([
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
                 'vertical' => Alignment::VERTICAL_CENTER,
@@ -111,7 +111,7 @@ class StudentListExport implements FromArray, WithHeadings, WithStyles, WithColu
             'B' => 25,
             'C' => 15,
             'D' => 30,
-            'E' => 22,
+            'E' => 40,
             'F' => 15,
         ];
     }

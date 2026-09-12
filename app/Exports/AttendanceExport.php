@@ -90,7 +90,7 @@ class AttendanceExport implements FromArray, WithHeadings, WithStyles, WithColum
         ]);
 
         // Style all cells
-        $sheet->getStyle('A4:E' . (count($this->data) + 3))->applyFromArray([
+        $sheet->getStyle('A4:E' . (count($this->data) + 4))->applyFromArray([
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
                 'vertical' => Alignment::VERTICAL_CENTER,

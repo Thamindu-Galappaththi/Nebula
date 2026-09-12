@@ -73,9 +73,7 @@ class StudentListController extends Controller
             ? $commonSpecializations
             : $courseSpecializations;
 
-        return SpecializationStudentScope::applyToQuery(
-            $query,
-            'cr.student_id',
+        $studentIds = SpecializationStudentScope::resolveStudentIds(
             $courseId,
             $intakeId,
             $location,
@@ -84,6 +82,80 @@ class StudentListController extends Controller
             null,
             $effectiveCourseSpecializations
         );
+
+        if (!empty($studentIds)) {
+            return $query->whereIn('cr.student_id', $studentIds);
+        }
+
+        $hasSpecializationRegistrations = Schema::hasTable('specialization_registrations')
+            && DB::table('specialization_registrations')
+                ->where('course_id', $courseId)
+                ->where('intake_id', $intakeId)
+                ->where('location', $location)
+                ->exists();
+
+        if ($hasSpecializationRegistrations) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        // Older batches were never copied into specialization_registrations.
+        // Keep showing the course-registration list for those cohorts.
+        return $query;
+    }
+
+    private function statusSelectSql(): string
+    {
+        return 'CASE
+            WHEN LOWER(cr.status) = "registered" THEN "registered"
+            WHEN LOWER(cr.status) IN ("not eligible", "terminated") THEN "terminated"
+            WHEN LOWER(cr.status) = "completed" THEN "completed"
+            ELSE "pending"
+        END';
+    }
+
+    private function applyStatusFilter($query, string $status)
+    {
+        if ($status === 'all') {
+            return $query;
+        }
+
+        $statusMap = [
+            'registered' => ['Registered', 'registered'],
+            'terminated' => ['Not eligible', 'not eligible', 'Terminated', 'terminated'],
+            'completed' => ['Completed', 'completed'],
+            'pending' => ['Pending', 'pending', 'Special approval required'],
+        ];
+
+        if (isset($statusMap[$status])) {
+            $query->whereIn('cr.status', $statusMap[$status]);
+        }
+
+        return $query;
+    }
+
+    private function fetchStudentsForFilters(string $location, int $courseId, int $intakeId, ?string $specialization, string $status = 'all')
+    {
+        $query = DB::table('course_registration as cr')
+            ->join('students as s', 's.student_id', '=', 'cr.student_id')
+            ->where('cr.location', $location)
+            ->where('cr.course_id', $courseId)
+            ->where('cr.intake_id', $intakeId);
+
+        $this->applySpecializationScope($query, $specialization, $courseId, $intakeId, $location);
+        $this->applyStatusFilter($query, $status);
+
+        $students = $query->select([
+                'cr.course_registration_id',
+                's.student_id',
+                DB::raw('COALESCE(s.name_with_initials, s.full_name) as name'),
+                DB::raw('"" as specialization'),
+                DB::raw($this->statusSelectSql() . ' as status'),
+            ])
+            ->orderBy('cr.course_registration_id')
+            ->orderBy('s.name_with_initials')
+            ->get();
+
+        return $this->fillDisplayedSpecializations($students, $courseId, $intakeId, $location);
     }
 
     private function fillDisplayedSpecializations($students, int $courseId, int $intakeId, string $location)
@@ -132,40 +204,12 @@ class StudentListController extends Controller
             'specialization' => 'nullable|string',
         ]);
 
-        $location  = $request->location;
-        $course_id = (int) $request->course_id;
-        $intake_id = (int) $request->intake_id;
-        $specialization = $this->normalizeSpecializationValue($request->specialization);
-        $course = Course::find($course_id);
-
-
-
-        $query = DB::table('course_registration as cr')
-            ->join('students as s', 's.student_id', '=', 'cr.student_id')
-            ->where('cr.location', $location)
-            ->where('cr.course_id', $course_id)
-            ->where('cr.intake_id', $intake_id);
-
-        $this->applySpecializationScope($query, $specialization, $course_id, $intake_id, $location);
-
-        $students = $query->select([
-                'cr.course_registration_id',
-                's.student_id',
-                DB::raw('COALESCE(s.name_with_initials, s.full_name) as name'),
-                DB::raw('"" as specialization'),
-                DB::raw('
-                    CASE cr.status
-                        WHEN "Pending" THEN "pending"
-                        WHEN "Registered" THEN "registered"
-                        WHEN "Not eligible" THEN "terminated"
-                        WHEN "Completed" THEN "completed"
-                        ELSE "pending"
-                    END as status
-                ')
-            ])            ->orderBy('cr.course_registration_id')            ->orderBy('s.name_with_initials')
-            ->get();
-
-        $students = $this->fillDisplayedSpecializations($students, $course_id, $intake_id, $location);
+        $students = $this->fetchStudentsForFilters(
+            $request->location,
+            (int) $request->course_id,
+            (int) $request->intake_id,
+            $this->normalizeSpecializationValue($request->specialization)
+        );
 
         return response()->json([
             'success'  => true,
@@ -191,43 +235,8 @@ class StudentListController extends Controller
         $intake_id = (int) $request->intake_id;
         $specialization = $this->normalizeSpecializationValue($request->specialization);
         $status    = $request->input('status', 'all');
-        $course = Course::find($course_id);
 
-
-
-        $query = DB::table('course_registration as cr')
-            ->join('students as s', 's.student_id', '=', 'cr.student_id')
-            ->where('cr.location', $location)
-            ->where('cr.course_id', $course_id)
-            ->where('cr.intake_id', $intake_id);
-        $this->applySpecializationScope($query, $specialization, $course_id, $intake_id, $location);
-
-        // status filter mapping
-        if ($status !== 'all') {
-            if ($status === 'registered') $query->where('cr.status', 'Registered');
-            if ($status === 'terminated') $query->where('cr.status', 'Not eligible');
-            if ($status === 'completed')  $query->where('cr.status', 'Completed');
-            if ($status === 'pending')    $query->where('cr.status', 'Pending');
-        }
-
-        $students = $query->select([
-                'cr.course_registration_id',
-                's.student_id',
-                DB::raw('COALESCE(s.name_with_initials, s.full_name) as name'),
-            DB::raw('"" as specialization'),
-                DB::raw('
-                    CASE cr.status
-                        WHEN "Pending" THEN "pending"
-                        WHEN "Registered" THEN "registered"
-                        WHEN "Not eligible" THEN "terminated"
-                        WHEN "Completed" THEN "completed"
-                        ELSE "pending"
-                    END as status
-                ')
-            ])            ->orderBy('cr.course_registration_id')            ->orderBy('s.name_with_initials')
-            ->get();
-
-        $students = $this->fillDisplayedSpecializations($students, $course_id, $intake_id, $location);
+        $students = $this->fetchStudentsForFilters($location, $course_id, $intake_id, $specialization, $status);
 
         $course = Course::find($course_id);
         $intake = Intake::find($intake_id);
@@ -239,10 +248,11 @@ class StudentListController extends Controller
             'intakeText'   => $intake?->batch ?? 'N/A',
             'total_count'  => $students->count(),
             'status'       => $status,
+            'specializationText' => $specialization ?? 'All',
         ];
 
         $pdf = Pdf::loadView('student_management.student_list_pdf', $data);
-        return $pdf->download('student_list.pdf');
+        return $pdf->download('student_list_' . $status . '_' . now()->format('Y-m-d_His') . '.pdf');
     }
 
     /**
@@ -263,45 +273,8 @@ class StudentListController extends Controller
         $intake_id = (int) $request->intake_id;
         $specialization = $this->normalizeSpecializationValue($request->specialization);
         $status    = $request->input('status', 'all');
-        $course = Course::find($course_id);
 
-
-
-        $query = DB::table('course_registration as cr')
-            ->join('students as s', 's.student_id', '=', 'cr.student_id')
-            ->where('cr.location', $location)
-            ->where('cr.course_id', $course_id)
-            ->where('cr.intake_id', $intake_id);
-        $this->applySpecializationScope($query, $specialization, $course_id, $intake_id, $location);
-
-        // mapping
-        if ($status !== 'all') {
-            if ($status === 'registered') $query->where('cr.status', 'Registered');
-            if ($status === 'terminated') $query->where('cr.status', 'Not eligible');
-            if ($status === 'completed')  $query->where('cr.status', 'Completed');
-            if ($status === 'pending')    $query->where('cr.status', 'Pending');
-        }
-
-        $students = $query->select([
-                'cr.course_registration_id',
-                's.student_id',
-                DB::raw('COALESCE(s.name_with_initials, s.full_name) as name'),
-            DB::raw('"" as specialization'),
-                DB::raw('
-                    CASE cr.status
-                        WHEN "Pending" THEN "pending"
-                        WHEN "Registered" THEN "registered"
-                        WHEN "Not eligible" THEN "terminated"
-                        WHEN "Completed" THEN "completed"
-                        ELSE "pending"
-                    END as status
-                ')
-            ])
-            ->orderBy('cr.course_registration_id')
-            ->orderBy('s.name_with_initials')
-            ->get();
-
-        $students = $this->fillDisplayedSpecializations($students, $course_id, $intake_id, $location);
+        $students = $this->fetchStudentsForFilters($location, $course_id, $intake_id, $specialization, $status);
 
         $course = Course::find($course_id);
         $intake = Intake::find($intake_id);
@@ -316,7 +289,7 @@ class StudentListController extends Controller
                 $s->student_id,
                 $s->name,
                 $s->specialization ?: '-',
-                ucfirst($s->status)
+                ($s->status === 'terminated') ? 'Not Eligible' : ucfirst($s->status)
             ];
         }
 

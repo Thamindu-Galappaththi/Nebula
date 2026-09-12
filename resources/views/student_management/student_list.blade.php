@@ -3,7 +3,45 @@
 @section('title', 'NEBULA | Student List')
 
 @section('content')
-<div class="container-fluid">
+<style nonce="{{ $cspNonce }}">
+  .student-list-filters .form-label { font-weight: 600; }
+  .student-list-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .student-list-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  @media (max-width: 767.98px) {
+    .student-list-actions,
+    .student-list-actions .btn {
+      width: 100%;
+    }
+    #statusTabs {
+      width: 100%;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+    }
+    #statusTabs .nav-item {
+      flex: 0 0 auto;
+    }
+  }
+  .lds-ring { display:inline-block; position:relative; width:80px; height:80px; }
+  .lds-ring div { box-sizing:border-box; display:block; position:absolute; width:64px; height:64px; margin:8px;
+    border:8px solid #fff; border-radius:50%; animation:lds-ring 1.2s cubic-bezier(0.5,0,0.5,1) infinite;
+    border-color:#fff transparent transparent transparent; }
+  .lds-ring div:nth-child(1){animation-delay:-.45s}
+  .lds-ring div:nth-child(2){animation-delay:-.3s}
+  .lds-ring div:nth-child(3){animation-delay:-.15s}
+  @keyframes lds-ring { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+  #spinner-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; justify-content:center; align-items:center; z-index:9999; }
+</style>
+<div class="container-fluid px-2 px-md-3">
   <div class="card">
     <div class="card-body">
       <h2 class="text-center mb-4">Student List</h2>
@@ -12,14 +50,12 @@
       <div id="spinner-overlay" style="display:none;">
         <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
       </div>
-      <div id="toastContainer" aria-live="polite" aria-atomic="true"
-           style="position: fixed; top: 10px; right: 10px; z-index: 1000;"></div>
 
       <!-- Filters -->
-      <div id="student-list-filters" class="mb-4">
-        <div class="mb-3 row mx-3">
-          <label class="col-sm-2 col-form-label">Location <span class="text-danger">*</span></label>
-          <div class="col-sm-10">
+      <div id="student-list-filters" class="student-list-filters mb-4">
+        <div class="mb-3 row g-2">
+          <label class="col-md-2 col-form-label" for="location">Location <span class="text-danger">*</span></label>
+          <div class="col-md-10">
             <select class="form-select" id="location">
               <option value="" selected disabled>Select a Location</option>
               @foreach($locations as $loc)
@@ -28,25 +64,25 @@
             </select>
           </div>
         </div>
-        <div class="mb-3 row mx-3">
-          <label class="col-sm-2 col-form-label">Course <span class="text-danger">*</span></label>
-          <div class="col-sm-10">
+        <div class="mb-3 row g-2">
+          <label class="col-md-2 col-form-label" for="course">Course <span class="text-danger">*</span></label>
+          <div class="col-md-10">
             <select class="form-select" id="course" disabled>
               <option value="" selected disabled>Select Course</option>
             </select>
           </div>
         </div>
-        <div class="mb-3 row mx-3">
-          <label class="col-sm-2 col-form-label">Batch <span class="text-danger">*</span></label>
-          <div class="col-sm-10">
+        <div class="mb-3 row g-2">
+          <label class="col-md-2 col-form-label" for="intake">Batch <span class="text-danger">*</span></label>
+          <div class="col-md-10">
             <select class="form-select" id="intake" disabled>
               <option value="" selected disabled>Select Batch</option>
             </select>
           </div>
         </div>
-        <div class="mb-3 row mx-3" id="specializationRow" style="display:none;">
-          <label class="col-sm-2 col-form-label">Specialization <span class="text-danger">*</span></label>
-          <div class="col-sm-10">
+        <div class="mb-3 row g-2" id="specializationRow" style="display:none;">
+          <label class="col-md-2 col-form-label" for="specialization">Specialization <span class="text-danger">*</span></label>
+          <div class="col-md-10">
             <select class="form-select" id="specialization" disabled>
               <option value="" selected disabled>Select Specialization</option>
             </select>
@@ -58,36 +94,36 @@
 
       <!-- Tabs + Table -->
       <div class="mt-4" id="studentTableSection" style="display:none;">
-        <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="student-list-toolbar mb-2">
           <ul class="nav nav-pills" id="statusTabs">
   <li class="nav-item">
-    <button class="nav-link active" data-status="all" id="tab-all">
+    <button class="nav-link active" type="button" data-status="all" id="tab-all">
       All <span class="badge bg-secondary ms-1" id="count-all">0</span>
     </button>
   </li>
   <li class="nav-item">
-    <button class="nav-link" data-status="pending" id="tab-pending">
+    <button class="nav-link" type="button" data-status="pending" id="tab-pending">
       Pending <span class="badge bg-secondary ms-1" id="count-pending">0</span>
     </button>
   </li>
   <li class="nav-item">
-    <button class="nav-link" data-status="registered" id="tab-registered">
+    <button class="nav-link" type="button" data-status="registered" id="tab-registered">
       Registered <span class="badge bg-secondary ms-1" id="count-registered">0</span>
     </button>
   </li>
   <li class="nav-item">
-    <button class="nav-link" data-status="terminated" id="tab-terminated">
+    <button class="nav-link" type="button" data-status="terminated" id="tab-terminated">
       Not Eligible <span class="badge bg-secondary ms-1" id="count-terminated">0</span>
     </button>
   </li>
   <li class="nav-item">
-    <button class="nav-link" data-status="completed" id="tab-completed">
+    <button class="nav-link" type="button" data-status="completed" id="tab-completed">
       Completed <span class="badge bg-secondary ms-1" id="count-completed">0</span>
     </button>
   </li>
 </ul>
 
-          <div class="d-flex gap-2">
+          <div class="student-list-actions">
             <button id="downloadListBtn" class="btn btn-primary" type="button">
               <i class="bi bi-download"></i> Download PDF
             </button>
@@ -158,16 +194,18 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(r => r.json())
       .then(data => {
         if(data.success && Array.isArray(data.specializations) && data.specializations.length){
-          let html = '<option selected disabled value="">Select Specialization</option>';
+          specializationSelect.innerHTML = '';
+          const placeholder = new Option('Select Specialization', '', true, true);
+          placeholder.disabled = true;
+          specializationSelect.add(placeholder);
           data.specializations.forEach(spec => {
             const value = typeof spec === 'object' ? (spec.name || spec.value || spec.specialization || '') : spec;
             if(value){
-              html += `<option value="${value}">${value}</option>`;
+              specializationSelect.add(new Option(value, value));
             }
           });
-          specializationSelect.innerHTML = html;
           specializationSelect.disabled = false;
-          specializationRow.style.display = 'flex';
+          specializationRow.style.display = '';
         }
       })
       .catch(() => resetSpecialization());
@@ -178,7 +216,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showToast(title, message, bg){
-    const container = document.getElementById('toastContainer');
+    const container = document.querySelector('.toast-container') || document.getElementById('toastContainer');
+    if (!container) return;
     const el = document.createElement('div');
     el.className = `toast align-items-center text-white ${bg} border-0`;
     el.role = 'alert'; el.ariaLive = 'assertive'; el.ariaAtomic = 'true';
@@ -201,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!loc) return;
 
     showSpinner(true);
-    fetch(`/api/courses-by-location/${encodeURIComponent(loc)}`)
+    fetch(`{{ url('/course-registration/get-courses-by-location') }}/${encodeURIComponent(loc)}`)
       .then(r=>r.json())
       .then(data=>{
         if(data.success && data.courses?.length){
@@ -261,9 +300,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const intakeId = intakeSelect.value;
     const specialization = specializationSelect.value;
     if(!location || !courseId || !intakeId){ section.style.display='none'; return; }
+    if(specializationRow.style.display !== 'none' && !specialization){ section.style.display='none'; return; }
 
     showSpinner(true);
-    fetch('/get-student-list-data', {
+    fetch('{{ route('student.getListData') }}', {
       method:'POST',
       headers:{'Content-Type':'application/json','X-CSRF-TOKEN':'{{ csrf_token() }}'},
       body: JSON.stringify({location, course_id:courseId, intake_id:intakeId, specialization})
@@ -298,6 +338,18 @@ document.addEventListener('DOMContentLoaded', () => {
     .finally(()=>showSpinner(false));
   }
 
+  function escapeHtml(value){
+    return String(value ?? '').replace(/[&<>"']/g, function(ch){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+    });
+  }
+
+  function statusLabel(status){
+    if (status === 'terminated') return 'Not Eligible';
+    if (!status) return '';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+
   function renderTable(){
     const list = (currentStatus==='all')
       ? allStudents
@@ -317,11 +369,11 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.insertAdjacentHTML('beforeend', `
         <tr class="${trClass}">
           <td>${idx+1}</td>
-          <td>${s.course_registration_id ?? ''}</td>
-          <td>${s.student_id ?? ''}</td>
-          <td>${s.name ?? ''}</td>
-          <td>${specialization}</td>
-          <td class="text-capitalize">${s.status ?? ''}</td>
+          <td>${escapeHtml(s.course_registration_id)}</td>
+          <td>${escapeHtml(s.student_id)}</td>
+          <td>${escapeHtml(s.name)}</td>
+          <td>${escapeHtml(specialization)}</td>
+          <td>${escapeHtml(statusLabel(s.status))}</td>
         </tr>
       `);
     });
@@ -340,68 +392,72 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTable();
   });
 
-  // Download matches active tab
-  downloadBtn.addEventListener('click', ()=>{
+  function selectedFilters(){
     const location = locationSelect.value;
     const courseId = courseSelect.value;
     const intakeId = intakeSelect.value;
+    const specialization = specializationSelect.value || '';
     if(!location || !courseId || !intakeId){
       showToast('Error','Please select all filters before downloading.','bg-danger');
-      return;
+      return null;
     }
+    if(specializationRow.style.display !== 'none' && !specialization){
+      showToast('Error','Please select a specialization before downloading.','bg-danger');
+      return null;
+    }
+    return { location, courseId, intakeId, specialization };
+  }
 
-    const form = document.createElement('form');
-    form.method='POST'; form.action='/download-student-list'; form.target='_blank'; form.style.display='none';
-    form.innerHTML = `
-      <input type="hidden" name="_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="location" value="${location}">
-      <input type="hidden" name="course_id" value="${courseId}">
-      <input type="hidden" name="intake_id" value="${intakeId}">
-      <input type="hidden" name="specialization" value="${specializationSelect.value || ''}">
-      <input type="hidden" name="status" value="${currentStatus}">
-    `;
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+  function downloadWithFilters(url, fallbackName){
+    const filters = selectedFilters();
+    if(!filters) return;
+
+    const formData = new FormData();
+    formData.append('_token', '{{ csrf_token() }}');
+    formData.append('location', filters.location);
+    formData.append('course_id', filters.courseId);
+    formData.append('intake_id', filters.intakeId);
+    formData.append('specialization', filters.specialization);
+    formData.append('status', currentStatus);
+
+    showSpinner(true);
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        'Accept': 'application/octet-stream'
+      },
+      body: formData
+    })
+    .then(async response => {
+      if(!response.ok){
+        throw new Error('Download failed');
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/i);
+      const filename = match ? match[1] : fallbackName;
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    })
+    .catch(() => showToast('Error','Failed to download the file.','bg-danger'))
+    .finally(() => showSpinner(false));
+  }
+
+  downloadBtn.addEventListener('click', ()=>{
+    downloadWithFilters('{{ route('student.downloadList') }}', 'student_list.pdf');
   });
 
-  // Excel Download matches active tab
   downloadExcelBtn.addEventListener('click', ()=>{
-    const location = locationSelect.value;
-    const courseId = courseSelect.value;
-    const intakeId = intakeSelect.value;
-    if(!location || !courseId || !intakeId){
-      showToast('Error','Please select all filters before downloading.','bg-danger');
-      return;
-    }
-
-    const form = document.createElement('form');
-    form.method='POST'; form.action='/download-student-list-excel'; form.target='_blank'; form.style.display='none';
-    form.innerHTML = `
-      <input type="hidden" name="_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="location" value="${location}">
-      <input type="hidden" name="course_id" value="${courseId}">
-      <input type="hidden" name="intake_id" value="${intakeId}">
-      <input type="hidden" name="specialization" value="${specializationSelect.value || ''}">
-      <input type="hidden" name="status" value="${currentStatus}">
-    `;
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+    downloadWithFilters('{{ route('student.downloadList.excel') }}', 'student_list.xlsx');
   });
 });
 </script>
-
-<style nonce="{{ $cspNonce }}">
-  .lds-ring { display:inline-block; position:relative; width:80px; height:80px; }
-  .lds-ring div { box-sizing:border-box; display:block; position:absolute; width:64px; height:64px; margin:8px;
-    border:8px solid #fff; border-radius:50%; animation:lds-ring 1.2s cubic-bezier(0.5,0,0.5,1) infinite;
-    border-color:#fff transparent transparent transparent; }
-  .lds-ring div:nth-child(1){animation-delay:-.45s}
-  .lds-ring div:nth-child(2){animation-delay:-.3s}
-  .lds-ring div:nth-child(3){animation-delay:-.15s}
-  @keyframes lds-ring { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
-  #spinner-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; justify-content:center; align-items:center; z-index:9999; }
-</style>
 @endpush
 @endsection
