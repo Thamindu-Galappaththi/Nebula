@@ -192,9 +192,9 @@
                         </div>
 
                         <div class="d-flex align-items-center gap-2">
-                            <div class="input-group input-group-sm" style="width: 200px;">
-                                <input type="text" class="form-control" placeholder="Search..." id="searchInput">
-                                <button class="btn btn-outline-secondary" type="button">
+                            <div class="input-group input-group-sm" style="width: 220px;">
+                                <input type="text" class="form-control" placeholder="Search tables..." id="searchInput">
+                                <button class="btn btn-outline-secondary" type="button" id="dashboardSearchBtn">
                                     <i class="fas fa-search"></i>
                                 </button>
                             </div>
@@ -216,11 +216,11 @@
                         <div class="d-flex flex-wrap align-items-center">
                             <span class="me-3 text-muted"><i class="fas fa-calendar-alt me-1"></i> Time Period:</span>
                             <div class="d-flex flex-wrap">
-                                <button type="button" class="time-filter-btn active" data-period="today"
+                                <button type="button" class="time-filter-btn" data-period="today"
                                     onclick="setTimePeriod('today', this)">Today</button>
                                 <button type="button" class="time-filter-btn" data-period="week"
                                     onclick="setTimePeriod('week', this)">This Week</button>
-                                <button type="button" class="time-filter-btn" data-period="month"
+                                <button type="button" class="time-filter-btn active" data-period="month"
                                     onclick="setTimePeriod('month', this)">This Month</button>
                                 <button type="button" class="time-filter-btn" data-period="quarter"
                                     onclick="setTimePeriod('quarter', this)">Last 3 Months</button>
@@ -279,7 +279,12 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="small text-danger mt-2">Applies to Academic Performance and Attendance tabs.</div>
+                        <div id="appliedFiltersBanner" class="alert alert-info d-none py-2 mb-0 mt-3">
+                            Filtered results are shown on the <strong>Academic Performance</strong> and <strong>Attendance</strong> tabs.
+                            Module applies to Attendance only.
+                            <span id="appliedFiltersText"></span>
+                        </div>
+                        <div class="small text-muted mt-2">Choose location/course/intake/module, then click Apply to filter Academic Performance and Attendance. Time Period updates Overview period cards, Attendance, and Payments period cards. Academic grades and Clearance status are current snapshots, not date-filtered.</div>
                     </div>
                 </div>
             </div>
@@ -442,8 +447,8 @@
                                             <div class="card-body">
                                                 <div class="d-flex justify-content-between align-items-center mb-4">
                                                     <div>
-                                                        <h5 class="card-title mb-1">🎯 Today's Performance</h5>
-                                                        <p class="text-muted mb-0">Daily overview</p>
+                                                        <h5 class="card-title mb-1" id="periodPerformanceTitle">🎯 This Month's Performance</h5>
+                                                        <p class="text-muted mb-0" id="periodPerformanceSubtitle">Selected time period</p>
                                                     </div>
                                                     <button class="btn btn-outline-secondary btn-sm"
                                                         onclick="refreshOverview()">
@@ -455,7 +460,7 @@
                                                         <div
                                                             class="d-flex justify-content-between align-items-center p-3 bg-light-primary rounded">
                                                             <div>
-                                                                <div class="text-muted fs-12">Today's Registrations</div>
+                                                                <div class="text-muted fs-12" id="periodRegistrationsLabel">This Month's Registrations</div>
                                                                 <div class="fw-bold fs-18" id="todayRegistrations">0</div>
                                                             </div>
                                                             <div class="text-end">
@@ -836,10 +841,10 @@
                                                     </div>
                                                     <span class="badge bg-primary bg-opacity-10 text-primary">Monthly</span>
                                                 </div>
-                                                <h5 class="card-title text-muted text-uppercase fs-12">This Month</h5>
+                                                <h5 class="card-title text-muted text-uppercase fs-12" id="periodRevenueTitle">This Month</h5>
                                                 <h2 class="fw-bold text-primary mb-1" id="thisMonthRevenue">-</h2>
-                                                <div class="text-muted fs-13">
-                                                    <i class="fas fa-calendar me-1"></i> Monthly collection
+                                                <div class="text-muted fs-13" id="periodRevenueSubtitle">
+                                                    <i class="fas fa-calendar me-1"></i> Period collection
                                                 </div>
                                             </div>
                                         </div>
@@ -988,10 +993,39 @@
     </div>
 
     <script nonce="{{ $cspNonce }}">
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const dashboardRoutes = {
+            studentProfile: @json(url('/student/profile')),
+            semesterEditBase: @json(url('/semesters')),
+            semestersIndex: @json(route('semesters.index')),
+            clearance: @json(route('all.clearance.management')),
+            attendance: @json(route('attendance')),
+        };
         let currentTimePeriod = 'month';
         let currentRejectId = null;
+        let currentSearchQuery = '';
         let chartInstances = {};
+        const emptyChartPlugin = {
+            id: 'emptyChartMessage',
+            afterDraw(chart) {
+                const values = (chart.data.datasets || []).flatMap(dataset => dataset.data || []);
+                const hasData = values.some(value => Number(value) !== 0);
+                if (hasData) {
+                    return;
+                }
+                const { ctx, chartArea } = chart;
+                if (!chartArea) {
+                    return;
+                }
+                ctx.save();
+                ctx.fillStyle = '#6c757d';
+                ctx.font = '13px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('No data for this period', (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2);
+                ctx.restore();
+            }
+        };
         let analyticsFilters = {
             location: '',
             course_id: '',
@@ -1002,6 +1036,7 @@
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function () {
             initializeAnalyticsFilters();
+            updatePeriodLabels();
             const paymentCourseFilter = document.getElementById('paymentCourseFilter');
             if (paymentCourseFilter) {
                 paymentCourseFilter.addEventListener('change', function () {
@@ -1010,26 +1045,28 @@
             }
             loadDashboardData();
 
-            // Load data for active tab
-            const activeTab = document.querySelector('#dashboardTabs .nav-link.active');
-            if (activeTab.id === 'overview-tab') {
-                fetchOverviewMetrics();
-                fetchActiveSemesters();
-            } else if (activeTab.id === 'approvals-tab') {
-                fetchPendingApprovals();
-            } else if (activeTab.id === 'academic-tab') {
-                fetchAcademicPerformance();
-            } else if (activeTab.id === 'attendance-tab') {
-                fetchAttendanceOverview();
-            } else if (activeTab.id === 'clearance-tab') {
-                fetchClearanceStatus();
-            } else if (activeTab.id === 'payments-tab') {
-                fetchPaymentOverview();
+            const searchButton = document.getElementById('dashboardSearchBtn');
+            if (searchButton) {
+                searchButton.addEventListener('click', function () {
+                    searchDashboard(document.getElementById('searchInput')?.value || '');
+                });
             }
+
+            document.getElementById('searchInput')?.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchDashboard(this.value);
+                }
+            });
+
+            // Load data for active tab
+            refreshAllData(false);
 
             // Tab change event
             document.querySelectorAll('#dashboardTabs button').forEach(tab => {
                 tab.addEventListener('shown.bs.tab', function (event) {
+                    resizeDashboardCharts();
+                    setTimeout(resizeDashboardCharts, 50);
                     const tabId = event.target.id;
                     if (tabId === 'overview-tab') {
                         fetchOverviewMetrics();
@@ -1045,12 +1082,13 @@
                     } else if (tabId === 'payments-tab') {
                         fetchPaymentOverview();
                     }
+                    applyDashboardSearch();
                 });
             });
 
             // Chart type changes
             document.getElementById('batchChartType').addEventListener('change', function () {
-                fetchStudentCountByBatch(this.value);
+                updateBatchStudentChart(window.lastBatchStudentData || []);
             });
 
             document.getElementById('gradeChartType').addEventListener('change', function () {
@@ -1071,34 +1109,36 @@
         });
 
         function loadDashboardData() {
-            fetchOverviewMetrics();
+            updatePeriodLabels();
         }
 
-        function refreshAllData() {
+        async function refreshAllData(showSuccessToast = true) {
             document.body.classList.add('data-loading');
 
-            // Refresh based on active tab
-            const activeTab = document.querySelector('#dashboardTabs .nav-link.active');
-            if (activeTab.id === 'overview-tab') {
-                fetchOverviewMetrics();
-                fetchActiveSemesters();
-            } else if (activeTab.id === 'approvals-tab') {
-                fetchPendingApprovals();
-            } else if (activeTab.id === 'academic-tab') {
-                fetchAcademicPerformance();
-            } else if (activeTab.id === 'attendance-tab') {
-                fetchAttendanceOverview();
-            } else if (activeTab.id === 'clearance-tab') {
-                fetchClearanceStatus();
-            } else if (activeTab.id === 'payments-tab') {
-                fetchPaymentOverview();
-            }
-
-            showToast('Dashboard data refreshed successfully', 'success');
-
-            setTimeout(() => {
+            try {
+                await Promise.all([
+                    fetchOverviewMetrics(),
+                    fetchActiveSemesters(),
+                    fetchPendingApprovals(),
+                    fetchAcademicPerformance(),
+                    fetchAttendanceOverview(),
+                    fetchClearanceStatus(),
+                    fetchPaymentOverview()
+                ]);
+                resizeDashboardCharts();
+                setTimeout(resizeDashboardCharts, 150);
+                applyDashboardSearch();
+                if (showSuccessToast) {
+                    showToast('Dashboard data refreshed successfully', 'success');
+                }
+            } catch (error) {
+                console.error('Error refreshing dashboard:', error);
+                if (showSuccessToast) {
+                    showToast('Failed to refresh some dashboard data', 'danger');
+                }
+            } finally {
                 document.body.classList.remove('data-loading');
-            }, 1000);
+            }
         }
 
         function setTimePeriod(period, buttonElement = null) {
@@ -1113,7 +1153,8 @@
                 buttonElement.blur();
             }
 
-            // Refresh data
+            // Refresh data for the selected period
+            updatePeriodLabels();
             refreshAllData();
         }
 
@@ -1141,7 +1182,10 @@
                     return;
                 }
 
-                await loadCoursesForAnalyticsFilter(this.value);
+                await Promise.all([
+                    loadCoursesForAnalyticsFilter(this.value),
+                    loadIntakesForAnalyticsFilter(this.value)
+                ]);
             });
 
             courseDropdown.addEventListener('change', async function () {
@@ -1151,21 +1195,20 @@
                 moduleDropdown.disabled = true;
 
                 const selectedLocation = locationDropdown.value;
-                if (!selectedLocation || !this.value) {
+                if (!selectedLocation) {
                     return;
                 }
 
-                await Promise.all([
-                    loadIntakesForAnalyticsFilter(selectedLocation, this.value),
-                    loadModulesForAnalyticsFilter(this.value)
-                ]);
+                const loaders = [loadIntakesForAnalyticsFilter(selectedLocation, this.value || null)];
+                if (this.value) {
+                    loaders.push(loadModulesForAnalyticsFilter(this.value));
+                }
+                await Promise.all(loaders);
             });
 
             intakeDropdown.addEventListener('change', async function () {
                 const courseId = document.getElementById('analyticsCourseFilter').value;
-                const intakeId = this.value; // Get selected intake ID
-
-                console.log('Intake changed - courseId:', courseId, 'intakeId:', intakeId); // DEBUG
+                const intakeId = this.value;
 
                 moduleDropdown.innerHTML = '<option value="">All Modules</option>';
                 moduleDropdown.disabled = true;
@@ -1173,8 +1216,6 @@
                 if (courseId) {
                     await loadModulesForAnalyticsFilter(courseId, intakeId);
                 }
-
-                analyticsFilters.intake_id = intakeId;
             });
 
             applyButton.addEventListener('click', function () {
@@ -1183,9 +1224,20 @@
                 analyticsFilters.intake_id = intakeDropdown.value || '';
                 analyticsFilters.module_id = moduleDropdown.value || '';
 
+                updateAppliedFiltersBanner();
+
+                const academicTab = document.getElementById('academic-tab');
+                if (academicTab && window.bootstrap) {
+                    bootstrap.Tab.getOrCreateInstance(academicTab).show();
+                }
+
                 fetchAcademicPerformance();
                 fetchAttendanceOverview();
-                showToast('Academic and attendance filters applied', 'success');
+                fetchClearanceStatus();
+                fetchPaymentOverview();
+                fetchOverviewMetrics();
+                fetchPendingApprovals();
+                showToast('Filters applied to Academic Performance and Attendance.', 'success');
             });
 
             clearButton.addEventListener('click', function () {
@@ -1198,10 +1250,15 @@
                 moduleDropdown.disabled = true;
 
                 analyticsFilters = { location: '', course_id: '', intake_id: '', module_id: '' };
+                updateAppliedFiltersBanner();
 
                 fetchAcademicPerformance();
                 fetchAttendanceOverview();
-                showToast('Academic and attendance filters cleared', 'info');
+                fetchClearanceStatus();
+                fetchPaymentOverview();
+                fetchOverviewMetrics();
+                fetchPendingApprovals();
+                showToast('Filters cleared', 'info');
             });
         }
 
@@ -1215,7 +1272,7 @@
             courseDropdown.disabled = true;
 
             try {
-                const response = await fetch(`{{ route('exam.results.courses.by.location') }}?location=${encodeURIComponent(location)}`, {
+                const response = await fetch(`{{ route('api.program.admin.l2.courses.by.location') }}?location=${encodeURIComponent(location)}`, {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json'
@@ -1225,8 +1282,12 @@
 
                 courseDropdown.innerHTML = '<option value="">All Courses</option>';
 
-                if (payload.success && Array.isArray(payload.courses) && payload.courses.length > 0) {
-                    payload.courses.forEach(course => {
+                const courses = Array.isArray(payload.courses)
+                    ? payload.courses
+                    : (Array.isArray(payload.data) ? payload.data : []);
+
+                if (payload.success && courses.length > 0) {
+                    courses.forEach(course => {
                         const option = document.createElement('option');
                         option.value = course.course_id;
                         option.textContent = course.course_name;
@@ -1243,7 +1304,7 @@
             }
         }
 
-        async function loadIntakesForAnalyticsFilter(location, courseId) {
+        async function loadIntakesForAnalyticsFilter(location, courseId = null) {
             const intakeDropdown = document.getElementById('analyticsIntakeFilter');
             if (!intakeDropdown) {
                 return;
@@ -1253,27 +1314,29 @@
             intakeDropdown.disabled = true;
 
             try {
-                const response = await fetch(`{{ route('module.management.getIntakes') }}`, {
-                    method: 'POST',
+                const params = new URLSearchParams({ location });
+                if (courseId) {
+                    params.append('course_id', courseId);
+                }
+
+                const response = await fetch(`{{ route('api.program.admin.l2.intakes') }}?${params.toString()}`, {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        location: location,
-                        course_id: courseId
-                    })
+                        'Accept': 'application/json'
+                    }
                 });
                 const payload = await response.json();
+                const intakes = Array.isArray(payload.data)
+                    ? payload.data
+                    : (Array.isArray(payload.intakes) ? payload.intakes : []);
 
                 intakeDropdown.innerHTML = '<option value="">All Intakes</option>';
 
-                if (payload.success && Array.isArray(payload.data) && payload.data.length > 0) {
-                    payload.data.forEach(intake => {
+                if (payload.success !== false && intakes.length > 0) {
+                    intakes.forEach(intake => {
                         const option = document.createElement('option');
                         option.value = intake.intake_id;
-                        option.textContent = intake.intake_name;
+                        option.textContent = intake.intake_name || intake.batch || `Intake ${intake.intake_id}`;
                         intakeDropdown.appendChild(option);
                     });
                     intakeDropdown.disabled = false;
@@ -1281,9 +1344,11 @@
                 }
 
                 intakeDropdown.innerHTML = '<option value="">No intakes found</option>';
+                intakeDropdown.disabled = true;
             } catch (error) {
                 console.error('Error loading intakes for analytics filter:', error);
                 intakeDropdown.innerHTML = '<option value="">Failed to load intakes</option>';
+                intakeDropdown.disabled = true;
             }
         }
 
@@ -1329,6 +1394,168 @@
                 console.error('Error loading modules for analytics filter:', error);
                 moduleDropdown.innerHTML = '<option value="">Failed to load modules</option>';
             }
+        }
+
+        function updateAppliedFiltersBanner() {
+            const banner = document.getElementById('appliedFiltersBanner');
+            const text = document.getElementById('appliedFiltersText');
+            if (!banner || !text) {
+                return;
+            }
+
+            const locationEl = document.getElementById('analyticsLocationFilter');
+            const courseEl = document.getElementById('analyticsCourseFilter');
+            const intakeEl = document.getElementById('analyticsIntakeFilter');
+            const moduleEl = document.getElementById('analyticsModuleFilter');
+
+            const parts = [];
+            if (analyticsFilters.location) {
+                parts.push(locationEl?.selectedOptions[0]?.text || analyticsFilters.location);
+            }
+            if (analyticsFilters.course_id) {
+                parts.push(courseEl?.selectedOptions[0]?.text || 'Selected course');
+            }
+            if (analyticsFilters.intake_id) {
+                parts.push(intakeEl?.selectedOptions[0]?.text || 'Selected intake');
+            }
+            if (analyticsFilters.module_id) {
+                parts.push(moduleEl?.selectedOptions[0]?.text || 'Selected module');
+            }
+
+            if (parts.length === 0) {
+                banner.classList.add('d-none');
+                text.textContent = '';
+                return;
+            }
+
+            text.textContent = ' Current filter: ' + parts.join(' / ') + '.';
+            banner.classList.remove('d-none');
+        }
+
+        function periodLabel(period) {
+            return {
+                today: 'Today',
+                week: 'This Week',
+                month: 'This Month',
+                quarter: 'Last 3 Months'
+            }[period] || 'This Month';
+        }
+
+        function updatePeriodLabels() {
+            const label = periodLabel(currentTimePeriod);
+            const title = document.getElementById('periodPerformanceTitle');
+            const subtitle = document.getElementById('periodPerformanceSubtitle');
+            const regs = document.getElementById('periodRegistrationsLabel');
+            const revenueTitle = document.getElementById('periodRevenueTitle');
+            const revenueSubtitle = document.getElementById('periodRevenueSubtitle');
+            if (title) title.textContent = `🎯 ${label} Performance`;
+            if (subtitle) subtitle.textContent = `Figures for ${label.toLowerCase()}`;
+            if (regs) regs.textContent = `${label} Registrations`;
+            if (revenueTitle) revenueTitle.textContent = label;
+            if (revenueSubtitle) revenueSubtitle.innerHTML = `<i class="fas fa-calendar me-1"></i> ${label} collection`;
+        }
+
+        function destroyChart(key) {
+            if (chartInstances[key]) {
+                chartInstances[key].destroy();
+                chartInstances[key] = null;
+            }
+        }
+
+        function createChart(key, canvasId, config) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || typeof Chart === 'undefined') {
+                return;
+            }
+            destroyChart(key);
+            chartInstances[key] = new Chart(canvas.getContext('2d'), {
+                ...config,
+                plugins: [...(config.plugins || []), emptyChartPlugin]
+            });
+        }
+
+        function resizeDashboardCharts() {
+            Object.values(chartInstances).forEach(chart => {
+                if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            });
+        }
+
+        function formatKpiNumber(value, fallback = '0') {
+            if (value === null || value === undefined || value === '') {
+                return fallback;
+            }
+            const number = Number(value);
+            return Number.isNaN(number) ? String(value) : number.toLocaleString();
+        }
+
+        function formatKpiPercent(value) {
+            const number = Number(value);
+            return `${Number.isNaN(number) ? 0 : number}%`;
+        }
+
+        function lastSixMonthLabels() {
+            const labels = [];
+            const now = new Date();
+            for (let i = 5; i >= 0; i--) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                labels.push(date.toLocaleString('en-US', { month: 'short', year: 'numeric' }));
+            }
+            return labels;
+        }
+
+        function filterTableRows(tbodyId, query) {
+            const body = document.getElementById(tbodyId);
+            if (!body) {
+                return;
+            }
+
+            body.querySelectorAll('tr[data-search-placeholder="1"]').forEach(row => row.remove());
+
+            const q = (query || '').trim().toLowerCase();
+            let visible = 0;
+            body.querySelectorAll('tr').forEach(row => {
+                const match = !q || row.textContent.toLowerCase().includes(q);
+                row.style.display = match ? '' : 'none';
+                if (match) {
+                    visible += 1;
+                }
+            });
+
+            if (q && visible === 0) {
+                const cols = body.closest('table')?.querySelectorAll('thead th').length || 1;
+                const placeholder = document.createElement('tr');
+                placeholder.dataset.searchPlaceholder = '1';
+                placeholder.innerHTML = `<td colspan="${cols}" class="text-center py-3 text-muted">No matching results</td>`;
+                body.appendChild(placeholder);
+            }
+        }
+
+        function applyDashboardSearch() {
+            const query = currentSearchQuery;
+            [
+                'activeSemestersBody',
+                'pendingApprovalsBody',
+                'courseAttendanceBody',
+                'recentClearancesBody',
+                'newRegistrationsBody',
+                'courseWisePaymentsBody'
+            ].forEach(id => filterTableRows(id, query));
+
+            const list = document.getElementById('coursePerformanceList');
+            if (list) {
+                const q = (query || '').trim().toLowerCase();
+                list.querySelectorAll('.list-group-item').forEach(item => {
+                    item.style.display = !q || item.textContent.toLowerCase().includes(q) ? '' : 'none';
+                });
+            }
+        }
+
+        function buildDashboardParams(includeModule = false) {
+            const params = buildAnalyticsFilterParams(includeModule);
+            params.append('period', currentTimePeriod);
+            return params;
         }
 
         function buildAnalyticsFilterParams(includeModule = false) {
@@ -1381,7 +1608,7 @@
         // Overview Metrics
         async function fetchOverviewMetrics() {
             try {
-                const response = await fetch(`/api/program-admin-l2/overview`, {
+                const response = await fetch(`/api/program-admin-l2/overview?${buildDashboardParams(false).toString()}`, {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json'
@@ -1392,58 +1619,57 @@
                 if (data.success) {
                     // Update KPI cards
                     document.getElementById('totalActiveStudents').textContent =
-                        data.data.total_active_students?.toLocaleString() || '0';
+                        formatKpiNumber(data.data.total_active_students);
                     document.getElementById('activeBatches').textContent =
-                        data.data.active_batches?.toLocaleString() || '0';
+                        formatKpiNumber(data.data.active_batches);
                     document.getElementById('pendingApprovals').textContent =
-                        data.data.pending_approvals?.toLocaleString() || '0';
+                        formatKpiNumber(data.data.pending_approvals);
                     document.getElementById('avgAttendanceRate').textContent =
-                        data.data.avg_attendance_rate + '%' || '0%';
+                        formatKpiPercent(data.data.avg_attendance_rate);
 
                     // Update today's metrics
                     document.getElementById('todayRegistrations').textContent =
-                        data.data.today_registrations || '0';
+                        formatKpiNumber(data.data.today_registrations);
                     document.getElementById('growthPercentage').textContent =
-                        data.data.growth_percentage + '%' || '0%';
+                        formatKpiPercent(data.data.growth_percentage);
                     document.getElementById('pendingClearances').textContent =
-                        data.data.pending_clearances || '0';
+                        formatKpiNumber(data.data.pending_clearances);
                     document.getElementById('specialApprovalNeeded').textContent =
-                        data.data.special_approval_needed || '0';
+                        formatKpiNumber(data.data.special_approval_needed);
                     document.getElementById('passRate').textContent =
-                        data.data.pass_rate + '%' || '0%';
+                        formatKpiPercent(data.data.pass_rate);
                     document.getElementById('monthSemesterReg').textContent =
-                        data.data.month_semester_reg || '0';
+                        formatKpiNumber(data.data.month_semester_reg);
 
                     // Update student count by batch chart
-                    updateBatchStudentChart(data.data.student_count_by_batch);
+                    window.lastBatchStudentData = data.data.student_count_by_batch || [];
+                    updateBatchStudentChart(window.lastBatchStudentData);
+                    applyDashboardSearch();
 
                 } else {
+                    updateBatchStudentChart([]);
                     showToast(data.message || 'Failed to load overview metrics', 'danger');
                 }
             } catch (error) {
                 console.error('Error fetching overview metrics:', error);
+                updateBatchStudentChart([]);
                 showToast('Failed to load dashboard metrics', 'danger');
             }
         }
 
         function updateBatchStudentChart(data) {
-            const ctx = document.getElementById('batchStudentChart');
-            const chartType = document.getElementById('batchChartType').value;
+            const chartType = document.getElementById('batchChartType')?.value || 'bar';
+            const hasData = Array.isArray(data) && data.length > 0;
+            const labels = hasData
+                ? data.map(item => {
+                    const batch = item.batch || 'N/A';
+                    const course = item.course_name ? String(item.course_name).substring(0, 20) : '';
+                    return course ? `${batch} (${course})` : batch;
+                })
+                : ['No batches'];
+            const counts = hasData ? data.map(item => Number(item.count) || 0) : [0];
 
-            if (chartInstances.batchStudent) {
-                chartInstances.batchStudent.destroy();
-            }
-
-            if (!data || data.length === 0) {
-                // Show empty state
-                ctx.innerHTML = '<div class="text-center py-5 text-muted">No data available</div>';
-                return;
-            }
-
-            const labels = data.map(item => `${item.batch}\n${item.course_name.substring(0, 20)}...`);
-            const counts = data.map(item => item.count);
-
-            chartInstances.batchStudent = new Chart(ctx, {
+            createChart('batchStudent', 'batchStudentChart', {
                 type: chartType === 'horizontalBar' ? 'bar' : chartType,
                 data: {
                     labels: labels,
@@ -1472,7 +1698,7 @@
                             }
                         }
                     },
-                    scales: {
+                    scales: chartType === 'pie' || chartType === 'doughnut' ? {} : {
                         y: {
                             beginAtZero: true,
                             ticks: {
@@ -1487,7 +1713,7 @@
         // Active Semesters
         async function fetchActiveSemesters() {
             try {
-                const response = await fetch(`/api/program-admin-l2/active-semesters`, {
+                const response = await fetch(`/api/program-admin-l2/active-semesters?${buildDashboardParams(false).toString()}`, {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json'
@@ -1524,6 +1750,7 @@
                     });
 
                     body.innerHTML = html;
+                    applyDashboardSearch();
                 } else {
                     body.innerHTML = `
                                     <tr>
@@ -1551,7 +1778,7 @@
         // Pending Approvals
         async function fetchPendingApprovals() {
             try {
-                const response = await fetch(`/api/program-admin-l2/pending-approvals`, {
+                const response = await fetch(`/api/program-admin-l2/pending-approvals?${buildDashboardParams(false).toString()}`, {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json'
@@ -1595,6 +1822,7 @@
                     });
 
                     body.innerHTML = html;
+                    applyDashboardSearch();
                 } else {
                     body.innerHTML = `
                                     <tr>
@@ -1627,7 +1855,7 @@
         async function fetchAcademicPerformance(chartType = null) {
             try {
                 const selectedChartType = chartType || document.getElementById('gradeChartType')?.value || 'bar';
-                const params = buildAnalyticsFilterParams(false);
+                const params = buildDashboardParams(false);
                 const response = await fetch(`/api/program-admin-l2/academic-performance?${params.toString()}`, {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
@@ -1637,37 +1865,28 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Update grade distribution chart
                     updateGradeDistributionChart(data.data.grade_distribution, selectedChartType);
-
-                    // Update course performance list
                     updateCoursePerformanceList(data.data.course_performance);
-
-                    // Update repeat students
                     document.getElementById('repeatStudents').textContent =
-                        data.data.repeat_students || '0';
+                        formatKpiNumber(data.data.repeat_students);
+                    applyDashboardSearch();
+                } else {
+                    updateGradeDistributionChart([], selectedChartType);
+                    updateCoursePerformanceList([]);
                 }
             } catch (error) {
                 console.error('Error fetching academic performance:', error);
+                updateGradeDistributionChart([], document.getElementById('gradeChartType')?.value || 'bar');
+                updateCoursePerformanceList([]);
             }
         }
 
         function updateGradeDistributionChart(data, chartType = 'bar') {
-            const ctx = document.getElementById('gradeDistributionChart');
+            const hasData = Array.isArray(data) && data.length > 0;
+            const labels = hasData ? data.map(item => item.grade || 'No Grade') : ['A', 'B', 'C', 'D', 'F'];
+            const counts = hasData ? data.map(item => Number(item.count) || 0) : [0, 0, 0, 0, 0];
 
-            if (chartInstances.gradeDistribution) {
-                chartInstances.gradeDistribution.destroy();
-            }
-
-            if (!data || data.length === 0) {
-                ctx.innerHTML = '<div class="text-center py-5 text-muted">No exam data available</div>';
-                return;
-            }
-
-            const labels = data.map(item => item.grade || 'No Grade');
-            const counts = data.map(item => item.count);
-
-            chartInstances.gradeDistribution = new Chart(ctx, {
+            createChart('gradeDistribution', 'gradeDistributionChart', {
                 type: chartType,
                 data: {
                     labels: labels,
@@ -1675,12 +1894,12 @@
                         label: 'Number of Students',
                         data: counts,
                         backgroundColor: [
-                            'rgba(40, 167, 69, 0.8)',  // A - Green
-                            'rgba(0, 123, 255, 0.8)',  // B - Blue
-                            'rgba(255, 193, 7, 0.8)',  // C - Yellow
-                            'rgba(220, 53, 69, 0.8)',  // D - Red
-                            'rgba(108, 117, 125, 0.8)', // F - Gray
-                            'rgba(102, 126, 234, 0.8)'  // Others - Purple
+                            'rgba(40, 167, 69, 0.8)',
+                            'rgba(0, 123, 255, 0.8)',
+                            'rgba(255, 193, 7, 0.8)',
+                            'rgba(220, 53, 69, 0.8)',
+                            'rgba(108, 117, 125, 0.8)',
+                            'rgba(102, 126, 234, 0.8)'
                         ]
                     }]
                 },
@@ -1691,6 +1910,14 @@
                         legend: {
                             display: chartType === 'pie' || chartType === 'doughnut',
                             position: 'bottom'
+                        }
+                    },
+                    scales: chartType === 'pie' || chartType === 'doughnut' ? {} : {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
                         }
                     }
                 }
@@ -1732,8 +1959,7 @@
         // Attendance Overview
         async function fetchAttendanceOverview() {
             try {
-                const params = buildAnalyticsFilterParams(true);
-                params.append('period', currentTimePeriod);
+                const params = buildDashboardParams(true);
 
                 const response = await fetch(`/api/program-admin-l2/attendance-overview?${params.toString()}`, {
                     headers: {
@@ -1744,39 +1970,28 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Update attendance trend chart
                     updateAttendanceTrendChart(data.data.daily_attendance);
-
-                    // Update course attendance table
                     updateCourseAttendanceTable(data.data.course_attendance);
-
-                    // Update overall stats
-                    if (data.data.overall_stats) {
-                        document.getElementById('overallAttendanceRate').textContent =
-                            Math.round(data.data.overall_stats.overall_rate) + '%' || '0%';
-                    }
+                    document.getElementById('overallAttendanceRate').textContent =
+                        formatKpiPercent(data.data.overall_stats?.overall_rate);
+                    applyDashboardSearch();
+                } else {
+                    updateAttendanceTrendChart([]);
+                    updateCourseAttendanceTable([]);
                 }
             } catch (error) {
                 console.error('Error fetching attendance overview:', error);
+                updateAttendanceTrendChart([]);
+                updateCourseAttendanceTable([]);
             }
         }
 
         function updateAttendanceTrendChart(data) {
-            const ctx = document.getElementById('attendanceTrendChart');
+            const hasData = Array.isArray(data) && data.length > 0;
+            const labels = hasData ? data.map(item => item.attendance_date) : ['No records'];
+            const rates = hasData ? data.map(item => Math.round(Number(item.attendance_rate) || 0)) : [0];
 
-            if (chartInstances.attendanceTrend) {
-                chartInstances.attendanceTrend.destroy();
-            }
-
-            if (!data || data.length === 0) {
-                ctx.innerHTML = '<div class="text-center py-5 text-muted">No attendance data available</div>';
-                return;
-            }
-
-            const labels = data.map(item => item.attendance_date);
-            const rates = data.map(item => Math.round(item.attendance_rate));
-
-            chartInstances.attendanceTrend = new Chart(ctx, {
+            createChart('attendanceTrend', 'attendanceTrendChart', {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -1855,9 +2070,10 @@
         }
 
         // Clearance Status
-        async function fetchClearanceStatus(chartType = 'bar') {
+        async function fetchClearanceStatus(chartType = null) {
+            const selectedChartType = chartType || document.getElementById('clearanceChartType')?.value || 'bar';
             try {
-                const response = await fetch(`/api/program-admin-l2/clearance-status`, {
+                const response = await fetch(`/api/program-admin-l2/clearance-status?${buildDashboardParams(false).toString()}`, {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json'
@@ -1866,36 +2082,34 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Update clearance status chart
-                    updateClearanceStatusChart(data.data.clearance_by_type, chartType);
-
-                    // Update recent clearances
+                    updateClearanceStatusChart(data.data.clearance_by_type, selectedChartType);
                     updateRecentClearances(data.data.recent_requests);
+                    applyDashboardSearch();
+                } else {
+                    updateClearanceStatusChart({}, selectedChartType);
+                    updateRecentClearances([]);
                 }
             } catch (error) {
                 console.error('Error fetching clearance status:', error);
+                updateClearanceStatusChart({}, selectedChartType);
+                updateRecentClearances([]);
             }
         }
 
         function updateClearanceStatusChart(data, chartType = 'bar') {
-            const ctx = document.getElementById('clearanceStatusChart');
+            const source = data && Object.keys(data).length ? data : {
+                'Library Clearance': { pending: 0, approved: 0, rejected: 0 },
+                'Hostel Clearance': { pending: 0, approved: 0, rejected: 0 },
+                'Payment Clearance': { pending: 0, approved: 0, rejected: 0 },
+                'Project Clearance': { pending: 0, approved: 0, rejected: 0 }
+            };
+            const types = Object.keys(source);
+            const pendingData = types.map(type => Number(source[type].pending) || 0);
+            const approvedData = types.map(type => Number(source[type].approved) || 0);
+            const rejectedData = types.map(type => Number(source[type].rejected) || 0);
 
-            if (chartInstances.clearanceStatus) {
-                chartInstances.clearanceStatus.destroy();
-            }
-
-            if (!data || Object.keys(data).length === 0) {
-                ctx.innerHTML = '<div class="text-center py-5 text-muted">No clearance data available</div>';
-                return;
-            }
-
-            const types = Object.keys(data);
-            const pendingData = types.map(type => data[type].pending || 0);
-            const approvedData = types.map(type => data[type].approved || 0);
-            const rejectedData = types.map(type => data[type].rejected || 0);
-
-            chartInstances.clearanceStatus = new Chart(ctx, {
-                type: chartType === 'stackedBar' ? 'bar' : 'bar',
+            createChart('clearanceStatus', 'clearanceStatusChart', {
+                type: 'bar',
                 data: {
                     labels: types,
                     datasets: [
@@ -1929,7 +2143,8 @@
                             stacked: true
                         } : {},
                         y: chartType === 'stackedBar' ? {
-                            stacked: true
+                            stacked: true,
+                            beginAtZero: true
                         } : {
                             beginAtZero: true
                         }
@@ -1954,9 +2169,10 @@
 
             let html = '';
             data.forEach(request => {
-                const statusBadge = request.status === 'approved' ? 'badge-success' :
-                    request.status === 'rejected' ? 'badge-danger' : 'badge-warning';
-                const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
+                const status = String(request.status || 'pending').toLowerCase();
+                const statusBadge = status === 'approved' ? 'badge-success' :
+                    status === 'rejected' ? 'badge-danger' : 'badge-warning';
+                const statusText = status.charAt(0).toUpperCase() + status.slice(1);
 
                 html += `
                                 <tr>
@@ -1977,11 +2193,15 @@
             try {
                 const paymentCourseFilter = document.getElementById('paymentCourseFilter');
                 const courseId = paymentCourseFilter ? paymentCourseFilter.value : '';
-                const url = courseId
-                    ? `/api/program-admin-l2/payment-overview?course_id=${encodeURIComponent(courseId)}`
-                    : `/api/program-admin-l2/payment-overview`;
+                const params = buildDashboardParams(false);
+                params.delete('course_id');
+                params.delete('intake_id');
+                params.delete('module_id');
+                if (courseId) {
+                    params.set('course_id', courseId);
+                }
 
-                const response = await fetch(url, {
+                const response = await fetch(`/api/program-admin-l2/payment-overview?${params.toString()}`, {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json'
@@ -1992,37 +2212,40 @@
                 if (data.success) {
                     populatePaymentCourseFilter(data.data.available_courses || [], courseId);
 
-                    // Update KPI cards
                     document.getElementById('totalRevenue').textContent =
-                        'LKR ' + (data.data.total_revenue?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00');
+                        'LKR ' + (Number(data.data.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }));
                     document.getElementById('pendingPayments').textContent =
-                        data.data.pending_payments?.toLocaleString() || '0';
+                        formatKpiNumber(data.data.pending_payments);
 
-                    // Calculate this month revenue
-                    const thisMonth = new Date().toLocaleString('default', { month: 'short', year: 'numeric' });
-                    const thisMonthRevenue = data.data.monthly_revenue?.find(m => m.month === thisMonth)?.revenue || 0;
+                    const periodRevenue = Number(data.data.period_revenue ?? 0);
                     document.getElementById('thisMonthRevenue').textContent =
-                        'LKR ' + thisMonthRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 });
+                        'LKR ' + periodRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 });
 
-                    // Calculate collection rate
-                    const paidCount = data.data.payment_stats?.find(p => p.status === 'paid')?.count || 0;
-                    const pendingCount = data.data.pending_payments || 0;
+                    const paidCount = data.data.payment_stats?.find(p => String(p.status).toLowerCase() === 'paid')?.count || 0;
+                    const pendingCount = Number(data.data.pending_payments) || 0;
                     const totalCount = paidCount + pendingCount;
                     const collectionRate = totalCount > 0 ? Math.round((paidCount / totalCount) * 100) : 0;
                     document.getElementById('collectionRate').textContent = collectionRate + '%';
 
                     document.getElementById('newRegistrationsCount').textContent =
-                        data.data.new_registrations_count?.toLocaleString() || '0';
+                        formatKpiNumber(data.data.new_registrations_count);
                     document.getElementById('ongoingCoursesCount').textContent =
-                        data.data.ongoing_courses_count?.toLocaleString() || '0';
+                        formatKpiNumber(data.data.ongoing_courses_count);
 
-                    // Update revenue trend chart
                     updateRevenueTrendChart(data.data.monthly_revenue);
                     updateNewRegistrationsTable(data.data.new_registrations || []);
                     updateCourseWisePaymentsTable(data.data.course_wise_summary || []);
+                    applyDashboardSearch();
+                } else {
+                    updateRevenueTrendChart([]);
+                    updateNewRegistrationsTable([]);
+                    updateCourseWisePaymentsTable([]);
                 }
             } catch (error) {
                 console.error('Error fetching payment overview:', error);
+                updateRevenueTrendChart([]);
+                updateNewRegistrationsTable([]);
+                updateCourseWisePaymentsTable([]);
             }
         }
 
@@ -2104,21 +2327,11 @@
         }
 
         function updateRevenueTrendChart(data) {
-            const ctx = document.getElementById('revenueTrendChart');
+            const hasData = Array.isArray(data) && data.length > 0;
+            const labels = hasData ? data.map(item => item.month) : lastSixMonthLabels();
+            const revenues = hasData ? data.map(item => Number(item.revenue) || 0) : labels.map(() => 0);
 
-            if (chartInstances.revenueTrend) {
-                chartInstances.revenueTrend.destroy();
-            }
-
-            if (!data || data.length === 0) {
-                ctx.innerHTML = '<div class="text-center py-5 text-muted">No revenue data available</div>';
-                return;
-            }
-
-            const labels = data.map(item => item.month);
-            const revenues = data.map(item => item.revenue);
-
-            chartInstances.revenueTrend = new Chart(ctx, {
+            createChart('revenueTrend', 'revenueTrendChart', {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -2137,6 +2350,7 @@
                     maintainAspectRatio: false,
                     scales: {
                         y: {
+                            beginAtZero: true,
                             ticks: {
                                 callback: function (value) {
                                     return 'LKR ' + value.toLocaleString();
@@ -2195,7 +2409,12 @@
             }
 
             try {
-                const response = await fetch(`/api/program-admin-l2/reject-registration/${currentRejectId}`, {
+                const isBulk = currentRejectId === 'all';
+                const url = isBulk
+                    ? `{{ route('api.program.admin.l2.reject.all') }}?${buildDashboardParams(false).toString()}`
+                    : `/api/program-admin-l2/reject-registration/${currentRejectId}`;
+
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
@@ -2208,7 +2427,7 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    showToast('Registration rejected successfully', 'success');
+                    showToast(data.message || 'Registration rejected successfully', 'success');
                     document.getElementById('rejectionReason').value = '';
                     const modal = bootstrap.Modal.getInstance(document.getElementById('rejectionModal'));
                     modal.hide();
@@ -2222,38 +2441,56 @@
             }
         }
 
-        function approveAll() {
+        async function approveAll() {
             if (!confirm('Are you sure you want to approve ALL pending registrations?')) return;
-            // Implementation would need to approve all pending registrations
-            showToast('This feature is under development', 'info');
+
+            try {
+                const response = await fetch(`{{ route('api.program.admin.l2.approve.all') }}?${buildDashboardParams(false).toString()}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast(data.message || 'Registrations approved', 'success');
+                    fetchPendingApprovals();
+                    fetchOverviewMetrics();
+                } else {
+                    showToast(data.message || 'Failed to approve registrations', 'danger');
+                }
+            } catch (error) {
+                showToast('Failed to approve registrations', 'danger');
+            }
         }
 
         function rejectAll() {
-            if (!confirm('Are you sure you want to reject ALL pending registrations?')) return;
-            // Implementation would need to reject all pending registrations with a common reason
-            showToast('This feature is under development', 'info');
+            currentRejectId = 'all';
+            const modal = new bootstrap.Modal(document.getElementById('rejectionModal'));
+            modal.show();
         }
 
         // Navigation functions
         function viewAllSemesters() {
-            window.location.href = '/semester-management';
+            window.location.href = dashboardRoutes.semestersIndex;
         }
 
         function viewAllClearances() {
-            window.location.href = '/clearance-requests';
+            window.location.href = dashboardRoutes.clearance;
         }
 
         function viewStudent(studentId) {
-            window.location.href = `/students/${studentId}`;
+            window.location.href = `${dashboardRoutes.studentProfile}/${studentId}`;
         }
 
         function viewSemester(semesterId) {
-            window.location.href = `/semester-management/${semesterId}`;
+            window.location.href = `${dashboardRoutes.semesterEditBase}/${semesterId}/edit`;
         }
 
         function viewCourseAttendance(courseName) {
-            // Navigate to detailed attendance for this course
-            window.location.href = `/attendance?course=${encodeURIComponent(courseName)}`;
+            window.location.href = `${dashboardRoutes.attendance}?course=${encodeURIComponent(courseName)}`;
         }
 
         function exportAttendance() {
@@ -2261,9 +2498,8 @@
         }
 
         function searchDashboard(query) {
-            // Search functionality across all tabs
-            // Implementation depends on what you want to search
-            showToast('Search feature is under development', 'info');
+            currentSearchQuery = query || '';
+            applyDashboardSearch();
         }
 
         function refreshOverview() {

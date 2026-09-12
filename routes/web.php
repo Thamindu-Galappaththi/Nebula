@@ -927,6 +927,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/api/program-admin-l2/overview', [ProgramAdminL2DashboardController::class, 'getOverviewMetrics'])->name('api.program.admin.l2.overview');
         Route::get('/api/program-admin-l2/pending-approvals', [ProgramAdminL2DashboardController::class, 'getPendingApprovals'])->name('api.program.admin.l2.pending.approvals');
         Route::get('/api/program-admin-l2/active-semesters', [ProgramAdminL2DashboardController::class, 'getActiveSemesters'])->name('api.program.admin.l2.active.semesters');
+        Route::get('/api/program-admin-l2/courses-by-location', [ProgramAdminL2DashboardController::class, 'getCoursesByLocation'])->name('api.program.admin.l2.courses.by.location');
+        Route::get('/api/program-admin-l2/intakes', [ProgramAdminL2DashboardController::class, 'getIntakes'])->name('api.program.admin.l2.intakes');
         Route::get('/api/program-admin-l2/modules-by-course', [ProgramAdminL2DashboardController::class, 'getModulesByCourse'])->name('api.program.admin.l2.modules.by.course');
         Route::get('/api/program-admin-l2/academic-performance', [ProgramAdminL2DashboardController::class, 'getAcademicPerformance'])->name('api.program.admin.l2.academic.performance');
         Route::get('/api/program-admin-l2/attendance-overview', [ProgramAdminL2DashboardController::class, 'getAttendanceOverview'])->name('api.program.admin.l2.attendance.overview');
@@ -934,6 +936,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/api/program-admin-l2/payment-overview', [ProgramAdminL2DashboardController::class, 'getPaymentOverview'])->name('api.program.admin.l2.payment.overview');
         Route::post('/api/program-admin-l2/approve-registration/{id}', [ProgramAdminL2DashboardController::class, 'approveRegistration'])->name('api.program.admin.l2.approve.registration');
         Route::post('/api/program-admin-l2/reject-registration/{id}', [ProgramAdminL2DashboardController::class, 'rejectRegistration'])->name('api.program.admin.l2.reject.registration');
+        Route::post('/api/program-admin-l2/approve-all', [ProgramAdminL2DashboardController::class, 'approveAllPending'])->name('api.program.admin.l2.approve.all');
+        Route::post('/api/program-admin-l2/reject-all', [ProgramAdminL2DashboardController::class, 'rejectAllPending'])->name('api.program.admin.l2.reject.all');
     });
 
     // Admin L2 Trainee Dashboard
