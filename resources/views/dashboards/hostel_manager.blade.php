@@ -162,7 +162,7 @@
                             <td>
                                 <span class="badge-status badge-{{ $status }}">{{ $req->status_text }}</span>
                             </td>
-                            <td>{{ optional($req->approved_at ?? $req->updated_at)->format('Y-m-d H:i') ?? '-' }}</td>
+                            <td>{{ $req->processedAtSriLanka()?->format('Y-m-d H:i') ?? '-' }}</td>
                         </tr>
                     @empty
                         <tr>
