@@ -13,8 +13,10 @@ use App\Models\SemesterRegistration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\ClearanceRequest;
+use App\Models\SpecializationRegistration;
 use App\Support\SpecializationStudentScope;
 use App\Support\SemesterModuleSpecializationHelper;
+use Illuminate\Support\Facades\Schema;
 
 
 class SemesterRegistrationController extends Controller
@@ -175,7 +177,11 @@ class SemesterRegistrationController extends Controller
                             [
                                 'course_id'             => $request->course_id,
                                 'location'              => $request->location,
-                                'specialization'        => $request->specialization,
+                                'specialization'        => $this->registeredSpecialization(
+                                    $studentId,
+                                    (int) $request->course_id,
+                                    (int) $request->intake_id
+                                ) ?? $current?->specialization,
 
                                 // keep status TERMINATED until DGM approves
                                 'status'                => 'terminated',
@@ -204,7 +210,11 @@ class SemesterRegistrationController extends Controller
                     $update = [
                         'course_id'         => $request->course_id,
                         'location'          => $request->location,
-                        'specialization'    => $request->specialization,
+                        'specialization'    => $this->registeredSpecialization(
+                            $studentId,
+                            (int) $request->course_id,
+                            (int) $request->intake_id
+                        ) ?? $current?->specialization,
                         'status'            => $approvedToRegistered ? 'registered' : $newStatus, // Handles 'holding' here
                         'registration_date' => now()->toDateString(),
                         'updated_at'        => now(),
@@ -344,6 +354,24 @@ class SemesterRegistrationController extends Controller
             });
 
         return response()->json(['success' => true, 'semesters' => $semesters]);
+    }
+
+    private function registeredSpecialization(int $studentId, int $courseId, int $intakeId): ?string
+    {
+        if (!Schema::hasTable('specialization_registrations')) {
+            return null;
+        }
+
+        $specialization = SpecializationRegistration::query()
+            ->where('student_id', $studentId)
+            ->where('course_id', $courseId)
+            ->where('intake_id', $intakeId)
+            ->where('status', 'registered')
+            ->value('specialization');
+
+        $specialization = is_string($specialization) ? trim($specialization) : '';
+
+        return $specialization === '' ? null : $specialization;
     }
 
     private function decodeCourseSpecializations(?Course $course): array

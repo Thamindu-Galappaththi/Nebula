@@ -74,6 +74,64 @@ class SpecializationRegistrationPageTest extends TestCase
             ->assertJsonPath('intakes.0.batch', '2024-JUL-B08');
     }
 
+    public function test_current_specialization_is_per_student(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $networkStudent = $this->makeStudent('199012345V');
+        $softwareStudent = $this->makeStudent('199098765V');
+        $unassignedStudent = $this->makeStudent('199011122V');
+
+        foreach ([$networkStudent, $softwareStudent, $unassignedStudent] as $student) {
+            CourseRegistration::forceCreate([
+                'student_id'        => $student->student_id,
+                'course_id'         => $course->course_id,
+                'intake_id'         => $intake->intake_id,
+                'status'            => 'Registered',
+                'approval_status'   => 'Approved by manager',
+                'location'          => 'Welisara',
+                'registration_date' => now()->toDateString(),
+            ]);
+        }
+
+        \App\Models\SpecializationRegistration::forceCreate([
+            'student_id'      => $networkStudent->student_id,
+            'course_id'       => $course->course_id,
+            'intake_id'       => $intake->intake_id,
+            'location'        => 'Welisara',
+            'specialization'  => 'Network Engineering',
+            'status'          => 'registered',
+        ]);
+        \App\Models\SpecializationRegistration::forceCreate([
+            'student_id'      => $softwareStudent->student_id,
+            'course_id'       => $course->course_id,
+            'intake_id'       => $intake->intake_id,
+            'location'        => 'Welisara',
+            'specialization'  => 'Software Engineering',
+            'status'          => 'registered',
+        ]);
+
+        $students = $this->actingAs($this->actor)
+            ->postJson('/specialization-registration/students', [
+                'location' => 'Welisara',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json('students');
+
+        $byId = collect($students)->keyBy('student_id');
+
+        $this->assertSame('Network Engineering', $byId[$networkStudent->student_id]['specialization']);
+        $this->assertSame('Software Engineering', $byId[$softwareStudent->student_id]['specialization']);
+        $this->assertNull($byId[$unassignedStudent->student_id]['specialization']);
+        $this->assertNotSame(
+            $byId[$networkStudent->student_id]['specialization'],
+            $byId[$unassignedStudent->student_id]['specialization']
+        );
+    }
+
     public function test_eligible_students_are_returned(): void
     {
         $course = $this->makeCourse();
@@ -101,16 +159,16 @@ class SpecializationRegistrationPageTest extends TestCase
             ->assertJsonPath('students.0.nic', '199012345V');
     }
 
-    private function makeStudent(): Student
+    private function makeStudent(string $idValue = '199012345V'): Student
     {
         return Student::forceCreate([
             'title'              => 'Mr',
             'name_with_initials' => 'T. Student',
             'full_name'          => 'Test Student Full',
             'id_type'            => 'NIC',
-            'id_value'           => '199012345V',
+            'id_value'           => $idValue,
             'gender'             => 'Male',
-            'email'              => '199012345V@test.lk',
+            'email'              => $idValue . '@test.lk',
             'status'             => 'Registered',
             'academic_status'    => Student::ACADEMIC_ACTIVE,
             'institute_location' => 'Welisara',
@@ -129,7 +187,7 @@ class SpecializationRegistrationPageTest extends TestCase
             'course_medium'       => 'English',
             'entry_qualification' => 'A/L or equivalent',
             'conducted_by'        => 0,
-            'specializations'     => ['Software Engineering', 'Networking'],
+            'specializations'     => ['Software Engineering', 'Network Engineering'],
         ]);
     }
 

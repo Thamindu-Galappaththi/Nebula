@@ -100,7 +100,7 @@ class SpecializationRegistrationController extends Controller
                 ->where('status', 'registered')
                 ->whereIn('student_id', $registrations->pluck('student_id')->all())
                 ->get()
-                ->keyBy('student_id');
+                ->keyBy(fn ($assignment) => (int) $assignment->student_id);
         }
 
         $students = $registrations->map(function ($registration) use ($assignmentsByStudentId) {
@@ -109,15 +109,18 @@ class SpecializationRegistrationController extends Controller
                     return null;
                 }
 
-                $assignment = $assignmentsByStudentId->get($registration->student_id);
+                $assignment = $assignmentsByStudentId->get((int) $registration->student_id);
+                $specialization = $assignment && $assignment->status === 'registered'
+                    ? trim((string) $assignment->specialization)
+                    : null;
 
                 return [
-                    'student_id' => $registration->student_id,
+                    'student_id' => (int) $registration->student_id,
                     'course_registration_id' => $registration->course_registration_id,
                     'name' => $student->name_with_initials,
                     'email' => $student->email,
                     'nic' => $student->id_value ?? $student->nic ?? null,
-                    'specialization' => $assignment?->status === 'registered' ? $assignment->specialization : null,
+                    'specialization' => $specialization !== '' ? $specialization : null,
                 ];
             })
             ->filter()

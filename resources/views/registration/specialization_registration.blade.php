@@ -41,7 +41,8 @@
         align-items: center;
         gap: 0.75rem;
     }
-    #studentSearch {
+    #studentSearch,
+    #assignmentFilter {
         max-width: 18rem;
     }
     @media (max-width: 767.98px) {
@@ -67,7 +68,8 @@
         .specialization-toolbar .btn {
             width: 100%;
         }
-        #studentSearch {
+        #studentSearch,
+        #assignmentFilter {
             max-width: 100%;
         }
         .specialization-students-table thead {
@@ -112,7 +114,7 @@
     <div class="card">
         <div class="card-body">
             <h2 class="text-center mb-3">Degree &amp; Diploma Specialization Registration</h2>
-            <p class="text-muted text-center mb-0">Only students already eligible and course-registered can be assigned to a specialization.</p>
+            <p class="text-muted text-center mb-0">Only students already eligible and course-registered can be assigned to a specialization. Current Specialization is each student's existing assignment — it is not changed just by selecting a specialization above.</p>
             <hr>
 
             <div id="statusMessage"></div>
@@ -160,6 +162,12 @@
                 <div class="specialization-toolbar mb-3">
                     <strong id="count">0 eligible students</strong>
                     <input type="search" class="form-control" id="studentSearch" placeholder="Search students..." autocomplete="off">
+                    <select id="assignmentFilter" class="form-select">
+                        <option value="all" selected>All students</option>
+                        <option value="unassigned">Not assigned</option>
+                        <option value="selected">Already in this specialization</option>
+                        <option value="other">Assigned to another specialization</option>
+                    </select>
                     <button type="button" id="save" class="btn btn-primary">Register Selected Students</button>
                 </div>
 
@@ -197,6 +205,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const statusMessage = document.getElementById('statusMessage');
     const selectAll = document.getElementById('selectAll');
     const studentSearch = document.getElementById('studentSearch');
+    const assignmentFilter = document.getElementById('assignmentFilter');
     const saveBtn = document.getElementById('save');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
@@ -301,7 +310,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderStudents() {
         const query = (studentSearch.value || '').trim().toLowerCase();
+        const assignment = assignmentFilter ? assignmentFilter.value : 'all';
+        const selectedSpec = specializationSelect.value;
         const filtered = loadedStudents.filter(function (student) {
+            const currentSpec = student.specialization || '';
+            if (assignment === 'unassigned' && currentSpec) {
+                return false;
+            }
+            if (assignment === 'selected' && currentSpec !== selectedSpec) {
+                return false;
+            }
+            if (assignment === 'other' && (!currentSpec || currentSpec === selectedSpec)) {
+                return false;
+            }
             if (!query) {
                 return true;
             }
@@ -324,7 +345,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const selectedSpec = specializationSelect.value;
         studentsBody.innerHTML = filtered.map(function (student) {
             const id = String(student.student_id);
             const checked = checkedIds.has(id) ? ' checked' : '';
@@ -363,9 +383,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 intake_id: intakeSelect.value
             });
             loadedStudents = Array.isArray(data.students) ? data.students : [];
-            checkedIds = new Set(loadedStudents
-                .filter(function (student) { return student.specialization === specializationSelect.value; })
-                .map(function (student) { return String(student.student_id); }));
+            checkedIds = new Set();
             renderStudents();
             if (!preserveMessage) {
                 showMessage('', '');
@@ -451,6 +469,9 @@ document.addEventListener('DOMContentLoaded', function () {
         loadStudents(false);
     });
     studentSearch.addEventListener('input', renderStudents);
+    if (assignmentFilter) {
+        assignmentFilter.addEventListener('change', renderStudents);
+    }
 
     selectAll.addEventListener('change', function (event) {
         visibleStudentRows().forEach(function (row) {
