@@ -3,24 +3,24 @@
 @section('title', 'Advanced Payment Analytics')
 
 @section('content')
-<div class="container-fluid mt-4 mb-5">
+<div id="payment-analytics" class="container-fluid px-2 px-md-3 mt-4 mb-5">
     {{-- Header --}}
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
         <div>
             <h2 class="text-primary mb-1">📊 Advanced Analytics</h2>
             <p class="text-muted mb-0">Deep dive into payment performance metrics</p>
         </div>
-        <a href="{{ route('payment.summary') }}" class="btn btn-outline-secondary">
+        <a href="{{ route('payment.summary') }}" class="btn btn-outline-secondary analytics-back-btn">
             <i class="bi bi-arrow-left"></i> Back to Dashboard
         </a>
     </div>
 
     <form id="analyticsFiltersForm" method="GET" action="{{ route('payment.analytics') }}" class="row mb-4 g-2 align-items-end">
-        <div class="col-sm-4 col-md-3">
+        <div class="col-md-3">
             <label class="form-label fw-semibold text-dark" for="analyticsMonthFilter">Analytics month</label>
             <input type="month" id="analyticsMonthFilter" name="month" class="form-control analytics-month-filter" value="{{ $startOfMonth->format('Y-m') }}" aria-label="Analytics month">
         </div>
-        <div class="col-auto">
+        <div class="col-md-3 analytics-filter-submit">
             <button type="submit" class="btn btn-primary">Apply filters</button>
         </div>
     </form>
@@ -101,7 +101,9 @@
                     <small class="text-muted">Paid revenue by day within selected range.</small>
                 </div>
                 <div class="card-body">
-                    <canvas id="revenueChart" height="100"></canvas>
+                    <div class="chart-wrap">
+                        <canvas id="revenueChart" height="100"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -212,7 +214,7 @@
                 </div>
                 <div class="card-body pt-3 px-3 pb-2">
                     <div class="table-responsive">
-                        <table class="table table-striped align-middle mb-0">
+                        <table class="table table-striped align-middle mb-0 analytics-course-table">
                             <thead class="table-light">
                                 <tr>
                                     <th>Course</th>
@@ -227,15 +229,21 @@
                             </thead>
                             <tbody>
                                 @forelse(($courseWiseSummary ?? []) as $courseSummary)
+                                    @php
+                                        $courseLocation = $courseSummary['location'] ?? 'N/A';
+                                        $courseLocationLabel = in_array($courseLocation, ['Welisara', 'Moratuwa', 'Peradeniya'], true)
+                                            ? 'Nebula Institute of Technology - ' . $courseLocation
+                                            : $courseLocation;
+                                    @endphp
                                     <tr>
-                                        <td>{{ $courseSummary['course_name'] ?? 'N/A' }}</td>
-                                        <td>{{ $courseSummary['location'] ?? 'N/A' }}</td>
-                                        <td class="text-end">{{ number_format($courseSummary['total_registrations'] ?? 0) }}</td>
-                                        <td class="text-end">{{ number_format($courseSummary['new_registrations'] ?? 0) }}</td>
-                                        <td class="text-end">{{ number_format($courseSummary['ongoing_courses'] ?? 0) }}</td>
-                                        <td class="text-end">{{ number_format($courseSummary['pending_registrations'] ?? 0) }}</td>
-                                        <td class="text-end">LKR {{ number_format($courseSummary['paid_amount'] ?? 0, 2) }}</td>
-                                        <td class="text-end">LKR {{ number_format($courseSummary['pending_amount'] ?? 0, 2) }}</td>
+                                        <td data-label="Course">{{ $courseSummary['course_name'] ?? 'N/A' }}</td>
+                                        <td data-label="Location">{{ $courseLocationLabel }}</td>
+                                        <td class="text-end" data-label="Total Reg.">{{ number_format($courseSummary['total_registrations'] ?? 0) }}</td>
+                                        <td class="text-end" data-label="New Reg.">{{ number_format($courseSummary['new_registrations'] ?? 0) }}</td>
+                                        <td class="text-end" data-label="Ongoing">{{ number_format($courseSummary['ongoing_courses'] ?? 0) }}</td>
+                                        <td class="text-end" data-label="Pending Reg.">{{ number_format($courseSummary['pending_registrations'] ?? 0) }}</td>
+                                        <td class="text-end" data-label="Paid Amount">LKR {{ number_format($courseSummary['paid_amount'] ?? 0, 2) }}</td>
+                                        <td class="text-end" data-label="Pending Amount">LKR {{ number_format($courseSummary['pending_amount'] ?? 0, 2) }}</td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -283,7 +291,7 @@
 
     {{-- Revenue Trend --}}
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h6 class="fw-bold mb-0">🏦 Pending SLT Loan Recoveries This Month</h6>
                 <small class="text-muted">Students with SLT loan receivables expected this month.</small>
@@ -292,7 +300,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover table-bordered">
+                <table class="table table-hover table-bordered analytics-slt-table">
                     <thead class="table-light">
                         <tr>
                             <th>Student Name</th>
@@ -307,13 +315,13 @@
                     <tbody>
                         @forelse($pendingSltLoanRecoveries as $record)
                             <tr>
-                                <td>{{ $record['student_name'] }}</td>
-                                <td>{{ $record['course_name'] }}</td>
-                                <td>{{ $record['intake'] }}</td>
-                                <td class="text-end">LKR {{ number_format($record['loan_amount'], 2) }}</td>
-                                <td class="text-end">LKR {{ number_format($record['installment_amount'], 2) }}</td>
-                                <td>{{ $record['effective_date'] }}</td>
-                                <td class="text-center">
+                                <td data-label="Student Name">{{ $record['student_name'] }}</td>
+                                <td data-label="Course">{{ $record['course_name'] }}</td>
+                                <td data-label="Intake">{{ $record['intake'] }}</td>
+                                <td class="text-end" data-label="Loan Amount">LKR {{ number_format($record['loan_amount'], 2) }}</td>
+                                <td class="text-end" data-label="Installment Amount">LKR {{ number_format($record['installment_amount'], 2) }}</td>
+                                <td data-label="Effective Date">{{ $record['effective_date'] }}</td>
+                                <td class="text-center" data-label="Update Records">
                                     @if($record['student_id_value'] && $record['course_id'])
                                         <button
                                             type="button"
@@ -360,7 +368,7 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-sm table-bordered align-middle">
+                    <table class="table table-sm table-bordered align-middle analytics-modal-table">
                         <thead class="table-light">
                             <tr>
                                 <th>Type</th>
@@ -410,7 +418,7 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-sm table-bordered align-middle">
+                    <table class="table table-sm table-bordered align-middle analytics-modal-table">
                         <thead class="table-light">
                             <tr>
                                 <th>Type</th>
@@ -494,8 +502,18 @@
 <script nonce="{{ $cspNonce }}" src="{{ asset('libs/chartjs/chart.min.js') }}"></script>
 <script nonce="{{ $cspNonce }}">
 document.addEventListener("DOMContentLoaded", () => {
-    const revenueByDay = @json($revenueByDay);
+    const asArray = (value) => {
+        if (Array.isArray(value)) return value;
+        if (value && typeof value === 'object') return Object.values(value);
+        return [];
+    };
+    const revenueByDay = asArray(@json($revenueByDay ?? []));
     const csrfToken = '{{ csrf_token() }}';
+    const paymentRecordsUrl = "{{ route('payment.get.records') }}";
+    const paymentUpdateUrl = "{{ route('payment.update.record') }}";
+    const paymentMakeUrl = "{{ route('payment.make') }}";
+    const sltRecordsUrl = "{{ route('payment.slt.get.records') }}";
+    const sltUpdateUrl = "{{ route('payment.slt.update.record') }}";
     const paymentTypeLabels = {
         course_fee: 'Course Fee',
         franchise_fee: 'Franchise Fee',
@@ -518,13 +536,48 @@ document.addEventListener("DOMContentLoaded", () => {
     let analyticsSltInstallmentNumber = null;
     let analyticsSltEffectiveDate = null;
     let analyticsSltPaymentRecords = [];
+    function setTableMessage(tbody, colspan, message, className) {
+        if (!tbody) return;
+        tbody.replaceChildren();
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = colspan;
+        cell.className = className;
+        cell.textContent = message;
+        row.appendChild(cell);
+        tbody.appendChild(row);
+    }
+
+    function appendSelect(parent, idx, field, value, options) {
+        const select = document.createElement('select');
+        select.className = 'form-select form-select-sm';
+        select.dataset.idx = String(idx);
+        select.dataset.field = field;
+        options.forEach(([optionValue, label]) => {
+            select.appendChild(new Option(label, optionValue, false, String(value || '') === optionValue));
+        });
+        parent.appendChild(select);
+        return select;
+    }
+
+    function appendTextInput(parent, idx, field, value, extra) {
+        const input = document.createElement('input');
+        input.type = extra.type || 'text';
+        input.className = extra.className || 'form-control form-control-sm';
+        input.dataset.idx = String(idx);
+        input.dataset.field = field;
+        input.value = value || '';
+        if (extra.placeholder) input.placeholder = extra.placeholder;
+        parent.appendChild(input);
+        return input;
+    }
 
     function renderAnalyticsSltLoanRecords() {
         const tbody = document.getElementById('analyticsSltPaymentRecordsTableBody');
         if (!tbody) return;
 
         if (!analyticsSltPaymentRecords.length) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No SLT loan recovery records found.</td></tr>';
+            setTableMessage(tbody, 9, 'No SLT loan recovery records found.', 'text-center text-muted');
             return;
         }
 
@@ -571,7 +624,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function loadAnalyticsSltLoanRecords(studentNic, courseId, installmentNumber = null, effectiveDate = null) {
-        const response = await fetch('/payment/slt-loan/get-records', {
+        const response = await fetch(sltRecordsUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -636,7 +689,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const response = await fetch('/payment/slt-loan/update-record', {
+        const response = await fetch(sltUpdateUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -697,7 +750,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!analyticsPaymentRecords.length) {
-            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No payment records found.</td></tr>';
+            setTableMessage(tbody, 10, 'No payment records found.', 'text-center text-muted');
             return;
         }
 
@@ -748,7 +801,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function loadAnalyticsPaymentRecords(studentNic, courseId) {
-        const response = await fetch('/payment/get-records', {
+        const response = await fetch(paymentRecordsUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -801,7 +854,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const response = await fetch('/payment/update-record', {
+        const response = await fetch(paymentUpdateUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -859,7 +912,7 @@ document.addEventListener("DOMContentLoaded", () => {
             formData.append('slip', slipFile);
         }
 
-        const response = await fetch('/payment/make-payment', {
+        const response = await fetch(paymentMakeUrl, {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': csrfToken,
@@ -928,7 +981,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('analyticsSltLoanUpdateRecordsModal'));
             modal.show();
 
-            document.getElementById('analyticsSltPaymentRecordsTableBody').innerHTML = '<tr><td colspan="9" class="text-center text-muted">Loading SLT loan recovery records...</td></tr>';
+            document.getElementById('analyticsSltPaymentRecordsTableBody').innerHTML = '';
+            setTableMessage(document.getElementById('analyticsSltPaymentRecordsTableBody'), 9, 'Loading SLT loan recovery records...', 'text-center text-muted');
 
             try {
                 await loadAnalyticsSltLoanRecords(
@@ -938,7 +992,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     analyticsSltEffectiveDate
                 );
             } catch (error) {
-                document.getElementById('analyticsSltPaymentRecordsTableBody').innerHTML = `<tr><td colspan="9" class="text-center text-danger">${error.message}</td></tr>`;
+                setTableMessage(document.getElementById('analyticsSltPaymentRecordsTableBody'), 9, error.message, 'text-center text-danger');
                 showAnalyticsToast(error.message, 'error');
             }
 
@@ -957,12 +1011,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('analyticsUpdateRecordsModal'));
             modal.show();
 
-            document.getElementById('analyticsPaymentRecordsTableBody').innerHTML = '<tr><td colspan="10" class="text-center text-muted">Loading payment records...</td></tr>';
+            setTableMessage(document.getElementById('analyticsPaymentRecordsTableBody'), 10, 'Loading payment records...', 'text-center text-muted');
 
             try {
                 await loadAnalyticsPaymentRecords(analyticsCurrentStudentNic, analyticsCurrentCourseId);
             } catch (error) {
-                document.getElementById('analyticsPaymentRecordsTableBody').innerHTML = `<tr><td colspan="10" class="text-center text-danger">${error.message}</td></tr>`;
+                setTableMessage(document.getElementById('analyticsPaymentRecordsTableBody'), 10, error.message, 'text-center text-danger');
                 showAnalyticsToast(error.message, 'error');
             }
 
@@ -1082,8 +1136,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Revenue Trend Chart
     const revenueChartElement = document.getElementById('revenueChart');
-    if (revenueChartElement) {
-        new Chart(revenueChartElement, {
+    if (revenueChartElement && typeof Chart !== 'undefined') {
+        try {
+            new Chart(revenueChartElement, {
             type: 'bar',
             data: {
                 labels: revenueByDay.map((r) => r.date),
@@ -1127,62 +1182,171 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         });
+        } catch (error) {
+            console.error('Analytics revenue chart failed:', error);
+        }
+    } else if (typeof Chart === 'undefined') {
+        console.error('Chart.js failed to load');
     }
 });
 </script>
 
 <style nonce="{{ $cspNonce }}">
-.card {
-    transition: all 0.3s ease;
+#payment-analytics,
+#payment-analytics .card,
+#payment-analytics .card-body,
+#payment-analytics .card-header {
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    height: auto;
+    transform: none !important;
 }
-
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+body:has(#payment-analytics) .body-wrapper > .container-fluid {
+    overflow: visible;
 }
-
-.progress {
+#payment-analytics [class*="col-"] {
+    min-width: 0;
+}
+#payment-analytics h2,
+#payment-analytics h4,
+#payment-analytics .analytics-kpi-amount {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+#payment-analytics .nebula-select,
+#payment-analytics .nebula-select-toggle,
+#payment-analytics .form-select,
+#payment-analytics .form-control {
+    width: 100%;
+    max-width: 100%;
+}
+#payment-analytics .chart-wrap {
+    position: relative;
+    width: 100%;
+    min-height: 220px;
+}
+#payment-analytics .chart-wrap canvas {
+    max-width: 100%;
+}
+#payment-analytics .card {
+    transition: box-shadow 0.2s;
+}
+#payment-analytics .card:hover {
+    transform: none !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+}
+#payment-analytics .progress {
     background-color: rgba(0, 0, 0, 0.05);
 }
-
-.table-hover tbody tr:hover {
+#payment-analytics .table-hover tbody tr:hover {
     background-color: rgba(102, 126, 234, 0.05);
 }
-
 .analytics-month-filter {
     background-color: #fff !important;
     border: 1px solid #0d6efd;
     color: #212529 !important;
     min-height: 44px;
 }
-
 .analytics-month-filter::-webkit-calendar-picker-indicator {
     opacity: 1;
     cursor: pointer;
 }
-
+@media (max-width: 767.98px) {
+    #payment-analytics h2 {
+        font-size: 1.25rem;
+    }
+    #payment-analytics .analytics-back-btn,
+    #payment-analytics .analytics-filter-submit .btn {
+        width: 100%;
+    }
+    #payment-analytics .form-control,
+    #payment-analytics .form-select,
+    #payment-analytics .form-select-sm,
+    #payment-analytics .nebula-select-toggle {
+        font-size: 16px;
+    }
+    #payment-analytics .card-body {
+        padding: 1rem 0.75rem;
+    }
+    .modal-footer .btn {
+        width: 100%;
+    }
+}
 @media (max-width: 991.98px) {
     .analytics-kpi-header {
         flex-direction: column;
         align-items: flex-start !important;
     }
-
     .analytics-kpi-header > div:last-child {
         align-self: flex-end;
     }
-
     .analytics-kpi-amount {
         font-size: clamp(1.65rem, 6vw, 2.3rem);
         line-height: 1.1;
         word-break: break-word;
     }
-
     .analytics-filter-actions {
         flex-direction: column;
         align-items: stretch !important;
     }
-
     .analytics-filter-actions .btn {
+        width: 100%;
+    }
+    #payment-analytics .table-responsive {
+        overflow: visible;
+    }
+    #payment-analytics .analytics-course-table thead,
+    #payment-analytics .analytics-slt-table thead,
+    .analytics-modal-table thead {
+        display: none;
+    }
+    #payment-analytics .analytics-course-table,
+    #payment-analytics .analytics-course-table tbody,
+    #payment-analytics .analytics-course-table tr,
+    #payment-analytics .analytics-course-table td,
+    #payment-analytics .analytics-slt-table,
+    #payment-analytics .analytics-slt-table tbody,
+    #payment-analytics .analytics-slt-table tr,
+    #payment-analytics .analytics-slt-table td,
+    .analytics-modal-table,
+    .analytics-modal-table tbody,
+    .analytics-modal-table tr,
+    .analytics-modal-table td {
+        display: block;
+        width: 100%;
+    }
+    #payment-analytics .analytics-course-table tbody tr,
+    #payment-analytics .analytics-slt-table tbody tr,
+    .analytics-modal-table tbody tr {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        padding: 8px 12px 12px;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    }
+    #payment-analytics .analytics-course-table td,
+    #payment-analytics .analytics-slt-table td,
+    .analytics-modal-table td {
+        border: 0;
+        padding: 0.45rem 0;
+        text-align: left !important;
+    }
+    #payment-analytics .analytics-course-table td[data-label]::before,
+    #payment-analytics .analytics-slt-table td[data-label]::before,
+    .analytics-modal-table td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #64748b;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    #payment-analytics .analytics-slt-table .btn,
+    .analytics-modal-table .btn {
         width: 100%;
     }
 }

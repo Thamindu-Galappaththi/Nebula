@@ -243,9 +243,6 @@ class PaymentSummaryController extends Controller
      */
     public function analytics(Request $request)
     {
-        $selectedLocation = $request->input('location') ?? auth()->user()->user_location ?? null;
-
-        // Support an explicit month filter (format: YYYY-MM)
         $monthParam = $request->input('month');
         if (!empty($monthParam)) {
             try {
@@ -260,25 +257,35 @@ class PaymentSummaryController extends Controller
             $endOfMonth = Carbon::now()->endOfMonth();
         }
 
-        // Every analytics KPI on this page is period based.  Keep one shared
+        $paymentTable = $this->getPaymentDetailsTable();
+        $paidDateExpr = $this->getPaidDateSqlExpression($paymentTable);
+        $hasStatus = $this->hasPaymentDetailColumn('status');
+
+        // Every analytics KPI on this page is period based. Keep one shared
         // month query so the cards, chart, and course summary cannot drift.
         $query = PaymentDetail::query()
-            ->whereBetween('created_at', [$startOfMonth, $endOfMonth]);
+            ->whereRaw("DATE({$paidDateExpr}) >= ?", [$startOfMonth->toDateString()])
+            ->whereRaw("DATE({$paidDateExpr}) <= ?", [$endOfMonth->toDateString()]);
 
-        // Revenue Analytics
-        $revenueByDay = (clone $query)
+        $paidQuery = clone $query;
+        if ($hasStatus) {
+            $paidQuery->where($paymentTable . '.status', 'paid');
+        }
+
+        $revenueByDay = (clone $paidQuery)
             ->select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('SUM(CASE WHEN status = "paid" THEN total_fee ELSE 0 END) as revenue')
+                DB::raw("DATE({$paidDateExpr}) as date"),
+                DB::raw("SUM({$paymentTable}.total_fee) as revenue")
             )
-            ->where('status', 'paid')
             ->groupBy('date')
             ->orderBy('date')
             ->get();
 
         $totalRevenue = $revenueByDay->sum('revenue');
-        $totalPendingPayments = (clone $query)->where('status', 'pending')->sum('total_fee');
-        $averagePaidTransaction = (clone $query)->where('status', 'paid')->avg('total_fee') ?? 0;
+        $totalPendingPayments = $hasStatus
+            ? (clone $query)->where($paymentTable . '.status', 'pending')->sum($paymentTable . '.total_fee')
+            : 0;
+        $averagePaidTransaction = (clone $paidQuery)->avg($paymentTable . '.total_fee') ?? 0;
 
         // Keep $currentMonthStart/$currentMonthEnd for backwards compatibility elsewhere
         $currentMonthStart = $startOfMonth->toDateString();
@@ -318,11 +325,12 @@ class PaymentSummaryController extends Controller
         $paymentSummary = PaymentDetail::join('course_registration', 'payment_details.course_registration_id', '=', 'course_registration.id')
             ->select(
                 'course_registration.course_id',
-                DB::raw("SUM(CASE WHEN payment_details.status = 'paid' THEN payment_details.amount ELSE 0 END) as paid_amount"),
-                DB::raw("SUM(CASE WHEN payment_details.status = 'pending' THEN payment_details.amount ELSE 0 END) as pending_amount"),
+                DB::raw("SUM(CASE WHEN payment_details.status = 'paid' THEN COALESCE(payment_details.total_fee, payment_details.amount, 0) ELSE 0 END) as paid_amount"),
+                DB::raw("SUM(CASE WHEN payment_details.status = 'pending' THEN COALESCE(payment_details.total_fee, payment_details.amount, 0) ELSE 0 END) as pending_amount"),
                 DB::raw('COUNT(payment_details.id) as payment_count')
             )
-            ->whereBetween('payment_details.created_at', [$startOfMonth, $endOfMonth])
+            ->whereRaw("DATE({$paidDateExpr}) >= ?", [$startOfMonth->toDateString()])
+            ->whereRaw("DATE({$paidDateExpr}) <= ?", [$endOfMonth->toDateString()])
             ->groupBy('course_registration.course_id')
             ->get()
             ->keyBy('course_id');
@@ -345,9 +353,6 @@ class PaymentSummaryController extends Controller
                 'payment_count' => (int) ($paymentRow->payment_count ?? 0),
             ];
         })->sortByDesc('paid_amount')->values();
-
-        $paymentTable = $this->getPaymentDetailsTable();
-        $paidDateExpr = $this->getPaidDateSqlExpression($paymentTable);
 
         // This KPI must represent actual paid registration-fee transactions
         // captured via Payment Management / Update Records, not eligibility
@@ -1270,14 +1275,9 @@ class PaymentSummaryController extends Controller
 
     private function getPaidDateSqlExpression(string $table): string
     {
-        // Analytics month filters must be based on the actual effective date,
-        // not the date the row happened to be created.  Retain created_at only
-        // for older installations that do not yet have this column.
-        if ($this->hasPaymentDetailColumn('payment_effective_date')) {
-            return "{$table}.payment_effective_date";
-        }
-
-        return "{$table}.created_at";
+        // Prefer the effective payment date, then fall back so month KPIs still
+        // populate when that column is empty on older rows.
+        return $this->getDashboardDateSqlExpression($table);
     }
 
     private function fetchPendingSltLoanRecoveries(Carbon $startOfMonth, Carbon $endOfMonth)
