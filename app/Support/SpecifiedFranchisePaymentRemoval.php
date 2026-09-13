@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\CourseRegistration;
 use App\Models\Intake;
+use App\Models\PaymentInstallment;
 use App\Models\PaymentPlan;
 use App\Models\StudentPaymentPlan;
 use Illuminate\Support\Facades\Schema;
@@ -11,30 +12,35 @@ use Illuminate\Support\Facades\Schema;
 class SpecifiedFranchisePaymentRemoval
 {
     /**
-     * Courses/batches that should no longer carry a franchise (international) fee.
-     * Raised 16 Jun 2026: HND Electrical & Electronic Engineering (24/26, 25/27),
+     * Raised 16 Jun 2026: remove franchise fees only from
+     * HND Electrical & Electronic Engineering (24/26, 25/27),
      * HND Digital Technology (24/26), Foundation (Batch 7, 8).
+     *
+     * Live batch labels look like "BTEC EE 2024-2026", "BTECEE2025-2027WE",
+     * "BTEC DT 2024-2026 WD (NEW)", "BTEC Foundation B07".
      */
     public static function targets(): array
     {
         return [
             [
                 'label' => 'HND Electrical & Electronic Engineering',
-                'course_needles' => ['electrical', 'electronic'],
-                'batches' => ['24/26', '25/27'],
-                'batch_mode' => 'contains',
+                'course_needles' => ['hnd', 'electrical', 'electronic'],
+                'cohorts' => [
+                    ['24', '26'],
+                    ['25', '27'],
+                ],
             ],
             [
                 'label' => 'HND Digital Technology',
-                'course_needles' => ['digital technolog'],
-                'batches' => ['24/26'],
-                'batch_mode' => 'contains',
+                'course_needles' => ['hnd', 'digital'],
+                'cohorts' => [
+                    ['24', '26'],
+                ],
             ],
             [
                 'label' => 'Foundation',
                 'course_needles' => ['foundation'],
-                'batches' => ['7', '8'],
-                'batch_mode' => 'foundation',
+                'foundation_batches' => [7, 8],
             ],
         ];
     }
@@ -55,6 +61,7 @@ class SpecifiedFranchisePaymentRemoval
             'intakes' => 0,
             'payment_plans' => 0,
             'student_installments' => 0,
+            'matched_intake_ids' => $intakes->pluck('intake_id')->all(),
         ];
 
         foreach ($intakes as $intake) {
@@ -81,13 +88,26 @@ class SpecifiedFranchisePaymentRemoval
         $courseName = strtolower(trim((string) (optional($intake->course)->course_name ?: $intake->course_name)));
         $batch = (string) ($intake->batch ?? '');
 
+        if ($courseName === '' || $batch === '') {
+            return false;
+        }
+
         foreach (self::targets() as $target) {
             if (! self::courseNameMatches($courseName, $target['course_needles'])) {
                 continue;
             }
 
-            if (self::batchMatches($batch, $target['batches'], $target['batch_mode'] ?? 'contains')) {
-                return true;
+            if (! empty($target['foundation_batches'])) {
+                if (self::foundationBatchMatches($batch, $target['foundation_batches'])) {
+                    return true;
+                }
+                continue;
+            }
+
+            foreach ($target['cohorts'] ?? [] as $cohort) {
+                if (self::cohortMatches($batch, $cohort[0], $cohort[1])) {
+                    return true;
+                }
             }
         }
 
@@ -102,22 +122,48 @@ class SpecifiedFranchisePaymentRemoval
             }
         }
 
-        return $courseName !== '';
+        return true;
     }
 
-    private static function batchMatches(string $batch, array $tokens, string $mode): bool
+    private static function cohortMatches(string $batch, string $startYy, string $endYy): bool
     {
-        $normalized = strtolower(trim($batch));
-        if ($normalized === '') {
+        $fullStart = '20' . $startYy;
+        $fullEnd = '20' . $endYy;
+        $haystack = strtolower($batch);
+        $variants = [
+            $startYy . '/' . $endYy,
+            $startYy . '-' . $endYy,
+            $fullStart . '-' . $fullEnd,
+            $fullStart . '/' . $fullEnd,
+            $fullStart . '-' . $endYy,
+        ];
+
+        foreach ($variants as $variant) {
+            if (str_contains($haystack, strtolower($variant))) {
+                return true;
+            }
+        }
+
+        $digits = preg_replace('/\D+/', '', $batch) ?? '';
+
+        return $digits !== '' && str_contains($digits, $fullStart . $fullEnd);
+    }
+
+    private static function foundationBatchMatches(string $batch, array $numbers): bool
+    {
+        $allowed = implode('', array_map('intval', $numbers));
+        if ($allowed === '') {
             return false;
         }
 
-        if ($mode === 'foundation') {
-            return (bool) preg_match('/(?:^|[^0-9])(?:batch[\s\-_]*)?0?([78])(?:[^0-9]|$)/i', $batch);
-        }
+        $patterns = [
+            '/\bbatch\s*0?([' . $allowed . '])\b/i',
+            '/\bb\s*0?([' . $allowed . '])\b/i',
+            '/^(?:0)?([' . $allowed . '])$/',
+        ];
 
-        foreach ($tokens as $token) {
-            if (str_contains($normalized, strtolower($token))) {
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, trim($batch))) {
                 return true;
             }
         }
@@ -163,29 +209,38 @@ class SpecifiedFranchisePaymentRemoval
             return 0;
         }
 
-        $studentIds = CourseRegistration::query()
+        $registrations = CourseRegistration::query()
             ->where('intake_id', $intake->intake_id)
-            ->when($intake->course_id, fn ($q) => $q->where('course_id', $intake->course_id))
-            ->pluck('student_id');
+            ->get(['student_id', 'course_id']);
 
-        if ($studentIds->isEmpty()) {
+        if ($registrations->isEmpty()) {
             return 0;
         }
 
-        $planIds = StudentPaymentPlan::query()
-            ->whereIn('student_id', $studentIds)
-            ->when($intake->course_id, fn ($q) => $q->where('course_id', $intake->course_id))
-            ->where(function ($q) {
-                $q->whereNull('status')->orWhere('status', '!=', 'archived');
-            })
-            ->pluck('id');
+        $planIds = collect();
+        foreach ($registrations->groupBy('course_id') as $courseId => $rows) {
+            $query = StudentPaymentPlan::query()
+                ->whereIn('student_id', $rows->pluck('student_id'))
+                ->where(function ($q) {
+                    $q->whereNull('status')->orWhere('status', '!=', 'archived');
+                });
 
+            if (! empty($courseId)) {
+                $query->where('course_id', $courseId);
+            } else {
+                continue;
+            }
+
+            $planIds = $planIds->merge($query->pluck('id'));
+        }
+
+        $planIds = $planIds->unique()->filter()->values();
         if ($planIds->isEmpty()) {
             return 0;
         }
 
         $updated = 0;
-        $installments = \App\Models\PaymentInstallment::query()
+        $installments = PaymentInstallment::query()
             ->whereIn('payment_plan_id', $planIds)
             ->where(function ($q) {
                 $q->whereNull('status')->orWhere('status', '!=', 'paid');

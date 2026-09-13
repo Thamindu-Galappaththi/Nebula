@@ -15,31 +15,39 @@ class SpecifiedFranchisePaymentRemovalTest extends TestCase
 
     public function test_removes_franchise_only_from_listed_courses_and_batches(): void
     {
-        $eee = $this->makeCourse('HND Electrical & Electronic Engineering');
-        $digital = $this->makeCourse('HND Digital Technology');
-        $foundation = $this->makeCourse('Pearson BTEC Foundation Diploma');
-        $computing = $this->makeCourse('HND Computing');
+        $eee = $this->makeCourse('Pearson BTEC Level 05 HND in Electrical & Electronic Engineering');
+        $digital = $this->makeCourse('Pearson BTEC Level 5 HND in Digital Technolagies');
+        $foundation = $this->makeCourse('Pearson BTEC International Level 03 Foundation Diploma in Engineering');
+        $beng = $this->makeCourse('B.Eng. (Hons) Electrical & Electronic Engineering');
+        $computing = $this->makeCourse('Pearson BTEC Level 05 HND in Computing');
 
-        $eeeOld = $this->makeIntake($eee, '24/26', '280');
-        $eeeNew = $this->makeIntake($eee, '25/27', '280');
-        $digitalBatch = $this->makeIntake($digital, '24/26', '280');
-        $foundationSeven = $this->makeIntake($foundation, 'Batch 7', '150');
-        $foundationEight = $this->makeIntake($foundation, '8', '150');
-        $foundationOther = $this->makeIntake($foundation, '17', '150');
-        $computingSameBatch = $this->makeIntake($computing, '24/26', '280');
+        $eee2426 = $this->makeIntake($eee, 'BTEC EE 2024-2026', '280');
+        $eee2527 = $this->makeIntake($eee, 'BTECEE2025-2027WE', '294');
+        $eeeLater = $this->makeIntake($eee, 'BTEC EE 2026-2028 WE', '294');
+        $digital2426 = $this->makeIntake($digital, 'BTEC DT 2024-2026 WD (NEW)', '280');
+        $digitalLater = $this->makeIntake($digital, 'BTEC DT 2025-2027 (New)', '295');
+        $foundationSeven = $this->makeIntake($foundation, 'BTEC Foundation B07', '150');
+        $foundationEight = $this->makeIntake($foundation, 'BTEC Foundation B 08', '150');
+        $foundationSix = $this->makeIntake($foundation, 'BTEC Foundation B06', '130');
+        $bengSameYears = $this->makeIntake($beng, '2024-JUl-B08-EEE', '3300');
+        $computingSameYears = $this->makeIntake($computing, 'BTEC Computing 2024-2026', '280');
 
-        $eeePlan = $this->makePlan($eee, $eeeOld, 280);
-        $computingPlan = $this->makePlan($computing, $computingSameBatch, 280);
+        $eeePlan = $this->makePlan($eee, $eee2426, 280);
+        $computingPlan = $this->makePlan($computing, $computingSameYears, 280);
 
         SpecifiedFranchisePaymentRemoval::run();
 
-        $this->assertEquals(0, (float) $eeeOld->fresh()->franchise_payment);
-        $this->assertEquals(0, (float) $eeeNew->fresh()->franchise_payment);
-        $this->assertEquals(0, (float) $digitalBatch->fresh()->franchise_payment);
+        $this->assertEquals(0, (float) $eee2426->fresh()->franchise_payment);
+        $this->assertEquals(0, (float) $eee2527->fresh()->franchise_payment);
+        $this->assertEquals(0, (float) $digital2426->fresh()->franchise_payment);
         $this->assertEquals(0, (float) $foundationSeven->fresh()->franchise_payment);
         $this->assertEquals(0, (float) $foundationEight->fresh()->franchise_payment);
-        $this->assertEquals(150, (float) $foundationOther->fresh()->franchise_payment);
-        $this->assertEquals(280, (float) $computingSameBatch->fresh()->franchise_payment);
+
+        $this->assertEquals(294, (float) $eeeLater->fresh()->franchise_payment);
+        $this->assertEquals(295, (float) $digitalLater->fresh()->franchise_payment);
+        $this->assertEquals(130, (float) $foundationSix->fresh()->franchise_payment);
+        $this->assertEquals(3300, (float) $bengSameYears->fresh()->franchise_payment);
+        $this->assertEquals(280, (float) $computingSameYears->fresh()->franchise_payment);
 
         $this->assertEquals(0, (float) $eeePlan->fresh()->international_fee);
         $this->assertEquals(280, (float) $computingPlan->fresh()->international_fee);
