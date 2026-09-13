@@ -666,38 +666,46 @@ class PaymentSummaryController extends Controller
      */
     public function comparison(Request $request)
     {
+        $table = $this->getPaymentDetailsTable();
+        $dateExpr = $this->getDashboardDateSqlExpression($table);
+        $hasStatus = $this->hasPaymentDetailColumn('status');
         $currentYear = Carbon::now()->year;
         $previousYear = $currentYear - 1;
+        $yearExpr = $this->sqlYearExpression($dateExpr);
+        $monthExpr = $this->sqlMonthExpression($dateExpr);
 
-        // Year over Year Comparison
-        $currentYearData = PaymentDetail::whereYear('created_at', $currentYear)
-            ->where('status', 'paid')
+        $paidQuery = PaymentDetail::query();
+        if ($hasStatus) {
+            $paidQuery->where($table . '.status', 'paid');
+        }
+
+        $currentYearData = (clone $paidQuery)
+            ->whereRaw("{$yearExpr} = ?", [$currentYear])
             ->select(
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('SUM(total_fee) as revenue')
+                DB::raw("{$monthExpr} as month"),
+                DB::raw("SUM({$table}.total_fee) as revenue")
             )
             ->groupBy('month')
             ->get()
-            ->keyBy('month');
+            ->keyBy(fn ($row) => (int) $row->month);
 
-        $previousYearData = PaymentDetail::whereYear('created_at', $previousYear)
-            ->where('status', 'paid')
+        $previousYearData = (clone $paidQuery)
+            ->whereRaw("{$yearExpr} = ?", [$previousYear])
             ->select(
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('SUM(total_fee) as revenue')
+                DB::raw("{$monthExpr} as month"),
+                DB::raw("SUM({$table}.total_fee) as revenue")
             )
             ->groupBy('month')
             ->get()
-            ->keyBy('month');
+            ->keyBy(fn ($row) => (int) $row->month);
 
-        // Growth Metrics
-        $currentYearTotal = PaymentDetail::whereYear('created_at', $currentYear)
-            ->where('status', 'paid')
-            ->sum('total_fee');
+        $currentYearTotal = (float) (clone $paidQuery)
+            ->whereRaw("{$yearExpr} = ?", [$currentYear])
+            ->sum($table . '.total_fee');
 
-        $previousYearTotal = PaymentDetail::whereYear('created_at', $previousYear)
-            ->where('status', 'paid')
-            ->sum('total_fee');
+        $previousYearTotal = (float) (clone $paidQuery)
+            ->whereRaw("{$yearExpr} = ?", [$previousYear])
+            ->sum($table . '.total_fee');
 
         $growthRate = $previousYearTotal > 0
             ? (($currentYearTotal - $previousYearTotal) / $previousYearTotal) * 100
@@ -1398,6 +1406,20 @@ class PaymentSummaryController extends Controller
         $dateColumns[] = "{$table}.created_at";
 
         return 'COALESCE(' . implode(', ', $dateColumns) . ')';
+    }
+
+    private function sqlYearExpression(string $dateExpr): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%Y', {$dateExpr}) AS INTEGER)"
+            : "YEAR({$dateExpr})";
+    }
+
+    private function sqlMonthExpression(string $dateExpr): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', {$dateExpr}) AS INTEGER)"
+            : "MONTH({$dateExpr})";
     }
 
     /**
