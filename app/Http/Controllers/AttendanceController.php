@@ -397,6 +397,10 @@ class AttendanceController extends Controller
             ->select('modules.module_id', 'modules.module_name', 'semester_module.specialization', 'semester_module.specializations')
             ->get();
 
+        if ($this->courseHasSpecializations($course) && $selectedSpecialization === null) {
+            return response()->json(['modules' => []]);
+        }
+
         if ($selectedSpecialization !== null && trim((string) $selectedSpecialization) !== '') {
             $modules = $modules->filter(function ($module) use ($selectedSpecialization) {
                 return \App\Support\SemesterModuleSpecializationHelper::matchesSelection(

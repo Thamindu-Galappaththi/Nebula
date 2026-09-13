@@ -531,6 +531,14 @@ document.addEventListener('DOMContentLoaded', function() {
         return degreeSpecializationsLoaded && (!degreeSpecializationRow || degreeSpecializationRow.style.display === 'none' || !!degreeSpecialization.value);
     }
 
+    function maybeFetchDegreeModules() {
+        if (degreeSemester.value && degreeIntake.value && degreeCourse.value && degreeLocation.value && hasDegreeSpecializationSelection()) {
+            fetchDegreeModules();
+            return;
+        }
+        resetAndDisable(degreeModule, 'Select a Module');
+    }
+
     function fetchDegreeSpecializations() {
         if (!degreeCourse.value) {
             resetSpecialization();
@@ -558,10 +566,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     resetSpecialization();
                     degreeSpecializationsLoaded = true;
                 }
+                maybeFetchDegreeModules();
             })
             .catch(() => {
                 resetSpecialization();
                 degreeSpecializationsLoaded = true;
+                maybeFetchDegreeModules();
             })
             .finally(() => showSpinner(false));
     }
@@ -630,9 +640,7 @@ document.addEventListener('DOMContentLoaded', function() {
     degreeSemester.addEventListener('change', function() {
         degreeModuleEmpty = false;
         resetAndDisable(degreeModule, 'Select a Module');
-        if (degreeSemester.value && degreeIntake.value && degreeCourse.value && degreeLocation.value) {
-            fetchDegreeModules();
-        }
+        maybeFetchDegreeModules();
     });
 
     degreeModule.addEventListener('change', function() {
@@ -641,9 +649,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     degreeSpecialization.addEventListener('change', function() {
         resetAndDisable(degreeModule, 'Select a Module');
-        if (degreeSemester.value && degreeIntake.value && degreeCourse.value && degreeLocation.value) {
-            fetchDegreeModules();
-        }
+        maybeFetchDegreeModules();
         fetchDegreeOverallAttendance();
     });
 

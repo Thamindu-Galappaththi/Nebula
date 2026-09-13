@@ -121,6 +121,64 @@ class AttendancePageTest extends TestCase
         $this->assertNotContains($softwareStudent->student_id, $ids);
     }
 
+    public function test_specialized_compulsory_module_only_lists_students_for_that_track(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $semester = $this->makeSemester($course, $intake);
+        $module = $this->makeSpecializedCompulsoryModule($semester, ['Network Engineering'], 'Cloud Fundamentals');
+
+        $networkStudent = $this->makeRegisteredStudent($course, $intake, $semester, '199012345V', 'Network Engineering');
+        $softwareStudent = $this->makeRegisteredStudent($course, $intake, $semester, '199098765V', 'Software Engineering');
+
+        $aiStudents = $this->actingAs($this->actor)
+            ->postJson(route('get.students.for.attendance'), [
+                'location' => 'Welisara',
+                'course_type' => 'degree',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'specialization' => 'Network Engineering',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json('students');
+
+        $this->assertSame([$networkStudent->student_id], collect($aiStudents)->pluck('student_id')->all());
+        $this->assertNotContains($softwareStudent->student_id, collect($aiStudents)->pluck('student_id')->all());
+
+        $this->actingAs($this->actor)
+            ->postJson(route('get.students.for.attendance'), [
+                'location' => 'Welisara',
+                'course_type' => 'degree',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'specialization' => 'Software Engineering',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('students', []);
+
+        $commonStudents = $this->actingAs($this->actor)
+            ->postJson(route('get.students.for.attendance'), [
+                'location' => 'Welisara',
+                'course_type' => 'degree',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'specialization' => 'Common',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json('students');
+
+        $this->assertSame([$networkStudent->student_id], collect($commonStudents)->pluck('student_id')->all());
+    }
+
     public function test_template_download_requires_specialization_for_specialized_course(): void
     {
         $course = $this->makeCourse();
@@ -383,6 +441,25 @@ class AttendancePageTest extends TestCase
             'module_name' => $name,
             'module_code' => strtoupper(substr(md5($name . $semester->id), 0, 8)),
             'module_type' => 'elective',
+            'credits'     => 15,
+        ]);
+
+        DB::table('semester_module')->insert([
+            'semester_id'     => $semester->id,
+            'module_id'       => $module->module_id,
+            'specialization'  => count($specializations) === 1 ? $specializations[0] : null,
+            'specializations' => json_encode($specializations),
+        ]);
+
+        return $module;
+    }
+
+    private function makeSpecializedCompulsoryModule(Semester $semester, array $specializations, string $name = 'Cloud Fundamentals'): Module
+    {
+        $module = Module::forceCreate([
+            'module_name' => $name,
+            'module_code' => strtoupper(substr(md5($name . $semester->id), 0, 8)),
+            'module_type' => 'special_unit_compulsory',
             'credits'     => 15,
         ]);
 

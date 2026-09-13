@@ -534,6 +534,15 @@ document.addEventListener('DOMContentLoaded', function() {
         return degreeSpecializationsLoaded && (!degreeSpecializationRow || degreeSpecializationRow.style.display === 'none' || !!degreeSpecialization.value);
     }
 
+    function maybeFetchDegreeModules() {
+        if (degreeSemester.value && degreeIntake.value && degreeCourse.value && degreeLocation.value && hasDegreeSpecializationSelection()) {
+            degreeModule.disabled = false;
+            handleDegreeModuleFetch();
+            return;
+        }
+        resetAndDisable(degreeModule, 'Select a Module');
+    }
+
     function fetchDegreeSpecializations() {
         if (!degreeCourse.value) {
             resetSpecialization();
@@ -561,10 +570,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     resetSpecialization();
                     degreeSpecializationsLoaded = true;
                 }
+                maybeFetchDegreeModules();
             })
             .catch(() => {
                 resetSpecialization();
                 degreeSpecializationsLoaded = true;
+                maybeFetchDegreeModules();
             })
             .finally(() => showSpinner(false));
     }
@@ -627,10 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
     degreeSemester.addEventListener('change', function() {
         degreeModuleEmpty = false;
         resetAndDisable(degreeModule, 'Select a Module');
-        if (degreeSemester.value && degreeIntake.value && degreeCourse.value && degreeLocation.value) {
-            degreeModule.disabled = false;
-            handleDegreeModuleFetch();
-        }
+        maybeFetchDegreeModules();
         maybeFetchDegreeStudents();
     });
 
@@ -644,12 +652,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     degreeSpecialization.addEventListener('change', function() {
-        // Re-fetch modules filtered by the newly selected specialization
         resetAndDisable(degreeModule, 'Select a Module');
-        if (degreeSemester.value && degreeIntake.value && degreeCourse.value && degreeLocation.value) {
-            degreeModule.disabled = false;
-            handleDegreeModuleFetch();
-        }
+        maybeFetchDegreeModules();
         maybeFetchDegreeStudents();
         updateBulkImportSection();
     });
