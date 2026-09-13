@@ -132,6 +132,14 @@ class PaymentPlanController extends Controller
             'installments' => 'nullable',
         ]);
 
+        $installments = $request->input('installments');
+        if (is_string($installments)) {
+            $installments = json_decode($installments, true);
+        }
+        if (!is_array($installments)) {
+            $installments = [];
+        }
+
         $course = Course::find($validated['course']);
         $courseType = $course->course_type ?? null;
         $supportsCourseType = Schema::hasColumn('payment_plans', 'course_type');
@@ -153,11 +161,6 @@ class PaymentPlanController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'A payment plan already exists for this Location, Course, and Intake.');
-        }
-
-        $installments = $request->input('installments');
-        if (is_string($installments)) {
-            $installments = json_decode($installments, true);
         }
 
         $syncSummary = DB::transaction(function () use ($validated, $request, $installments, $courseType, $supportsCourseType, $localFee, $internationalFee) {
@@ -834,9 +837,9 @@ private function normalizeTemplateInstallments($installments): array
             'registration_fee' => $plan->registration_fee,
             'course_fee' => $plan->local_fee,
             'franchise_payment' => $plan->international_fee,
-            'franchise_payment_currency' => $plan->international_currency,
-            'sscl_tax' => $plan->sscl_tax,
-            'bank_charges' => $plan->bank_charges,
+            'franchise_payment_currency' => $plan->international_currency ?: 'LKR',
+            'sscl_tax' => $plan->sscl_tax ?? 0,
+            'bank_charges' => $plan->bank_charges ?? 0,
         ]);
     }
     public function getIntakesByCourse(Request $request)
