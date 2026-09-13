@@ -4,29 +4,144 @@
 
 @section('content')
 <style nonce="{{ $cspNonce }}">
-    /* Existing styles copied from root course_registration view */
-    .terminated-disabled { opacity: 0.6; filter: grayscale(100%); pointer-events: none; }
-    .terminated-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 50; cursor: not-allowed; background: rgba(255,255,255,0); }
-    .form-control:focus, .form-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); }
-    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); transition: all 0.2s ease; }
-    .table tbody tr:hover { background-color: #f8f9fa; }
-    .alert { border-left: 4px solid; }
-    .alert-danger { border-left-color: #dc3545; }
-    .alert-success { border-left-color: #198754; }
-    .alert-warning { border-left-color: #ffc107; }
-    .card { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    #spinner-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; display: flex; justify-content: center; align-items: center; }
-    .lds-ring { display: inline-block; position: relative; width: 80px; height: 80px; }
-    .lds-ring div { box-sizing: border-box; display: block; position: absolute; width: 64px; height: 64px; margin: 8px; border: 8px solid #fff; border-radius: 50%; animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite; border-color: #fff transparent transparent transparent; }
+    .course-registration-page,
+    .course-registration-page .card,
+    .course-registration-page .card-body {
+        min-width: 0;
+        max-width: 100%;
+        overflow: visible;
+    }
+    .course-registration-page [class*="col-"] {
+        min-width: 0;
+    }
+    .course-registration-page .form-label {
+        font-weight: 600;
+    }
+    .course-registration-page .form-select,
+    .course-registration-page .form-control,
+    .course-registration-page .nebula-select,
+    .course-registration-page .nebula-select-toggle {
+        width: 100%;
+        max-width: 100%;
+    }
+    .course-registration-page .input-group {
+        flex-wrap: nowrap;
+        width: 100%;
+        max-width: 100%;
+    }
+    .course-registration-page .input-group > .form-control,
+    .course-registration-page .input-group > .form-select {
+        width: 1%;
+        min-width: 0;
+        flex: 1 1 auto;
+        max-width: 100%;
+    }
+    .course-registration-page .input-group-text {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+    .course-registration-page .form-control:focus,
+    .course-registration-page .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    .course-reg-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .course-reg-section {
+        background: #dc3545;
+        color: #fff;
+        padding: 0.65rem 0.85rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        word-break: break-word;
+    }
+    .course-reg-table {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .course-reg-table table {
+        margin-bottom: 0;
+        min-width: 280px;
+    }
+    .course-reg-actions .btn {
+        min-height: 42px;
+        white-space: normal;
+    }
+    .terminated-disabled {
+        opacity: 0.6;
+        filter: grayscale(100%);
+        pointer-events: none;
+    }
+    #spinner-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .lds-ring {
+        display: inline-block;
+        position: relative;
+        width: 80px;
+        height: 80px;
+    }
+    .lds-ring div {
+        box-sizing: border-box;
+        display: block;
+        position: absolute;
+        width: 64px;
+        height: 64px;
+        margin: 8px;
+        border: 8px solid #fff;
+        border-radius: 50%;
+        animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+        border-color: #fff transparent transparent transparent;
+    }
     .lds-ring div:nth-child(1) { animation-delay: -0.45s; }
     .lds-ring div:nth-child(2) { animation-delay: -0.3s; }
     .lds-ring div:nth-child(3) { animation-delay: -0.15s; }
-    @keyframes lds-ring { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes lds-ring {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
     .is-invalid { border-color: #dc3545 !important; }
     .is-valid { border-color: #198754 !important; }
+    @media (max-width: 767.98px) {
+        .course-registration-page h2 {
+            font-size: 1.35rem;
+        }
+        .course-registration-page .card-body {
+            padding: 1rem 0.75rem;
+        }
+        .course-registration-page .form-control,
+        .course-registration-page .form-select,
+        .course-registration-page .nebula-select-toggle {
+            font-size: 16px;
+        }
+        .course-reg-search .btn {
+            width: 100%;
+        }
+        .course-reg-radios {
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+        }
+    }
 </style>
 
-<div class="container-fluid">
+<div class="container-fluid px-2 px-md-3 course-registration-page">
     <div class="card">
         <div class="card-body">
             <h2 class="text-center mb-4">Course Registration</h2>
@@ -34,121 +149,108 @@
             <div id="spinner-overlay" style="display:none;">
                 <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
             </div>
-            <div class="accordion" id="searchAccordion">
-                <div class="accordion-item">
-                    <div class="accordion-body">
-                        <form id="searchForm">
-                            @csrf
-                            <div class="mb-3 row mx-3">
-                                <label for="studentNicSearch" class="col-sm-2 col-form-label">Student NIC<span class="text-danger">*</span></label>
-                                <div class="col-sm-8">
-                                    <input type="text" class="form-control bg-white" id="studentNicSearch" name="studentNicSearch" placeholder="Enter Student ID (NIC)">
-                                </div>
-                                <div class="col-sm-2">
-                                    <button type="button" class="btn btn-primary w-100" id="searchNicBtn">Search</button>
-                                </div>
-                            </div>
-                        </form>
+
+            <form id="searchForm" class="course-reg-search mb-3">
+                @csrf
+                <div class="row mx-0 mx-sm-3 align-items-center">
+                    <label for="studentNicSearch" class="col-sm-2 col-form-label">Student NIC<span class="text-danger">*</span></label>
+                    <div class="col-sm-8">
+                        <input type="text" class="form-control bg-white" id="studentNicSearch" name="studentNicSearch" placeholder="Enter Student ID (NIC)" autocomplete="off">
+                    </div>
+                    <div class="col-sm-2 mt-2 mt-sm-0">
+                        <button type="button" class="btn btn-primary w-100" id="searchNicBtn">Search</button>
                     </div>
                 </div>
-            </div>
-            <div id="messageContainer" class="mx-3 mb-3"></div>
-            <div id="searchMessageContainer" class="mx-3"></div>
+            </form>
+
+            <div id="messageContainer" class="mb-3"></div>
+            <div id="searchMessageContainer"></div>
+
             <div id="studentDetailsSection" style="display: none;">
-                <div class="row mt-3">
-                    <div class="col-md-6">
-                        <div class="mb-3 row mx-3">
-                            <label for="studentName" class="col-sm-3 col-form-label">Name</label>
-                            <div class="col-sm-9">
-                                <input type="text" class="form-control bg-white" id="studentName" name="studentName" readonly>
-                            </div>
-                        </div>
-                        <div class="mb-3 row mx-3">
-                            <label for="studentNIC" class="col-sm-3 col-form-label">NIC</label>
-                            <div class="col-sm-9">
-                                <input type="text" class="form-control bg-white" id="studentNIC" name="studentNIC" readonly>
-                            </div>
-                        </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label for="studentName" class="form-label">Name</label>
+                        <input type="text" class="form-control bg-white" id="studentName" name="studentName" readonly>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="studentNIC" class="form-label">NIC</label>
+                        <input type="text" class="form-control bg-white" id="studentNIC" name="studentNIC" readonly>
                     </div>
                 </div>
-                @if(isset($resultsPending) && $resultsPending)
-                    <div class="alert alert-warning mt-4"><strong>Pending Results:</strong> Some or all of the student's exam results are still pending.</div>
-                @else
-                    <div class="mb-3 mt-4">
-                        <h5 class="bg-danger p-2 text-white"><strong>O/L Exam Details</strong></h5>
-                        <div class="row mt-4 mb-4 mx-3">
-                            <div class="mb-3 col-sm-6">
-                                <label for="olExamType" class="form-label">Exam Type</label>
-                                <input type="text" class="form-control bg-white" id="olExamType" name="olExamType" readonly>
-                            </div>
-                            <div class="mb-3 col-sm-6">
-                                <label for="olExamYear" class="form-label">Exam Year</label>
-                                <input type="text" class="form-control bg-white" id="olExamYear" name="olExamYear" readonly>
-                            </div>
-                        </div>
-                        <h6 class="mb-4 mx-3">O/L Exam Subjects and Grades</h6>
-                        <div class="col-11 mx-3 mb-4">
-                            <table class="table table-bordered table-striped">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="bg-primary text-white" scope="col">Subject</th>
-                                        <th class="bg-primary text-white" scope="col">Grade</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="olExamSubjectsAndGradesTableBody">
-                                    @foreach($olSubjects as $subject)
-                                        <tr>
-                                            <td>{{ $subject['subject'] ?? 'N/A' }}</td>
-                                            <td>{{ $subject['result'] ?? 'N/A' }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
+
+                <h5 class="course-reg-section mb-3"><strong>O/L Exam Details</strong></h5>
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-sm-6">
+                        <label for="olExamType" class="form-label">Exam Type</label>
+                        <input type="text" class="form-control bg-white" id="olExamType" name="olExamType" readonly>
                     </div>
-                    <h5 class="bg-danger p-2 text-white mx-3"><strong>A/L Exam Details</strong></h5>
-                    <div class="row mt-4 mx-3">
-                        <div class="mb-3 col-sm-6">
-                            <label for="alExamType" class="col-form-label">Exam Type</label>
-                            <input type="text" class="form-control bg-white" id="alExamType" name="alExamType" readonly>
-                        </div>
-                        <div class="mb-3 col-sm-6">
-                            <label for="alExamYear" class="col-form-label">Exam Year</label>
-                            <input type="text" class="form-control bg-white" id="alExamYear" name="alExamYear" readonly>
-                        </div>
+                    <div class="col-12 col-sm-6">
+                        <label for="olExamYear" class="form-label">Exam Year</label>
+                        <input type="text" class="form-control bg-white" id="olExamYear" name="olExamYear" readonly>
                     </div>
-                    <div class="mb-4 row mx-3">
-                        <label for="alExamStream" class="col-sm-2 col-form-label">Exam Stream</label>
-                        <div class="col-sm-10">
-                            <input type="text" class="form-control bg-white" id="alExamStream" name="alExamStream" readonly>
-                        </div>
-                    </div>
-                    <h6 class="mb-4 mx-3">A/L Exam Subjects and Grades</h6>
-                    <div class="col-11 mx-3 mb-4">
-                        <table class="table table-bordered table-striped">
-                            <thead class="table-light">
+                </div>
+                <h6 class="mb-2">O/L Exam Subjects and Grades</h6>
+                <div class="course-reg-table table-responsive mb-4">
+                    <table class="table table-bordered table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="bg-primary text-white" scope="col">Subject</th>
+                                <th class="bg-primary text-white" scope="col">Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody id="olExamSubjectsAndGradesTableBody">
+                            @foreach($olSubjects as $subject)
                                 <tr>
-                                    <th class="bg-primary text-white" scope="col">Subject</th>
-                                    <th class="bg-primary text-white" scope="col">Grade</th>
+                                    <td>{{ $subject['subject'] ?? 'N/A' }}</td>
+                                    <td>{{ $subject['result'] ?? 'N/A' }}</td>
                                 </tr>
-                            </thead>
-                            <tbody id="alExamSubjectsAndGradesTableBody">
-                                @foreach($alSubjects as $subject)
-                                    <tr>
-                                        <td>{{ $subject['subject'] ?? 'N/A' }}</td>
-                                        <td>{{ $subject['result'] ?? 'N/A' }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <h5 class="course-reg-section mb-3"><strong>A/L Exam Details</strong></h5>
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-sm-6">
+                        <label for="alExamType" class="form-label">Exam Type</label>
+                        <input type="text" class="form-control bg-white" id="alExamType" name="alExamType" readonly>
                     </div>
-                @endif
+                    <div class="col-12 col-sm-6">
+                        <label for="alExamYear" class="form-label">Exam Year</label>
+                        <input type="text" class="form-control bg-white" id="alExamYear" name="alExamYear" readonly>
+                    </div>
+                    <div class="col-12">
+                        <label for="alExamStream" class="form-label">Exam Stream</label>
+                        <input type="text" class="form-control bg-white" id="alExamStream" name="alExamStream" readonly>
+                    </div>
+                </div>
+                <h6 class="mb-2">A/L Exam Subjects and Grades</h6>
+                <div class="course-reg-table table-responsive mb-4">
+                    <table class="table table-bordered table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="bg-primary text-white" scope="col">Subject</th>
+                                <th class="bg-primary text-white" scope="col">Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alExamSubjectsAndGradesTableBody">
+                            @foreach($alSubjects as $subject)
+                                <tr>
+                                    <td>{{ $subject['subject'] ?? 'N/A' }}</td>
+                                    <td>{{ $subject['result'] ?? 'N/A' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
                 <hr>
                 <input type="hidden" id="studentId" name="studentId">
                 <input type="hidden" id="studentRegistrationId" name="studentRegistrationId">
-                <div class="mb-3 row mx-3">
-                    <label for="location" class="col-sm-2 col-form-label">Location <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+
+                <div id="registrationFields">
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Location <span class="text-danger">*</span></label>
                         <select class="form-select" id="location" name="location" required>
                             <option selected disabled value="">Choose a location...</option>
                             <option value="Welisara">Nebula Institute of Technology - Welisara</option>
@@ -156,136 +258,120 @@
                             <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
                         </select>
                     </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="courseSearch" class="col-sm-2 col-form-label">Course<span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select bg-white" id="courseSearch" name="courseSearch" style="cursor: pointer;" required disabled>
+                    <div class="mb-3">
+                        <label for="courseSearch" class="form-label">Course <span class="text-danger">*</span></label>
+                        <select class="form-select bg-white" id="courseSearch" name="courseSearch" required disabled>
                             <option selected disabled>Select a location first</option>
                         </select>
                     </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="intakeId" class="col-sm-2 col-form-label">Intake<span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+                    <div class="mb-3">
+                        <label for="intakeId" class="form-label">Intake <span class="text-danger">*</span></label>
                         <select class="form-select" id="intakeId" name="intakeId" required disabled>
                             <option value="" selected disabled>Select a course first</option>
                         </select>
                     </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="registrationFee" class="col-sm-2 col-form-label">Registration Fee<span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+                    <div class="mb-3">
+                        <label for="registrationFee" class="form-label">Registration Fee <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text bg-primary text-white">LKR</span>
-                            <input type="number" class="form-control bg-white" id="registrationFee" name="registrationFee" placeholder="Enter registration fee" required>
+                            <input type="number" class="form-control bg-white" id="registrationFee" name="registrationFee" placeholder="Enter registration fee" min="0" step="0.01" required>
                         </div>
                     </div>
-                </div>
-                <hr class="mt-4">
-                <fieldset class="mx-3 mt-4">
-                    <legend class="mb-4" style="font-size: 20px;">Student Counsellor Details</legend>
-                    <div class="row mx-3 align-items-center">
-                        <label class="col-sm-3 col-form-label">SLT Employee</label>
-                        <div class="col-sm-9 d-flex align-items-center">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input cursor-pointer" type="radio" name="slt_employee" id="sltYes" value="yes">
-                                <label class="form-check-label" for="sltYes">Yes</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input cursor-pointer" type="radio" name="slt_employee" id="sltNo" value="no" checked>
-                                <label class="form-check-label" for="sltNo">No</label>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="serviceNoField" style="display: none;">
-                        <div class="mb-3 mt-3 row mx-3">
-                            <label for="serviceNo" class="col-sm-3 col-form-label">Service No<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <input type="text" class="form-control" id="serviceNo" name="service_no" placeholder="Enter service number" required>
+
+                    <hr class="mt-4">
+                    <fieldset class="mb-3">
+                        <legend class="h5 mb-3">Student Counsellor Details</legend>
+                        <div class="mb-3">
+                            <div class="form-label">SLT Employee</div>
+                            <div class="d-flex course-reg-radios align-items-center">
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="slt_employee" id="sltYes" value="yes">
+                                    <label class="form-check-label" for="sltYes">Yes</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="slt_employee" id="sltNo" value="no" checked>
+                                    <label class="form-check-label" for="sltNo">No</label>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div id="externalCounselorFields" style="display: none;">
-                        <div class="mb-3 mt-3 row mx-3">
-                            <label for="counselorName" class="col-sm-3 col-form-label">Counselor Name<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <input type="text" class="form-control" id="counselorName" name="counselor_name" placeholder="Enter counselor's name" required>
+                        <div id="serviceNoField" style="display: none;">
+                            <div class="mb-3">
+                                <label for="serviceNo" class="form-label">Service No <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="serviceNo" name="service_no" placeholder="Enter service number">
                             </div>
                         </div>
-                        <div class="mb-3 row mx-3">
-                            <label for="counselorNic" class="col-sm-3 col-form-label">Counselor NIC<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <input type="text" class="form-control" id="counselorNic" name="counselor_nic" placeholder="Enter counselor's NIC number" required>
+                        <div id="externalCounselorFields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="counselorName" class="form-label">Counselor Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="counselorName" name="counselor_name" placeholder="Enter counselor's name">
+                            </div>
+                            <div class="mb-3">
+                                <label for="counselorNic" class="form-label">Counselor NIC <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="counselorNic" name="counselor_nic" placeholder="Enter counselor's NIC number">
                                 <div class="invalid-feedback"><span class="text-danger">✖</span> Invalid NIC. Use 12 digits or 9 digits + 1 letter.</div>
                                 <div class="valid-feedback"><span class="text-success">✔</span> Valid NIC.</div>
                             </div>
-                        </div>
-                        <div class="mb-3 row mx-3">
-                            <label for="counselorPhone" class="col-sm-3 col-form-label">Counselor Phone<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <input type="tel" class="form-control" id="counselorPhone" name="counselor_phone" placeholder="Enter counselor's phone number" required>
+                            <div class="mb-3">
+                                <label for="counselorPhone" class="form-label">Counselor Phone <span class="text-danger">*</span></label>
+                                <input type="tel" class="form-control" id="counselorPhone" name="counselor_phone" placeholder="Enter counselor's phone number">
                                 <div class="invalid-feedback"><span class="text-danger">✖</span> Invalid phone. Use "07x xxxxxxx" or "+94 xxxxxxxxx".</div>
                                 <div class="valid-feedback"><span class="text-success">✔</span> Valid phone.</div>
                             </div>
                         </div>
+                    </fieldset>
+
+                    <hr class="mt-4">
+                    <h4 class="mb-3 fw-bold">Course Details</h4>
+                    <div class="mb-3">
+                        <label for="courseStartDate" class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="courseStartDate" name="courseStartDate" min="{{ date('Y-m-d') }}" required>
                     </div>
-                </fieldset>
-                <hr class="mt-4">
-                <h4 class="mb-4 fw-bold">Course Details</h4>
-                <div class="row align-items-center mx-3 mb-3">
-                    <label for="courseStartDate" class="col-sm-2 col-form-label fw-bold">Start Date<span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <input type="date" class="form-control" id="courseStartDate" name="courseStartDate" placeholder="Select start date" style="cursor: pointer;" min="<?php echo date('Y-m-d'); ?>" required>
-                    </div>
-                </div>
-                <hr class="mt-4">
-                <fieldset class="mx-3">
-                    <legend class="mb-4" style="font-size: 20px;">Marketing Survey</legend>
-                    <p class="mx-3"><strong>How did you hear about our institute?</strong></p>
-                    <div class="mx-4">
-                        <div class="row">
-                            <div class="col-md-4">
+
+                    <hr class="mt-4">
+                    <fieldset class="mb-3">
+                        <legend class="h5 mb-3">Marketing Survey</legend>
+                        <p class="mb-2"><strong>How did you hear about our institute?</strong></p>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-4">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="LinkedIn" id="checkboxLinkedIn">
                                     <label class="form-check-label" for="checkboxLinkedIn">LinkedIn</label>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-6 col-md-4">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="Facebook" id="checkboxFacebook">
                                     <label class="form-check-label" for="checkboxFacebook">Facebook</label>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-6 col-md-4">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="Radio Advertisement" id="checkboxRadio">
                                     <label class="form-check-label" for="checkboxRadio">Radio Advertisement</label>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-6 col-md-4">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="TV advertisement" id="checkboxTV">
                                     <label class="form-check-label" for="checkboxTV">TV advertisement</label>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-6 col-md-4">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" value="Other" id="checkboxOther">
                                     <label class="form-check-label" for="checkboxOther">Other</label>
                                 </div>
                             </div>
                         </div>
-                        <div class="row mt-3" id="otherMarketingSurveyRow" style="display: none;">
-                            <div class="col-md-12">
-                                <input type="text" class="form-control" id="marketing_survey_other" name="marketing_survey_other" placeholder="Please describe how you heard about us">
-                            </div>
+                        <div class="mt-3" id="otherMarketingSurveyRow" style="display: none;">
+                            <input type="text" class="form-control" id="marketing_survey_other" name="marketing_survey_other" placeholder="Please describe how you heard about us">
                         </div>
+                    </fieldset>
+
+                    <div class="d-flex flex-column gap-2 mt-4 course-reg-actions">
+                        <button id="finalRegister" type="button" class="btn btn-primary w-100">Pre Register</button>
+                        <button id="checkEligibility" type="button" class="btn btn-dark w-100" onclick="redirectToEligibility()">Check Eligibility</button>
                     </div>
-                </fieldset>
-                <div class="d-flex flex-column gap-3 mt-5">
-                    <button id="finalRegister" type="submit" class="btn btn-primary w-100">Pre Register</button>
-                    <button id="checkEligibility" type="button" class="btn btn-dark w-100" onclick="redirectToEligibility()">Check Eligibility --></button>
                 </div>
             </div>
         </div>
@@ -306,6 +392,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const baseUrl = "{{ url('/api/course-registration/student-by-nic') }}";
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value || '';
 
+    function escapeHtml(text) {
+        const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+        return String(text ?? '').replace(/[&<>"']/g, function (match) {
+            return map[match];
+        });
+    }
+
     function setLoading(isLoading) {
         if (spinnerOverlay) {
             spinnerOverlay.style.display = isLoading ? 'flex' : 'none';
@@ -324,7 +417,6 @@ document.addEventListener('DOMContentLoaded', function () {
         alertContainer.style.display = 'block';
         alertContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        // Auto-dismiss after 5 seconds
         setTimeout(() => {
             const alert = alertContainer.querySelector('.alert');
             if (alert) {
@@ -341,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         tbody.innerHTML = '';
-        if (!Array.isArray(subjects) || subjects.length == 0) {
+        if (!Array.isArray(subjects) || subjects.length === 0) {
             tbody.innerHTML = '<tr><td colspan="2">N/A</td></tr>';
             return;
         }
@@ -349,9 +441,18 @@ document.addEventListener('DOMContentLoaded', function () {
             const name = subject.subject || subject.name || subject.title || 'N/A';
             const result = subject.result || subject.grade || subject.mark || 'N/A';
             const row = document.createElement('tr');
-            row.innerHTML = '<td>' + name + '</td><td>' + result + '</td>';
+            row.innerHTML = '<td>' + escapeHtml(name) + '</td><td>' + escapeHtml(result) + '</td>';
             tbody.appendChild(row);
         });
+    }
+
+    function isValidNic(value) {
+        return /^(?:\d{12}|\d{9}[vVxX])$/.test(String(value || '').trim());
+    }
+
+    function isValidPhone(value) {
+        const phone = String(value || '').replace(/\s+/g, '');
+        return /^(?:0\d{9}|\+94\d{9})$/.test(phone);
     }
 
     async function searchStudent() {
@@ -382,7 +483,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const data = await response.json();
             if (!response.ok || !data.success) {
-                showMessage('danger', (data && data.message) ? data.message : 'Student not found.');
+                showMessage('danger', escapeHtml((data && data.message) ? data.message : 'Student not found.'));
                 if (studentDetailsSection) {
                     studentDetailsSection.style.display = 'none';
                 }
@@ -463,7 +564,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Handle location change to load courses
+    document.getElementById('searchForm')?.addEventListener('submit', function (event) {
+        event.preventDefault();
+        searchStudent();
+    });
+
     const locationSelect = document.getElementById('location');
     const courseSelect = document.getElementById('courseSearch');
     const intakeSelect = document.getElementById('intakeId');
@@ -475,8 +580,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Fetch courses for selected location using course registration controller
-            fetch('{{ url('/course-registration/get-courses-by-location') }}/' + encodeURIComponent(location))
+            fetch('{{ url('/course-registration/get-courses-by-location') }}/' + encodeURIComponent(location), {
+                headers: { 'Accept': 'application/json' }
+            })
                 .then(response => response.json())
                 .then(data => {
                     if (courseSelect) {
@@ -495,7 +601,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             courseSelect.disabled = true;
                         }
                     }
-                    // Reset intake dropdown
                     if (intakeSelect) {
                         intakeSelect.innerHTML = '<option value="" selected disabled>Select a course first</option>';
                         intakeSelect.disabled = true;
@@ -507,22 +612,26 @@ document.addEventListener('DOMContentLoaded', function () {
                         courseSelect.innerHTML = '<option selected disabled>Error loading courses</option>';
                         courseSelect.disabled = true;
                     }
+                    if (intakeSelect) {
+                        intakeSelect.innerHTML = '<option value="" selected disabled>Select a course first</option>';
+                        intakeSelect.disabled = true;
+                    }
                 });
         });
     }
 
-    // Handle course change to load intakes
     if (courseSelect) {
         courseSelect.addEventListener('change', function() {
-            const courseName = this.options[this.selectedIndex]?.dataset.courseName || this.options[this.selectedIndex]?.textContent || '';
+            const courseId = this.value;
             const location = locationSelect ? locationSelect.value : '';
 
-            if (!courseName || !location) {
+            if (!courseId || !location) {
                 return;
             }
 
-            // Fetch intakes for selected course and location using course registration controller
-            fetch('{{ url('/course-registration/get-intakes') }}/' + encodeURIComponent(courseName) + '/' + encodeURIComponent(location))
+            fetch('{{ url('/course-registration/get-intakes') }}/' + encodeURIComponent(courseId) + '/' + encodeURIComponent(location), {
+                headers: { 'Accept': 'application/json' }
+            })
                 .then(response => response.json())
                 .then(data => {
                     if (intakeSelect) {
@@ -553,13 +662,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Helper: normalize dates for HTML date inputs
     function normalizeDateForInput(dateString) {
         if (!dateString) {
             return '';
         }
 
-        // If the string contains a time component, convert to YYYY-MM-DD
         const dateOnlyMatch = dateString.match(/^\d{4}-\d{2}-\d{2}/);
         if (dateOnlyMatch) {
             return dateOnlyMatch[0];
@@ -576,7 +683,6 @@ document.addEventListener('DOMContentLoaded', function () {
         return '';
     }
 
-    // Handle intake change to auto-populate registration fee and start date
     if (intakeSelect) {
         intakeSelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
@@ -601,7 +707,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Handle SLT Employee radio buttons
     const sltYesRadio = document.getElementById('sltYes');
     const sltNoRadio = document.getElementById('sltNo');
     const serviceNoField = document.getElementById('serviceNoField');
@@ -636,10 +741,23 @@ document.addEventListener('DOMContentLoaded', function () {
         sltNoRadio.addEventListener('change', handleSltEmployeeChange);
     }
 
-    // Initialize on page load (default is No)
     handleSltEmployeeChange();
 
-    // Handle "Other" checkbox for marketing survey
+    function syncFieldValidity(input, isValid) {
+        if (!input) {
+            return;
+        }
+        input.classList.toggle('is-valid', isValid);
+        input.classList.toggle('is-invalid', !isValid);
+    }
+
+    counselorNicInput?.addEventListener('input', function () {
+        syncFieldValidity(counselorNicInput, isValidNic(counselorNicInput.value));
+    });
+    counselorPhoneInput?.addEventListener('input', function () {
+        syncFieldValidity(counselorPhoneInput, isValidPhone(counselorPhoneInput.value));
+    });
+
     const checkboxOther = document.getElementById('checkboxOther');
     const otherMarketingSurveyRow = document.getElementById('otherMarketingSurveyRow');
 
@@ -651,17 +769,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Handle Pre Register button
     const finalRegisterBtn = document.getElementById('finalRegister');
     if (finalRegisterBtn) {
         finalRegisterBtn.addEventListener('click', async function(e) {
             e.preventDefault();
 
-            // Validate required fields
             const studentId = document.getElementById('studentId')?.value;
             const location = document.getElementById('location')?.value;
-            const courseSelect = document.getElementById('courseSearch');
-            const courseId = courseSelect?.value;
+            const selectedCourse = document.getElementById('courseSearch');
+            const courseId = selectedCourse?.value;
             const intakeId = document.getElementById('intakeId')?.value;
             const registrationFee = document.getElementById('registrationFee')?.value;
             const courseStartDate = document.getElementById('courseStartDate')?.value;
@@ -671,12 +787,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-                if (!location || !courseId || !intakeId || !registrationFee || !courseStartDate) {
+            if (!location || !courseId || !intakeId || !registrationFee || !courseStartDate) {
                 showMessage('warning', 'Please fill in all required course fields.');
                 return;
             }
 
-            // Validate SLT Employee fields
             const sltEmployee = document.querySelector('input[name="slt_employee"]:checked')?.value;
             if (sltEmployee === 'yes') {
                 const serviceNo = document.getElementById('serviceNo')?.value;
@@ -693,9 +808,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     showMessage('warning', 'Please fill in all counselor details.');
                     return;
                 }
+                if (!isValidNic(counselorNic)) {
+                    syncFieldValidity(counselorNicInput, false);
+                    showMessage('warning', 'Please enter a valid counselor NIC.');
+                    return;
+                }
+                if (!isValidPhone(counselorPhone)) {
+                    syncFieldValidity(counselorPhoneInput, false);
+                    showMessage('warning', 'Please enter a valid counselor phone number.');
+                    return;
+                }
             }
 
-            // Collect marketing survey options
             const marketingOptions = [];
             const marketingCheckboxes = document.querySelectorAll('#checkboxLinkedIn, #checkboxFacebook, #checkboxRadio, #checkboxTV, #checkboxOther');
             marketingCheckboxes.forEach(checkbox => {
@@ -711,7 +835,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // Prepare form data
             const formData = {
                 studentId: studentId,
                 course: courseId,
@@ -732,11 +855,6 @@ document.addEventListener('DOMContentLoaded', function () {
             showMessage('info', 'Submitting registration...');
 
             try {
-                if (!courseId) {
-                    showMessage('danger', 'Please select a valid course from the list before submitting.');
-                    return;
-                }
-
                 const response = await fetch('{{ url('/store-course-registration') }}', {
                     method: 'POST',
                     headers: {
@@ -757,7 +875,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 if (response.ok && data && data.success) {
-                    showMessage('success', data.message || 'Registration completed successfully!');
+                    showMessage('success', escapeHtml(data.message || 'Registration completed successfully!'));
                     setTimeout(() => {
                         window.location.reload();
                     }, 2000);
@@ -772,18 +890,18 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (data.errors) {
                             errorDetails = Object.values(data.errors)
                                 .flat()
-                                .map(item => String(item))
+                                .map(item => escapeHtml(String(item)))
                                 .join('<br>');
                         }
                     } else if (responseText) {
-                        errorDetails = responseText;
+                        errorDetails = escapeHtml(responseText);
                     }
 
                     if (!errorMessage && response.statusText) {
                         errorMessage = response.statusText;
                     }
 
-                    showMessage('danger', errorMessage + (errorDetails ? '<br>' + errorDetails : ''));
+                    showMessage('danger', escapeHtml(errorMessage) + (errorDetails ? '<br>' + errorDetails : ''));
                     console.error('Registration failed:', { status: response.status, data, responseText });
                 }
             } catch (error) {
