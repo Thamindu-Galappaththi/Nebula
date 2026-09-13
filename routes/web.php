@@ -671,7 +671,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     });
 
     // Special Approval Rejected List
-    Route::middleware(['auth', 'role:DGM,Developer'])->group(function () {
+    Route::middleware(['auth', 'role:DGM,Developer,Student Counselor,Program Administrator (level 01)'])->group(function () {
         Route::get('/get-special-approval-rejected', [EligibilityCheckingAndRegistrationController::class, 'getSpecialApprovalRejectedList'])->name('special.approval.rejected');
     });
 

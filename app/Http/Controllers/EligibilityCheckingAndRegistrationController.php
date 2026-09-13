@@ -285,71 +285,18 @@ class EligibilityCheckingAndRegistrationController extends Controller
     // Special Approval List endpoint
     public function getSpecialApprovalList(Request $request)
     {
-        // Debug: Check if there are any special approval registrations
-        $count = CourseRegistration::where('status', 'Special approval required')->count();
-        Log::info('Special approval registrations count:', ['count' => $count]);
-
         $registrations = CourseRegistration::where('status', 'Special approval required')
+            ->where(function ($query) {
+                $query->whereNull('approval_status')
+                    ->orWhere('approval_status', '!=', 'Rejected');
+            })
             ->with(['student', 'course', 'intake'])
             ->get();
 
-        Log::info('Found registrations:', ['count' => $registrations->count()]);
-
-        $mappedData = $registrations->map(function ($reg) {
-            // Debug: Log the student data
-            Log::info('Student data for special approval:', [
-                'student_id' => $reg->student->student_id,
-                'id_value' => $reg->student->id_value,
-                'nic_number' => $reg->student->nic_number ?? 'not set',
-                'full_name' => $reg->student->full_name,
-                'registration_id' => $reg->student->registration_id ?? 'not set',
-            ]);
-
-            // Get document URL if available
-            $documentUrl = null;
-            if ($reg->special_approval_pdf) {
-                // Check if file exists first
-                if (Storage::disk('public')->exists($reg->special_approval_pdf)) {
-                    $documentUrl = Storage::disk('public')->url($reg->special_approval_pdf);
-                    // Ensure the URL has the correct protocol and domain
-                    if (!str_starts_with($documentUrl, 'http')) {
-                        $documentUrl = request()->getScheme() . '://' . request()->getHttpHost() . '/storage/' . $reg->special_approval_pdf;
-                    }
-
-                    // Log for debugging
-                    Log::info('Document URL generated', [
-                        'student_id' => $reg->student->student_id,
-                        'file_path' => $reg->special_approval_pdf,
-                        'file_exists' => Storage::disk('public')->exists($reg->special_approval_pdf),
-                        'generated_url' => $documentUrl
-                    ]);
-                } else {
-                    Log::warning('Special approval document not found', [
-                        'student_id' => $reg->student->student_id,
-                        'file_path' => $reg->special_approval_pdf
-                    ]);
-                }
-            }
-
-            return [
-                'registration_number' => $reg->student->registration_id ?? $reg->student->student_id,
-                'student_id' => $reg->student->student_id,
-                'registration_id' => $reg->id, // Add the actual registration ID
-                'name' => $reg->student->full_name,
-                'nic' => $reg->student->id_value ?? $reg->student->nic_number ?? 'N/A',
-                'course_id' => $reg->course_id,
-                'course_name' => $reg->course->course_name ?? 'Unknown Course',
-                'intake' => $reg->intake ? $reg->intake->batch : '2025-September',
-                'approval_status' => $reg->approval_status,
-                'document_url' => $documentUrl,
-                'document_path' => $reg->special_approval_pdf,
-                'remarks' => $reg->remarks,
-                'dgm_comment' => $reg->dgm_comment,
-            ];
-        });
-
-        // Debug: Log the final response
-        Log::info('Final response data:', $mappedData->toArray());
+        $mappedData = $registrations
+            ->map(fn ($reg) => $this->mapSpecialApprovalRegistration($reg))
+            ->filter()
+            ->values();
 
         return response()->json(['success' => true, 'students' => $mappedData]);
     }
@@ -362,21 +309,52 @@ class EligibilityCheckingAndRegistrationController extends Controller
             ->with(['student', 'course', 'intake'])
             ->get();
 
-        $mapped = $registrations->map(function ($reg) {
-            return [
-                'registration_number' => $reg->student->registration_id ?? $reg->student->student_id,
-                'student_id' => $reg->student->student_id,
-                'registration_id' => $reg->id,
-                'name' => $reg->student->full_name,
-                'nic' => $reg->student->id_value ?? $reg->student->nic_number ?? 'N/A',
-                'course_name' => $reg->course->course_name ?? 'Unknown Course',
-                'intake' => $reg->intake ? $reg->intake->batch : '—',
-                'reason' => $reg->remarks ?? '—',
-                'rejected_at' => optional($reg->updated_at)->format('Y-m-d H:i'),
-            ];
-        });
+        $mapped = $registrations
+            ->map(fn ($reg) => $this->mapSpecialApprovalRegistration($reg, true))
+            ->filter()
+            ->values();
 
         return response()->json(['success' => true, 'students' => $mapped]);
+    }
+
+    private function mapSpecialApprovalRegistration(CourseRegistration $reg, bool $rejected = false): ?array
+    {
+        if (!$reg->student) {
+            return null;
+        }
+
+        $documentUrl = null;
+        if ($reg->special_approval_pdf && Storage::disk('public')->exists($reg->special_approval_pdf)) {
+            $documentUrl = Storage::disk('public')->url($reg->special_approval_pdf);
+            if (!str_starts_with((string) $documentUrl, 'http')) {
+                $documentUrl = request()->getScheme() . '://' . request()->getHttpHost() . '/storage/' . $reg->special_approval_pdf;
+            }
+        }
+
+        $row = [
+            'registration_number' => $reg->course_registration_id
+                ?? $reg->student->registration_id
+                ?? $reg->student->student_id,
+            'student_id' => $reg->student->student_id,
+            'registration_id' => $reg->id,
+            'name' => $reg->student->name_with_initials ?: $reg->student->full_name,
+            'nic' => $reg->student->id_value ?? $reg->student->nic_number ?? 'N/A',
+            'course_id' => $reg->course_id,
+            'course_name' => $reg->course?->course_name ?? 'Unknown Course',
+            'intake' => $reg->intake?->batch ?? '—',
+            'approval_status' => $reg->approval_status,
+            'document_url' => $documentUrl,
+            'document_path' => $reg->special_approval_pdf,
+            'remarks' => $reg->remarks,
+            'dgm_comment' => $reg->dgm_comment,
+        ];
+
+        if ($rejected) {
+            $row['reason'] = $reg->remarks ?? '—';
+            $row['rejected_at'] = optional($reg->updated_at)->format('Y-m-d H:i');
+        }
+
+        return $row;
     }
 
     // Register eligible student
