@@ -166,7 +166,10 @@ class EligibilityCheckingAndRegistrationController extends Controller
             ->map(fn($reg) => [
                 'course_id'   => $reg->course->course_id,
                 'course_name' => $reg->course->course_name,
-            ])->values();
+                'location'    => $reg->course->location,
+            ])
+            ->unique('course_id')
+            ->values();
 
         return response()->json(['success' => true, 'courses' => $courses]);
     }
@@ -241,13 +244,13 @@ class EligibilityCheckingAndRegistrationController extends Controller
             $ol = [
                 'type' => $exam->ol_exam_type,
                 'year' => $exam->ol_exam_year,
-                'subjects' => $exam->ol_exam_subjects ? json_decode($exam->ol_exam_subjects, true) : [],
+                'subjects' => $this->decodeExamSubjects($exam->ol_exam_subjects),
             ];
             $al = [
                 'type' => $exam->al_exam_type,
                 'year' => $exam->al_exam_year,
                 'stream' => $exam->al_exam_stream,
-                'subjects' => $exam->al_exam_subjects ? json_decode($exam->al_exam_subjects, true) : [],
+                'subjects' => $this->decodeExamSubjects($exam->al_exam_subjects),
                 'remarks' => $exam->remarks ?? '',
             ];
         }
@@ -266,9 +269,10 @@ class EligibilityCheckingAndRegistrationController extends Controller
             'success' => true,
             'student' => [
                 'student_id' => $student->student_id,
-                'location' => $student->location, // Make sure this field exists in your Student model/table
+                'location' => $student->institute_location,
                 'full_name' => $student->full_name,
                 'nic' => $student->id_value,
+                'registration_number' => $student->student_id,
                 'ol' => $ol,
                 'al' => $al,
                 'intake_id' => $intake_id,
@@ -720,5 +724,34 @@ class EligibilityCheckingAndRegistrationController extends Controller
             'status' => $registration->approval_status ?? 'No request',
             'registration' => $registration
         ]);
+    }
+
+    private function decodeExamSubjects(mixed $value): array
+    {
+        if (is_array($value)) {
+            $subjects = $value;
+        } elseif (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+            if (is_string($decoded)) {
+                $decoded = json_decode($decoded, true);
+            }
+            $subjects = is_array($decoded) ? $decoded : [];
+        } else {
+            $subjects = [];
+        }
+
+        return array_values(array_map(function ($subject) {
+            if (!is_array($subject)) {
+                return [
+                    'subject' => (string) $subject,
+                    'result' => 'N/A',
+                ];
+            }
+
+            return [
+                'subject' => $subject['subject'] ?? $subject['name'] ?? $subject['title'] ?? 'N/A',
+                'result' => $subject['result'] ?? $subject['grade'] ?? $subject['mark'] ?? 'N/A',
+            ];
+        }, $subjects));
     }
 }
