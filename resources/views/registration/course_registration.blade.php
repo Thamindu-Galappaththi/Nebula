@@ -324,7 +324,7 @@
                     <h4 class="mb-3 fw-bold">Course Details</h4>
                     <div class="mb-3">
                         <label for="courseStartDate" class="form-label">Start Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="courseStartDate" name="courseStartDate" min="{{ date('Y-m-d') }}" required>
+                        <input type="date" class="form-control" id="courseStartDate" name="courseStartDate" required>
                     </div>
 
                     <hr class="mt-4">
@@ -667,20 +667,43 @@ document.addEventListener('DOMContentLoaded', function () {
             return '';
         }
 
-        const dateOnlyMatch = dateString.match(/^\d{4}-\d{2}-\d{2}/);
-        if (dateOnlyMatch) {
-            return dateOnlyMatch[0];
+        const value = String(dateString).trim();
+        const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+            return isoMatch[1] + '-' + isoMatch[2] + '-' + isoMatch[3];
         }
 
-        const parsed = new Date(dateString);
+        const dmyMatch = value.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+        if (dmyMatch) {
+            const day = dmyMatch[1].padStart(2, '0');
+            const month = dmyMatch[2].padStart(2, '0');
+            return dmyMatch[3] + '-' + month + '-' + day;
+        }
+
+        const parsed = new Date(value);
         if (!isNaN(parsed.getTime())) {
             const year = parsed.getFullYear();
             const month = String(parsed.getMonth() + 1).padStart(2, '0');
             const day = String(parsed.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            return year + '-' + month + '-' + day;
         }
 
         return '';
+    }
+
+    function applyStartDate(startDateInput, normalizedStartDate) {
+        if (!startDateInput) {
+            return;
+        }
+
+        startDateInput.readOnly = false;
+        startDateInput.removeAttribute('min');
+        startDateInput.value = normalizedStartDate || '';
+
+        if (normalizedStartDate && startDateInput.value !== normalizedStartDate) {
+            startDateInput.setAttribute('min', normalizedStartDate);
+            startDateInput.value = normalizedStartDate;
+        }
     }
 
     if (intakeSelect) {
@@ -700,8 +723,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 if (startDateInput) {
-                    startDateInput.value = normalizedStartDate;
-                    startDateInput.readOnly = Boolean(normalizedStartDate);
+                    applyStartDate(startDateInput, normalizedStartDate);
                 }
             }
         });

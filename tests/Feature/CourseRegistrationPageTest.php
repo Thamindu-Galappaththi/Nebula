@@ -39,6 +39,8 @@ class CourseRegistrationPageTest extends TestCase
             ->assertSee('Course Registration')
             ->assertSee('course-registration-page', false)
             ->assertSee('id="searchNicBtn"', false)
+            ->assertSee('id="courseStartDate"', false)
+            ->assertDontSee('id="courseStartDate" name="courseStartDate" min=', false)
             ->assertSee('Choose a location...');
     }
 
@@ -73,7 +75,8 @@ class CourseRegistrationPageTest extends TestCase
     public function test_intakes_can_be_loaded_by_course_id(): void
     {
         $course = $this->makeCourse();
-        $this->makeIntake($course, '2024-JUL-B08');
+        $startDate = now()->subMonths(8)->toDateString();
+        $this->makeIntake($course, '2024-JUL-B08', $startDate);
 
         $this->actingAs($this->actor)
             ->getJson(route('course.registration.intakes.by.course.location', [
@@ -82,7 +85,8 @@ class CourseRegistrationPageTest extends TestCase
             ]))
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('intakes.0.batch', '2024-JUL-B08');
+            ->assertJsonPath('intakes.0.batch', '2024-JUL-B08')
+            ->assertJsonPath('intakes.0.start_date', $startDate);
     }
 
     private function makeStudent(string $idValue, array $attrs = []): Student
@@ -116,7 +120,7 @@ class CourseRegistrationPageTest extends TestCase
         ]);
     }
 
-    private function makeIntake(Course $course, string $batch): Intake
+    private function makeIntake(Course $course, string $batch, ?string $startDate = null): Intake
     {
         return Intake::forceCreate([
             'location'         => 'Welisara',
@@ -129,7 +133,7 @@ class CourseRegistrationPageTest extends TestCase
             'registration_fee' => '5000',
             'franchise_payment'=> '0',
             'course_fee'       => '50000',
-            'start_date'       => now()->toDateString(),
+            'start_date'       => $startDate ?? now()->toDateString(),
             'end_date'         => now()->addYears(2)->toDateString(),
         ]);
     }
