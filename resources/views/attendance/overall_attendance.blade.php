@@ -3,16 +3,179 @@
 @section('title', 'NEBULA | Overall Attendance')
 
 @section('content')
-<div class="container-fluid">
+<style nonce="{{ $cspNonce }}">
+    .overall-attendance-page,
+    .overall-attendance-page .card,
+    .overall-attendance-page .card-body {
+        min-width: 0;
+        max-width: 100%;
+        overflow: visible;
+        height: auto;
+    }
+    .overall-attendance-page .tab-content > .tab-pane:not(.active) {
+        display: none !important;
+        height: 0;
+        overflow: hidden;
+    }
+    body:has(.overall-attendance-page) .body-wrapper > .container-fluid {
+        overflow: visible;
+    }
+    .overall-attendance-page [class*="col-"] {
+        min-width: 0;
+    }
+    .overall-attendance-page .form-select,
+    .overall-attendance-page .form-control,
+    .overall-attendance-page .nebula-select,
+    .overall-attendance-page .nebula-select-toggle {
+        width: 100%;
+        max-width: 100%;
+    }
+    .attendance-tabs {
+        flex-wrap: wrap;
+        overflow: hidden;
+        row-gap: 0.25rem;
+    }
+    .overall-export-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+    .overall-summary-table th,
+    .overall-summary-table td {
+        word-break: break-word;
+        vertical-align: middle;
+    }
+    .attendance-toast {
+        max-width: min(360px, calc(100vw - 1.5rem));
+    }
+    #spinner-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 9999; }
+    .lds-ring { display: inline-block; position: relative; width: 80px; height: 80px; }
+    .lds-ring div { box-sizing: border-box; display: block; position: absolute; width: 64px; height: 64px; margin: 8px; border: 8px solid #fff; border-radius: 50%; animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite; border-color: #fff transparent transparent transparent; }
+    .lds-ring div:nth-child(1) { animation-delay: -0.45s; }
+    .lds-ring div:nth-child(2) { animation-delay: -0.3s; }
+    .lds-ring div:nth-child(3) { animation-delay: -0.15s; }
+    @keyframes lds-ring { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .attendance-matrix-wrap {
+        max-height: 65vh;
+        overflow: auto;
+    }
+    .attendance-matrix-table {
+        min-width: max-content;
+    }
+    .attendance-matrix-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: #f8f9fa;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.2;
+        min-width: 120px;
+        max-width: 160px;
+        padding: 0.45rem 0.4rem;
+        vertical-align: bottom;
+        white-space: normal;
+    }
+    .attendance-matrix-table th:first-child,
+    .attendance-matrix-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: #ffffff;
+        white-space: nowrap;
+        min-width: 110px;
+    }
+    .attendance-matrix-table thead th:first-child {
+        z-index: 4;
+        background: #f8f9fa;
+    }
+    .attendance-matrix-legend .badge {
+        min-width: 1.5rem;
+    }
+    .matrix-student-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+    .matrix-student-name {
+        color: #212529;
+        word-break: break-word;
+    }
+    .matrix-student-reg {
+        color: #6c757d;
+        font-size: 0.72rem;
+    }
+    @media (max-width: 767.98px) {
+        .overall-attendance-page h2 {
+            font-size: 1.25rem;
+        }
+        .overall-attendance-page .card-body {
+            padding: 1rem 0.75rem;
+        }
+        .overall-attendance-page .form-control,
+        .overall-attendance-page .form-select,
+        .overall-attendance-page .nebula-select-toggle {
+            font-size: 16px;
+        }
+        .overall-attendance-page .col-form-label {
+            text-align: left !important;
+            padding-bottom: 0.2rem;
+        }
+        .overall-export-actions,
+        .overall-export-actions .btn {
+            width: 100%;
+        }
+        .overall-summary-table thead {
+            display: none;
+        }
+        .overall-summary-table,
+        .overall-summary-table tbody,
+        .overall-summary-table tr,
+        .overall-summary-table td {
+            display: block;
+            width: 100%;
+        }
+        .overall-summary-table tbody tr[data-student-row] {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            padding: 8px 12px 12px;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+        }
+        .overall-summary-table td {
+            border: 0;
+            padding: 0.45rem 0;
+        }
+        .overall-summary-table td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .attendance-matrix-legend {
+            justify-content: flex-start !important;
+            flex-wrap: wrap;
+        }
+    }
+</style>
+
+<div class="container-fluid px-2 px-md-3 overall-attendance-page">
     <div class="card">
         <div class="card-body">
             <h2 class="text-center mb-4">Overall Attendance</h2>
             <hr>
 
             <div id="spinner-overlay" style="display:none;"><div class="lds-ring"><div></div><div></div><div></div><div></div></div></div>
+            <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3 attendance-toast" aria-live="polite" aria-atomic="true" style="z-index: 1090;"></div>
 
             <!-- Tabs -->
-            <ul class="nav nav-tabs mb-4" id="overallAttendanceTabs" role="tablist">
+            <ul class="nav nav-tabs mb-4 attendance-tabs" id="overallAttendanceTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="degree-tab" data-bs-toggle="tab" data-bs-target="#degree-panel" type="button" role="tab">Degree & Diploma</button>
                 </li>
@@ -25,9 +188,9 @@
                 <!-- Degree & Diploma Tab -->
                 <div class="tab-pane fade show active" id="degree-panel" role="tabpanel">
                     <div id="attendance-filters-degree" class="mb-4">
-                        <div class="mb-3 row mx-3">
-                            <label for="degree_location" class="col-sm-2 col-form-label">Location <span class="text-danger">*</span></label>
-                            <div class="col-sm-10">
+                        <div class="mb-3 row mx-0">
+                            <label for="degree_location" class="col-md-2 col-form-label fw-bold">Location <span class="text-danger">*</span></label>
+                            <div class="col-md-10">
                                 <select class="form-select degree-filter" id="degree_location" name="location" required>
                                     <option value="" selected disabled>Select a Location</option>
                                     <option value="Welisara">Nebula Institute of Technology - Welisara</option>
@@ -36,9 +199,9 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="mb-3 row mx-3">
-                            <label for="degree_course_type" class="col-sm-2 col-form-label">Course Type <span class="text-danger">*</span></label>
-                            <div class="col-sm-10">
+                        <div class="mb-3 row mx-0">
+                            <label for="degree_course_type" class="col-md-2 col-form-label fw-bold">Course Type <span class="text-danger">*</span></label>
+                            <div class="col-md-10">
                                 <select class="form-select degree-filter" id="degree_course_type" name="course_type" required>
                                     <option value="" selected disabled>Select a Course Type</option>
                                     <option value="degree">Degree Program</option>
@@ -47,41 +210,41 @@
                             </div>
                         </div>
                         <div id="degree-fields-container">
-                            <div class="mb-3 row mx-3">
-                                <label for="degree_course" class="col-sm-2 col-form-label">Course <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="mb-3 row mx-0">
+                                <label for="degree_course" class="col-md-2 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
+                                <div class="col-md-10">
                                     <select class="form-select degree-filter" id="degree_course" name="course_id" required>
                                         <option selected disabled value="">Select a Course</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3">
-                                <label for="degree_intake" class="col-sm-2 col-form-label">Intake <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="mb-3 row mx-0">
+                                <label for="degree_intake" class="col-md-2 col-form-label fw-bold">Intake <span class="text-danger">*</span></label>
+                                <div class="col-md-10">
                                     <select class="form-select degree-filter" id="degree_intake" name="intake_id" required>
                                         <option selected disabled value="">Select an Intake</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3" id="degree_specialization_row" style="display:none;">
-                                <label for="degree_specialization" class="col-sm-2 col-form-label">Specialization <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="mb-3 row mx-0" id="degree_specialization_row" style="display:none;">
+                                <label for="degree_specialization" class="col-md-2 col-form-label fw-bold">Specialization <span class="text-danger">*</span></label>
+                                <div class="col-md-10">
                                     <select class="form-select degree-filter" id="degree_specialization" name="specialization" disabled>
                                         <option selected disabled value="">Select a Specialization</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3">
-                                <label for="degree_semester" class="col-sm-2 col-form-label">Semester <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="mb-3 row mx-0">
+                                <label for="degree_semester" class="col-md-2 col-form-label fw-bold">Semester <span class="text-danger">*</span></label>
+                                <div class="col-md-10">
                                     <select class="form-select degree-filter" id="degree_semester" name="semester" required>
                                         <option selected disabled value="">Select a Semester</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3">
-                                <label for="degree_module" class="col-sm-2 col-form-label">Module <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="mb-3 row mx-0">
+                                <label for="degree_module" class="col-md-2 col-form-label fw-bold">Module <span class="text-danger">*</span></label>
+                                <div class="col-md-10">
                                     <select class="form-select degree-filter" id="degree_module" name="module_id" required>
                                         <option selected disabled value="">Select a Module</option>
                                     </select>
@@ -90,12 +253,10 @@
                         </div>
                     </div>
 
-                    <hr class="my-4">
-
                     <!-- Degree Attendance Section -->
                     <div class="mt-4" id="degreeOverallAttendanceSection" style="display:none;">
-                        <div class="mb-3 text-end">
-                            <div class="d-flex gap-2 justify-content-end">
+                        <hr class="my-4">
+                            <div class="mb-3 overall-export-actions">
                                 <button id="degreeExportPdfBtn" class="btn btn-outline-primary" type="button">
                                     <i class="ti ti-download"></i> Export to PDF
                                 </button>
@@ -103,7 +264,6 @@
                                     <i class="ti ti-file-spreadsheet"></i> Export to Excel
                                 </button>
                             </div>
-                        </div>
                         <ul class="nav nav-tabs mb-3" id="degreeResultTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="degree-summary-tab" data-bs-toggle="tab" data-bs-target="#degree-summary-panel" type="button" role="tab">Summary</button>
@@ -117,7 +277,7 @@
                             <div class="tab-pane fade show active" id="degree-summary-panel" role="tabpanel">
                                 <h4 class="text-center mb-3">Attendance Summary</h4>
                                 <div class="table-responsive">
-                                    <table class="table table-bordered" id="degreeAttendanceTable">
+                                    <table class="table table-bordered overall-summary-table" id="degreeAttendanceTable">
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Registration Number</th>
@@ -158,9 +318,9 @@
                 <!-- Certificate Tab -->
                 <div class="tab-pane fade" id="certificate-panel" role="tabpanel">
                     <div id="attendance-filters-cert" class="mb-4">
-                        <div class="mb-3 row mx-3">
-                            <label for="cert_location" class="col-sm-2 col-form-label">Location <span class="text-danger">*</span></label>
-                            <div class="col-sm-10">
+                        <div class="mb-3 row mx-0">
+                            <label for="cert_location" class="col-md-2 col-form-label fw-bold">Location <span class="text-danger">*</span></label>
+                            <div class="col-md-10">
                                 <select class="form-select cert-filter" id="cert_location" name="location" required>
                                     <option value="" selected disabled>Select a Location</option>
                                     <option value="Welisara">Nebula Institute of Technology - Welisara</option>
@@ -170,17 +330,17 @@
                             </div>
                         </div>
                         <div id="cert-fields-container">
-                            <div class="mb-3 row mx-3">
-                                <label for="cert_course" class="col-sm-2 col-form-label">Course <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="mb-3 row mx-0">
+                                <label for="cert_course" class="col-md-2 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
+                                <div class="col-md-10">
                                     <select class="form-select cert-filter" id="cert_course" name="course_id" required>
                                         <option selected disabled value="">Select a Course</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3">
-                                <label for="cert_intake" class="col-sm-2 col-form-label">Intake <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="mb-3 row mx-0">
+                                <label for="cert_intake" class="col-md-2 col-form-label fw-bold">Intake <span class="text-danger">*</span></label>
+                                <div class="col-md-10">
                                     <select class="form-select cert-filter" id="cert_intake" name="intake_id" required>
                                         <option selected disabled value="">Select an Intake</option>
                                     </select>
@@ -189,12 +349,10 @@
                         </div>
                     </div>
 
-                    <hr class="my-4">
-
                     <!-- Certificate Attendance Section -->
                     <div class="mt-4" id="certOverallAttendanceSection" style="display:none;">
-                        <div class="mb-3 text-end">
-                            <div class="d-flex gap-2 justify-content-end">
+                        <hr class="my-4">
+                            <div class="mb-3 overall-export-actions">
                                 <button id="certExportPdfBtn" class="btn btn-outline-primary" type="button">
                                     <i class="ti ti-download"></i> Export to PDF
                                 </button>
@@ -202,7 +360,6 @@
                                     <i class="ti ti-file-spreadsheet"></i> Export to Excel
                                 </button>
                             </div>
-                        </div>
                         <ul class="nav nav-tabs mb-3" id="certResultTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="cert-summary-tab" data-bs-toggle="tab" data-bs-target="#cert-summary-panel" type="button" role="tab">Summary</button>
@@ -216,7 +373,7 @@
                             <div class="tab-pane fade show active" id="cert-summary-panel" role="tabpanel">
                                 <h4 class="text-center mb-3">Attendance Summary</h4>
                                 <div class="table-responsive">
-                                    <table class="table table-bordered" id="certAttendanceTable">
+                                    <table class="table table-bordered overall-summary-table" id="certAttendanceTable">
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Registration Number</th>
@@ -257,6 +414,9 @@
         </div>
     </div>
 </div>
+@endsection
+
+@push('scripts')
 <script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
 <script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.0/jspdf.plugin.autotable.min.js" integrity="sha384-VA0FoBFnoj52hvJgGJB/86X6Ymgc+m/+C9RHXKKzH0qDAaY6MHnY5C97eYjQIqRj" crossorigin="anonymous"></script>
 <script nonce="{{ $cspNonce }}">
@@ -273,6 +433,38 @@ function showSpinner(show) {
         }
 }
 
+function showToast(title, message, type) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    const normalized = (type || '').includes('success') ? 'success' : ((type || '').includes('warning') ? 'warning' : ((type || '').includes('info') ? 'info' : 'error'));
+    const headerClass = normalized === 'success' ? 'bg-success text-white'
+        : (normalized === 'warning' ? 'bg-warning text-dark'
+        : (normalized === 'info' ? 'bg-info text-white' : 'bg-danger text-white'));
+    const toast = document.createElement('div');
+    toast.className = 'toast show';
+    toast.setAttribute('role', 'alert');
+    const header = document.createElement('div');
+    header.className = 'toast-header ' + headerClass;
+    const strong = document.createElement('strong');
+    strong.className = 'me-auto';
+    strong.textContent = title || (normalized === 'success' ? 'Success' : (normalized === 'warning' ? 'Warning' : (normalized === 'info' ? 'Info' : 'Error')));
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close' + (normalized === 'warning' ? '' : ' btn-close-white');
+    closeBtn.setAttribute('data-bs-dismiss', 'toast');
+    header.appendChild(strong);
+    header.appendChild(closeBtn);
+    const body = document.createElement('div');
+    body.className = 'toast-body';
+    body.textContent = message || '';
+    toast.appendChild(header);
+    toast.appendChild(body);
+    container.appendChild(toast);
+    bootstrap.Toast.getOrCreateInstance(toast, { delay: 4000 }).show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Degree Tab Elements
     const degreeLocation = document.getElementById('degree_location');
@@ -280,6 +472,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const degreeCourse = document.getElementById('degree_course');
     const degreeIntake = document.getElementById('degree_intake');
     let degreeSpecializationsLoaded = false;
+    let degreeSemesterEmpty = false;
+    let degreeModuleEmpty = false;
     const degreeSpecialization = document.getElementById('degree_specialization');
     const degreeSpecializationRow = document.getElementById('degree_specialization_row');
     const degreeSemester = document.getElementById('degree_semester');
@@ -303,16 +497,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const certTabBtn = document.getElementById('certificate-tab');
     
     degreeTabBtn.addEventListener('shown.bs.tab', function() {
-        certSection.style.display = 'none';
+        fetchDegreeOverallAttendance();
     });
-    
+
     certTabBtn.addEventListener('shown.bs.tab', function() {
-        degreeSection.style.display = 'none';
+        fetchCertOverallAttendance();
     });
 
     function resetAndDisable(select, placeholder) {
         if (!select) return;
-        select.innerHTML = `<option selected disabled value="">${placeholder}</option>`;
+        select.innerHTML = '';
+        const option = new Option(placeholder, '', true, true);
+        option.disabled = true;
+        select.add(option);
         select.disabled = true;
     }
 
@@ -322,7 +519,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         degreeSpecializationsLoaded = false;
-        degreeSpecialization.innerHTML = '<option selected disabled value="">Select a Specialization</option>';
+        degreeSpecialization.innerHTML = '';
+        const option = new Option('Select a Specialization', '', true, true);
+        option.disabled = true;
+        degreeSpecialization.add(option);
         degreeSpecialization.disabled = true;
         degreeSpecializationRow.style.display = 'none';
     }
@@ -344,7 +544,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const specializations = data.success && Array.isArray(data.specializations) ? data.specializations.filter(Boolean) : [];
 
                 if (specializations.length > 0) {
-                    degreeSpecialization.innerHTML = '<option selected disabled value="">Select a Specialization</option>';
+                    degreeSpecialization.innerHTML = '';
+                    const placeholderOption = new Option('Select a Specialization', '', true, true);
+                    placeholderOption.disabled = true;
+                    degreeSpecialization.add(placeholderOption);
                     specializations.forEach(spec => {
                         degreeSpecialization.add(new Option(spec, spec));
                     });
@@ -376,6 +579,8 @@ document.addEventListener('DOMContentLoaded', function() {
         resetAndDisable(degreeCourse, 'Select a Course');
         resetAndDisable(degreeIntake, 'Select an Intake');
         resetSpecialization();
+        degreeSemesterEmpty = false;
+        degreeModuleEmpty = false;
         resetAndDisable(degreeSemester, 'Select a Semester');
         resetAndDisable(degreeModule, 'Select a Module');
         degreeSection.style.display = 'none';
@@ -388,6 +593,8 @@ document.addEventListener('DOMContentLoaded', function() {
         resetAndDisable(degreeCourse, 'Select a Course');
         resetAndDisable(degreeIntake, 'Select an Intake');
         resetSpecialization();
+        degreeSemesterEmpty = false;
+        degreeModuleEmpty = false;
         resetAndDisable(degreeSemester, 'Select a Semester');
         resetAndDisable(degreeModule, 'Select a Module');
         degreeSection.style.display = 'none';
@@ -399,15 +606,20 @@ document.addEventListener('DOMContentLoaded', function() {
     degreeCourse.addEventListener('change', function() {
         resetAndDisable(degreeIntake, 'Select an Intake');
         resetSpecialization();
+        degreeSemesterEmpty = false;
+        degreeModuleEmpty = false;
         resetAndDisable(degreeSemester, 'Select a Semester');
         resetAndDisable(degreeModule, 'Select a Module');
         if (degreeCourse.value && degreeLocation.value) {
             fetchDegreeSpecializations();
             fetchDegreeIntakes(degreeCourse.value, degreeLocation.value);
         }
+        fetchDegreeOverallAttendance();
     });
 
     degreeIntake.addEventListener('change', function() {
+        degreeSemesterEmpty = false;
+        degreeModuleEmpty = false;
         resetAndDisable(degreeSemester, 'Select a Semester');
         resetAndDisable(degreeModule, 'Select a Module');
         if (degreeIntake.value && degreeCourse.value) {
@@ -416,15 +628,24 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     degreeSemester.addEventListener('change', function() {
+        degreeModuleEmpty = false;
         resetAndDisable(degreeModule, 'Select a Module');
         if (degreeSemester.value && degreeIntake.value && degreeCourse.value && degreeLocation.value) {
             fetchDegreeModules();
         }
     });
 
-    degreeModule.addEventListener('change', fetchDegreeOverallAttendance);
+    degreeModule.addEventListener('change', function() {
+        fetchDegreeOverallAttendance();
+    });
 
-    degreeSpecialization.addEventListener('change', fetchDegreeOverallAttendance);
+    degreeSpecialization.addEventListener('change', function() {
+        resetAndDisable(degreeModule, 'Select a Module');
+        if (degreeSemester.value && degreeIntake.value && degreeCourse.value && degreeLocation.value) {
+            fetchDegreeModules();
+        }
+        fetchDegreeOverallAttendance();
+    });
 
     // CERTIFICATE TAB EVENT LISTENERS
     certLocation.addEventListener('change', function() {
@@ -441,58 +662,152 @@ document.addEventListener('DOMContentLoaded', function() {
         if (certCourse.value && certLocation.value) {
             fetchCertIntakes(certCourse.value, certLocation.value);
         }
+        fetchCertOverallAttendance();
     });
 
     certIntake.addEventListener('change', fetchCertOverallAttendance);
 
     // DEGREE EXPORT HANDLERS
-    document.getElementById('degreeExportPdfBtn').addEventListener('click', function() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const locationText = degreeLocation.options[degreeLocation.selectedIndex]?.text || '';
-        const courseText = degreeCourse.options[degreeCourse.selectedIndex]?.text || '';
-        const intakeText = degreeIntake.options[degreeIntake.selectedIndex]?.text || '';
-        const specializationText = degreeSpecialization.options[degreeSpecialization.selectedIndex]?.text || '';
-        const semesterText = degreeSemester.options[degreeSemester.selectedIndex]?.text || '';
-        const moduleText = degreeModule.options[degreeModule.selectedIndex]?.text || '';
-        let y = 16;
-        doc.setFontSize(16);
-        doc.text('Attendance Report', 14, y);
-        doc.setFontSize(12);
-        y += 10;
-        doc.text(`Location: ${locationText}`, 14, y);
-        y += 8;
-        doc.text(`Course: ${courseText}`, 14, y);
-        y += 8;
-        doc.text(`Intake: ${intakeText}`, 14, y);
-        if (degreeSpecializationRow && degreeSpecializationRow.style.display !== 'none' && specializationText) {
-            y += 8;
-            doc.text(`Specialization: ${specializationText}`, 14, y);
+    function writePdfLines(doc, lines, startY) {
+        let y = startY;
+        lines.forEach(function (text) {
+            const wrapped = doc.splitTextToSize(String(text || ''), 180);
+            wrapped.forEach(function (line) {
+                if (y > 280) {
+                    doc.addPage();
+                    y = 16;
+                }
+                doc.text(line, 14, y);
+                y += 7;
+            });
+        });
+        return y;
+    }
+
+    function exportSummaryPdf(options) {
+        if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+            showToast('Error', 'PDF export is unavailable. Please refresh the page and try again.', 'error');
+            return;
         }
-        y += 8;
-        doc.text(`Semester: ${semesterText}`, 14, y);
-        y += 8;
-        doc.text(`Module: ${moduleText}`, 14, y);
-        y += 6;
+        const doc = new window.jspdf.jsPDF();
+        if (typeof doc.autoTable !== 'function') {
+            showToast('Error', 'PDF export is unavailable. Please refresh the page and try again.', 'error');
+            return;
+        }
+
+        doc.setFontSize(16);
+        let y = writePdfLines(doc, [options.title], 16);
+        doc.setFontSize(11);
+        y = writePdfLines(doc, options.meta || [], y + 4);
+
         const tableRows = [];
-        degreeTableBody.querySelectorAll('tr').forEach(tr => {
+        options.tableBody.querySelectorAll('tr').forEach(function (tr) {
             const row = [];
-            tr.querySelectorAll('td').forEach(td => row.push(td.textContent));
-            if (row.length) tableRows.push(row);
+            tr.querySelectorAll('td').forEach(function (td) {
+                row.push(td.textContent.trim());
+            });
+            if (row.length) {
+                tableRows.push(row);
+            }
         });
         const headers = [];
-        document.querySelectorAll('#degreeAttendanceTable thead th').forEach(th => headers.push(th.textContent));
+        options.table.querySelectorAll('thead th').forEach(function (th) {
+            headers.push(th.textContent.trim());
+        });
+
+        if (!tableRows.length) {
+            showToast('Warning', 'No attendance rows to export.', 'warning');
+            return;
+        }
+
         doc.autoTable({
             head: [headers],
             body: tableRows,
-            startY: y + 6
+            startY: y + 4,
+            styles: { fontSize: 8, overflow: 'linebreak' },
+            headStyles: { fillColor: [68, 114, 196] }
         });
-        doc.save('degree_attendance_report.pdf');
+        doc.save(options.filename);
+    }
+
+    function downloadExcelFile(formData, filename) {
+        showSpinner(true);
+        fetch('{{ route('download.attendance.excel') }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json'
+            }
+        })
+        .then(function (response) {
+            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+            if (!response.ok || contentType.includes('application/json')) {
+                return response.json().then(function (data) {
+                    throw new Error(data.error || data.message || 'Failed to download Excel file.');
+                }).catch(function (error) {
+                    if (error instanceof Error && error.message && error.message !== 'Unexpected end of JSON input') {
+                        throw error;
+                    }
+                    throw new Error('Failed to download Excel file.');
+                });
+            }
+            return response.blob();
+        })
+        .then(function (blob) {
+            if (!(blob instanceof Blob)) {
+                return;
+            }
+            if ((blob.type || '').toLowerCase().includes('application/json')) {
+                return blob.text().then(function (text) {
+                    const data = JSON.parse(text);
+                    throw new Error(data.error || data.message || 'Failed to download Excel file.');
+                });
+            }
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        })
+        .catch(function (error) {
+            showToast('Error', error.message || 'Error downloading Excel file.', 'error');
+        })
+        .finally(function () {
+            showSpinner(false);
+        });
+    }
+
+    document.getElementById('degreeExportPdfBtn').addEventListener('click', function() {
+        if (!degreeLocation.value || !degreeCourse.value || !degreeIntake.value || !degreeSemester.value || !degreeModule.value || !hasDegreeSpecializationSelection()) {
+            showToast('Warning', 'Please select all filters before exporting to PDF.', 'warning');
+            return;
+        }
+        exportSummaryPdf({
+            title: 'Attendance Report',
+            filename: 'degree_attendance_report.pdf',
+            table: document.getElementById('degreeAttendanceTable'),
+            tableBody: degreeTableBody,
+            meta: [
+                'Location: ' + (degreeLocation.options[degreeLocation.selectedIndex]?.text || ''),
+                'Course: ' + (degreeCourse.options[degreeCourse.selectedIndex]?.text || ''),
+                'Intake: ' + (degreeIntake.options[degreeIntake.selectedIndex]?.text || '')
+            ].concat(
+                degreeSpecializationRow && degreeSpecializationRow.style.display !== 'none'
+                    ? ['Specialization: ' + (degreeSpecialization.options[degreeSpecialization.selectedIndex]?.text || '')]
+                    : []
+            ).concat([
+                'Semester: ' + (degreeSemester.options[degreeSemester.selectedIndex]?.text || ''),
+                'Module: ' + (degreeModule.options[degreeModule.selectedIndex]?.text || '')
+            ])
+        });
     });
 
     document.getElementById('degreeExportExcelBtn').addEventListener('click', function() {
         if (!degreeLocation.value || !degreeCourse.value || !degreeIntake.value || !degreeSemester.value || !degreeModule.value || !hasDegreeSpecializationSelection()) {
-            alert('Please select all filters before exporting to Excel.');
+            showToast('Warning', 'Please select all filters before exporting to Excel.', 'warning');
             return;
         }
         const formData = new FormData();
@@ -503,67 +818,31 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('semester', degreeSemester.value);
         formData.append('module_id', degreeModule.value);
         formData.append('_token', '{{ csrf_token() }}');
-        fetch('/download-attendance-excel', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) return response.blob();
-            throw new Error('Network response was not ok.');
-        })
-        .then(blob => {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'degree_attendance_report.xlsx';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error downloading Excel file.');
-        });
+        downloadExcelFile(formData, 'degree_attendance_report.xlsx');
     });
 
     // CERTIFICATE EXPORT HANDLERS
     document.getElementById('certExportPdfBtn').addEventListener('click', function() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const locationText = certLocation.options[certLocation.selectedIndex]?.text || '';
-        const courseText = certCourse.options[certCourse.selectedIndex]?.text || '';
-        const intakeText = certIntake.options[certIntake.selectedIndex]?.text || '';
-        let y = 16;
-        doc.setFontSize(16);
-        doc.text('Certificate Attendance Report', 14, y);
-        doc.setFontSize(12);
-        y += 10;
-        doc.text(`Location: ${locationText}`, 14, y);
-        y += 8;
-        doc.text(`Course: ${courseText}`, 14, y);
-        y += 8;
-        doc.text(`Intake: ${intakeText}`, 14, y);
-        y += 6;
-        const tableRows = [];
-        certTableBody.querySelectorAll('tr').forEach(tr => {
-            const row = [];
-            tr.querySelectorAll('td').forEach(td => row.push(td.textContent));
-            if (row.length) tableRows.push(row);
+        if (!certLocation.value || !certCourse.value || !certIntake.value) {
+            showToast('Warning', 'Please select all filters before exporting to PDF.', 'warning');
+            return;
+        }
+        exportSummaryPdf({
+            title: 'Certificate Attendance Report',
+            filename: 'certificate_attendance_report.pdf',
+            table: document.getElementById('certAttendanceTable'),
+            tableBody: certTableBody,
+            meta: [
+                'Location: ' + (certLocation.options[certLocation.selectedIndex]?.text || ''),
+                'Course: ' + (certCourse.options[certCourse.selectedIndex]?.text || ''),
+                'Intake: ' + (certIntake.options[certIntake.selectedIndex]?.text || '')
+            ]
         });
-        const headers = [];
-        document.querySelectorAll('#certAttendanceTable thead th').forEach(th => headers.push(th.textContent));
-        doc.autoTable({
-            head: [headers],
-            body: tableRows,
-            startY: y + 6
-        });
-        doc.save('certificate_attendance_report.pdf');
     });
 
     document.getElementById('certExportExcelBtn').addEventListener('click', function() {
         if (!certLocation.value || !certCourse.value || !certIntake.value) {
-            alert('Please select all filters before exporting to Excel.');
+            showToast('Warning', 'Please select all filters before exporting to Excel.', 'warning');
             return;
         }
         const formData = new FormData();
@@ -573,28 +852,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('semester', '');
         formData.append('module_id', '');
         formData.append('_token', '{{ csrf_token() }}');
-        fetch('/download-attendance-excel', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) return response.blob();
-            throw new Error('Network response was not ok.');
-        })
-        .then(blob => {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'certificate_attendance_report.xlsx';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error downloading Excel file.');
-        });
+        downloadExcelFile(formData, 'certificate_attendance_report.xlsx');
     });
 
     // DEGREE FETCH FUNCTIONS
@@ -607,11 +865,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     populateDropdown(degreeCourse, data.courses, 'course_id', 'course_name', 'Course');
                     degreeCourse.disabled = false;
                 } else {
-                    resetAndDisable(degreeCourse, 'Select a Course');
+                    resetAndDisable(degreeCourse, 'No courses found');
+                    showToast('Info', 'No courses found for this location.', 'info');
                 }
             })
-            .catch((error) => {
-                console.error('Error fetching courses:', error);
+            .catch(() => {
+                resetAndDisable(degreeCourse, 'Select a Course');
             });
     }
 
@@ -623,7 +882,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     populateDropdown(degreeIntake, data.intakes, 'intake_id', 'batch', 'Intake');
                     degreeIntake.disabled = false;
                 } else {
-                    resetAndDisable(degreeIntake, 'Select an Intake');
+                    resetAndDisable(degreeIntake, 'No intakes found');
+                    showToast('Info', 'No intakes found for this course.', 'info');
                 }
             });
     }
@@ -633,11 +893,19 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.semesters && data.semesters.length > 0) {
+                    degreeSemesterEmpty = false;
                     populateDropdown(degreeSemester, data.semesters, 'semester_id', 'semester_name', 'Semester');
                     degreeSemester.disabled = false;
                 } else {
-                    resetAndDisable(degreeSemester, 'Select a Semester');
+                    degreeSemesterEmpty = true;
+                    resetAndDisable(degreeSemester, 'No semesters found');
+                    showToast('Info', 'No semesters found for this intake.', 'info');
                 }
+            })
+            .catch(function () {
+                degreeSemesterEmpty = true;
+                resetAndDisable(degreeSemester, 'No semesters found');
+                showToast('Info', 'No semesters found for this intake.', 'info');
             });
     }
 
@@ -646,7 +914,8 @@ document.addEventListener('DOMContentLoaded', function() {
             location: degreeLocation.value,
             course_id: degreeCourse.value,
             intake_id: degreeIntake.value,
-            semester: degreeSemester.value
+            semester: degreeSemester.value,
+            specialization: degreeSpecialization.value || ''
         };
         fetch('/get-filtered-modules', {
             method: 'POST',
@@ -656,11 +925,14 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.modules && data.modules.length > 0) {
+                degreeModuleEmpty = false;
                 populateDropdown(degreeModule, data.modules, 'module_id', 'module_name', 'Module');
                 degreeModule.disabled = false;
             } else {
-                resetAndDisable(degreeModule, 'Select a Module');
+                degreeModuleEmpty = true;
+                resetAndDisable(degreeModule, 'No modules found');
                 degreeSection.style.display = 'none';
+                showToast('Info', 'No modules found for this selection.', 'info');
             }
         });
     }
@@ -676,6 +948,15 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         if (!degreeLocation.value || !degreeCourse.value || !degreeIntake.value || !degreeSemester.value || !degreeModule.value || !hasDegreeSpecializationSelection()) {
             degreeSection.style.display = 'none';
+            if (degreeTableBody) {
+                degreeTableBody.innerHTML = '';
+            }
+            if (degreeMatrixHead) {
+                degreeMatrixHead.innerHTML = '';
+            }
+            if (degreeMatrixBody) {
+                degreeMatrixBody.innerHTML = '';
+            }
             return;
         }
         degreeSection.style.display = '';
@@ -689,12 +970,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success && data.attendance && data.attendance.length > 0) {
                 degreeTableBody.innerHTML = '';
                 data.attendance.forEach(row => {
-                    degreeTableBody.insertAdjacentHTML('beforeend', `<tr>
-                        <td>${escapeHtml(row.registration_number)}</td>
-                        <td>${escapeHtml(row.name_with_initials)}</td>
-                        <td>${escapeHtml(String(row.total_sessions))}</td>
-                        <td>${escapeHtml(String(row.attended_sessions))}</td>
-                        <td>${escapeHtml(String(row.percentage))}%</td>
+                    degreeTableBody.insertAdjacentHTML('beforeend', `<tr data-student-row>
+                        <td data-label="Registration Number">${escapeHtml(row.registration_number)}</td>
+                        <td data-label="Student Name">${escapeHtml(row.name_with_initials)}</td>
+                        <td data-label="Total Sessions">${escapeHtml(String(row.total_sessions))}</td>
+                        <td data-label="Attended Sessions">${escapeHtml(String(row.attended_sessions))}</td>
+                        <td data-label="Attendance (%)">${escapeHtml(String(row.percentage))}%</td>
                     </tr>`);
                 });
             } else {
@@ -715,11 +996,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     populateDropdown(certCourse, data.courses, 'course_id', 'course_name', 'Course');
                     certCourse.disabled = false;
                 } else {
-                    resetAndDisable(certCourse, 'Select a Course');
+                    resetAndDisable(certCourse, 'No courses found');
+                    showToast('Info', 'No courses found for this location.', 'info');
                 }
             })
-            .catch((error) => {
-                console.error('Error fetching courses:', error);
+            .catch(() => {
+                resetAndDisable(certCourse, 'Select a Course');
             });
     }
 
@@ -731,7 +1013,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     populateDropdown(certIntake, data.intakes, 'intake_id', 'batch', 'Intake');
                     certIntake.disabled = false;
                 } else {
-                    resetAndDisable(certIntake, 'Select an Intake');
+                    resetAndDisable(certIntake, 'No intakes found');
+                    showToast('Info', 'No intakes found for this course.', 'info');
                 }
             });
     }
@@ -746,6 +1029,15 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         if (!certLocation.value || !certCourse.value || !certIntake.value) {
             certSection.style.display = 'none';
+            if (certTableBody) {
+                certTableBody.innerHTML = '';
+            }
+            if (certMatrixHead) {
+                certMatrixHead.innerHTML = '';
+            }
+            if (certMatrixBody) {
+                certMatrixBody.innerHTML = '';
+            }
             return;
         }
         certSection.style.display = '';
@@ -759,12 +1051,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success && data.attendance && data.attendance.length > 0) {
                 certTableBody.innerHTML = '';
                 data.attendance.forEach(row => {
-                    certTableBody.insertAdjacentHTML('beforeend', `<tr>
-                        <td>${escapeHtml(row.registration_number)}</td>
-                        <td>${escapeHtml(row.name_with_initials)}</td>
-                        <td>${escapeHtml(String(row.total_sessions))}</td>
-                        <td>${escapeHtml(String(row.attended_sessions))}</td>
-                        <td>${escapeHtml(String(row.percentage))}%</td>
+                    certTableBody.insertAdjacentHTML('beforeend', `<tr data-student-row>
+                        <td data-label="Registration Number">${escapeHtml(row.registration_number)}</td>
+                        <td data-label="Student Name">${escapeHtml(row.name_with_initials)}</td>
+                        <td data-label="Total Sessions">${escapeHtml(String(row.total_sessions))}</td>
+                        <td data-label="Attended Sessions">${escapeHtml(String(row.attended_sessions))}</td>
+                        <td data-label="Attendance (%)">${escapeHtml(String(row.percentage))}%</td>
                     </tr>`);
                 });
             } else {
@@ -819,79 +1111,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Populate dropdown with items
     function populateDropdown(select, items, valueKey, textKey, defaultText) {
         if (!select) return;
-        select.innerHTML = `<option selected disabled value="">Select ${defaultText}</option>`;
+        select.innerHTML = '';
+        const placeholder = new Option('Select ' + defaultText, '', true, true);
+        placeholder.disabled = true;
+        select.add(placeholder);
         (items || []).forEach(item => {
             select.add(new Option(item[textKey], item[valueKey]));
         });
     }
 });
 </script>
-<style nonce="{{ $cspNonce }}">
-#spinner-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 9999; }
-.lds-ring { display: inline-block; position: relative; width: 80px; height: 80px; }
-.lds-ring div { box-sizing: border-box; display: block; position: absolute; width: 64px; height: 64px; margin: 8px; border: 8px solid #fff; border-radius: 50%; animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite; border-color: #fff transparent transparent transparent; }
-.lds-ring div:nth-child(1) { animation-delay: -0.45s; }
-.lds-ring div:nth-child(2) { animation-delay: -0.3s; }
-.lds-ring div:nth-child(3) { animation-delay: -0.15s; }
-@keyframes lds-ring { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-.attendance-matrix-wrap {
-    max-height: 65vh;
-    overflow: auto;
-}
-
-.attendance-matrix-table {
-    min-width: max-content;
-}
-
-.attendance-matrix-table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    background: #f8f9fa;
-    font-size: 0.78rem;
-    font-weight: 600;
-    line-height: 1.2;
-    min-width: 120px;
-    max-width: 160px;
-    padding: 0.45rem 0.4rem;
-    vertical-align: bottom;
-    white-space: normal;
-}
-
-.attendance-matrix-table th:first-child,
-.attendance-matrix-table td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: #ffffff;
-    white-space: nowrap;
-    min-width: 110px;
-}
-
-.attendance-matrix-table thead th:first-child {
-    z-index: 4;
-    background: #f8f9fa;
-}
-
-.attendance-matrix-legend .badge {
-    min-width: 1.5rem;
-}
-
-.matrix-student-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-}
-
-.matrix-student-name {
-    color: #212529;
-    word-break: break-word;
-}
-
-.matrix-student-reg {
-    color: #6c757d;
-    font-size: 0.72rem;
-}
-</style>
-@endsection 
+@endpush 

@@ -199,9 +199,18 @@ class AttendanceController extends Controller
             return [];
         }
 
-        return array_values(array_filter($specializations, function ($specialization) {
-            return is_string($specialization) ? trim($specialization) !== '' : !empty($specialization);
-        }));
+        return array_values(array_filter(array_map(function ($specialization) {
+            if (is_string($specialization)) {
+                $trimmed = trim($specialization);
+                return $trimmed === '' ? null : $trimmed;
+            }
+            if (is_array($specialization) || is_object($specialization)) {
+                $value = (array) $specialization;
+                $name = trim((string) ($value['name'] ?? $value['title'] ?? $value['specialization'] ?? ''));
+                return $name === '' ? null : $name;
+            }
+            return null;
+        }, $specializations)));
     }
 
     private function courseHasSpecializations(Course $course): bool
@@ -214,6 +223,81 @@ class AttendanceController extends Controller
         $specialization = trim((string) $specialization);
 
         return $specialization !== '' ? $specialization : null;
+    }
+
+    /**
+     * @return array<int>|null Null means do not filter; an array (including empty) is a strict student-id filter.
+     */
+    private function resolveAttendanceSpecializationStudentIds(
+        $courseId,
+        $intakeId,
+        ?string $location,
+        ?string $specialization,
+        $moduleScope = null,
+        ?Course $course = null
+    ): ?array {
+        $specialization = $this->normalizeSpecializationValue($specialization);
+        if ($specialization === null) {
+            return null;
+        }
+
+        $studentIds = SpecializationStudentScope::resolveStudentIds(
+            (int) $courseId,
+            (int) $intakeId,
+            $location,
+            $specialization,
+            $moduleScope?->specializations ?? null,
+            $moduleScope?->specialization ?? null,
+            $course ? $this->getCourseSpecializations($course) : null
+        );
+
+        $isCommon = strcasecmp($specialization, 'Common') === 0;
+        $moduleTargetSpecs = \App\Support\SemesterModuleSpecializationHelper::decodeList(
+            $moduleScope?->specializations ?? null,
+            $moduleScope?->specialization ?? null
+        );
+
+        if ($isCommon && $moduleTargetSpecs === null && empty($studentIds)) {
+            return null;
+        }
+
+        return array_values($studentIds);
+    }
+
+    private function mapAttendanceStudent($registration): ?array
+    {
+        $student = $registration->student ?? null;
+        if (!$student) {
+            return null;
+        }
+
+        return [
+            'course_registration_id' => $registration->course_registration_id ?? null,
+            'registration_number' => $registration->course_registration_id
+                ?? $student->registration_id
+                ?? $student->student_id,
+            'student_id' => (int) $student->student_id,
+            'name_with_initials' => $student->name_with_initials ?: $student->full_name,
+        ];
+    }
+
+    private function isCoreAttendanceModule($semesterId, $moduleId): bool
+    {
+        return DB::table('semester_module')
+            ->join('modules', 'modules.module_id', '=', 'semester_module.module_id')
+            ->where('semester_module.semester_id', $semesterId)
+            ->where('semester_module.module_id', $moduleId)
+            ->whereIn('modules.module_type', ['core', 'special_unit_compulsory'])
+            ->exists();
+    }
+
+    private function resolveCourseRegistrationId($studentId, $courseId, $intakeId, $location): ?string
+    {
+        return CourseRegistration::where('student_id', $studentId)
+            ->where('course_id', $courseId)
+            ->where('intake_id', $intakeId)
+            ->where('location', $location)
+            ->value('course_registration_id');
     }
 
     private function applySpecializationFilter($query, ?string $specialization, string $column = 'specialization')
@@ -354,8 +438,6 @@ class AttendanceController extends Controller
         $location = $request->location;
         $course = Course::find($courseId);
         $specialization = $this->normalizeSpecializationValue($request->input('specialization'));
-        $specializedStudentIds = null;
-
         $moduleScope = null;
         if (!$isCertificate && $request->filled('semester') && $request->filled('module_id')) {
             $moduleScope = DB::table('semester_module')
@@ -365,60 +447,14 @@ class AttendanceController extends Controller
                 ->first();
         }
 
-        if ($specialization !== null) {
-            $specializedStudentIds = SpecializationStudentScope::resolveStudentIds(
-                $courseId,
-                $intakeId,
-                $location,
-                $specialization,
-                $moduleScope?->specializations,
-                $moduleScope?->specialization,
-                $course ? $this->getCourseSpecializations($course) : null
-            );
-
-            // When 'Common' is selected, determine how to filter students based on
-            // what specializations the selected module is tied to in semester_module.
-            $isCommon = strcasecmp((string) $specialization, 'Common') === 0;
-            $moduleTargetSpecs = \App\Support\SemesterModuleSpecializationHelper::decodeList(
-                $moduleScope?->specializations,
-                $moduleScope?->specialization
-            );
-
-            if ($isCommon && $moduleTargetSpecs !== null) {
-                // Module is assigned to specific specializations (e.g. ["SE","AI"]).
-                // Enforce the filter strictly — do NOT fall back to showing all students.
-                // An empty result here means no students are registered for those specializations.
-                if (empty($specializedStudentIds)) {
-                    Log::warning('Common specialization: no students found for module target specializations.', [
-                        'course_id'    => $courseId,
-                        'intake_id'    => $intakeId,
-                        'location'     => $location,
-                        'module_specs' => $moduleTargetSpecs,
-                    ]);
-                    $specializedStudentIds = []; // Keep empty — correct result
-                }
-            } elseif ($isCommon && $moduleTargetSpecs === null) {
-                // Module has null specs = common to ALL students regardless of specialization.
-                // If we got student IDs (from all course specializations), use them.
-                // If empty (no students in specialization_registrations at all), show all.
-                if (empty($specializedStudentIds)) {
-                    Log::info('Common specialization with null-spec module: no students in specialization_registrations; showing all registered students.', [
-                        'course_id' => $courseId,
-                        'intake_id' => $intakeId,
-                        'location'  => $location,
-                    ]);
-                    $specializedStudentIds = null; // null = no filter = show all
-                }
-            } elseif (empty($specializedStudentIds)) {
-                Log::warning('Unable to resolve specialization student IDs for attendance student list; skipping specialization filter.', [
-                    'course_id'      => $courseId,
-                    'intake_id'      => $intakeId,
-                    'location'       => $location,
-                    'specialization' => $specialization,
-                ]);
-                $specializedStudentIds = null;
-            }
-        }
+        $specializedStudentIds = $this->resolveAttendanceSpecializationStudentIds(
+            $courseId,
+            $intakeId,
+            $location,
+            $specialization,
+            $moduleScope,
+            $course
+        );
 
         if (!$isCertificate && $course && $this->courseHasSpecializations($course) && !$specialization) {
             return response()->json([
@@ -429,36 +465,16 @@ class AttendanceController extends Controller
 
         // For certificate courses, fetch students directly from course_registration
         if ($isCertificate) {
-            Log::info('Certificate course query params:', [
-                'course_id' => $courseId,
-                'intake_id' => $intakeId,
-                'location' => $location
-            ]);
-
-            // First, check what statuses exist in the table
-            $allRegistrations = CourseRegistration::where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->where('location', $location)
-                ->get(['id', 'status']);
-
-            Log::info('All registrations for this course/intake/location:', $allRegistrations->toArray());
-
             $students = CourseRegistration::where('course_id', $courseId)
                 ->where('intake_id', $intakeId)
                 ->where('location', $location)
                 ->where('status', 'Registered')
                 ->with('student')
                 ->get()
-                ->map(function($reg) {
-                    return [
-                        'course_registration_id' => $reg->course_registration_id,
-                        'registration_number' => $reg->student->registration_id ?? $reg->student->student_id,
-                        'student_id' => $reg->student->student_id,
-                        'name_with_initials' => $reg->student->name_with_initials,
-                    ];
-                });
-
-            Log::info('Students found with status=Registered:', $students->toArray());
+                ->map(fn ($reg) => $this->mapAttendanceStudent($reg))
+                ->filter()
+                ->unique('student_id')
+                ->values();
 
             return response()->json([
                 'success' => true,
@@ -470,19 +486,9 @@ class AttendanceController extends Controller
         $semesterId = $request->semester;
         $moduleId = $request->module_id;
 
-        Log::info('Degree/Diploma course query params:', [
-            'course_id' => $courseId,
-            'intake_id' => $intakeId,
-            'location' => $location,
-            'semester_id' => $semesterId,
-            'module_id' => $moduleId,
-            'specialization' => $specialization
-        ]);
-
-        // Get the semester to determine if it's core or elective
         $semester = \App\Models\Semester::find($semesterId);
         if (!$semester) {
-            return response()->json(['error' => 'Semester not found.'], 404);
+            return response()->json(['success' => false, 'message' => 'Semester not found.'], 404);
         }
         $semesterStorageValue = $this->getAttendanceSemesterStorageValue($semester);
         $semesterLookupValues = $this->getAttendanceSemesterLookupValues($semester);
@@ -494,28 +500,9 @@ class AttendanceController extends Controller
         ], $semesterLookupValues, $semesterStorageValue);
 
         // Check if this is a core module (assigned to semester) or elective module
-        $isCoreModule = DB::table('semester_module')
-            ->join('modules', 'modules.module_id', '=', 'semester_module.module_id')
-            ->where('semester_module.semester_id', $semesterId)
-            ->where('semester_module.module_id', $moduleId)
-            ->whereIn('modules.module_type', ['core', 'special_unit_compulsory'])
-            ->exists();
-
-        Log::info('Module type check:', ['is_core_module' => $isCoreModule]);
+        $isCoreModule = $this->isCoreAttendanceModule($semesterId, $moduleId);
 
         if ($isCoreModule) {
-            // For core modules: Get students registered for the semester
-            Log::info('Querying SemesterRegistration for core module');
-
-            // Check all registrations first
-            $allSemRegs = \App\Models\SemesterRegistration::where('semester_id', $semesterId)
-                ->where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->where('location', $location)
-                ->get(['id', 'status']);
-
-            Log::info('All semester registrations:', $allSemRegs->toArray());
-
             $semesterRegistrationQuery = \App\Models\SemesterRegistration::where('semester_id', $semesterId)
                 ->where('semester_registrations.course_id', $courseId)
                 ->where('semester_registrations.intake_id', $intakeId)
@@ -535,30 +522,11 @@ class AttendanceController extends Controller
                 })
                 ->with('student')
                 ->get(['semester_registrations.*', 'cr.course_registration_id as course_registration_id'])
-                ->map(function($reg) {
-                    return [
-                        'course_registration_id' => $reg->course_registration_id,
-                        'registration_number' => $reg->student->registration_id ?? $reg->student->student_id,
-                        'student_id' => $reg->student->student_id,
-                        'name_with_initials' => $reg->student->name_with_initials,
-                    ];
-                });
-
-            Log::info('Students found for core module:', $students->toArray());
+                ->map(fn ($reg) => $this->mapAttendanceStudent($reg))
+                ->filter()
+                ->unique('student_id')
+                ->values();
         } else {
-            // For elective modules: Get students registered for the specific module
-            Log::info('Querying ModuleManagement for elective module');
-
-            // Check all module registrations first
-            $allModRegs = \App\Models\ModuleManagement::where('module_id', $moduleId)
-                ->where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->where('location', $location)
-                ->where('semester', $semester->name)
-                ->get(['id', 'student_id']);
-
-            Log::info('All module registrations:', $allModRegs->toArray());
-
             $moduleManagementQuery = \App\Models\ModuleManagement::where('module_id', $moduleId)
                 ->where('module_management.course_id', $courseId)
                 ->where('module_management.intake_id', $intakeId)
@@ -578,19 +546,11 @@ class AttendanceController extends Controller
                 })
                 ->with('student')
                 ->get(['module_management.*', 'cr.course_registration_id as course_registration_id'])
-                ->map(function($reg) {
-                    return [
-                        'course_registration_id' => $reg->course_registration_id,
-                        'registration_number' => $reg->student->registration_id ?? $reg->student->student_id,
-                        'student_id' => $reg->student->student_id,
-                        'name_with_initials' => $reg->student->name_with_initials,
-                    ];
-                });
-
-            Log::info('Students found for elective module:', $students->toArray());
+                ->map(fn ($reg) => $this->mapAttendanceStudent($reg))
+                ->filter()
+                ->unique('student_id')
+                ->values();
         }
-
-        Log::info('Final students count returned:', ['count' => $students->count()]);
 
         return response()->json([
             'success' => true,
@@ -639,6 +599,7 @@ class AttendanceController extends Controller
                 $deleteQuery = Attendance::where('date', $date)
                          ->where('course_id', $request->course_id)
                          ->where('intake_id', $request->intake_id)
+                         ->where('location', $request->location)
                          ->whereNull('semester')
                          ->whereNull('module_id');
 
@@ -719,6 +680,7 @@ class AttendanceController extends Controller
             $deleteQuery = Attendance::where('date', $date)
                      ->where('course_id', $request->course_id)
                      ->where('intake_id', $request->intake_id)
+                     ->where('location', $request->location)
                      ->whereIn('semester', $semesterLookupValues)
                      ->where('module_id', $request->module_id);
 
@@ -947,27 +909,20 @@ class AttendanceController extends Controller
             ], 422);
         }
 
-        $specializedStudentIds = null;
-        if ($specialization !== null) {
-            $specializedStudentIds = SpecializationStudentScope::resolveStudentIds(
-                $courseId,
-                $intakeId,
-                $location,
-                $specialization
-            );
-
-            if (empty($specializedStudentIds)) {
-                Log::warning('Unable to resolve specialization student IDs for overall attendance; skipping specialization filter.', [
-                    'course_id' => $courseId,
-                    'intake_id' => $intakeId,
-                    'location' => $location,
-                    'specialization' => $specialization,
-                    'semester_id' => $semesterId,
-                    'module_id' => $moduleId,
-                ]);
-                $specializedStudentIds = null;
-            }
-        }
+        $specializedStudentIds = $this->resolveAttendanceSpecializationStudentIds(
+            $courseId,
+            $intakeId,
+            $location,
+            $specialization,
+            (!$isCertificate && $semesterId && $moduleId)
+                ? DB::table('semester_module')
+                    ->where('semester_id', $semesterId)
+                    ->where('module_id', $moduleId)
+                    ->select('specialization', 'specializations')
+                    ->first()
+                : null,
+            $course
+        );
 
         if ($isCertificate) {
             // For certificate courses: Get all attendance sessions (no semester/module filter)
@@ -991,6 +946,9 @@ class AttendanceController extends Controller
 
             $attendanceData = [];
             foreach ($registrations as $reg) {
+                if (!$reg->student) {
+                    continue;
+                }
                 $attendedSessions = \App\Models\Attendance::where('course_id', $courseId)
                     ->where('intake_id', $intakeId)
                     ->where('location', $location)
@@ -1002,7 +960,7 @@ class AttendanceController extends Controller
                 $attendanceData[] = [
                     'student_id' => $reg->student_id,
                     'registration_number' => $reg->course_registration_id,
-                    'name_with_initials' => $reg->student->name_with_initials,
+                    'name_with_initials' => $reg->student->name_with_initials ?: $reg->student->full_name,
                     'total_sessions' => $totalSessions,
                     'attended_sessions' => $attendedSessions,
                     'percentage' => $totalSessions > 0 ? round(($attendedSessions / $totalSessions) * 100, 2) : 0
@@ -1078,13 +1036,7 @@ class AttendanceController extends Controller
             'module_id' => $moduleId,
         ], $semesterLookupValues, $semesterStorageValue);
 
-        // Check if this is a core module (assigned to semester) or elective module
-        $isCoreModule = DB::table('semester_module')
-            ->join('modules', 'modules.module_id', '=', 'semester_module.module_id')
-            ->where('semester_module.semester_id', $semesterId)
-            ->where('semester_module.module_id', $moduleId)
-            ->whereIn('modules.module_type', ['core', 'special_unit_compulsory'])
-            ->exists();
+        $isCoreModule = $this->isCoreAttendanceModule($semesterId, $moduleId);
 
         // Get all attendance sessions for this filter (by module)
         $attendanceSessions = \App\Models\Attendance::where('course_id', $courseId)
@@ -1127,6 +1079,9 @@ class AttendanceController extends Controller
 
         $attendanceData = [];
         foreach ($registrations as $reg) {
+            if (!$reg->student) {
+                continue;
+            }
             // Get the course registration ID from CourseRegistration table
             $courseReg = \App\Models\CourseRegistration::where('student_id', $reg->student_id)
                 ->where('course_id', $courseId)
@@ -1145,7 +1100,7 @@ class AttendanceController extends Controller
             $attendanceData[] = [
                 'student_id' => $reg->student_id,
                 'registration_number' => $courseReg ? $courseReg->course_registration_id : '',
-                'name_with_initials' => $reg->student->name_with_initials,
+                'name_with_initials' => $reg->student->name_with_initials ?: $reg->student->full_name,
                 'total_sessions' => $totalSessions,
                 'attended_sessions' => $attendedSessions,
                 'percentage' => $totalSessions > 0 ? round(($attendedSessions / $totalSessions) * 100, 2) : 0
@@ -1247,26 +1202,23 @@ class AttendanceController extends Controller
             ], 422);
         }
 
-        if ($specialization !== null) {
-            $specializedStudentIds = SpecializationStudentScope::resolveStudentIds(
-                $courseId,
-                $intakeId,
-                $location,
-                $specialization
-            );
-
-            if (empty($specializedStudentIds)) {
-                Log::warning('Unable to resolve specialization student IDs for attendance export; skipping specialization filter.', [
-                    'course_id' => $courseId,
-                    'intake_id' => $intakeId,
-                    'location' => $location,
-                    'specialization' => $specialization,
-                    'semester_id' => $semesterId,
-                    'module_id' => $moduleId,
-                ]);
-                $specializedStudentIds = null;
-            }
+        $moduleScope = null;
+        if (!$isCertificate && $semesterId && $moduleId) {
+            $moduleScope = DB::table('semester_module')
+                ->where('semester_id', $semesterId)
+                ->where('module_id', $moduleId)
+                ->select('specialization', 'specializations')
+                ->first();
         }
+
+        $specializedStudentIds = $this->resolveAttendanceSpecializationStudentIds(
+            $courseId,
+            $intakeId,
+            $location,
+            $specialization,
+            $moduleScope,
+            $course
+        );
 
         if ($isCertificate) {
             // For certificate courses: Get all attendance sessions (no semester/module filter)
@@ -1290,6 +1242,9 @@ class AttendanceController extends Controller
 
             $excelData = [];
             foreach ($registrations as $reg) {
+                if (!$reg->student) {
+                    continue;
+                }
                 $attendedSessions = \App\Models\Attendance::where('course_id', $courseId)
                     ->where('intake_id', $intakeId)
                     ->where('location', $location)
@@ -1300,8 +1255,8 @@ class AttendanceController extends Controller
                     ->count();
 
                 $excelData[] = [
-                    $reg->student->registration_id ?? $reg->student->student_id,
-                    $reg->student->name_with_initials,
+                    $reg->course_registration_id ?? $this->resolveCourseRegistrationId($reg->student_id, $courseId, $intakeId, $location) ?? $reg->student->student_id,
+                    $reg->student->name_with_initials ?: $reg->student->full_name,
                     $totalSessions,
                     $attendedSessions,
                     $totalSessions > 0 ? round(($attendedSessions / $totalSessions) * 100, 2) . '%' : '0%'
@@ -1333,13 +1288,7 @@ class AttendanceController extends Controller
             'module_id' => $moduleId,
         ], $semesterLookupValues, $semesterStorageValue);
 
-        // Check if this is a core module (assigned to semester) or elective module
-        $isCoreModule = DB::table('semester_module')
-            ->join('modules', 'modules.module_id', '=', 'semester_module.module_id')
-            ->where('semester_module.semester_id', $semesterId)
-            ->where('semester_module.module_id', $moduleId)
-            ->whereIn('modules.module_type', ['core', 'special_unit_compulsory'])
-            ->exists();
+        $isCoreModule = $this->isCoreAttendanceModule($semesterId, $moduleId);
 
         // Get all attendance sessions for this filter (by module)
         $attendanceSessions = \App\Models\Attendance::where('course_id', $courseId)
@@ -1382,6 +1331,9 @@ class AttendanceController extends Controller
 
         $excelData = [];
         foreach ($registrations as $reg) {
+            if (!$reg->student) {
+                continue;
+            }
             $attendedSessions = \App\Models\Attendance::where('course_id', $courseId)
                 ->where('intake_id', $intakeId)
                 ->where('location', $location)
@@ -1392,8 +1344,8 @@ class AttendanceController extends Controller
                 ->count();
 
             $excelData[] = [
-                $reg->student->registration_id ?? $reg->student->student_id,
-                $reg->student->name_with_initials,
+                $this->resolveCourseRegistrationId($reg->student_id, $courseId, $intakeId, $location) ?? $reg->student->student_id,
+                $reg->student->name_with_initials ?: $reg->student->full_name,
                 $totalSessions,
                 $attendedSessions,
                 $totalSessions > 0 ? round(($attendedSessions / $totalSessions) * 100, 2) . '%' : '0%'
@@ -1469,7 +1421,7 @@ class AttendanceController extends Controller
                         if ($reg->student) {
                             $students->push([
                                 $reg->course_registration_id ?? $reg->student->registration_id ?? $reg->student->student_id,
-                                $reg->student->name_with_initials
+                                $reg->student->name_with_initials ?: $reg->student->full_name
                             ]);
                         }
                     }
@@ -1480,12 +1432,26 @@ class AttendanceController extends Controller
                         $semester = \App\Models\Semester::find($semesterId);
                     }
 
-                    // detect if core module
-                    if ($semester) {
-                        $isCore = DB::table('semester_module')->where('semester_id', $semesterId)->where('module_id', $moduleId)->exists();
-                    } else {
-                        $isCore = DB::table('semester_module')->where('module_id', $moduleId)->exists();
-                    }
+                    $isCore = $semester
+                        ? $this->isCoreAttendanceModule($semesterId, $moduleId)
+                        : false;
+
+                    $moduleScope = $semester
+                        ? DB::table('semester_module')
+                            ->where('semester_id', $semesterId)
+                            ->where('module_id', $moduleId)
+                            ->select('specialization', 'specializations')
+                            ->first()
+                        : null;
+
+                    $specializedStudentIds = $this->resolveAttendanceSpecializationStudentIds(
+                        $courseId,
+                        $intakeId,
+                        $location,
+                        $specialization,
+                        $moduleScope,
+                        $course
+                    );
 
                     if ($isCore && $semester) {
                         $semesterRegistrationQuery = \App\Models\SemesterRegistration::where('semester_id', $semesterId)
@@ -1494,34 +1460,19 @@ class AttendanceController extends Controller
                             ->where('location', $location)
                             ->where('status', 'registered');
 
-                        if ($specialization !== null) {
-                            $specializedStudentIds = SpecializationStudentScope::resolveStudentIds(
-                                $courseId,
-                                $intakeId,
-                                $location,
-                                $specialization
-                            );
-
-                            if (is_array($specializedStudentIds)) {
-                                $semesterRegistrationQuery->whereIn('semester_registrations.student_id', $specializedStudentIds);
-                            }
+                        if (is_array($specializedStudentIds)) {
+                            $semesterRegistrationQuery->whereIn('student_id', $specializedStudentIds);
                         }
 
-                        $regs = $semesterRegistrationQuery
-                            ->leftJoin('course_registration as cr', function($join) {
-                                $join->on('semester_registrations.student_id', '=', 'cr.student_id')
-                                    ->on('semester_registrations.course_id', '=', 'cr.course_id')
-                                    ->on('semester_registrations.intake_id', '=', 'cr.intake_id')
-                                    ->on('semester_registrations.location', '=', 'cr.location');
-                            })
-                            ->with('student')
-                            ->get(['semester_registrations.*', 'cr.course_registration_id as course_registration_id']);
+                        $regs = $semesterRegistrationQuery->with('student')->get();
 
                         foreach ($regs as $r) {
                             if ($r->student) {
                                 $students->push([
-                                    $r->course_registration_id ?? $r->student->registration_id ?? $r->student->student_id,
-                                    $r->student->name_with_initials
+                                    $this->resolveCourseRegistrationId($r->student_id, $courseId, $intakeId, $location)
+                                        ?? $r->student->registration_id
+                                        ?? $r->student->student_id,
+                                    $r->student->name_with_initials ?: $r->student->full_name
                                 ]);
                             }
                         }
@@ -1530,35 +1481,22 @@ class AttendanceController extends Controller
                             ->where('course_id', $courseId)
                             ->where('intake_id', $intakeId)
                             ->where('location', $location)
-                            ->when($semester, function($q) use ($semester) { return $q->where('semester', $semester->name); });
+                            ->when($semester, function($q) use ($semester) {
+                                return $q->where('semester', $this->getAttendanceSemesterStorageValue($semester));
+                            });
 
-                        if ($specialization !== null) {
-                            $specializedStudentIds = SpecializationStudentScope::resolveStudentIds(
-                                $courseId,
-                                $intakeId,
-                                $location,
-                                $specialization
-                            );
-
-                            if (is_array($specializedStudentIds)) {
-                                $moduleManagementQuery->whereIn('module_management.student_id', $specializedStudentIds);
-                            }
+                        if (is_array($specializedStudentIds)) {
+                            $moduleManagementQuery->whereIn('student_id', $specializedStudentIds);
                         }
 
-                        $mods = $moduleManagementQuery
-                            ->leftJoin('course_registration as cr', function($join) {
-                                $join->on('module_management.student_id', '=', 'cr.student_id')
-                                    ->on('module_management.course_id', '=', 'cr.course_id')
-                                    ->on('module_management.intake_id', '=', 'cr.intake_id')
-                                    ->on('module_management.location', '=', 'cr.location');
-                            })
-                            ->with('student')
-                            ->get(['module_management.*', 'cr.course_registration_id as course_registration_id']);
+                        $mods = $moduleManagementQuery->with('student')->get();
                         foreach ($mods as $m) {
                             if ($m->student) {
                                 $students->push([
-                                    $m->course_registration_id ?? $m->student->registration_id ?? $m->student->student_id,
-                                    $m->student->name_with_initials
+                                    $this->resolveCourseRegistrationId($m->student_id, $courseId, $intakeId, $location)
+                                        ?? $m->student->registration_id
+                                        ?? $m->student->student_id,
+                                    $m->student->name_with_initials ?: $m->student->full_name
                                 ]);
                             }
                         }
@@ -1583,8 +1521,9 @@ class AttendanceController extends Controller
         }
 
         // Add data validation dropdown for the attendance column (column D)
-        $highestRow = max($sheet->getHighestRow(), 100); // create at least some rows to use
-        for ($row = 2; $row <= $highestRow; $row++) {
+        $highestRow = max((int) $sheet->getHighestRow(), 2);
+        $validationEnd = max($highestRow + 20, 22);
+        for ($row = 2; $row <= $validationEnd; $row++) {
             $validation = $sheet->getCell('D' . $row)->getDataValidation();
             $validation->setType(DataValidation::TYPE_LIST);
             $validation->setErrorStyle(DataValidation::STYLE_STOP);
@@ -1600,14 +1539,13 @@ class AttendanceController extends Controller
         }
 
         $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
-
         $filename = 'attendance_import_template_' . date('Y-m-d') . '.xlsx';
-        // Stream to browser
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment;filename="' . $filename . '"');
-        header('Cache-Control: max-age=0');
-        $writer->save('php://output');
-        exit;
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     /**
@@ -1731,6 +1669,9 @@ class AttendanceController extends Controller
 
                 if ($courseRegId) {
                     $courseReg = \App\Models\CourseRegistration::where('course_registration_id', $courseRegId)
+                        ->where('course_id', $request->course_id)
+                        ->where('intake_id', $request->intake_id)
+                        ->where('location', $request->location)
                         ->first();
                     if ($courseReg) {
                         $student = \App\Models\Student::where('student_id', $courseReg->student_id)->first();
@@ -1793,7 +1734,8 @@ class AttendanceController extends Controller
             // Delete existing for that date/intake (and module if not certificate)
             $deleteQuery = Attendance::where('date', $date->toDateString())
                 ->where('course_id', $request->course_id)
-                ->where('intake_id', $request->intake_id);
+                ->where('intake_id', $request->intake_id)
+                ->where('location', $request->location);
 
             if ($isCertificate) {
                 $deleteQuery->whereNull('semester')
@@ -1831,11 +1773,18 @@ class AttendanceController extends Controller
             foreach ($attendanceRecords as $record) {
                 $student = \App\Models\Student::find($record['student_id']);
                 if ($student) {
+                    $courseRegistrationId = $this->resolveCourseRegistrationId(
+                        $student->student_id,
+                        $request->course_id,
+                        $request->intake_id,
+                        $request->location
+                    );
                     $studentsForDisplay[] = [
                         'student_id' => $student->student_id,
-                        'registration_number' => $student->registration_id ?? $student->student_id,
-                        'name_with_initials' => $student->name_with_initials,
-                        'status' => $record['status']
+                        'course_registration_id' => $courseRegistrationId,
+                        'registration_number' => $courseRegistrationId ?? $student->registration_id ?? $student->student_id,
+                        'name_with_initials' => $student->name_with_initials ?: $student->full_name,
+                        'status' => (bool) $record['status']
                     ];
                 }
             }
