@@ -33,7 +33,7 @@ class PaymentSummaryController extends Controller
         $endDateInput = $request->input('end_date');
         $breakdownScope = $request->input('breakdown_scope', 'paid');
 
-        $startDate = $this->getDateFromRange($range);
+        $startDate = in_array($range, ['10y', 'all', ''], true) ? null : $this->getDateFromRange($range);
 
         return $this->generateAdvancedSummary(null, $startDate, [
             'payment_method' => $paymentMethod,
@@ -64,7 +64,7 @@ class PaymentSummaryController extends Controller
         $endDateInput = $request->input('end_date');
         $breakdownScope = $request->input('breakdown_scope', 'paid');
 
-        $startDate = $this->getDateFromRange($range);
+        $startDate = in_array($range, ['10y', 'all', ''], true) ? null : $this->getDateFromRange($range);
 
         return $this->generateAdvancedSummary($studentId, $startDate, [
             'payment_method' => $paymentMethod,
@@ -95,6 +95,7 @@ class PaymentSummaryController extends Controller
 
         return response()->json([
             'success' => true,
+            'data' => $courses,
             'courses' => $courses,
             'message' => $courses->isEmpty() ? 'No courses found.' : 'Courses loaded successfully.'
         ]);
@@ -508,7 +509,7 @@ class PaymentSummaryController extends Controller
         }
 
         $range = $request->input('range', '1y');
-        $startDate = $this->getDateFromRange($range);
+        $startDate = in_array($range, ['10y', 'all', ''], true) ? null : $this->getDateFromRange($range);
 
         // DomPDF holds the complete document tree in memory.  Rendering every
         // transaction in a long date range can exhaust PHP memory, so keep the
@@ -526,7 +527,7 @@ class PaymentSummaryController extends Controller
         return $this->exportPDF($payments, $totalRecords);
     }
 
-    private function buildExportPaymentsQuery(Request $request, Carbon $startDate)
+    private function buildExportPaymentsQuery(Request $request, ?Carbon $startDate = null)
     {
         $table = $this->getPaymentDetailsTable();
         $dashboardDateExpr = $this->getDashboardDateSqlExpression($table);
@@ -535,8 +536,10 @@ class PaymentSummaryController extends Controller
         $studentSearch = trim((string) $request->input('student_id', ''));
         if ($studentSearch !== '') {
             $matchingStudentIds = Student::query()
-                ->where('id_value', $studentSearch)
-                ->orWhere('student_id', $studentSearch)
+                ->where(function ($q) use ($studentSearch) {
+                    $q->where('id_value', $studentSearch)
+                        ->orWhere('student_id', $studentSearch);
+                })
                 ->pluck('student_id')
                 ->unique()
                 ->values();
@@ -559,7 +562,7 @@ class PaymentSummaryController extends Controller
             if ($endDateInput) {
                 $query->whereRaw("DATE({$dashboardDateExpr}) <= ?", [$endDateInput]);
             }
-        } else {
+        } elseif ($startDate) {
             $query->whereRaw("DATE({$dashboardDateExpr}) >= ?", [$startDate->toDateString()]);
         }
 
@@ -722,8 +725,10 @@ class PaymentSummaryController extends Controller
         $studentSearch = trim((string) ($filters['student_id'] ?? $studentId ?? ''));
         if ($studentSearch !== '') {
             $matchingStudentIds = Student::query()
-                ->where('id_value', $studentSearch)
-                ->orWhere('student_id', $studentSearch)
+                ->where(function ($q) use ($studentSearch) {
+                    $q->where('id_value', $studentSearch)
+                        ->orWhere('student_id', $studentSearch);
+                })
                 ->pluck('student_id')
                 ->unique()
                 ->values();
@@ -1084,8 +1089,9 @@ class PaymentSummaryController extends Controller
             ->orderBy('course_name')
             ->get();
 
-        $intakeQuery = $selectedCourseId
-            ? Intake::forCourse(Course::findOrFail($selectedCourseId), $selectedLocation)
+        $selectedCourse = $selectedCourseId ? Course::find($selectedCourseId) : null;
+        $intakeQuery = $selectedCourse
+            ? Intake::forCourse($selectedCourse, $selectedLocation)
             : Intake::query()->when($selectedLocation, function ($q) use ($selectedLocation) {
                 $q->where('location', $selectedLocation);
             });

@@ -3,7 +3,7 @@
 @section('title', 'Payment Dashboard - Advanced Analytics')
 
 @section('content')
-<div id="payment-summary" class="container-fluid mt-4 mb-5">
+<div id="payment-summary" class="container-fluid px-2 px-md-3 mt-4 mb-5">
     {{-- Header with Actions --}}
     <div class="card shadow-sm border-0 mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
         <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3 text-white">
@@ -11,7 +11,7 @@
                 <h2 class="mb-1">💰 Payment Analytics Dashboard</h2>
                 <p class="text-white-50 mb-0">Real-time insights and comprehensive reports</p>
             </div>
-            <div class="d-flex flex-wrap gap-2">
+            <div class="d-flex flex-wrap gap-2 payment-summary-header-actions">
                 <a href="{{ route('payment.analytics') }}" class="btn btn-outline-light">
                     <i class="bi bi-graph-up"></i> Advanced Analytics
                 </a>
@@ -78,9 +78,9 @@
                     <label class="form-label small text-muted">Location</label>
                     <select class="form-select" id="locationFilter" name="location">
                         <option value="">All Locations</option>
-                        <option value="Welisara">Welisara</option>
-                        <option value="Moratuwa">Moratuwa</option>
-                        <option value="Peradeniya">Peradeniya</option>
+                        <option value="Welisara">Nebula Institute of Technology - Welisara</option>
+                        <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
+                        <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -109,7 +109,7 @@
                     </select>
                 </div>
             </div>
-            <div class="mt-3 text-end">
+            <div class="mt-3 payment-summary-filter-actions">
                 <button class="btn btn-sm btn-primary btn-apply-filters">
                     <i class="bi bi-funnel"></i> Apply Filters
                 </button>
@@ -253,9 +253,9 @@
                     <label class="form-label small text-muted mb-1">Location</label>
                     <select class="form-select form-select-sm" id="kpiLocation">
                         <option value="">All Locations</option>
-                        <option value="Welisara">Welisara</option>
-                        <option value="Moratuwa">Moratuwa</option>
-                        <option value="Peradeniya">Peradeniya</option>
+                        <option value="Welisara">Nebula Institute of Technology - Welisara</option>
+                        <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
+                        <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
                     </select>
                 </div>
 
@@ -507,7 +507,9 @@
                             </div>
                         </div>
                     </div>
-                    <canvas id="monthlyChart" height="80"></canvas>
+                    <div class="chart-wrap">
+                        <canvas id="monthlyChart" height="80"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -518,7 +520,9 @@
                     <h6 class="fw-bold mb-0">📈 Payment Status</h6>
                 </div>
                 <div class="card-body">
-                    <canvas id="statusChart" height="200"></canvas>
+                    <div class="chart-wrap">
+                        <canvas id="statusChart" height="200"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -533,7 +537,9 @@
                     <small id="methodsScopeIndicator" class="text-muted d-block mt-1">Scope: Paid Only</small>
                 </div>
                 <div class="card-body">
-                    <canvas id="methodChart" height="200"></canvas>
+                    <div class="chart-wrap">
+                        <canvas id="methodChart" height="200"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -545,7 +551,9 @@
                     <small id="typesScopeIndicator" class="text-muted d-block mt-1">Scope: Paid Only</small>
                 </div>
                 <div class="card-body">
-                    <canvas id="typeChart" height="200"></canvas>
+                    <div class="chart-wrap">
+                        <canvas id="typeChart" height="200"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -573,7 +581,9 @@
                             </div>
                         </div>
                     </div>
-                    <canvas id="weeklyChart" height="200"></canvas>
+                    <div class="chart-wrap">
+                        <canvas id="weeklyChart" height="200"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -690,19 +700,47 @@ document.addEventListener('DOMContentLoaded', function() {
     const initialCourseOptions = courseFilter ? courseFilter.innerHTML : '<option value="">All Courses</option>';
     const initialIntakeOptions = intakeFilter ? intakeFilter.innerHTML : '<option value="">All Intakes</option>';
 
+    function courseListFromPayload(payload) {
+        if (payload && Array.isArray(payload.data)) return payload.data;
+        if (payload && Array.isArray(payload.courses)) return payload.courses;
+        return [];
+    }
+
+    function syncCustomSelect(select) {
+        if (!select) return;
+        const selected = select.options[select.selectedIndex];
+        const wrap = select.closest('.nebula-select');
+        const toggle = wrap ? wrap.querySelector('.nebula-select-toggle') : null;
+        if (toggle) {
+            toggle.textContent = selected ? selected.text : '';
+            toggle.title = toggle.textContent;
+            toggle.disabled = !!select.disabled;
+            wrap.classList.toggle('is-disabled', !!select.disabled);
+        }
+    }
+
     async function loadCoursesByLocation(location, selectedCourseId = '') {
         if (!courseFilter) return;
 
         courseFilter.innerHTML = '<option value="">Loading courses...</option>';
         courseFilter.disabled = true;
+        syncCustomSelect(courseFilter);
 
-        if (!intakeFilter) return;
-        intakeFilter.innerHTML = '<option value="">All Intakes</option>';
-        intakeFilter.disabled = true;
+        if (intakeFilter) {
+            intakeFilter.innerHTML = '<option value="">All Intakes</option>';
+            intakeFilter.disabled = true;
+            syncCustomSelect(intakeFilter);
+        }
 
         if (!location) {
             courseFilter.innerHTML = initialCourseOptions;
             courseFilter.disabled = false;
+            syncCustomSelect(courseFilter);
+            if (intakeFilter) {
+                intakeFilter.innerHTML = initialIntakeOptions;
+                intakeFilter.disabled = false;
+                syncCustomSelect(intakeFilter);
+            }
             return;
         }
 
@@ -711,22 +749,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const payload = await response.json();
 
             courseFilter.innerHTML = '<option value="">All Courses</option>';
-            if (payload.success && Array.isArray(payload.data)) {
-                payload.data.forEach(course => {
-                    const option = document.createElement('option');
-                    option.value = String(course.course_id);
-                    option.textContent = course.course_name;
-                    if (selectedCourseId && String(course.course_id) === String(selectedCourseId)) {
-                        option.selected = true;
-                    }
-                    courseFilter.appendChild(option);
-                });
-            }
+            courseListFromPayload(payload).forEach(course => {
+                const option = document.createElement('option');
+                option.value = String(course.course_id);
+                option.textContent = course.course_name;
+                if (selectedCourseId && String(course.course_id) === String(selectedCourseId)) {
+                    option.selected = true;
+                }
+                courseFilter.appendChild(option);
+            });
             courseFilter.disabled = false;
+            syncCustomSelect(courseFilter);
         } catch (error) {
             console.error('Failed to load courses by location:', error);
             courseFilter.innerHTML = '<option value="">All Courses</option>';
             courseFilter.disabled = false;
+            syncCustomSelect(courseFilter);
         }
     }
 
@@ -735,10 +773,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         intakeFilter.innerHTML = '<option value="">Loading intakes...</option>';
         intakeFilter.disabled = true;
+        syncCustomSelect(intakeFilter);
 
         if (!location || !courseId) {
             intakeFilter.innerHTML = initialIntakeOptions;
             intakeFilter.disabled = false;
+            syncCustomSelect(intakeFilter);
             return;
         }
 
@@ -759,10 +799,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             intakeFilter.disabled = false;
+            syncCustomSelect(intakeFilter);
         } catch (error) {
             console.error('Failed to load intakes by location and course:', error);
             intakeFilter.innerHTML = '<option value="">All Intakes</option>';
             intakeFilter.disabled = false;
+            syncCustomSelect(intakeFilter);
         }
     }
 
@@ -778,7 +820,9 @@ document.addEventListener('DOMContentLoaded', function() {
         typesIndicator.textContent = 'Scope: ' + scopeLabel;
     }
     
-    // Restore filter values from URL (except student_id)
+    if (urlParams.has('student_id')) {
+        document.getElementById('studentFilter').value = urlParams.get('student_id');
+    }
     if (urlParams.has('range')) {
         document.getElementById('rangeFilter').value = urlParams.get('range');
     }
@@ -803,6 +847,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('breakdownScopeFilter').value = urlParams.get('breakdown_scope');
     }
 
+    [
+        'rangeFilter', 'methodFilter', 'statusFilter', 'locationFilter',
+        'courseFilter', 'intakeFilter', 'breakdownScopeFilter'
+    ].forEach(function (id) {
+        syncCustomSelect(document.getElementById(id));
+    });
 
     (async function initializeDependentFilters() {
         const selectedLocation = locationFilter ? locationFilter.value : '';
@@ -851,12 +901,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ========== CHART INITIALIZATION ==========
 document.addEventListener("DOMContentLoaded", () => {
-    const paymentByMethod = @json($paymentByMethod);
-    const paymentByType = @json($paymentByType);
-    const paymentByStatus = @json($paymentByStatus ?? []);
-    const monthlyIncome = @json($monthlyIncome);
-    const weeklyTrend = @json($weeklyTrend ?? []);
-    const districtAnalytics = @json($districtAnalytics ?? []);
+    const asArray = (value) => {
+        if (Array.isArray(value)) return value;
+        if (value && typeof value === 'object') return Object.values(value);
+        return [];
+    };
+
+    const paymentByMethod = asArray(@json($paymentByMethod ?? []));
+    const paymentByType = asArray(@json($paymentByType ?? []));
+    const paymentByStatus = asArray(@json($paymentByStatus ?? []));
+    const monthlyIncome = asArray(@json($monthlyIncome ?? []));
+    const weeklyTrend = asArray(@json($weeklyTrend ?? []));
+    const districtAnalytics = asArray(@json($districtAnalytics ?? []));
 
     const districtCoordinates = {
         'Jaffna': { lat: 9.6615, lng: 80.0255 },
@@ -962,10 +1018,13 @@ document.addEventListener("DOMContentLoaded", () => {
             markerLayer.appendChild(marker);
 
             const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${item.district}</td>
-                <td class="text-end">${item.student_count.toLocaleString()}</td>
-            `;
+            const districtCell = document.createElement('td');
+            districtCell.textContent = item.district;
+            const countCell = document.createElement('td');
+            countCell.className = 'text-end';
+            countCell.textContent = item.student_count.toLocaleString();
+            row.appendChild(districtCell);
+            row.appendChild(countCell);
             row.addEventListener('mouseenter', () => updateDistrictHighlight(item));
             row.addEventListener('click', () => updateDistrictHighlight(item));
             tableBody.appendChild(row);
@@ -976,18 +1035,38 @@ document.addEventListener("DOMContentLoaded", () => {
             .sort((a, b) => b.student_count - a.student_count)
             .slice(0, 6);
 
-        topList.innerHTML = ranked.length
-            ? ranked.map((item, index) => `
-                <div class="district-top-item">
-                    <div class="district-top-rank">${index + 1}</div>
-                    <div class="district-top-content">
-                        <div class="district-top-name">${item.district}</div>
-                        <div class="district-top-meta">${item.student_count} students</div>
-                    </div>
-                    <div class="district-top-amount">${item.student_count}</div>
-                </div>
-            `).join('')
-            : '<div class="text-muted small">No district activity found for the selected filters.</div>';
+        topList.replaceChildren();
+        if (!ranked.length) {
+            const empty = document.createElement('div');
+            empty.className = 'text-muted small';
+            empty.textContent = 'No district activity found for the selected filters.';
+            topList.appendChild(empty);
+        } else {
+            ranked.forEach((item, index) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'district-top-item';
+                const rank = document.createElement('div');
+                rank.className = 'district-top-rank';
+                rank.textContent = String(index + 1);
+                const content = document.createElement('div');
+                content.className = 'district-top-content';
+                const name = document.createElement('div');
+                name.className = 'district-top-name';
+                name.textContent = item.district;
+                const meta = document.createElement('div');
+                meta.className = 'district-top-meta';
+                meta.textContent = item.student_count + ' students';
+                content.appendChild(name);
+                content.appendChild(meta);
+                const amount = document.createElement('div');
+                amount.className = 'district-top-amount';
+                amount.textContent = String(item.student_count);
+                wrap.appendChild(rank);
+                wrap.appendChild(content);
+                wrap.appendChild(amount);
+                topList.appendChild(wrap);
+            });
+        }
 
         const initial = ranked[0] || items[0] || {
             district: 'All districts',
@@ -1006,20 +1085,118 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('district-highlight-students').textContent = Number(item.student_count || 0).toLocaleString();
     }
 
-    renderDistrictMap(districtMapData);
+    try {
+        renderDistrictMap(districtMapData);
+    } catch (error) {
+        console.error('District map failed:', error);
+    }
 
-    // Chart.js default options
+    const methodRows = paymentByMethod;
+    const typeRows = paymentByType;
+    const statusRows = paymentByStatus;
+    const monthlyRows = monthlyIncome;
+    const weeklyRows = weeklyTrend;
+
+    // ========== MONTHLY & WEEKLY TREND METRIC COMPUTATIONS ==========
+    // Calculate Monthly Trend Metrics
+    if (monthlyRows.length > 0) {
+        const len = monthlyRows.length;
+        const currentMonthData = monthlyRows[len - 1];
+        const prevMonthData = len > 1 ? monthlyRows[len - 2] : null;
+
+        const thisMonthPaid = Number(currentMonthData.paid || 0);
+        const thisMonthTotal = thisMonthPaid;
+        const lastMonthPaid = prevMonthData ? Number(prevMonthData.paid || 0) : 0;
+
+        document.getElementById('monthlyThisMonthVal').textContent = formatCurrency(thisMonthTotal);
+        document.getElementById('monthlyLastMonthVal').textContent = formatCurrency(lastMonthPaid);
+        document.getElementById('monthlyLastMonthName').textContent = prevMonthData ? `For ${prevMonthData.month}` : 'No previous data';
+
+        let momGrowthHtml = '';
+        if (lastMonthPaid > 0) {
+            const pctChange = ((thisMonthTotal - lastMonthPaid) / lastMonthPaid) * 100;
+            const sign = pctChange >= 0 ? '+' : '';
+            const badgeClass = pctChange >= 0 ? 'text-success' : 'text-danger';
+            const icon = pctChange >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-left';
+            momGrowthHtml = `<span class="${badgeClass} fw-bold" style="font-size: 0.8rem;"><i class="bi ${icon}"></i> ${sign}${pctChange.toFixed(1)}% MoM</span>`;
+        } else {
+            momGrowthHtml = `<span class="text-muted small" style="font-size: 0.8rem;">New series</span>`;
+        }
+        document.getElementById('monthlyGrowthBadge').innerHTML = momGrowthHtml;
+
+        const totalPaid = monthlyRows.reduce((sum, item) => sum + Number(item.paid || 0), 0);
+        const avgPaid = totalPaid / len;
+        document.getElementById('monthlyAvgVal').textContent = formatCurrency(avgPaid);
+        document.getElementById('monthlySpanLabel').textContent = `Avg over ${len} month${len > 1 ? 's' : ''}`;
+    } else {
+        document.getElementById('monthlyThisMonthVal').textContent = 'LKR 0.00';
+        document.getElementById('monthlyLastMonthVal').textContent = 'LKR 0.00';
+        document.getElementById('monthlyAvgVal').textContent = 'LKR 0.00';
+    }
+
+    if (weeklyRows.length > 0) {
+        const currentWeekData = weeklyRows[0];
+        const prevWeekData = weeklyRows.length > 1 ? weeklyRows[1] : null;
+
+        const thisWeekTotal = Number(currentWeekData.total || 0);
+        const lastWeekTotal = prevWeekData ? Number(prevWeekData.total || 0) : 0;
+
+        document.getElementById('weeklyThisWeekVal').textContent = formatCurrency(thisWeekTotal);
+        document.getElementById('weeklyLastWeekVal').textContent = formatCurrency(lastWeekTotal);
+
+        const formatWeekName = (weekStr) => {
+            if (!weekStr) return '';
+            const s = String(weekStr);
+            if (s.length >= 6) {
+                return `Week ${s.slice(4)} (${s.slice(0, 4)})`;
+            }
+            return 'Week ' + s;
+        };
+
+        document.getElementById('weeklyLastWeekName').textContent = prevWeekData ? formatWeekName(prevWeekData.week) : 'No previous data';
+
+        let wowGrowthHtml = '';
+        if (lastWeekTotal > 0) {
+            const pctChange = ((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100;
+            const sign = pctChange >= 0 ? '+' : '';
+            const badgeClass = pctChange >= 0 ? 'text-success' : 'text-danger';
+            const icon = pctChange >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-left';
+            wowGrowthHtml = `<span class="${badgeClass} fw-bold" style="font-size: 0.8rem;"><i class="bi ${icon}"></i> ${sign}${pctChange.toFixed(1)}% WoW</span>`;
+        } else {
+            wowGrowthHtml = `<span class="text-muted small" style="font-size: 0.8rem;">New series</span>`;
+        }
+        document.getElementById('weeklyGrowthBadge').innerHTML = wowGrowthHtml;
+    } else {
+        document.getElementById('weeklyThisWeekVal').textContent = 'LKR 0.00';
+        document.getElementById('weeklyLastWeekVal').textContent = 'LKR 0.00';
+    }
+
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js failed to load');
+        return;
+    }
+
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#6c757d';
 
+    function initChart(canvasId, config) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        try {
+            new Chart(canvas, config);
+        } catch (error) {
+            console.error('Chart init failed for ' + canvasId, error);
+        }
+    }
+
     // ---- Monthly Collection Trend (Line + Bar) ----
-    new Chart(document.getElementById('monthlyChart'), {
+    initChart('monthlyChart', {
         type: 'line',
         data: {
-            labels: monthlyIncome.map(p => p.month),
+            labels: monthlyRows.map(p => p.month),
             datasets: [{
                 label: 'Paid',
-                data: monthlyIncome.map(p => p.paid),
+                data: monthlyRows.map(p => p.paid),
                 borderColor: '#667eea',
                 backgroundColor: 'rgba(102, 126, 234, 0.1)',
                 fill: true,
@@ -1027,7 +1204,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 borderWidth: 2
             }, {
                 label: 'Pending',
-                data: monthlyIncome.map(p => p.pending),
+                data: monthlyRows.map(p => p.pending),
                 borderColor: '#f6c23e',
                 backgroundColor: 'rgba(246, 194, 62, 0.1)',
                 fill: true,
@@ -1078,12 +1255,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---- Payment Status (Doughnut) ----
-    new Chart(document.getElementById('statusChart'), {
+    initChart('statusChart', {
         type: 'doughnut',
         data: {
-            labels: paymentByStatus.map(p => p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : 'Unknown'),
+            labels: statusRows.map(p => p.status ? p.status.charAt(0).toUpperCase() + p.status.slice(1) : 'Unknown'),
             datasets: [{
-                data: paymentByStatus.map(p => p.total),
+                data: statusRows.map(p => p.total),
                 backgroundColor: ['#1cc88a', '#f6c23e', '#e74a3b', '#858796'],
                 borderWidth: 0
             }]
@@ -1113,10 +1290,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---- Payment Methods (Pie) ----
-    new Chart(document.getElementById('methodChart'), {
+    initChart('methodChart', {
         type: 'pie',
         data: {
-            labels: paymentByMethod.map(p => {
+            labels: methodRows.map(p => {
                 const methods = {
                     'cash': 'Cash',
                     'cheque': 'Cheque',
@@ -1127,7 +1304,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return methods[p.payment_method] || p.payment_method || 'Unknown';
             }),
             datasets: [{
-                data: paymentByMethod.map(p => p.total),
+                data: methodRows.map(p => p.total),
                 backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
                 borderWidth: 0
             }]
@@ -1153,12 +1330,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---- Payment Types (Doughnut) ----
-    new Chart(document.getElementById('typeChart'), {
+    initChart('typeChart', {
         type: 'doughnut',
         data: {
-            labels: paymentByType.map(p => p.type || 'Unknown'),
+            labels: typeRows.map(p => p.type || 'Unknown'),
             datasets: [{
-                data: paymentByType.map(p => p.total),
+                data: typeRows.map(p => p.total),
                 backgroundColor: ['#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#20c997'],
                 borderWidth: 0
             }]
@@ -1185,13 +1362,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---- Weekly Trend (Bar) ----
-    new Chart(document.getElementById('weeklyChart'), {
+    initChart('weeklyChart', {
         type: 'bar',
         data: {
-            labels: weeklyTrend.map(p => 'Week ' + p.week),
+            labels: weeklyRows.map(p => 'Week ' + p.week),
             datasets: [{
                 label: 'Weekly Revenue',
-                data: weeklyTrend.map(p => p.total),
+                data: weeklyRows.map(p => p.total),
                 backgroundColor: 'rgba(78, 115, 223, 0.8)',
                 borderRadius: 5
             }]
@@ -1220,85 +1397,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     });
-
-    // ========== MONTHLY & WEEKLY TREND METRIC COMPUTATIONS ==========
-    // Calculate Monthly Trend Metrics
-    if (Array.isArray(monthlyIncome) && monthlyIncome.length > 0) {
-        const len = monthlyIncome.length;
-        const currentMonthData = monthlyIncome[len - 1];
-        const prevMonthData = len > 1 ? monthlyIncome[len - 2] : null;
-
-        const thisMonthPaid = Number(currentMonthData.paid || 0);
-        const thisMonthTotal = thisMonthPaid; 
-        const lastMonthPaid = prevMonthData ? Number(prevMonthData.paid || 0) : 0;
-
-        document.getElementById('monthlyThisMonthVal').textContent = formatCurrency(thisMonthTotal);
-        document.getElementById('monthlyLastMonthVal').textContent = formatCurrency(lastMonthPaid);
-        document.getElementById('monthlyLastMonthName').textContent = prevMonthData ? `For ${prevMonthData.month}` : 'No previous data';
-
-        // MoM Growth
-        let momGrowthHtml = '';
-        if (lastMonthPaid > 0) {
-            const pctChange = ((thisMonthTotal - lastMonthPaid) / lastMonthPaid) * 100;
-            const sign = pctChange >= 0 ? '+' : '';
-            const badgeClass = pctChange >= 0 ? 'text-success' : 'text-danger';
-            const icon = pctChange >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-left';
-            momGrowthHtml = `<span class="${badgeClass} fw-bold" style="font-size: 0.8rem;"><i class="bi ${icon}"></i> ${sign}${pctChange.toFixed(1)}% MoM</span>`;
-        } else {
-            momGrowthHtml = `<span class="text-muted small" style="font-size: 0.8rem;">New series</span>`;
-        }
-        document.getElementById('monthlyGrowthBadge').innerHTML = momGrowthHtml;
-
-        // Average
-        const totalPaid = monthlyIncome.reduce((sum, item) => sum + Number(item.paid || 0), 0);
-        const avgPaid = totalPaid / len;
-        document.getElementById('monthlyAvgVal').textContent = formatCurrency(avgPaid);
-        document.getElementById('monthlySpanLabel').textContent = `Avg over ${len} month${len > 1 ? 's' : ''}`;
-    } else {
-        document.getElementById('monthlyThisMonthVal').textContent = 'LKR 0.00';
-        document.getElementById('monthlyLastMonthVal').textContent = 'LKR 0.00';
-        document.getElementById('monthlyAvgVal').textContent = 'LKR 0.00';
-    }
-
-    // Calculate Weekly Trend Metrics
-    if (Array.isArray(weeklyTrend) && weeklyTrend.length > 0) {
-        // Since php does order by week desc: weeklyTrend[0] is latest week, weeklyTrend[1] is prev week
-        const currentWeekData = weeklyTrend[0];
-        const prevWeekData = weeklyTrend.length > 1 ? weeklyTrend[1] : null;
-
-        const thisWeekTotal = Number(currentWeekData.total || 0);
-        const lastWeekTotal = prevWeekData ? Number(prevWeekData.total || 0) : 0;
-
-        document.getElementById('weeklyThisWeekVal').textContent = formatCurrency(thisWeekTotal);
-        document.getElementById('weeklyLastWeekVal').textContent = formatCurrency(lastWeekTotal);
-        
-        const formatWeekName = (weekStr) => {
-            if (!weekStr) return '';
-            const s = String(weekStr);
-            if (s.length >= 6) {
-                return `Week ${s.slice(4)} (${s.slice(0, 4)})`;
-            }
-            return 'Week ' + s;
-        };
-
-        document.getElementById('weeklyLastWeekName').textContent = prevWeekData ? formatWeekName(prevWeekData.week) : 'No previous data';
-
-        // WoW Growth
-        let wowGrowthHtml = '';
-        if (lastWeekTotal > 0) {
-            const pctChange = ((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100;
-            const sign = pctChange >= 0 ? '+' : '';
-            const badgeClass = pctChange >= 0 ? 'text-success' : 'text-danger';
-            const icon = pctChange >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-left';
-            wowGrowthHtml = `<span class="${badgeClass} fw-bold" style="font-size: 0.8rem;"><i class="bi ${icon}"></i> ${sign}${pctChange.toFixed(1)}% WoW</span>`;
-        } else {
-            wowGrowthHtml = `<span class="text-muted small" style="font-size: 0.8rem;">New series</span>`;
-        }
-        document.getElementById('weeklyGrowthBadge').innerHTML = wowGrowthHtml;
-    } else {
-        document.getElementById('weeklyThisWeekVal').textContent = 'LKR 0.00';
-        document.getElementById('weeklyLastWeekVal').textContent = 'LKR 0.00';
-    }
 });
 </script>
 
@@ -1368,15 +1466,19 @@ document.addEventListener("DOMContentLoaded", () => {
             const res  = await fetch(`${coursesUrl}?location=${encodeURIComponent(loc)}`);
             const json = await res.json();
             elCourse.innerHTML = '<option value="">All Courses</option>';
-            if (json.success && Array.isArray(json.data)) {
-                json.data.forEach(c => {
+            const courses = Array.isArray(json.data) ? json.data : (Array.isArray(json.courses) ? json.courses : []);
+            courses.forEach(c => {
                     const o = document.createElement('option');
                     o.value = c.course_id;
                     o.textContent = c.course_name;
                     elCourse.appendChild(o);
-                });
-            }
+            });
             elCourse.disabled = false;
+            const courseToggle = elCourse.closest('.nebula-select')?.querySelector('.nebula-select-toggle');
+            if (courseToggle) {
+                courseToggle.textContent = elCourse.options[elCourse.selectedIndex]?.text || '';
+                courseToggle.disabled = false;
+            }
         } catch (e) {
             elCourse.innerHTML = '<option value="">Error loading courses</option>';
             elCourse.disabled  = false;
@@ -1493,11 +1595,20 @@ document.addEventListener("DOMContentLoaded", () => {
             if (f.installment_no !== null && f.installment_no !== undefined)
                                   badges.push(['#️⃣ Installment', `No. ${f.installment_no}`]);
 
-            elBadges.innerHTML = badges.map(([label, val]) =>
-                `<span class="badge bg-light text-dark border border-secondary-subtle rounded-pill px-3 py-2 fw-normal small">
-                    <span class="text-muted">${label}:</span>&nbsp;<strong>${val}</strong>
-                 </span>`
-            ).join('');
+            elBadges.replaceChildren();
+            badges.forEach(([label, val]) => {
+                const span = document.createElement('span');
+                span.className = 'badge bg-light text-dark border border-secondary-subtle rounded-pill px-3 py-2 fw-normal small';
+                const muted = document.createElement('span');
+                muted.className = 'text-muted';
+                muted.textContent = label + ':';
+                const strong = document.createElement('strong');
+                strong.textContent = String(val ?? '');
+                span.appendChild(muted);
+                span.appendChild(document.createTextNode(' '));
+                span.appendChild(strong);
+                elBadges.appendChild(span);
+            });
 
             // Update PDF export links
             const pdfUrlBase = "{{ route('payment.summary.installment.pdf') }}";
@@ -1522,6 +1633,85 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <style nonce="{{ $cspNonce }}">
 .payment-summary-reset{} /* anchor for quick search */
+#payment-summary,
+#payment-summary .card,
+#payment-summary .card-body,
+#payment-summary .card-header {
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    height: auto;
+    transform: none !important;
+}
+body:has(#payment-summary) .body-wrapper > .container-fluid {
+    overflow: visible;
+}
+#payment-summary [class*="col-"] {
+    min-width: 0;
+}
+#payment-summary .form-select,
+#payment-summary .form-control {
+    width: 100%;
+    max-width: 100%;
+}
+#payment-summary h2,
+#payment-summary h3,
+#payment-summary h4,
+#payment-summary h5 {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.payment-summary-filter-actions,
+.payment-summary-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+.payment-summary-filter-actions .btn,
+.payment-summary-header-actions .btn,
+.payment-summary-header-actions a {
+    min-width: 0;
+}
+#payment-summary .nebula-select,
+#payment-summary .nebula-select-toggle {
+    width: 100%;
+    max-width: 100%;
+}
+#payment-summary .chart-wrap {
+    position: relative;
+    width: 100%;
+    min-height: 220px;
+}
+#payment-summary .chart-wrap canvas {
+    max-width: 100%;
+}
+@media (max-width: 767.98px) {
+    #payment-summary h2 {
+        font-size: 1.25rem;
+    }
+    #payment-summary #kpiSection h3,
+    #payment-summary #kpiResultArea h4 {
+        font-size: 1.1rem;
+    }
+    #payment-summary .form-control,
+    #payment-summary .form-select,
+    #payment-summary .form-select-sm,
+    #payment-summary .nebula-select-toggle {
+        font-size: 16px;
+    }
+    .payment-summary-filter-actions,
+    .payment-summary-filter-actions .btn,
+    .payment-summary-header-actions,
+    .payment-summary-header-actions .btn,
+    .payment-summary-header-actions a {
+        width: 100%;
+        justify-content: stretch;
+    }
+    #payment-summary .card-body {
+        padding: 1rem 0.75rem;
+    }
+}
 /* ---- Page background: force clean white and remove any image for this page only ---- */
 /* body, .app-content, .content, .content-wrapper, main, #payment-summary {
     background-color: #ffffff !important;
@@ -1756,14 +1946,33 @@ document.addEventListener("DOMContentLoaded", () => {
     .district-highlight-stats {
         grid-template-columns: 1fr;
     }
+
+    .district-map-legend {
+        flex-wrap: wrap;
+    }
+
+    .district-map-legend .legend-bar {
+        width: 100%;
+        max-width: 180px;
+    }
+
+    .district-top-item {
+        grid-template-columns: 36px minmax(0, 1fr);
+    }
+
+    .district-top-amount {
+        grid-column: 2;
+        justify-self: start;
+        white-space: normal;
+    }
 }
 
-.card {
-    transition: transform 0.2s, box-shadow 0.2s;
+#payment-summary .card {
+    transition: box-shadow 0.2s;
 }
 
-.card:hover {
-    transform: translateY(-2px);
+#payment-summary .card:hover {
+    transform: none !important;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
 }
 
