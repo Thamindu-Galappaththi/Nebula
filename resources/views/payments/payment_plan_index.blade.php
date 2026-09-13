@@ -3,7 +3,14 @@
 @section('title', 'NEBULA | Payment Plans')
 
 @section('content')
-<div class="container-fluid px-2 px-md-3">
+<div id="payment-plan-index" class="container-fluid px-2 px-md-3">
+    @php
+        $campusLabel = function ($loc) {
+            return in_array($loc, ['Welisara', 'Moratuwa', 'Peradeniya'], true)
+                ? 'Nebula Institute of Technology - ' . $loc
+                : ($loc ?: '—');
+        };
+    @endphp
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ session('success') }}
@@ -21,29 +28,30 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h2 class="mb-0 fs-4 fs-md-3">Payment Plans</h2>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-success btn-sm btn-export-csv" data-format="csv">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> CSV
-                    </button>
-                    <button type="button" class="btn btn-danger btn-sm btn-export-pdf" data-format="pdf">
+                <div class="d-flex flex-wrap gap-2 payment-plan-header-actions">
+                    <a href="{{ route('payment.plan.export.excel', request()->query()) }}" class="btn btn-success btn-sm">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Excel
+                    </a>
+                    <a href="{{ route('payment.plan.export.pdf', request()->query()) }}" class="btn btn-danger btn-sm">
                         <i class="bi bi-file-earmark-pdf"></i> PDF
-                    </button>
+                    </a>
                 </div>
             </div>
 
             <form method="GET" action="{{ route('payment.plan.index') }}" id="filterForm" class="row gy-2 gx-2 gx-md-3 align-items-end">
-                <div class="col-12 col-sm-6 col-md-3">
+                <input type="hidden" name="per_page" value="{{ $plans->perPage() }}">
+                <div class="col-12 col-sm-6 col-lg-3">
                     <label class="form-label small">Location</label>
-                    <select name="location" class="form-select form-select-sm form-select-md">
+                    <select name="location" id="filter-location" class="form-select form-select-sm">
                         <option value="">All</option>
                         @foreach($locations as $loc)
-                            <option value="{{ $loc }}" @selected(request('location')===$loc)>{{ $loc }}</option>
+                            <option value="{{ $loc }}" @selected(request('location')===$loc)>{{ $campusLabel($loc) }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-md-3">
+                <div class="col-12 col-sm-6 col-lg-3">
                     <label class="form-label small">Course</label>
-                    <select name="course_id" id="filter-course" class="form-select form-select-sm form-select-md">
+                    <select name="course_id" id="filter-course" class="form-select form-select-sm">
                         <option value="">All</option>
                         @foreach($courses as $c)
                             <option value="{{ $c->course_id }}" @selected((string)request('course_id')===(string)$c->course_id)>
@@ -52,9 +60,9 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-md-2">
+                <div class="col-12 col-sm-6 col-lg-2">
                     <label class="form-label small">Intake</label>
-                    <select name="intake_id" id="filter-intake" class="form-select form-select-sm form-select-md">
+                    <select name="intake_id" id="filter-intake" class="form-select form-select-sm">
                         <option value="">All</option>
                         @foreach($intakes as $i)
                             <option value="{{ $i->intake_id }}" @selected((string)request('intake_id')===(string)$i->intake_id)>
@@ -63,26 +71,17 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-md-2">
+                <div class="col-12 col-sm-6 col-lg-2">
                     <label class="form-label small">Sort By</label>
-                    <select name="sort" class="form-select form-select-sm form-select-md" id="sortSelect">
+                    <select name="sort" class="form-select form-select-sm" id="sortSelect">
                         <option value="newest" @selected(request('sort', 'newest')==='newest')>Newest First</option>
                         <option value="oldest" @selected(request('sort')==='oldest')>Oldest First</option>
                         <option value="location_asc" @selected(request('sort')==='location_asc')>Location A-Z</option>
                         <option value="location_desc" @selected(request('sort')==='location_desc')>Location Z-A</option>
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-md-1">
-                    <label class="form-label small">Show</label>
-                    <select name="per_page" class="form-select form-select-sm form-select-md" id="perPageSelect">
-                        <option value="10" @selected(request('per_page', 10)==10)>10</option>
-                        <option value="25" @selected(request('per_page', 10)==25)>25</option>
-                        <option value="50" @selected(request('per_page', 10)==50)>50</option>
-                        <option value="100" @selected(request('per_page', 10)==100)>100</option>
-                    </select>
-                </div>
-                <div class="col-12 col-sm-6 col-md-1 d-grid">
-                    <button class="btn btn-primary btn-sm btn-md-md">Filter</button>
+                <div class="col-12 col-sm-6 col-lg-2 d-grid">
+                    <button class="btn btn-primary btn-sm w-100">Filter</button>
                 </div>
             </form>
 
@@ -117,21 +116,21 @@
             @endif
 
             <!-- Desktop Table View -->
-            <div class="d-none d-lg-block table-responsive">
-                <table class="table table-bordered align-middle mb-0">
+            <div class="d-none d-lg-block payment-plan-table-scroll">
+                <table class="table table-bordered align-middle mb-0 payment-plan-table">
                     <thead class="table-light">
                         <tr>
-                            <th>#</th>
-                            <th>Location</th>
-                            <th>Course</th>
-                            <th>Intake</th>
-                            <th class="text-end">Reg. Fee (LKR)</th>
-                            <th class="text-end">Local Fee (LKR)</th>
-                            <th class="text-end">Franchise</th>
-                            <th>Full Payment Discount (%)</th>
-                            <th>Installments</th>
-                            <th>Created</th>
-                            <th style="width: 130px;">Actions</th>
+                            <th class="col-id">#</th>
+                            <th class="col-location">Location</th>
+                            <th class="col-course">Course</th>
+                            <th class="col-intake">Intake</th>
+                            <th class="col-num text-end">Reg. Fee (LKR)</th>
+                            <th class="col-num text-end">Local Fee (LKR)</th>
+                            <th class="col-num text-end">Franchise</th>
+                            <th class="col-discount">Discount</th>
+                            <th class="col-installments">Installments</th>
+                            <th class="col-date">Created</th>
+                            <th class="col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -148,47 +147,41 @@
                             }
                         @endphp
                         <tr>
-                            <td>{{ $plan->id }}</td>
-                            <td>{{ $plan->location }}</td>
-                            <td>{{ optional($plan->course)->course_name ?? '—' }}</td>
-                            <td>{{ optional($plan->intake)->batch ?? '—' }}</td>
-                            <td class="text-end">{{ number_format($plan->registration_fee, 2, '.', ',') }}</td>
-                            <td class="text-end">{{ number_format($plan->local_fee, 2, '.', ',') }}</td>
-                            <td class="text-end">
-                                {{ number_format($plan->international_fee, 2, '.', ',') }}
-                                <small class="text-muted">{{ $plan->international_currency }}</small>
+                            <td class="col-id">{{ $plan->id }}</td>
+                            <td class="col-location">{{ $campusLabel($plan->location) }}</td>
+                            <td class="col-course">{{ optional($plan->course)->course_name ?? '—' }}</td>
+                            <td class="col-intake">{{ optional($plan->intake)->batch ?? '—' }}</td>
+                            <td class="col-num text-end">{{ number_format((float) $plan->registration_fee, 2) }}</td>
+                            <td class="col-num text-end">{{ number_format((float) $plan->local_fee, 2) }}</td>
+                            <td class="col-num text-end">
+                                {{ number_format((float) $plan->international_fee, 2) }}
+                                <span class="text-muted">{{ $plan->international_currency }}</span>
                             </td>
-                            <td>
+                            <td class="col-discount">
                                 @if($plan->apply_discount)
                                     {{ rtrim(rtrim(number_format($plan->discount ?? 0, 2, '.', ''), '0'), '.') }}%
                                 @else
                                     —
                                 @endif
                             </td>
-                            <td>
+                            <td class="col-installments">
                                 @if($plan->installment_plan)
-                                    <button class="btn btn-sm btn-outline-secondary"
+                                    <button class="btn btn-sm btn-outline-secondary text-nowrap"
                                             type="button"
                                             data-bs-toggle="collapse"
                                             data-bs-target="#inst-{{ $plan->id }}">
-                                        View {{ $count }} Installments
+                                        View {{ $count }}
                                     </button>
-                                    <div class="small text-muted mt-1">
-                                        @if($count)
-                                            {{ $firstDue }} → {{ $lastDue }}
-                                        @endif
-                                    </div>
+                                    @if($count)
+                                        <div class="small text-muted mt-1 text-nowrap">{{ $firstDue }} → {{ $lastDue }}</div>
+                                    @endif
                                 @else
                                     —
                                 @endif
                             </td>
-                            <td>
-                                <div class="small text-muted">{{ $plan->created_at?->format('Y-m-d H:i') }}</div>
-                            </td>
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ route('payment.plan.edit',$plan->id) }}" class="btn btn-sm btn-warning">Edit</a>
-                                </div>
+                            <td class="col-date">{{ $plan->created_at?->format('Y-m-d H:i') }}</td>
+                            <td class="col-actions">
+                                <a href="{{ route('payment.plan.edit',$plan->id) }}" class="btn btn-sm btn-warning">Edit</a>
                             </td>
                         </tr>
                         @if($plan->installment_plan)
@@ -255,7 +248,7 @@
                 @if($totalCount > 0)
                     <div class="px-3 py-2 bg-light border-bottom">
                         <small class="text-muted">
-                            Showing {{ $from }}-{{ $to }} of {{ $totalCount }}
+                            Showing {{ $from }} to {{ $to }} of {{ $totalCount }}
                         </small>
                     </div>
                 @endif
@@ -276,7 +269,7 @@
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
                                 <span class="badge bg-secondary me-1">#{{ $plan->id }}</span>
-                                <span class="badge bg-info">{{ $plan->location }}</span>
+                                <span class="badge bg-info text-wrap">{{ $campusLabel($plan->location) }}</span>
                             </div>
                             <a href="{{ route('payment.plan.edit',$plan->id) }}" class="btn btn-sm btn-warning">Edit</a>
                         </div>
@@ -289,15 +282,15 @@
                         <div class="row g-2 small mb-2">
                             <div class="col-6">
                                 <div class="text-muted">Reg. Fee</div>
-                                <strong>LKR {{ number_format($plan->registration_fee, 2, '.', ',') }}</strong>
+                                <strong class="text-nowrap">LKR {{ number_format((float) $plan->registration_fee, 2) }}</strong>
                             </div>
                             <div class="col-6">
                                 <div class="text-muted">Local Fee</div>
-                                <strong>LKR {{ number_format($plan->local_fee, 2, '.', ',') }}</strong>
+                                <strong class="text-nowrap">LKR {{ number_format((float) $plan->local_fee, 2) }}</strong>
                             </div>
                             <div class="col-6">
                                 <div class="text-muted">Franchise</div>
-                                <strong>{{ number_format($plan->international_fee, 2, '.', ',') }} {{ $plan->international_currency }}</strong>
+                                <strong class="text-nowrap">{{ number_format((float) $plan->international_fee, 2) }} {{ $plan->international_currency }}</strong>
                             </div>
                             <div class="col-6">
                                 <div class="text-muted">Discount</div>
@@ -324,7 +317,7 @@
 
                             <div class="collapse mt-2" id="inst-mobile-{{ $plan->id }}">
                                 <div class="table-responsive">
-                                    <table class="table table-sm table-striped mb-0">
+                                    <table class="table table-sm table-striped mb-0 payment-plan-installments">
                                         <thead class="table-secondary">
                                             <tr>
                                                 <th>#</th>
@@ -337,11 +330,11 @@
                                         <tbody>
                                             @forelse($items as $it)
                                                 <tr>
-                                                    <td>{{ $it['installment_number'] ?? '' }}</td>
-                                                    <td class="small">{{ $it['due_date'] ?? '' }}</td>
-                                                    <td class="text-end small">{{ number_format((float)($it['local_amount'] ?? 0), 0) }}</td>
-                                                    <td class="text-end small">{{ number_format((float)($it['international_amount'] ?? 0), 0) }}</td>
-                                                    <td>
+                                                    <td data-label="#">{{ $it['installment_number'] ?? '' }}</td>
+                                                    <td class="small" data-label="Due Date">{{ $it['due_date'] ?? '' }}</td>
+                                                    <td class="text-end small" data-label="Local">{{ number_format((float)($it['local_amount'] ?? 0), 0) }}</td>
+                                                    <td class="text-end small" data-label="Intl">{{ number_format((float)($it['international_amount'] ?? 0), 0) }}</td>
+                                                    <td data-label="Tax">
                                                         @if(!empty($it['apply_tax']))
                                                             <span class="badge bg-success">Y</span>
                                                         @else
@@ -355,9 +348,9 @@
                                         </tbody>
                                         <tfoot class="small">
                                             <tr class="fw-semibold">
-                                                <td colspan="2">Totals:</td>
-                                                <td class="text-end">{{ number_format($totalLocal, 0) }}</td>
-                                                <td class="text-end">{{ number_format($totalIntl, 0) }}</td>
+                                                <td colspan="2" data-label="Totals">Totals:</td>
+                                                <td class="text-end" data-label="Local">{{ number_format($totalLocal, 0) }}</td>
+                                                <td class="text-end" data-label="Intl">{{ number_format($totalIntl, 0) }}</td>
                                                 <td></td>
                                             </tr>
                                         </tfoot>
@@ -376,258 +369,336 @@
             </div>
 
             <!-- Pagination -->
-<div class="flex flex-col sm:flex-row justify-between items-center p-3 gap-2">
-    <div class="text-sm text-gray-500">
-        Showing {{ $plans->firstItem() ?? 0 }}–{{ $plans->lastItem() ?? 0 }} of {{ $plans->total() }}
-    </div>
-
-    <div id="pagination-wrapper" class="text-sm" style="display:flex;align-items:center;gap:4px;line-height:1;">
-        {{ $plans->withQueryString()->links() }}
-    </div>
-
-    <script nonce="{{ $cspNonce }}">
-        window.addEventListener('load', () => {
-            // Select all pagination icons and normalize their size
-            document.querySelectorAll('#pagination-wrapper svg').forEach(svg => {
-                svg.style.width = '14px';
-                svg.style.height = '14px';
-                svg.style.margin = '0 2px';
-                svg.style.verticalAlign = 'middle';
-                svg.style.display = 'inline-block';
-            });
-
-            // Center pagination items horizontally
-            const pag = document.querySelector('#pagination-wrapper nav');
-            if (pag) {
-                pag.style.display = 'flex';
-                pag.style.alignItems = 'center';
-                pag.style.gap = '4px';
-            }
-        });
-    </script>
-</div>
-
-
+            @if($totalCount > 0)
+                <div class="payment-plan-footer p-3">
+                    <form method="GET" action="{{ route('payment.plan.index') }}" id="perPageForm" class="payment-plan-page-size">
+                        @foreach(['location', 'course_id', 'intake_id', 'sort'] as $filterKey)
+                            @if(request()->filled($filterKey))
+                                <input type="hidden" name="{{ $filterKey }}" value="{{ request($filterKey) }}">
+                            @endif
+                        @endforeach
+                        <label class="form-label mb-0 small text-muted" for="perPageSelect">Per page</label>
+                        <select name="per_page" id="perPageSelect" class="form-select form-select-sm page-size-select">
+                            <option value="10" @selected((int) $plans->perPage() === 10)>10</option>
+                            <option value="25" @selected((int) $plans->perPage() === 25)>25</option>
+                            <option value="50" @selected((int) $plans->perPage() === 50)>50</option>
+                            <option value="100" @selected((int) $plans->perPage() === 100)>100</option>
+                        </select>
+                    </form>
+                    <div class="small text-muted align-self-center">
+                        Showing {{ $plans->firstItem() }} to {{ $plans->lastItem() }} of {{ $plans->total() }}
+                    </div>
+                    <nav class="payment-plan-pagination" aria-label="Payment plan pages">
+                        {{ $plans->onEachSide(1)->links('pagination::bootstrap-5') }}
+                    </nav>
+                </div>
+            @endif
         </div>
     </div>
 </div>
 
 <script nonce="{{ $cspNonce }}">
-// Event delegation for export buttons
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.btn-export-csv') || e.target.closest('.btn-export-pdf')) {
-        const btn = e.target.closest('.btn-export-csv, .btn-export-pdf');
-        const format = btn.dataset.format;
-        exportData(format);
-    }
-});
-
-// Event delegation for select changes
 document.addEventListener('change', function(e) {
-    if (e.target.id === 'sortSelect' || e.target.id === 'perPageSelect') {
+    if (e.target.id === 'sortSelect') {
+        e.target.form.submit();
+    }
+    if (e.target.id === 'perPageSelect') {
         e.target.form.submit();
     }
 });
 
-// CLIENT-SIDE EXPORT FUNCTIONS (Frontend Only)
-function exportData(format) {
-    // Get current filter parameters
-    const params = new URLSearchParams(window.location.search);
+function jsonHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+}
 
-    // Get all plans data from the page
-    const plans = @json($plans->items());
+function courseListFromPayload(payload) {
+    if (payload && Array.isArray(payload.data)) return payload.data;
+    if (payload && Array.isArray(payload.courses)) return payload.courses;
+    return [];
+}
 
-    if (format === 'csv') {
-        exportToCSV(plans);
-    } else if (format === 'pdf') {
-        exportToPDF(plans);
+function syncCustomSelect(select) {
+    if (!select) return;
+    const selected = select.options[select.selectedIndex];
+    const wrap = select.closest('.nebula-select');
+    const toggle = wrap ? wrap.querySelector('.nebula-select-toggle') : null;
+    if (toggle) {
+        toggle.textContent = selected ? selected.text : '';
+        toggle.title = toggle.textContent;
+        toggle.disabled = !!select.disabled;
+        wrap.classList.toggle('is-disabled', !!select.disabled);
     }
 }
 
-function exportToCSV(plans) {
-    // CSV Headers
-    const headers = ['ID', 'Location', 'Course', 'Intake', 'Reg. Fee (LKR)', 'Local Fee (LKR)',
-                     'International Fee', 'Currency', 'Discount %', 'Installment Plan', 'Created At'];
-
-    // Build CSV content
-    let csv = headers.join(',') + '\n';
-
-    plans.forEach(plan => {
-        const row = [
-            plan.id,
-            `"${plan.location}"`,
-            `"${plan.course?.course_name || '—'}"`,
-            `"${plan.intake?.batch || '—'}"`,
-            plan.registration_fee,
-            plan.local_fee,
-            plan.international_fee,
-            plan.international_currency,
-            plan.apply_discount ? plan.discount : 'N/A',
-            plan.installment_plan ? 'Yes' : 'No',
-            `"${plan.created_at}"`
-        ];
-        csv += row.join(',') + '\n';
-    });
-
-    // Download CSV
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `payment_plans_${new Date().toISOString().slice(0,10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-function exportToPDF(plans) {
-    // Create a printable HTML version
-    let printContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Payment Plans Report</title>
-            <style>
-                body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
-                h1 { text-align: center; color: #333; margin-bottom: 10px; }
-                .info { text-align: center; margin-bottom: 20px; color: #666; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; font-weight: bold; }
-                .text-right { text-align: right; }
-                @media print {
-                    body { margin: 0; }
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Payment Plans Report</h1>
-            <div class="info">Generated: ${new Date().toLocaleString()}</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Location</th>
-                        <th>Course</th>
-                        <th>Intake</th>
-                        <th class="text-right">Reg. Fee</th>
-                        <th class="text-right">Local Fee</th>
-                        <th class="text-right">Int'l Fee</th>
-                        <th>Discount</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    plans.forEach(plan => {
-        printContent += `
-            <tr>
-                <td>${plan.id}</td>
-                <td>${plan.location}</td>
-                <td>${plan.course?.course_name || '—'}</td>
-                <td>${plan.intake?.batch || '—'}</td>
-                <td class="text-right">${Number(plan.registration_fee).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="text-right">${Number(plan.local_fee).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="text-right">${Number(plan.international_fee).toLocaleString('en-US', {minimumFractionDigits: 2})} ${plan.international_currency}</td>
-                <td>${plan.apply_discount ? plan.discount + '%' : '—'}</td>
-            </tr>
-        `;
-    });
-
-    printContent += `
-                </tbody>
-            </table>
-        </body>
-        </html>
-    `;
-
-    // Open print window
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.focus();
-
-    // Trigger print after content loads
-    setTimeout(() => {
-        printWindow.print();
-    }, 250);
-}
-
-// 1. When Location changes → update courses
-document.querySelector('select[name="location"]')?.addEventListener('change', function () {
+document.getElementById('filter-location')?.addEventListener('change', function () {
     const location = this.value;
     const courseSelect = document.getElementById('filter-course');
     const intakeSelect = document.getElementById('filter-intake');
 
     courseSelect.innerHTML = '<option value="">All</option>';
     intakeSelect.innerHTML = '<option value="">All</option>';
-    intakeSelect.disabled = true;
+    syncCustomSelect(courseSelect);
+    syncCustomSelect(intakeSelect);
 
-    if (!location) return;
-
-    fetch("{{ route('courses.byLocation') }}", {
+    fetch("{{ route('payment.plan.courses.byLocation') }}", {
         method: 'POST',
-        headers: {
-            'Content-Type':'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
+        credentials: 'same-origin',
+        headers: jsonHeaders(),
         body: JSON.stringify({ location })
     })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success && data.data.length) {
-            data.data.forEach(course => {
-                const opt = document.createElement('option');
-                opt.value = course.course_id;
-                opt.textContent = course.course_name;
-                courseSelect.appendChild(opt);
-            });
-        }
-    });
+    .then(res => {
+        if (!res.ok) throw new Error('Failed to load courses');
+        return res.json();
+    })
+    .then(payload => {
+        courseListFromPayload(payload).forEach(course => {
+            const opt = document.createElement('option');
+            opt.value = course.course_id;
+            opt.textContent = course.course_name;
+            courseSelect.appendChild(opt);
+        });
+        syncCustomSelect(courseSelect);
+    })
+    .catch(() => syncCustomSelect(courseSelect));
 });
 
-// 2. When Course changes → update intakes
 document.getElementById('filter-course')?.addEventListener('change', function () {
     const courseId = this.value;
-    const location = document.querySelector('select[name="location"]').value;
+    const location = document.getElementById('filter-location')?.value || '';
     const intakeSelect = document.getElementById('filter-intake');
 
-    intakeSelect.disabled = true;
-    intakeSelect.innerHTML = '<option value="">Loading...</option>';
+    intakeSelect.innerHTML = '<option value="">All</option>';
+    syncCustomSelect(intakeSelect);
 
-    if (!courseId || !location) {
-        intakeSelect.innerHTML = '<option value="">All</option>';
-        intakeSelect.disabled = false;
+    if (!courseId) {
         return;
     }
 
+    intakeSelect.innerHTML = '<option value="">Loading...</option>';
+    intakeSelect.disabled = true;
+    syncCustomSelect(intakeSelect);
+
     fetch("{{ route('intakes.byCourse') }}", {
         method: 'POST',
-        headers: {
-            'Content-Type':'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
+        credentials: 'same-origin',
+        headers: jsonHeaders(),
         body: JSON.stringify({ course_id: courseId, location })
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) throw new Error('Failed to load intakes');
+        return res.json();
+    })
     .then(data => {
-        console.log("Intake API response:", data);
         intakeSelect.innerHTML = '<option value="">All</option>';
-        if (data.success && data.data.length) {
-            data.data.forEach(intake => {
-                const opt = document.createElement('option');
-                opt.value = intake.intake_id;
-                opt.textContent = intake.batch ? intake.batch : `Batch ${intake.intake_id}`;
-                intakeSelect.appendChild(opt);
-            });
-        }
+        const intakes = Array.isArray(data.data) ? data.data : [];
+        intakes.forEach(intake => {
+            const opt = document.createElement('option');
+            opt.value = intake.intake_id;
+            opt.textContent = intake.batch ? intake.batch : ('Batch ' + intake.intake_id);
+            intakeSelect.appendChild(opt);
+        });
         intakeSelect.disabled = false;
+        syncCustomSelect(intakeSelect);
     })
     .catch(() => {
         intakeSelect.innerHTML = '<option value="">All</option>';
         intakeSelect.disabled = false;
+        syncCustomSelect(intakeSelect);
     });
 });
 </script>
+
+<style nonce="{{ $cspNonce }}">
+#payment-plan-index,
+#payment-plan-index .card,
+#payment-plan-index .card-body,
+#payment-plan-index .card-header {
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    height: auto;
+    transform: none !important;
+}
+body:has(#payment-plan-index) .body-wrapper > .container-fluid {
+    overflow: visible;
+}
+#payment-plan-index [class*="col-"] {
+    min-width: 0;
+}
+#payment-plan-index .form-select,
+#payment-plan-index .form-control,
+#payment-plan-index .nebula-select,
+#payment-plan-index .nebula-select-toggle {
+    width: 100%;
+    max-width: 100%;
+}
+#payment-plan-index .nebula-select-sm {
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 auto;
+}
+#payment-plan-index h2 {
+    overflow-wrap: anywhere;
+}
+#payment-plan-index .card {
+    transition: box-shadow 0.2s;
+}
+#payment-plan-index .card:hover {
+    transform: none !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+}
+.payment-plan-header-actions .btn {
+    min-width: 0;
+}
+.payment-plan-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+.payment-plan-table-scroll::-webkit-scrollbar {
+    height: 10px;
+}
+.payment-plan-table-scroll::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 8px;
+}
+.payment-plan-table-scroll::-webkit-scrollbar-thumb {
+    background: #b0b0b0;
+    border-radius: 8px;
+}
+.payment-plan-table {
+    min-width: 1280px;
+    width: 100%;
+    table-layout: auto;
+}
+.payment-plan-table th,
+.payment-plan-table td {
+    vertical-align: middle;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.payment-plan-table th {
+    white-space: nowrap;
+}
+.payment-plan-table .col-id,
+.payment-plan-table .col-num,
+.payment-plan-table .col-discount,
+.payment-plan-table .col-date,
+.payment-plan-table .col-actions,
+.payment-plan-table .col-intake {
+    white-space: nowrap;
+}
+.payment-plan-table .col-id {
+    width: 1%;
+    text-align: right;
+}
+.payment-plan-table .col-location {
+    min-width: 220px;
+    max-width: 280px;
+    white-space: normal;
+}
+.payment-plan-table .col-course {
+    min-width: 220px;
+    max-width: 320px;
+    white-space: normal;
+}
+.payment-plan-table .col-installments {
+    min-width: 150px;
+}
+.payment-plan-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+.payment-plan-page-size {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+.payment-plan-page-size select.page-size-select,
+.payment-plan-page-size .nebula-select,
+#payment-plan-index select#perPageSelect {
+    width: 5.75rem;
+    max-width: 5.75rem;
+    flex: 0 0 5.75rem;
+}
+.payment-plan-pagination {
+    min-width: 0;
+    overflow-x: auto;
+}
+.payment-plan-pagination .pagination {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-bottom: 0;
+}
+#payment-plan-index .badge {
+    white-space: normal;
+    text-align: left;
+}
+@media (max-width: 767.98px) {
+    #payment-plan-index h2 {
+        font-size: 1.25rem;
+    }
+    #payment-plan-index .form-control,
+    #payment-plan-index .form-select,
+    #payment-plan-index .form-select-sm,
+    #payment-plan-index .nebula-select-toggle {
+        font-size: 16px;
+    }
+    .payment-plan-header-actions,
+    .payment-plan-header-actions .btn {
+        width: 100%;
+    }
+    .payment-plan-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .payment-plan-pagination .pagination {
+        justify-content: center;
+    }
+    #payment-plan-index .payment-plan-installments thead {
+        display: none;
+    }
+    #payment-plan-index .payment-plan-installments,
+    #payment-plan-index .payment-plan-installments tbody,
+    #payment-plan-index .payment-plan-installments tfoot,
+    #payment-plan-index .payment-plan-installments tr,
+    #payment-plan-index .payment-plan-installments td {
+        display: block;
+        width: 100%;
+    }
+    #payment-plan-index .payment-plan-installments tr {
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    #payment-plan-index .payment-plan-installments td {
+        text-align: left !important;
+        padding: 0.35rem 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    #payment-plan-index .payment-plan-installments td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #64748b;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+}
+</style>
 @endsection

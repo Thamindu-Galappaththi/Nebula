@@ -698,6 +698,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     Route::middleware(['auth', 'role:Bursar,Marketing Manager,Developer,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Student Counselor Trainee'])->group(function () {
         Route::get('/payment-plans', [PaymentPlanController::class, 'index'])->name('payment.plan.index');
+        Route::get('/payment-plans/export/excel', [PaymentPlanController::class, 'exportExcel'])->name('payment.plan.export.excel');
+        Route::get('/payment-plans/export/pdf', [PaymentPlanController::class, 'exportPdf'])->name('payment.plan.export.pdf');
         Route::get('/payment-plan', [PaymentPlanController::class, 'create'])->name('payment.plan');
         Route::get('/payment-plan/create', [PaymentPlanController::class, 'create'])->name('payment.plan.create');
         Route::post('/payment-plan/store', [PaymentPlanController::class, 'store'])->name('payment.plan.store');
