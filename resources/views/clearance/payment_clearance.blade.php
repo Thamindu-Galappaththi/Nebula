@@ -23,7 +23,7 @@
                         </div>
                         <div class="card-body">
                             @if($pendingRequests->count() > 0)
-                                <div class="table-responsive" style="max-height: 500px; overflow-y: auto; overflow-x: auto; width: 100%;">
+                                <div class="table-responsive" style="overflow-x: auto; width: 100%;">
                                     <table class="table table-hover" id="pendingTable" style="table-layout: fixed; width: max-content; min-width: 1100px;">
                                         <thead class="table-light" style="position: sticky; top: 0; background: #fff; z-index: 2;">
                                             <tr>
@@ -62,6 +62,7 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                @include('clearance.partials.pagination', ['paginator' => $pendingRequests, 'label' => 'Pending clearance pages'])
                             @else
                                 <div class="text-center py-4">
                                     <i class="ti ti-check-circle text-success" style="font-size: 3rem;"></i>
@@ -79,7 +80,7 @@
                         </div>
                         <div class="card-body">
                             @if($processedRequests->count() > 0)
-                                <div class="table-responsive" style="max-height: 500px; overflow-y: auto; overflow-x: auto; width: 100%;">
+                                <div class="table-responsive" style="overflow-x: auto; width: 100%;">
                                     <table class="table table-hover" id="processedTable" style="table-layout: fixed; width: max-content; min-width: 1100px;">
                                         <thead class="table-light" style="position: sticky; top: 0; background: #fff; z-index: 2;">
                                             <tr>
@@ -115,6 +116,7 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                @include('clearance.partials.pagination', ['paginator' => $processedRequests, 'label' => 'Processed clearance pages'])
                             @else
                                 <div class="text-center py-4">
                                     <i class="ti ti-inbox text-muted" style="font-size: 3rem;"></i>

@@ -28,7 +28,9 @@ trait ClearanceRequestFilters
         $pendingRequests = $applyFilters((clone $baseQuery)->where('status', ClearanceRequest::STATUS_PENDING))
             ->with(['student', 'course', 'intake', 'courseRegistrations'])
             ->orderByDesc('requested_at')
-            ->get();
+            ->paginate(10, ['*'], 'pending_page')
+            ->withQueryString()
+            ->fragment('pending-clearance');
 
         $processedRequests = $applyFilters((clone $baseQuery)->whereIn('status', [
             ClearanceRequest::STATUS_APPROVED,
@@ -36,8 +38,9 @@ trait ClearanceRequestFilters
         ]))
             ->with(['student', 'course', 'intake', 'approvedBy', 'courseRegistrations'])
             ->orderByDesc('approved_at')
-            ->limit(50)
-            ->get();
+            ->paginate(10, ['*'], 'processed_page')
+            ->withQueryString()
+            ->fragment('processed-clearance');
 
         $courseIds = (clone $baseQuery)->whereNotNull('course_id')->distinct()->pluck('course_id');
         $intakeIds = (clone $baseQuery)->whereNotNull('intake_id')->distinct()->pluck('intake_id');

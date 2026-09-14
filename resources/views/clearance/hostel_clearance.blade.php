@@ -17,14 +17,14 @@
                         <div class="col-md-1 d-grid"><button class="btn btn-primary" type="submit">Filter</button></div>
                     </form>
                     <!-- Pending Requests Section -->
-                    <div class="card mb-4">
+                    <div class="card mb-4" id="pending-clearance">
 
                         <div class="card-header bg-warning text-white">
                             <h5 class="mb-0"><i class="ti ti-clock"></i> Pending Clearance Requests</h5>
                         </div>
                         <div class="card-body">
                             @if($pendingRequests->count() > 0)
-                                <div class="table-responsive" style="max-height: 500px; overflow-y: auto; overflow-x: auto; width: 100%;">
+                                <div class="table-responsive" style="overflow-x: auto; width: 100%;">
                                     <table class="table table-hover" id="pendingTable" style="table-layout: fixed; width: max-content; min-width: 1100px;">
                                         <thead class="table-light" style="position: sticky; top: 0; background: #fff; z-index: 2;">
                                             <tr>
@@ -63,6 +63,7 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                @include('clearance.partials.pagination', ['paginator' => $pendingRequests, 'label' => 'Pending clearance pages'])
                             @else
                                 <div class="text-center py-4">
                                     <i class="ti ti-check-circle text-success" style="font-size: 3rem;"></i>
@@ -74,13 +75,13 @@
                     </div>
 
                     <!-- Processed Requests Section -->
-                    <div class="card">
+                    <div class="card" id="processed-clearance">
                         <div class="card-header bg-info text-white">
                             <h5 class="mb-0"><i class="ti ti-list-check"></i> Processed Clearance Requests</h5>
                         </div>
                         <div class="card-body">
                             @if($processedRequests->count() > 0)
-                                <div class="table-responsive" style="max-height: 500px; overflow-y: auto; overflow-x: auto; width: 100%;">
+                                <div class="table-responsive" style="overflow-x: auto; width: 100%;">
                                     <table class="table table-hover" id="processedTable" style="table-layout: fixed; width: max-content; min-width: 1100px;">
                                         <thead class="table-light" style="position: sticky; top: 0; background: #fff; z-index: 2;">
                                             <tr>
@@ -117,6 +118,7 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                @include('clearance.partials.pagination', ['paginator' => $processedRequests, 'label' => 'Processed clearance pages'])
                             @else
                                 <div class="text-center py-4">
                                     <i class="ti ti-inbox text-muted" style="font-size: 3rem;"></i>
@@ -188,31 +190,6 @@
                     $(this).remove();
                 });
             }
-
-            // Location filter
-            $('#locationFilter').on('change', function () {
-                const selectedLocation = $(this).val().toLowerCase().trim();
-
-                // Filter pending requests table
-                $('#pendingTable tbody tr').each(function () {
-                    const location = $(this).find('td:eq(4)').text().toLowerCase().trim();
-                    if (selectedLocation === '' || location === selectedLocation) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
-
-                // Filter processed requests table
-                $('#processedTable tbody tr').each(function () {
-                    const location = $(this).find('td:eq(4)').text().toLowerCase().trim();
-                    if (selectedLocation === '' || location === selectedLocation) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
-            });
 
             // Approve button click
             $('.approve-btn').on('click', function () {
