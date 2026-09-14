@@ -178,10 +178,26 @@
         }
 
         @media (max-width: 767.98px) {
+            .student-counselor-page {
+                overflow-x: hidden;
+            }
+
             .page-title-box {
-                align-items: flex-start !important;
+                align-items: stretch !important;
                 flex-direction: column;
                 gap: 16px;
+            }
+
+            .dashboard-page-heading h4 {
+                font-size: 1.15rem;
+            }
+
+            .dashboard-page-actions {
+                width: 100%;
+            }
+
+            .dashboard-page-actions .btn {
+                width: 100%;
             }
 
             .dashboard-filter-bar {
@@ -207,6 +223,45 @@
 
             .dashboard-filter-date {
                 width: 100%;
+            }
+
+            .kpi-card h2 {
+                font-size: 1.4rem;
+            }
+
+            .chart-container {
+                height: 220px;
+            }
+
+            .card-hover:hover {
+                transform: none;
+            }
+
+            .dashboard-chart-filter {
+                flex: 1 1 100%;
+                width: 100%;
+            }
+
+            .table-responsive table {
+                min-width: 760px;
+            }
+
+            .registrations-pagination {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 12px;
+            }
+
+            .registrations-pagination .d-flex {
+                width: 100%;
+            }
+
+            .registrations-pagination .btn {
+                flex: 1 1 0;
+            }
+
+            .registration-filter-group .btn {
+                flex: 1 1 auto;
             }
         }
 
@@ -315,6 +370,57 @@
             min-width: 0;
         }
 
+        .dashboard-page-heading {
+            min-width: 0;
+        }
+
+        .dashboard-page-heading h4,
+        .dashboard-page-heading p {
+            overflow-wrap: anywhere;
+        }
+
+        .dashboard-chart-filter {
+            flex: 0 0 190px;
+            width: 190px;
+            max-width: 100%;
+        }
+
+        .dashboard-chart-filter > .nebula-select,
+        .dashboard-chart-filter > .form-select,
+        .dashboard-chart-filter .nebula-select-sm,
+        .dashboard-chart-filter .nebula-select-toggle {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 1 1 auto !important;
+        }
+
+        .chart-container {
+            max-width: 100%;
+        }
+
+        .table-responsive {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .student-counselor-page .card-body > .d-flex.justify-content-between {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .registration-filter-group {
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 575.98px) {
+            .bg-white.p-4 {
+                padding: 1rem !important;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+        }
+
         @media (max-width: 480px) {
             .contact-row {
                 flex-wrap: wrap;
@@ -322,38 +428,36 @@
 
             .contact-row-copy {
                 width: 100%;
+                min-width: 0;
             }
         }
     </style>
 
-    <div class="container-fluid">
+    <div class="container-fluid student-counselor-page">
         <!-- Page Header -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="bg-white p-4 rounded shadow-sm mb-4">
-    <div class="page-title-box d-flex align-items-center justify-content-between">
-        
-        <div class="d-flex align-items-center">
-            <div class="me-3">
-                <div class="avatar-initial">
-                    <i class="fas fa-user-graduate"></i>
+                <div class="bg-white p-4 rounded shadow-sm">
+                    <div class="page-title-box d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-start dashboard-page-heading">
+                            <div class="me-3">
+                                <div class="avatar-initial">
+                                    <i class="fas fa-user-graduate"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="mb-1 fw-bold text-dark">Student Counselor Dashboard</h4>
+                                <p class="text-muted mb-0">Monitor student intake and marketing effectiveness</p>
+                            </div>
+                        </div>
+                        <div class="dashboard-page-actions d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm text-nowrap" onclick="refreshAllData()">
+                                <i class="fas fa-sync-alt me-1"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div>
-                <h4 class="mb-1 fw-bold text-dark"> Student Counselor Dashboard</h4>
-                <p class="text-muted mb-0">Monitor student intake and marketing effectiveness</p>
-            </div>
-        </div>
-
-        <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="refreshAllData()">
-                <i class="fas fa-sync-alt me-1"></i> Refresh
-            </button>
-        </div>
-
-    </div>
-</div>
-</div>
         </div>
 
         <!-- Time Filter -->
@@ -473,16 +577,18 @@
             <div class="col-xl-8 mb-4">
                 <div class="card card-hover h-100">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                             <div>
                                 <h5 class="card-title mb-1">📊 Marketing Survey Analysis</h5>
                                 <p class="text-muted mb-0">Lead sources overview</p>
                             </div>
-                            <select id="surveyChartType" class="form-select form-select-sm" style="width: auto;">
-                                <option value="bar">Bar Chart</option>
-                                <option value="pie">Pie Chart</option>
-                                <option value="doughnut">Doughnut Chart</option>
-                            </select>
+                            <div class="dashboard-chart-filter">
+                                <select id="surveyChartType" class="form-select form-select-sm">
+                                    <option value="bar">Bar Chart</option>
+                                    <option value="pie">Pie Chart</option>
+                                    <option value="doughnut">Doughnut Chart</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="chart-container">
                             <canvas id="marketingSurveyChart"></canvas>
@@ -537,16 +643,18 @@
             <div class="col-xl-6 mb-4">
                 <div class="card card-hover h-100">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                             <div>
                                 <h5 class="card-title mb-1">🎯 Counselor Performance</h5>
                                 <p class="text-muted mb-0">Top performing counselors</p>
                             </div>
-                            <select id="performancePeriod" class="form-select form-select-sm" style="width: auto;">
-                                <option value="week">This Week</option>
-                                <option value="month" selected>This Month</option>
-                                <option value="quarter">This Quarter</option>
-                            </select>
+                            <div class="dashboard-chart-filter">
+                                <select id="performancePeriod" class="form-select form-select-sm">
+                                    <option value="week">This Week</option>
+                                    <option value="month" selected>This Month</option>
+                                    <option value="quarter">This Quarter</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="chart-container">
                             <canvas id="counselorChart"></canvas>
@@ -561,12 +669,12 @@
             <div class="col-12">
                 <div class="card card-hover">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                             <div>
                                 <h5 class="card-title mb-1">📋 Recent Student Registrations</h5>
                                 <p class="text-muted mb-0">Latest student intake</p>
                             </div>
-                            <div class="d-flex gap-2">
+                            <div class="d-flex gap-2 registration-filter-group">
                                 <button type="button" class="btn btn-outline-secondary btn-sm registration-filter-btn active" onclick="filterRegistrations('all', this)">
                                     All
                                 </button>
@@ -606,7 +714,7 @@
                             </table>
                         </div>
                         
-                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pt-3 border-top registrations-pagination">
                             <div class="text-muted fs-13" id="registrationsCount">
                                 Showing 0 registrations
                             </div>
@@ -630,7 +738,7 @@
     <div id="counselorToastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 20000;"></div>
 
     <div class="modal fade contact-modal" id="contactStudentModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header contact-modal-header flex-column">
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
