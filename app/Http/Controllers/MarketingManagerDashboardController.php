@@ -51,10 +51,18 @@ class MarketingManagerDashboardController extends Controller
         $bestSource = collect($this->surveyCounts($dateRange))->sortByDesc('count')->first();
         $topLocation = $this->locationCounts($dateRange)->sortByDesc('count')->first();
 
-        $uniqueRegisteredStudents = CourseRegistration::query()->distinct('student_id')->count('student_id');
-        $conversionRate = $totalStudents > 0
-            ? round(($uniqueRegisteredStudents / $totalStudents) * 100, 1)
-            : 0;
+        $uniqueRegisteredStudents = $this->registrationsInRange($dateRange['start'], $dateRange['end'])
+            ->distinct('student_id')
+            ->count('student_id');
+        $periodNewStudents = Student::query()
+            ->whereRaw('DATE(created_at) BETWEEN ? AND ?', [
+                $dateRange['start']->toDateString(),
+                $dateRange['end']->toDateString(),
+            ])
+            ->count();
+        $conversionRate = $periodNewStudents > 0
+            ? round(($uniqueRegisteredStudents / $periodNewStudents) * 100, 1)
+            : ($uniqueRegisteredStudents > 0 ? 100 : 0);
 
         return response()->json([
             'total_registered' => $totalRegisteredStudents,
@@ -124,23 +132,48 @@ class MarketingManagerDashboardController extends Controller
         return response()->json($this->surveyCounts($dateRange));
     }
 
-    public function getMonthlyRegistrationTrend()
+    public function getMonthlyRegistrationTrend(Request $request)
     {
-        $last12Months = [];
-        for ($i = 11; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
-            $count = $this->registrationsInRange(
-                $date->copy()->startOfMonth()->startOfDay(),
-                $date->copy()->endOfMonth()->endOfDay()
-            )->count();
+        $period = $request->input('period', 'month');
+        $dateRange = $this->getDateRange($period, $request->input('date'));
+        $start = $dateRange['start']->copy()->startOfDay();
+        $end = $dateRange['end']->copy()->endOfDay();
+        $dateSql = $this->registrationDateSql();
+        $useDaily = in_array($period, ['today', 'custom', 'week', 'month'], true);
+        $sqlFormat = $useDaily ? '%Y-%m-%d' : '%Y-%m';
 
-            $last12Months[] = [
-                'month' => $date->format('M Y'),
-                'count' => $count,
-            ];
+        $rows = CourseRegistration::query()
+            ->selectRaw("DATE_FORMAT({$dateSql}, '{$sqlFormat}') as bucket, COUNT(*) as count")
+            ->whereRaw("{$dateSql} BETWEEN ? AND ?", [$start->toDateString(), $end->toDateString()])
+            ->groupByRaw("DATE_FORMAT({$dateSql}, '{$sqlFormat}')")
+            ->pluck('count', 'bucket');
+
+        $points = [];
+        if ($useDaily) {
+            $cursor = $start->copy();
+            $last = $end->copy()->startOfDay();
+            while ($cursor->lte($last)) {
+                $key = $cursor->format('Y-m-d');
+                $points[] = [
+                    'month' => $cursor->format('d M'),
+                    'count' => (int) ($rows[$key] ?? 0),
+                ];
+                $cursor->addDay();
+            }
+        } else {
+            $cursor = $start->copy()->startOfMonth();
+            $last = $end->copy()->startOfMonth();
+            while ($cursor->lte($last)) {
+                $key = $cursor->format('Y-m');
+                $points[] = [
+                    'month' => $cursor->format('M Y'),
+                    'count' => (int) ($rows[$key] ?? 0),
+                ];
+                $cursor->addMonth();
+            }
         }
 
-        return response()->json($last12Months);
+        return response()->json($points);
     }
 
     public function getRegistrationsByLocation(Request $request)
@@ -209,6 +242,12 @@ class MarketingManagerDashboardController extends Controller
             })
             ->whereNotNull('students.marketing_survey')
             ->where('students.marketing_survey', '!=', '')
+            ->where(function ($query) use ($dateRange) {
+                $query->whereRaw('DATE(students.created_at) BETWEEN ? AND ?', [
+                    $dateRange['start']->toDateString(),
+                    $dateRange['end']->toDateString(),
+                ])->orWhereNotNull('course_registration.id');
+            })
             ->groupBy('students.marketing_survey')
             ->get();
 
@@ -309,7 +348,7 @@ class MarketingManagerDashboardController extends Controller
 
     private function registrationDateSql(): string
     {
-        return 'COALESCE(course_registration.registration_date, DATE(course_registration.created_at))';
+        return 'DATE(COALESCE(course_registration.registration_date, course_registration.created_at))';
     }
 
     private function applyRegistrationDateFilter($query, array $dateRange)

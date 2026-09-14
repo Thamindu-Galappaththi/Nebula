@@ -272,11 +272,11 @@
                         <div class="d-flex flex-wrap align-items-center">
                             <span class="me-3 text-muted"><i class="fas fa-calendar-alt me-1"></i> Time Period:</span>
                             <div class="d-flex flex-wrap">
-                                <button type="button" class="time-filter-btn" data-period="today" onclick="setTimePeriod('today', this)">Today</button>
-                                <button type="button" class="time-filter-btn" data-period="week" onclick="setTimePeriod('week', this)">This Week</button>
-                                <button type="button" class="time-filter-btn active" data-period="month" onclick="setTimePeriod('month', this)">This Month</button>
-                                <button type="button" class="time-filter-btn" data-period="quarter" onclick="setTimePeriod('quarter', this)">This Quarter</button>
-                                <button type="button" class="time-filter-btn" data-period="year" onclick="setTimePeriod('year', this)">This Year</button>
+                                <button type="button" class="time-filter-btn" data-period="today">Today</button>
+                                <button type="button" class="time-filter-btn" data-period="week">This Week</button>
+                                <button type="button" class="time-filter-btn active" data-period="month">This Month</button>
+                                <button type="button" class="time-filter-btn" data-period="quarter">This Quarter</button>
+                                <button type="button" class="time-filter-btn" data-period="year">This Year</button>
                                 <div class="d-inline-block ms-2">
                                     <input type="date" id="customDate" class="form-control form-control-sm" style="width: 140px;">
                                 </div>
@@ -420,8 +420,8 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <div>
-                                <h5 class="card-title mb-1">📈 12-Month Registration Trend</h5>
-                                <p class="text-muted mb-0">Monthly overview</p>
+                                <h5 class="card-title mb-1" id="trendChartTitle">📈 Registration Trend</h5>
+                                <p class="text-muted mb-0" id="trendChartSubtitle">Selected time period</p>
                             </div>
                             <div class="btn-group btn-group-sm" id="trendChartToggles">
                                 <button type="button" class="chart-toggle-btn active" data-chart-type="line" onclick="toggleTrendChart('line', this)">
@@ -551,7 +551,7 @@
                             </div>
                             <div class="col-md-3">
                                 <div class="fs-4 fw-bold" id="conversionRate">-</div>
-                                <div class="text-white-50 fs-13">Overall Conversion Rate</div>
+                                <div class="text-white-50 fs-13" id="conversionRateLabel">Period Conversion Rate</div>
                             </div>
                         </div>
                     </div>
@@ -610,6 +610,12 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadDashboardData();
 
+            document.querySelectorAll('.time-filter-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    setTimePeriod(this.dataset.period, this);
+                });
+            });
+
             document.getElementById('chartTypeSelect')?.addEventListener('change', function() {
                 fetchMarketingSurveyData(this.value);
             });
@@ -662,15 +668,14 @@
         }
 
         function getPeriodMeta() {
-            const labels = {
-                today: { title: 'Today', previous: 'Yesterday', short: 'today' },
-                week: { title: 'This Week', previous: 'Last Week', short: 'this week' },
-                month: { title: 'This Month', previous: 'Last Month', short: 'this month' },
-                quarter: { title: 'This Quarter', previous: 'Previous Quarter', short: 'this quarter' },
-                year: { title: 'This Year', previous: 'Last Year', short: 'this year' },
-                custom: { title: 'Selected Day', previous: 'Previous Day', short: 'on the selected day' }
-            };
-            return labels[currentTimePeriod] || labels.month;
+            return {
+                today: { title: 'Today', previous: 'Yesterday', short: 'today', trend: 'Today by day' },
+                week: { title: 'This Week', previous: 'Last Week', short: 'this week', trend: 'Daily this week' },
+                month: { title: 'This Month', previous: 'Last Month', short: 'this month', trend: 'Daily this month' },
+                quarter: { title: 'This Quarter', previous: 'Previous Quarter', short: 'this quarter', trend: 'Monthly this quarter' },
+                year: { title: 'This Year', previous: 'Last Year', short: 'this year', trend: 'Monthly this year' },
+                custom: { title: 'Selected Day', previous: 'Previous Day', short: 'on the selected day', trend: 'Selected day' }
+            }[currentTimePeriod] || { title: 'This Month', previous: 'Last Month', short: 'this month', trend: 'Daily this month' };
         }
 
         function buildChartColors(count) {
@@ -731,6 +736,9 @@
             }
 
             if (buttonElement) buttonElement.blur();
+            const periodMeta = getPeriodMeta();
+            const trendSubtitle = document.getElementById('trendChartSubtitle');
+            if (trendSubtitle) trendSubtitle.textContent = periodMeta.trend;
             loadDashboardData();
         }
 
@@ -804,6 +812,11 @@
                 if (periodTitle) periodTitle.textContent = periodMeta.title;
                 if (periodSubtext) periodSubtext.innerHTML = `<i class="fas fa-users me-1"></i> Registrations ${periodMeta.short}`;
                 if (previousTitle) previousTitle.textContent = periodMeta.previous;
+
+                const trendTitle = document.getElementById('trendChartTitle');
+                const trendSubtitle = document.getElementById('trendChartSubtitle');
+                if (trendTitle) trendTitle.textContent = '📈 Registration Trend';
+                if (trendSubtitle) trendSubtitle.textContent = periodMeta.trend;
 
                 const growthIndicator = document.getElementById('growthIndicator');
                 const growthValue = document.getElementById('growthValue');
