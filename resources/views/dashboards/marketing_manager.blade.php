@@ -231,34 +231,174 @@
         .min-width-0 {
             min-width: 0;
         }
+
+        .dashboard-page-heading {
+            min-width: 0;
+        }
+
+        .dashboard-page-heading h4,
+        .dashboard-page-heading p {
+            overflow-wrap: anywhere;
+        }
+
+        .dashboard-chart-filter {
+            flex: 0 0 190px;
+            width: 190px;
+            max-width: 100%;
+        }
+
+        .dashboard-chart-filter > .nebula-select,
+        .dashboard-chart-filter > .form-select,
+        .dashboard-chart-filter .nebula-select-sm,
+        .dashboard-chart-filter .nebula-select-toggle {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 1 1 auto !important;
+        }
+
+        .chart-container {
+            max-width: 100%;
+        }
+
+        .table-responsive {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .marketing-manager-page .card-body > .d-flex.justify-content-between {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 767.98px) {
+            .marketing-manager-page {
+                overflow-x: hidden;
+            }
+
+            .page-title-box {
+                align-items: stretch !important;
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .dashboard-page-heading h4 {
+                font-size: 1.15rem;
+            }
+
+            .dashboard-page-actions {
+                width: 100%;
+            }
+
+            .dashboard-page-actions .btn {
+                flex: 1 1 0;
+            }
+
+            .kpi-card h2 {
+                font-size: 1.4rem;
+            }
+
+            .chart-container,
+            .chart-container[style] {
+                height: 220px !important;
+            }
+
+            .card-hover:hover {
+                transform: none;
+            }
+
+            .time-filter-btn {
+                flex: 1 1 calc(50% - 8px);
+                margin-right: 0;
+                text-align: center;
+            }
+
+            .marketing-date-wrap {
+                flex: 1 1 100%;
+                margin-left: 0 !important;
+                width: 100%;
+            }
+
+            .marketing-date-wrap #customDate {
+                width: 100% !important;
+            }
+
+            .dashboard-chart-filter {
+                flex: 1 1 100%;
+                width: 100%;
+            }
+
+            .table-responsive table {
+                min-width: 720px;
+            }
+
+            .registrations-pagination {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 12px;
+            }
+
+            .registrations-pagination .d-flex {
+                width: 100%;
+            }
+
+            .registrations-pagination .btn {
+                flex: 1 1 0;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .bg-white.p-4 {
+                padding: 1rem !important;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+
+            .time-filter-btn {
+                flex-basis: 100%;
+            }
+
+            .contact-row {
+                flex-wrap: wrap;
+            }
+
+            .contact-row-copy {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .quick-stat-value {
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+        }
     </style>
 
-    <div class="container-fluid">
+    <div class="container-fluid marketing-manager-page">
         <!-- Page Header -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="page-title-box d-flex align-items-center justify-content-between">
-                    <div class="bg-white p-4 rounded shadow-sm mb-3">
-    <div class="d-flex align-items-center">
-        <div class="me-3">
-            <div class="avatar-initial">
-                <i class="fas fa-bullseye"></i>
-            </div>
-        </div>
-        <div>
-            <h4 class="mb-1 fw-bold text-dark">🎯 Marketing Manager Dashboard</h4>
-            <p class="text-muted mb-0">Track campaign performance and student acquisition metrics</p>
-        </div>
-    </div>
-</div>
-
-                    <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="refreshAllData()">
-                            <i class="fas fa-sync-alt me-1"></i> Refresh
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="exportDashboard()">
-                            <i class="fas fa-download me-1"></i> Export
-                        </button>
+                <div class="bg-white p-4 rounded shadow-sm">
+                    <div class="page-title-box d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-start dashboard-page-heading">
+                            <div class="me-3">
+                                <div class="avatar-initial">
+                                    <i class="fas fa-bullseye"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="mb-1 fw-bold text-dark">🎯 Marketing Manager Dashboard</h4>
+                                <p class="text-muted mb-0">Track campaign performance and student acquisition metrics</p>
+                            </div>
+                        </div>
+                        <div class="dashboard-page-actions d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm text-nowrap" onclick="refreshAllData()">
+                                <i class="fas fa-sync-alt me-1"></i> Refresh
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm text-nowrap" onclick="exportDashboard()">
+                                <i class="fas fa-download me-1"></i> Export
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -269,16 +409,16 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body py-3">
-                        <div class="d-flex flex-wrap align-items-center">
-                            <span class="me-3 text-muted"><i class="fas fa-calendar-alt me-1"></i> Time Period:</span>
-                            <div class="d-flex flex-wrap">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="text-muted"><i class="fas fa-calendar-alt me-1"></i> Time Period:</span>
+                            <div class="d-flex flex-wrap gap-2 flex-grow-1">
                                 <button type="button" class="time-filter-btn" data-period="today">Today</button>
                                 <button type="button" class="time-filter-btn" data-period="week">This Week</button>
                                 <button type="button" class="time-filter-btn active" data-period="month">This Month</button>
                                 <button type="button" class="time-filter-btn" data-period="quarter">This Quarter</button>
                                 <button type="button" class="time-filter-btn" data-period="year">This Year</button>
-                                <div class="d-inline-block ms-2">
-                                    <input type="date" id="customDate" class="form-control form-control-sm" style="width: 140px;">
+                                <div class="marketing-date-wrap">
+                                    <input type="date" id="customDate" class="form-control form-control-sm">
                                 </div>
                             </div>
                         </div>
@@ -370,16 +510,18 @@
             <div class="col-xl-8 mb-4">
                 <div class="card card-hover h-100">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                             <div>
                                 <h5 class="card-title mb-1">📊 Marketing Survey Analysis</h5>
                                 <p class="text-muted mb-0">Channel performance overview</p>
                             </div>
-                            <select id="chartTypeSelect" class="form-select form-select-sm" style="width: auto;">
-                                <option value="bar">Bar Chart</option>
-                                <option value="line">Line Chart</option>
-                                <option value="pie">Pie Chart</option>
-                            </select>
+                            <div class="dashboard-chart-filter">
+                                <select id="chartTypeSelect" class="form-select form-select-sm">
+                                    <option value="bar">Bar Chart</option>
+                                    <option value="line">Line Chart</option>
+                                    <option value="pie">Pie Chart</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="chart-container">
                             <canvas id="marketingSurveyChart"></canvas>
@@ -513,7 +655,7 @@
                             </table>
                         </div>
                         
-                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pt-3 border-top registrations-pagination">
                             <div class="text-muted fs-13" id="registrationsCount">
                                 Showing 0 registrations
                             </div>
@@ -538,19 +680,19 @@
                     <div class="card-body">
                         <div class="row text-center">
                             <div class="col-md-3 mb-3 mb-md-0">
-                                <div class="fs-4 fw-bold" id="avgRegistration">-</div>
+                                <div class="fs-4 fw-bold quick-stat-value" id="avgRegistration">-</div>
                                 <div class="text-white-50 fs-13">Avg. Daily Registrations</div>
                             </div>
                             <div class="col-md-3 mb-3 mb-md-0">
-                                <div class="fs-4 fw-bold" id="bestSource">-</div>
+                                <div class="fs-4 fw-bold quick-stat-value" id="bestSource">-</div>
                                 <div class="text-white-50 fs-13">Best Performing Source</div>
                             </div>
                             <div class="col-md-3 mb-3 mb-md-0">
-                                <div class="fs-4 fw-bold" id="topLocation">-</div>
+                                <div class="fs-4 fw-bold quick-stat-value" id="topLocation">-</div>
                                 <div class="text-white-50 fs-13">Top Location</div>
                             </div>
                             <div class="col-md-3">
-                                <div class="fs-4 fw-bold" id="conversionRate">-</div>
+                                <div class="fs-4 fw-bold quick-stat-value" id="conversionRate">-</div>
                                 <div class="text-white-50 fs-13" id="conversionRateLabel">Period Conversion Rate</div>
                             </div>
                         </div>
@@ -563,7 +705,7 @@
     <div id="marketingToastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 20000;"></div>
 
     <div class="modal fade contact-modal" id="contactStudentModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header contact-modal-header">
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
