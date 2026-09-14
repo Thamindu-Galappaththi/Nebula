@@ -66,7 +66,8 @@
             border-color: transparent;
         }
 
-        .academic-breakdown-btn {
+        .academic-breakdown-btn,
+        .attendance-breakdown-btn {
             padding: 6px 14px;
             border-radius: 6px;
             border: 1px solid #dee2e6;
@@ -77,12 +78,14 @@
             transition: all 0.2s ease;
         }
 
-        .academic-breakdown-btn:hover {
+        .academic-breakdown-btn:hover,
+        .attendance-breakdown-btn:hover {
             background: #f8f9fa;
             border-color: #adb5bd;
         }
 
-        .academic-breakdown-btn.active {
+        .academic-breakdown-btn.active,
+        .attendance-breakdown-btn.active {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border-color: transparent;
@@ -816,21 +819,28 @@
                                     <div class="col-12">
                                         <div class="card card-hover">
                                             <div class="card-body">
-                                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                                                     <div>
-                                                        <h5 class="card-title mb-1">📋 Course-wise Attendance</h5>
-                                                        <p class="text-muted mb-0">Attendance rates by course</p>
+                                                        <h5 class="card-title mb-1" id="attendanceBreakdownTitle">📋 Course-wise Attendance</h5>
+                                                        <p class="text-muted mb-0" id="attendanceBreakdownSubtitle">Attendance rates by course</p>
                                                     </div>
-                                                    <div class="text-end">
-                                                        <div class="text-muted fs-12">Overall Attendance</div>
-                                                        <div class="fw-bold fs-18" id="overallAttendanceRate">0%</div>
+                                                    <div class="d-flex flex-wrap align-items-center gap-3">
+                                                        <div class="d-flex flex-wrap gap-2">
+                                                            <button type="button" class="attendance-breakdown-btn active" data-view="course">Course wise</button>
+                                                            <button type="button" class="attendance-breakdown-btn" data-view="intake">Intake wise</button>
+                                                            <button type="button" class="attendance-breakdown-btn" data-view="module">Module wise</button>
+                                                        </div>
+                                                        <div class="text-end">
+                                                            <div class="text-muted fs-12">Overall Attendance</div>
+                                                            <div class="fw-bold fs-18" id="overallAttendanceRate">0%</div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="table-responsive">
                                                     <table class="table table-hover">
                                                         <thead>
                                                             <tr>
-                                                                <th>Course</th>
+                                                                <th id="attendanceBreakdownNameHeader">Course</th>
                                                                 <th>Attendance Rate</th>
                                                                 <th>Total Records</th>
                                                                 <th>Status</th>
@@ -1135,10 +1145,16 @@
         };
         let currentTimePeriod = 'month';
         let currentAcademicBreakdown = 'course';
+        let currentAttendanceBreakdown = 'course';
         let lastAcademicPerformance = {
             course_performance: [],
             intake_performance: [],
             module_performance: []
+        };
+        let lastAttendanceBreakdown = {
+            course_attendance: [],
+            intake_attendance: [],
+            module_attendance: []
         };
         let currentRejectId = null;
         let currentSearchQuery = '';
@@ -1198,6 +1214,16 @@
                         item.classList.toggle('active', item === btn);
                     });
                     renderAcademicBreakdown();
+                });
+            });
+
+            document.querySelectorAll('.attendance-breakdown-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    currentAttendanceBreakdown = this.dataset.view || 'course';
+                    document.querySelectorAll('.attendance-breakdown-btn').forEach(function (item) {
+                        item.classList.toggle('active', item === btn);
+                    });
+                    renderAttendanceBreakdown();
                 });
             });
 
@@ -2267,19 +2293,26 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    lastAttendanceBreakdown = {
+                        course_attendance: data.data.course_attendance || [],
+                        intake_attendance: data.data.intake_attendance || [],
+                        module_attendance: data.data.module_attendance || []
+                    };
                     updateAttendanceTrendChart(data.data.daily_attendance);
-                    updateCourseAttendanceTable(data.data.course_attendance);
+                    renderAttendanceBreakdown();
                     document.getElementById('overallAttendanceRate').textContent =
                         formatKpiPercent(data.data.overall_stats?.overall_rate);
                     applyDashboardSearch();
                 } else {
+                    lastAttendanceBreakdown = { course_attendance: [], intake_attendance: [], module_attendance: [] };
                     updateAttendanceTrendChart([]);
-                    updateCourseAttendanceTable([]);
+                    renderAttendanceBreakdown();
                 }
             } catch (error) {
                 console.error('Error fetching attendance overview:', error);
+                lastAttendanceBreakdown = { course_attendance: [], intake_attendance: [], module_attendance: [] };
                 updateAttendanceTrendChart([]);
-                updateCourseAttendanceTable([]);
+                renderAttendanceBreakdown();
             }
         }
 
@@ -2320,50 +2353,107 @@
             });
         }
 
-        function updateCourseAttendanceTable(data) {
+        function attendanceBreakdownMeta(view) {
+            return {
+                course: {
+                    title: '📋 Course-wise Attendance',
+                    subtitle: 'Attendance rates by course',
+                    header: 'Course',
+                    empty: 'No course attendance records found',
+                    param: 'course'
+                },
+                intake: {
+                    title: '📋 Intake-wise Attendance',
+                    subtitle: 'Attendance rates by intake',
+                    header: 'Intake',
+                    empty: 'No intake attendance records found',
+                    param: 'intake'
+                },
+                module: {
+                    title: '📋 Module-wise Attendance',
+                    subtitle: 'Attendance rates by module',
+                    header: 'Module',
+                    empty: 'No module attendance records found',
+                    param: 'module'
+                }
+            }[view] || {
+                title: '📋 Course-wise Attendance',
+                subtitle: 'Attendance rates by course',
+                header: 'Course',
+                empty: 'No course attendance records found',
+                param: 'course'
+            };
+        }
+
+        function attendanceBreakdownRows(view) {
+            if (view === 'intake') {
+                return lastAttendanceBreakdown.intake_attendance || [];
+            }
+            if (view === 'module') {
+                return lastAttendanceBreakdown.module_attendance || [];
+            }
+            return lastAttendanceBreakdown.course_attendance || [];
+        }
+
+        function renderAttendanceBreakdown() {
+            const view = currentAttendanceBreakdown || 'course';
+            const meta = attendanceBreakdownMeta(view);
+            const title = document.getElementById('attendanceBreakdownTitle');
+            const subtitle = document.getElementById('attendanceBreakdownSubtitle');
+            const header = document.getElementById('attendanceBreakdownNameHeader');
+
+            if (title) title.textContent = meta.title;
+            if (subtitle) subtitle.textContent = meta.subtitle;
+            if (header) header.textContent = meta.header;
+
+            updateCourseAttendanceTable(attendanceBreakdownRows(view), meta);
+        }
+
+        function updateCourseAttendanceTable(data, meta = null) {
             const body = document.getElementById('courseAttendanceBody');
+            const viewMeta = meta || attendanceBreakdownMeta(currentAttendanceBreakdown || 'course');
 
             if (!data || data.length === 0) {
                 body.innerHTML = `
                                 <tr>
                                     <td colspan="5" class="text-center py-4 text-muted">
-                                        No attendance records found
+                                        ${viewMeta.empty}
                                     </td>
                                 </tr>
                             `;
                 return;
             }
 
-            let html = '';
-            data.forEach(course => {
-                const statusClass = course.attendance_rate >= 80 ? 'badge-success' :
-                    course.attendance_rate >= 60 ? 'badge-warning' : 'badge-danger';
-                const statusText = course.attendance_rate >= 80 ? 'Good' :
-                    course.attendance_rate >= 60 ? 'Average' : 'Poor';
+            body.innerHTML = data.map(item => {
+                const name = item.name || item.course_name || 'N/A';
+                const rate = Number(item.attendance_rate) || 0;
+                const statusClass = rate >= 80 ? 'badge-success' :
+                    rate >= 60 ? 'badge-warning' : 'badge-danger';
+                const statusText = rate >= 80 ? 'Good' :
+                    rate >= 60 ? 'Average' : 'Poor';
+                const barClass = rate >= 80 ? 'bg-success' : (rate >= 60 ? 'bg-warning' : 'bg-danger');
+                const safeName = String(name).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
-                html += `
+                return `
                                 <tr>
-                                    <td>${course.course_name}</td>
+                                    <td>${name}</td>
                                     <td>
                                         <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar ${course.attendance_rate >= 80 ? 'bg-success' : course.attendance_rate >= 60 ? 'bg-warning' : 'bg-danger'}" 
-                                                 style="width: ${course.attendance_rate}%">
-                                                ${course.attendance_rate}%
+                                            <div class="progress-bar ${barClass}" style="width: ${rate}%">
+                                                ${rate}%
                                             </div>
                                         </div>
                                     </td>
-                                    <td>${course.total_records}</td>
+                                    <td>${formatKpiNumber(item.total_records)}</td>
                                     <td><span class="badge ${statusClass}">${statusText}</span></td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary" onclick="viewCourseAttendance('${course.course_name}')">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewCourseAttendance('${safeName}', '${viewMeta.param}')">
                                             <i class="fas fa-chart-bar"></i>
                                         </button>
                                     </td>
                                 </tr>
                             `;
-            });
-
-            body.innerHTML = html;
+            }).join('');
         }
 
         // Clearance Status
@@ -2786,8 +2876,9 @@
             window.location.href = `${dashboardRoutes.semesterEditBase}/${semesterId}/edit`;
         }
 
-        function viewCourseAttendance(courseName) {
-            window.location.href = `${dashboardRoutes.attendance}?course=${encodeURIComponent(courseName)}`;
+        function viewCourseAttendance(courseName, type = 'course') {
+            const param = type === 'intake' ? 'intake' : (type === 'module' ? 'module' : 'course');
+            window.location.href = `${dashboardRoutes.attendance}?${param}=${encodeURIComponent(courseName)}`;
         }
 
         function exportAttendance() {

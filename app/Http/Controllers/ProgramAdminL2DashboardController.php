@@ -550,25 +550,9 @@ class ProgramAdminL2DashboardController extends Controller
                 })
                 ->values();
 
-            $courseAttendance = (clone $baseQuery)
-                ->select(
-                    'course_id',
-                    DB::raw("ROUND(SUM($presentExpr) * 100.0 / NULLIF(COUNT(*), 0), 1) as attendance_rate"),
-                    DB::raw('COUNT(*) as total_records'),
-                    DB::raw("SUM($presentExpr) as present_records")
-                )
-                ->groupBy('course_id')
-                ->get()
-                ->map(function ($item) {
-                    $courseName = Course::where('course_id', $item->course_id)->value('course_name');
-                    return [
-                        'course_name' => $courseName ?? 'N/A',
-                        'attendance_rate' => round((float) $item->attendance_rate, 1),
-                        'total_records' => (int) $item->total_records,
-                    ];
-                })
-                ->sortByDesc('attendance_rate')
-                ->values();
+            $courseAttendance = $this->attendanceGroupedBy($baseQuery, 'course_id', $presentExpr);
+            $intakeAttendance = $this->attendanceGroupedBy($baseQuery, 'intake_id', $presentExpr);
+            $moduleAttendance = $this->attendanceGroupedBy($baseQuery, 'module_id', $presentExpr);
 
             $overallStats = (clone $baseQuery)
                 ->select(
@@ -583,6 +567,8 @@ class ProgramAdminL2DashboardController extends Controller
                 'data' => [
                     'daily_attendance' => $dailyAttendance,
                     'course_attendance' => $courseAttendance,
+                    'intake_attendance' => $intakeAttendance,
+                    'module_attendance' => $moduleAttendance,
                     'overall_stats' => $overallStats,
                     'period' => $period,
                     'filters' => [
@@ -1262,6 +1248,40 @@ class ProgramAdminL2DashboardController extends Controller
         }
 
         return [];
+    }
+
+    private function attendanceGroupedBy($baseQuery, string $groupColumn, string $presentExpr)
+    {
+        $rows = (clone $baseQuery)
+            ->select(
+                $groupColumn,
+                DB::raw("ROUND(SUM($presentExpr) * 100.0 / NULLIF(COUNT(*), 0), 1) as attendance_rate"),
+                DB::raw('COUNT(*) as total_records'),
+                DB::raw("SUM($presentExpr) as present_records")
+            )
+            ->whereNotNull($groupColumn)
+            ->groupBy($groupColumn)
+            ->get();
+
+        $ids = $rows->pluck($groupColumn)->filter()->unique()->values();
+        $labels = $this->examGroupLabels($groupColumn, $ids);
+
+        return $rows
+            ->map(function ($item) use ($groupColumn, $labels) {
+                $id = $item->{$groupColumn};
+                $name = $labels[$id] ?? 'N/A';
+
+                return [
+                    'id' => $id,
+                    'name' => $name,
+                    'course_name' => $name,
+                    'attendance_rate' => round((float) $item->attendance_rate, 1),
+                    'total_records' => (int) $item->total_records,
+                    'present_records' => (int) ($item->present_records ?? 0),
+                ];
+            })
+            ->sortByDesc('attendance_rate')
+            ->values();
     }
 
     private function presentAttendanceSql(): string
