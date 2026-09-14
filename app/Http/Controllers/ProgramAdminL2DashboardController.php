@@ -240,10 +240,25 @@ class ProgramAdminL2DashboardController extends Controller
             ->orderBy('course_name')
             ->get();
 
+        $intakes = Intake::where('location', $request->location)
+            ->orderByDesc('start_date')
+            ->orderBy('batch')
+            ->get(['intake_id', 'batch', 'course_name'])
+            ->map(function ($intake) {
+                return [
+                    'intake_id' => $intake->intake_id,
+                    'intake_name' => $intake->batch,
+                    'batch' => $intake->batch,
+                    'course_name' => $intake->course_name,
+                ];
+            })
+            ->values();
+
         return response()->json([
             'success' => true,
             'courses' => $courses,
             'data' => $courses,
+            'intakes' => $intakes,
         ]);
     }
 

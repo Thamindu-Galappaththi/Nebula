@@ -90,6 +90,45 @@
             height: 300px;
         }
 
+        .analytics-filter-field {
+            flex: 0 0 260px;
+            width: 260px;
+        }
+
+        .analytics-filter-field.location {
+            flex-basis: 352px;
+            width: 352px;
+        }
+
+        .analytics-filter-field.module {
+            flex-basis: 282px;
+            width: 282px;
+        }
+
+        .analytics-filter-field .nebula-select-sm {
+            width: 100%;
+            max-width: 100%;
+            flex: 1 1 auto;
+        }
+
+        @media (max-width: 575.98px) {
+            .analytics-filter-field,
+            .analytics-filter-field.location,
+            .analytics-filter-field.module {
+                flex: 1 1 100%;
+                width: 100%;
+                min-width: 0;
+            }
+
+            .analytics-filter-actions {
+                width: 100%;
+            }
+
+            .analytics-filter-actions .btn {
+                flex: 1 1 0;
+            }
+        }
+
         .status-badge {
             padding: 4px 12px;
             border-radius: 20px;
@@ -237,39 +276,35 @@
                 <div class="card">
                     <div class="card-body py-3">
                         <div class="d-flex flex-wrap align-items-end gap-3">
-                            <div>
+                            <div class="analytics-filter-field location">
                                 <label for="analyticsLocationFilter" class="form-label mb-1 text-muted">Location</label>
-                                <select id="analyticsLocationFilter" class="form-select form-select-sm"
-                                    style="min-width: 220px;">
+                                <select id="analyticsLocationFilter" class="form-select form-select-sm">
                                     <option value="">Default Location</option>
                                     <option value="Welisara">Nebula Institute of Technology - Welisara</option>
                                     <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
                                     <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="analytics-filter-field">
                                 <label for="analyticsCourseFilter" class="form-label mb-1 text-muted">Course</label>
-                                <select id="analyticsCourseFilter" class="form-select form-select-sm"
-                                    style="min-width: 220px;" disabled>
+                                <select id="analyticsCourseFilter" class="form-select form-select-sm" disabled>
                                     <option value="">All Courses</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="analytics-filter-field">
                                 <label for="analyticsIntakeFilter" class="form-label mb-1 text-muted">Intake</label>
-                                <select id="analyticsIntakeFilter" class="form-select form-select-sm"
-                                    style="min-width: 220px;" disabled>
+                                <select id="analyticsIntakeFilter" class="form-select form-select-sm" disabled>
                                     <option value="">All Intakes</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="analytics-filter-field module">
                                 <label for="analyticsModuleFilter" class="form-label mb-1 text-muted">Module
                                     (Attendance)</label>
-                                <select id="analyticsModuleFilter" class="form-select form-select-sm"
-                                    style="min-width: 240px;" disabled>
+                                <select id="analyticsModuleFilter" class="form-select form-select-sm" disabled>
                                     <option value="">All Modules</option>
                                 </select>
                             </div>
-                            <div class="d-flex gap-2">
+                            <div class="analytics-filter-actions d-flex gap-2">
                                 <button type="button" class="btn btn-primary btn-sm" id="applyAnalyticsFiltersBtn">
                                     <i class="fas fa-filter me-1"></i> Apply
                                 </button>
@@ -1032,6 +1067,8 @@
             intake_id: '',
             module_id: ''
         };
+        const analyticsLocationOptionsCache = new Map();
+        let analyticsLocationRequestId = 0;
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function () {
@@ -1171,6 +1208,7 @@
             }
 
             locationDropdown.addEventListener('change', async function () {
+                const requestId = ++analyticsLocationRequestId;
                 courseDropdown.innerHTML = '<option value="">All Courses</option>';
                 courseDropdown.disabled = true;
                 intakeDropdown.innerHTML = '<option value="">All Intakes</option>';
@@ -1182,10 +1220,7 @@
                     return;
                 }
 
-                await Promise.all([
-                    loadCoursesForAnalyticsFilter(this.value),
-                    loadIntakesForAnalyticsFilter(this.value)
-                ]);
+                await loadLocationOptionsForAnalyticsFilter(this.value, requestId);
             });
 
             courseDropdown.addEventListener('change', async function () {
@@ -1241,6 +1276,7 @@
             });
 
             clearButton.addEventListener('click', function () {
+                ++analyticsLocationRequestId;
                 locationDropdown.value = '';
                 courseDropdown.innerHTML = '<option value="">All Courses</option>';
                 courseDropdown.disabled = true;
@@ -1262,29 +1298,45 @@
             });
         }
 
-        async function loadCoursesForAnalyticsFilter(location) {
+        async function loadLocationOptionsForAnalyticsFilter(location, requestId) {
             const courseDropdown = document.getElementById('analyticsCourseFilter');
-            if (!courseDropdown) {
+            const intakeDropdown = document.getElementById('analyticsIntakeFilter');
+            if (!courseDropdown || !intakeDropdown) {
                 return;
             }
 
             courseDropdown.innerHTML = '<option value="">Loading courses...</option>';
             courseDropdown.disabled = true;
+            intakeDropdown.innerHTML = '<option value="">Loading intakes...</option>';
+            intakeDropdown.disabled = true;
 
             try {
-                const response = await fetch(`{{ route('api.program.admin.l2.courses.by.location') }}?location=${encodeURIComponent(location)}`, {
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
+                let payload = analyticsLocationOptionsCache.get(location);
+                if (!payload) {
+                    const response = await fetch(`{{ route('api.program.admin.l2.courses.by.location') }}?location=${encodeURIComponent(location)}`, {
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        }
+                    });
+                    if (!response.ok) {
+                        throw new Error(`Request failed with status ${response.status}`);
                     }
-                });
-                const payload = await response.json();
+                    payload = await response.json();
+                    analyticsLocationOptionsCache.set(location, payload);
+                }
+
+                if (requestId !== analyticsLocationRequestId) {
+                    return;
+                }
 
                 courseDropdown.innerHTML = '<option value="">All Courses</option>';
+                intakeDropdown.innerHTML = '<option value="">All Intakes</option>';
 
                 const courses = Array.isArray(payload.courses)
                     ? payload.courses
                     : (Array.isArray(payload.data) ? payload.data : []);
+                const intakes = Array.isArray(payload.intakes) ? payload.intakes : [];
 
                 if (payload.success && courses.length > 0) {
                     courses.forEach(course => {
@@ -1294,13 +1346,28 @@
                         courseDropdown.appendChild(option);
                     });
                     courseDropdown.disabled = false;
-                    return;
+                } else {
+                    courseDropdown.innerHTML = '<option value="">No courses found</option>';
                 }
 
-                courseDropdown.innerHTML = '<option value="">No courses found</option>';
+                if (payload.success && intakes.length > 0) {
+                    intakes.forEach(intake => {
+                        const option = document.createElement('option');
+                        option.value = intake.intake_id;
+                        option.textContent = intake.intake_name || intake.batch || `Intake ${intake.intake_id}`;
+                        intakeDropdown.appendChild(option);
+                    });
+                    intakeDropdown.disabled = false;
+                } else {
+                    intakeDropdown.innerHTML = '<option value="">No intakes found</option>';
+                }
             } catch (error) {
+                if (requestId !== analyticsLocationRequestId) {
+                    return;
+                }
                 console.error('Error loading courses for analytics filter:', error);
                 courseDropdown.innerHTML = '<option value="">Failed to load courses</option>';
+                intakeDropdown.innerHTML = '<option value="">Failed to load intakes</option>';
             }
         }
 
