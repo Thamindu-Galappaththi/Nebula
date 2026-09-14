@@ -394,6 +394,18 @@
             flex: 1 1 auto !important;
         }
 
+        .dashboard-chart-filter .nebula-select-menu {
+            position: absolute !important;
+            top: calc(100% + 4px) !important;
+            right: auto !important;
+            bottom: auto !important;
+            left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: 240px !important;
+            z-index: 2050 !important;
+        }
+
         .chart-container {
             max-width: 100%;
         }
