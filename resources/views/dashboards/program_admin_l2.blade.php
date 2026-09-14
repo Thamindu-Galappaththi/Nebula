@@ -165,13 +165,154 @@
             max-height: 240px !important;
         }
 
-        @media (max-width: 575.98px) {
+        .dashboard-page-heading {
+            min-width: 0;
+        }
+
+        .dashboard-page-heading > div {
+            min-width: 0;
+        }
+
+        .program-admin-l2-page .card-body > .d-flex.justify-content-between {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .dashboard-page-heading h4,
+        .dashboard-page-heading p {
+            overflow-wrap: anywhere;
+        }
+
+        .dashboard-search-group {
+            width: 220px;
+            max-width: 100%;
+        }
+
+        .nav-tabs-scroll {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+
+        .nav-tabs-scroll .nav-item {
+            flex: 0 0 auto;
+        }
+
+        .nav-tabs-custom .nav-link {
+            white-space: nowrap;
+        }
+
+        .analytics-filter-field .nebula-select,
+        .analytics-filter-field .nebula-select-sm {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 1 1 auto !important;
+        }
+
+        .chart-container {
+            max-width: 100%;
+        }
+
+        .table-responsive {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #coursePerformanceList .list-group-item {
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        #coursePerformanceList .performance-item-info {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        #coursePerformanceList .performance-item-info .fw-medium {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        #coursePerformanceList .performance-item-badge {
+            flex: 0 0 auto;
+            white-space: nowrap;
+            margin-top: 2px;
+        }
+
+        @media (max-width: 991.98px) {
             .analytics-filter-field,
             .analytics-filter-field.location,
             .analytics-filter-field.module {
-                flex: 1 1 100%;
-                width: 100%;
+                flex: 1 1 calc(50% - 0.75rem);
+                width: calc(50% - 0.75rem);
                 min-width: 0;
+            }
+
+            .dashboard-chart-filter {
+                flex: 1 1 180px;
+                width: auto;
+                min-width: 0;
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .program-admin-l2-page {
+                overflow-x: hidden;
+            }
+
+            .program-admin-l2-page > .row.mb-4 {
+                margin-bottom: 1rem !important;
+            }
+
+            .page-title-box {
+                align-items: stretch !important;
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .dashboard-page-actions {
+                width: 100%;
+            }
+
+            .dashboard-search-group {
+                flex: 1 1 auto;
+                width: auto;
+            }
+
+            .dashboard-page-heading h4 {
+                font-size: 1.15rem;
+            }
+
+            .kpi-card h2,
+            .fw-bold.fs-18 {
+                font-size: 1.4rem !important;
+            }
+
+            .chart-container {
+                height: 220px;
+            }
+
+            .card-hover:hover {
+                transform: none;
+            }
+
+            .nav-tabs-custom .nav-link {
+                padding: 10px 14px;
+                font-size: 13px;
+            }
+
+            .time-filter-btn {
+                flex: 1 1 calc(50% - 8px);
+                margin-right: 0;
+                text-align: center;
+            }
+
+            .academic-breakdown-btn,
+            .attendance-breakdown-btn {
+                flex: 1 1 auto;
+                text-align: center;
             }
 
             .analytics-filter-actions {
@@ -182,9 +323,41 @@
                 flex: 1 1 0;
             }
 
+            .payment-course-filter {
+                width: 100%;
+                max-width: 100%;
+                margin-left: 0 !important;
+            }
+
+            .table-responsive table {
+                min-width: 640px;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .analytics-filter-field,
+            .analytics-filter-field.location,
+            .analytics-filter-field.module {
+                flex: 1 1 100%;
+                width: 100%;
+                min-width: 0;
+            }
+
             .dashboard-chart-filter {
                 flex: 1 1 100%;
                 width: 100%;
+            }
+
+            .bg-white.p-4 {
+                padding: 1rem !important;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+
+            .time-filter-btn {
+                flex-basis: 100%;
             }
         }
 
@@ -274,13 +447,13 @@
         }
     </style>
 
-    <div class="container-fluid">
+    <div class="container-fluid program-admin-l2-page">
         <!-- Page Header -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="bg-white p-4 rounded shadow-sm mb-4">
-                    <div class="page-title-box d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
+                    <div class="page-title-box d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-start dashboard-page-heading">
                             <div class="me-3">
                                 <div class="avatar-initial">
                                     <i class="fas fa-user-tie"></i>
@@ -293,15 +466,15 @@
                             </div>
                         </div>
 
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="input-group input-group-sm" style="width: 220px;">
+                        <div class="dashboard-page-actions d-flex align-items-center gap-2">
+                            <div class="input-group input-group-sm dashboard-search-group">
                                 <input type="text" class="form-control" placeholder="Search tables..." id="searchInput">
                                 <button class="btn btn-outline-secondary" type="button" id="dashboardSearchBtn">
                                     <i class="fas fa-search"></i>
                                 </button>
                             </div>
 
-                            <button class="btn btn-outline-primary btn-sm" onclick="refreshAllData()">
+                            <button class="btn btn-outline-primary btn-sm text-nowrap" onclick="refreshAllData()">
                                 <i class="fas fa-sync-alt me-1"></i> Refresh
                             </button>
                         </div>
@@ -315,7 +488,7 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body py-3">
-                        <div class="d-flex flex-wrap align-items-center">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
                             <span class="me-3 text-muted"><i class="fas fa-calendar-alt me-1"></i> Time Period:</span>
                             <div class="d-flex flex-wrap">
                                 <button type="button" class="time-filter-btn" data-period="today">Today</button>
@@ -389,7 +562,7 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
-                        <ul class="nav nav-tabs nav-tabs-custom mb-4" id="dashboardTabs" role="tablist">
+                        <ul class="nav nav-tabs nav-tabs-custom nav-tabs-scroll mb-4" id="dashboardTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="overview-tab" data-bs-toggle="tab"
                                     data-bs-target="#overview" type="button" role="tab">
@@ -733,10 +906,9 @@
                                                     <span class="badge badge-purple">Pass Rate</span>
                                                 </div>
                                                 <div id="coursePerformanceList" class="list-group list-group-flush">
-                                                    <div
-                                                        class="list-group-item d-flex justify-content-between align-items-center">
-                                                        <div class="text-muted">Loading...</div>
-                                                        <span class="badge bg-secondary">0%</span>
+                                                    <div class="list-group-item d-flex justify-content-between">
+                                                        <div class="performance-item-info text-muted">Loading...</div>
+                                                        <span class="badge bg-secondary performance-item-badge">0%</span>
                                                     </div>
                                                 </div>
                                                 <div class="mt-3 pt-3 border-top">
@@ -1113,7 +1285,7 @@
 
     <!-- Rejection Modal -->
     <div class="modal fade" id="rejectionModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Reject Registration</h5>
@@ -2255,9 +2427,9 @@
 
             if (!data || data.length === 0) {
                 container.innerHTML = `
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div class="text-muted">${emptyText}</div>
-                                    <span class="badge bg-secondary">-</span>
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <div class="performance-item-info text-muted">${emptyText}</div>
+                                    <span class="badge bg-secondary performance-item-badge">-</span>
                                 </div>
                             `;
                 return;
@@ -2268,12 +2440,12 @@
                 const badgeClass = item.pass_rate >= 70 ? 'badge-success' :
                     item.pass_rate >= 50 ? 'badge-warning' : 'badge-danger';
                 return `
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
+                                <div class="list-group-item d-flex justify-content-between">
+                                    <div class="performance-item-info">
                                         <div class="fw-medium">${name}</div>
                                         <small class="text-muted">${item.passed}/${item.total} students</small>
                                     </div>
-                                    <span class="badge ${badgeClass}">${item.pass_rate}%</span>
+                                    <span class="badge ${badgeClass} performance-item-badge">${item.pass_rate}%</span>
                                 </div>
                             `;
             }).join('');
