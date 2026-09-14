@@ -293,14 +293,10 @@
                         <div class="d-flex flex-wrap align-items-center">
                             <span class="me-3 text-muted"><i class="fas fa-calendar-alt me-1"></i> Time Period:</span>
                             <div class="d-flex flex-wrap">
-                                <button type="button" class="time-filter-btn" data-period="today"
-                                    onclick="setTimePeriod('today', this)">Today</button>
-                                <button type="button" class="time-filter-btn" data-period="week"
-                                    onclick="setTimePeriod('week', this)">This Week</button>
-                                <button type="button" class="time-filter-btn active" data-period="month"
-                                    onclick="setTimePeriod('month', this)">This Month</button>
-                                <button type="button" class="time-filter-btn" data-period="quarter"
-                                    onclick="setTimePeriod('quarter', this)">Last 3 Months</button>
+                                <button type="button" class="time-filter-btn" data-period="today">Today</button>
+                                <button type="button" class="time-filter-btn" data-period="week">This Week</button>
+                                <button type="button" class="time-filter-btn active" data-period="month">This Month</button>
+                                <button type="button" class="time-filter-btn" data-period="quarter">Last 3 Months</button>
                             </div>
                         </div>
                     </div>
@@ -357,7 +353,7 @@
                             Module applies to Attendance only.
                             <span id="appliedFiltersText"></span>
                         </div>
-                        <div class="small text-muted mt-2">Choose location/course/intake/module, then click Apply to filter Academic Performance and Attendance. Time Period updates Overview period cards, Attendance, and Payments period cards. Academic grades and Clearance status are current snapshots, not date-filtered.</div>
+                        <div class="small text-muted mt-2">Choose location/course/intake/module, then click Apply to filter Academic Performance and Attendance. Time Period updates Overview period cards, average attendance, Attendance, and Payments period cards. Academic grades and Clearance status are current snapshots, not date-filtered.</div>
                     </div>
                 </div>
             </div>
@@ -1122,6 +1118,12 @@
                 });
             }
             loadDashboardData();
+
+            document.querySelectorAll('.time-filter-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    setTimePeriod(this.dataset.period, this);
+                });
+            });
 
             const searchButton = document.getElementById('dashboardSearchBtn');
             if (searchButton) {

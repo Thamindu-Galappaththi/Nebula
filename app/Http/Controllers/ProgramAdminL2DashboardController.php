@@ -33,9 +33,15 @@ class ProgramAdminL2DashboardController extends Controller
      */
     public function getOverviewMetrics(Request $request)
     {
+        $request->validate([
+            'location' => 'nullable|in:Welisara,Moratuwa,Peradeniya',
+            'period' => 'nullable|in:today,week,month,quarter',
+        ]);
+
         $location = $this->normalizeLocation($request->input('location'));
-        [$startDate, $endDate] = $this->periodRange($request->input('period', 'month'));
-        [$prevStart, $prevEnd] = $this->previousPeriodRange($request->input('period', 'month'));
+        $period = $request->input('period', 'month');
+        [$startDate, $endDate] = $this->periodRange($period);
+        [$prevStart, $prevEnd] = $this->previousPeriodRange($period);
 
         try {
             $registrations = $this->constrainByLocation(CourseRegistration::query(), $location);
@@ -71,30 +77,33 @@ class ProgramAdminL2DashboardController extends Controller
                 });
 
             $periodRegistrations = (clone $registrations)
-                ->where('status', 'Registered')
-                ->whereBetween('registration_date', [$startDate->toDateString(), $endDate->toDateString()])
-                ->count();
+                ->where('status', 'Registered');
+            $this->applyRegistrationPeriod($periodRegistrations, $startDate, $endDate);
+            $periodRegistrations = $periodRegistrations->count();
 
             $previousPeriodRegistrations = (clone $registrations)
-                ->where('status', 'Registered')
-                ->whereBetween('registration_date', [$prevStart->toDateString(), $prevEnd->toDateString()])
-                ->count();
+                ->where('status', 'Registered');
+            $this->applyRegistrationPeriod($previousPeriodRegistrations, $prevStart, $prevEnd);
+            $previousPeriodRegistrations = $previousPeriodRegistrations->count();
 
             $growthPercentage = $previousPeriodRegistrations > 0
                 ? (($periodRegistrations - $previousPeriodRegistrations) / $previousPeriodRegistrations) * 100
-                : 0;
+                : ($periodRegistrations > 0 ? 100 : 0);
 
             $pendingClearances = $this->constrainByLocation(ClearanceRequest::query(), $location)
-                ->where('status', 'pending')
-                ->count();
+                ->where('status', 'pending');
+            $this->applyDatePeriod($pendingClearances, 'COALESCE(requested_at, created_at)', $startDate, $endDate);
+            $pendingClearances = $pendingClearances->count();
 
             $specialApprovalNeeded = (clone $registrations)
-                ->where('status', 'Special approval required')
-                ->count();
+                ->where('status', 'Special approval required');
+            $this->applyRegistrationPeriod($specialApprovalNeeded, $startDate, $endDate);
+            $specialApprovalNeeded = $specialApprovalNeeded->count();
 
-            $avgAttendanceRate = $this->attendanceRateFor($location);
+            $avgAttendanceRate = $this->attendanceRateFor($location, $startDate, $endDate);
 
             $examQuery = $this->constrainByLocation(ExamResult::query(), $location);
+            $this->applyDatePeriod($examQuery, 'created_at', $startDate, $endDate);
 
             $totalExamResults = (clone $examQuery)->count();
             $passResults = (clone $examQuery)
@@ -102,9 +111,9 @@ class ProgramAdminL2DashboardController extends Controller
                 ->count();
             $passRate = $totalExamResults > 0 ? round(($passResults / $totalExamResults) * 100, 1) : 0;
 
-            $monthSemesterReg = $this->constrainByLocation(SemesterRegistration::query(), $location)
-                ->whereBetween('registration_date', [$startDate->toDateString(), $endDate->toDateString()])
-                ->count();
+            $monthSemesterReg = $this->constrainByLocation(SemesterRegistration::query(), $location);
+            $this->applyRegistrationPeriod($monthSemesterReg, $startDate, $endDate, 'semester_registrations');
+            $monthSemesterReg = $monthSemesterReg->count();
 
             return response()->json([
                 'success' => true,
@@ -121,7 +130,7 @@ class ProgramAdminL2DashboardController extends Controller
                     'month_semester_reg' => $monthSemesterReg,
                     'student_count_by_batch' => $studentCountByBatch,
                     'location' => $location,
-                    'period' => $request->input('period', 'month'),
+                    'period' => $period,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -697,6 +706,12 @@ class ProgramAdminL2DashboardController extends Controller
      */
     public function getPaymentOverview(Request $request)
     {
+        $request->validate([
+            'location' => 'nullable|in:Welisara,Moratuwa,Peradeniya',
+            'course_id' => 'nullable|exists:courses,course_id',
+            'period' => 'nullable|in:today,week,month,quarter',
+        ]);
+
         $location = $this->normalizeLocation($request->input('location'));
         $locationValues = $this->locationValues($location);
         $courseId = $request->input('course_id');
@@ -768,12 +783,13 @@ class ProgramAdminL2DashboardController extends Controller
                 })
                 ->values();
 
+            $registrationDateSql = $this->registrationDateSql();
             $registrationSummary = (clone $registrationQuery)
                 ->select(
                     'course_id',
                     DB::raw('COUNT(*) as total_registrations'),
                     DB::raw("SUM(CASE WHEN status = 'Registered' THEN 1 ELSE 0 END) as ongoing_courses"),
-                    DB::raw("SUM(CASE WHEN registration_date BETWEEN '{$startDate->toDateString()}' AND '{$endDate->toDateString()}' THEN 1 ELSE 0 END) as new_registrations")
+                    DB::raw("SUM(CASE WHEN {$registrationDateSql} BETWEEN '{$startDate->toDateString()}' AND '{$endDate->toDateString()}' THEN 1 ELSE 0 END) as new_registrations")
                 )
                 ->groupBy('course_id')
                 ->get()
@@ -818,10 +834,10 @@ class ProgramAdminL2DashboardController extends Controller
                 ->values()
                 ->toArray();
 
-            $newRegistrations = (clone $registrationQuery)
-                ->with(['student', 'course'])
-                ->whereBetween('registration_date', [$startDate->toDateString(), $endDate->toDateString()])
-                ->orderBy('registration_date', 'desc')
+            $newRegistrationsQuery = (clone $registrationQuery)->with(['student', 'course']);
+            $this->applyRegistrationPeriod($newRegistrationsQuery, $startDate, $endDate);
+            $newRegistrations = $newRegistrationsQuery
+                ->orderByRaw("{$registrationDateSql} DESC")
                 ->limit(10)
                 ->get()
                 ->map(function ($registration) {
@@ -836,9 +852,9 @@ class ProgramAdminL2DashboardController extends Controller
                 })
                 ->toArray();
 
-            $newRegistrationsCount = (clone $registrationQuery)
-                ->whereBetween('registration_date', [$startDate->toDateString(), $endDate->toDateString()])
-                ->count();
+            $newRegistrationsCountQuery = clone $registrationQuery;
+            $this->applyRegistrationPeriod($newRegistrationsCountQuery, $startDate, $endDate);
+            $newRegistrationsCount = $newRegistrationsCountQuery->count();
 
             $ongoingCoursesCount = (clone $registrationQuery)
                 ->where('status', 'Registered')
@@ -1138,7 +1154,7 @@ class ProgramAdminL2DashboardController extends Controller
                 $start = Carbon::now()->startOfWeek()->startOfDay();
                 break;
             case 'quarter':
-                $start = Carbon::now()->subMonths(3)->startOfDay();
+                $start = Carbon::now()->subMonths(2)->startOfMonth()->startOfDay();
                 break;
             case 'month':
             default:
@@ -1157,11 +1173,36 @@ class ProgramAdminL2DashboardController extends Controller
             case 'week':
                 return [Carbon::now()->subWeek()->startOfWeek()->startOfDay(), Carbon::now()->subWeek()->endOfWeek()->endOfDay()];
             case 'quarter':
-                return [Carbon::now()->subMonths(6)->startOfDay(), Carbon::now()->subMonths(3)->endOfDay()];
+                $currentStart = Carbon::now()->subMonths(2)->startOfMonth()->startOfDay();
+                return [
+                    $currentStart->copy()->subMonths(3)->startOfMonth()->startOfDay(),
+                    $currentStart->copy()->subDay()->endOfDay(),
+                ];
             case 'month':
             default:
                 return [Carbon::now()->subMonth()->startOfMonth()->startOfDay(), Carbon::now()->subMonth()->endOfMonth()->endOfDay()];
         }
+    }
+
+    private function registrationDateSql(string $table = 'course_registration'): string
+    {
+        return "DATE(COALESCE({$table}.registration_date, {$table}.created_at))";
+    }
+
+    private function applyDatePeriod($query, string $columnSql, Carbon $start, Carbon $end)
+    {
+        return $query->whereRaw("DATE({$columnSql}) BETWEEN ? AND ?", [
+            $start->toDateString(),
+            $end->toDateString(),
+        ]);
+    }
+
+    private function applyRegistrationPeriod($query, Carbon $start, Carbon $end, string $table = 'course_registration')
+    {
+        return $query->whereRaw($this->registrationDateSql($table) . ' BETWEEN ? AND ?', [
+            $start->toDateString(),
+            $end->toDateString(),
+        ]);
     }
 
     private function presentAttendanceSql(): string
