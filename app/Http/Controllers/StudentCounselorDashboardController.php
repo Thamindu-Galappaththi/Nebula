@@ -23,7 +23,7 @@ class StudentCounselorDashboardController extends Controller
     // Get overview metrics
     public function getOverviewMetrics(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
         $previousRange = $this->getPreviousDateRange($dateRange['start'], $dateRange['end']);
@@ -77,7 +77,7 @@ class StudentCounselorDashboardController extends Controller
     // Get recent registrations
     public function getRecentRegistrations(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $filter = strtolower($request->input('filter', 'all'));
         $search = trim((string) $request->input('search', ''));
@@ -145,7 +145,7 @@ class StudentCounselorDashboardController extends Controller
     // Get marketing survey data
     public function getMarketingSurveyData(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
 
@@ -200,7 +200,7 @@ class StudentCounselorDashboardController extends Controller
     // Get daily registration trend
     public function getDailyRegistrationTrend(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
 
@@ -230,7 +230,7 @@ class StudentCounselorDashboardController extends Controller
     // Get registrations by location
     public function getRegistrationsByLocation(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
 
@@ -278,7 +278,7 @@ class StudentCounselorDashboardController extends Controller
     // Get counselor performance data
     public function getCounselorPerformanceData(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
 
@@ -297,7 +297,7 @@ class StudentCounselorDashboardController extends Controller
         return response()->json($performanceData);
     }
 
-    private function getDateRange(string $period = 'week', ?string $customDate = null): array
+    private function getDateRange(string $period = 'month', ?string $customDate = null): array
     {
         return match ($period) {
             'today' => [

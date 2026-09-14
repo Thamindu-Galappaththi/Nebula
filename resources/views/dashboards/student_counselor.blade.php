@@ -365,8 +365,8 @@
                             <span class="dashboard-filter-label text-muted"><i class="fas fa-calendar-alt me-1"></i> Time Period:</span>
                             <div class="dashboard-filter-controls">
                                 <button type="button" class="time-filter-btn" data-period="today" onclick="setTimePeriod('today', this)">Today</button>
-                                <button type="button" class="time-filter-btn active" data-period="week" onclick="setTimePeriod('week', this)">This Week</button>
-                                <button type="button" class="time-filter-btn" data-period="month" onclick="setTimePeriod('month', this)">This Month</button>
+                                <button type="button" class="time-filter-btn" data-period="week" onclick="setTimePeriod('week', this)">This Week</button>
+                                <button type="button" class="time-filter-btn active" data-period="month" onclick="setTimePeriod('month', this)">This Month</button>
                                 <button type="button" class="time-filter-btn" data-period="quarter" onclick="setTimePeriod('quarter', this)">Last 3 Months</button>
                                 <div class="dashboard-filter-date-wrap">
                                     <input type="date" id="customDate" class="form-control form-control-sm dashboard-filter-date" title="Filter dashboard by a specific date">
@@ -413,10 +413,10 @@
                                 <span id="todayGrowthValue" class="badge"></span>
                             </div>
                         </div>
-                        <h5 class="card-title text-muted text-uppercase fs-12" id="periodMetricTitle">This Week Registrations</h5>
+                        <h5 class="card-title text-muted text-uppercase fs-12" id="periodMetricTitle">This Month Registrations</h5>
                         <h2 class="fw-bold text-primary mb-1" id="periodRegistrationsCard">-</h2>
                         <div class="text-muted fs-13" id="periodMetricSubtext">
-                            <i class="fas fa-bolt me-1"></i> Registrations this week
+                            <i class="fas fa-bolt me-1"></i> Registrations this month
                         </div>
                         <div class="progress mt-3" style="height: 4px;">
                             <div class="progress-bar bg-primary" id="periodProgress" style="width: 0%"></div>
@@ -458,7 +458,7 @@
                         <h5 class="card-title text-muted text-uppercase fs-12" id="pendingCardTitle">Pending</h5>
                         <h2 class="fw-bold text-warning mb-1" id="pendingRegistrations">-</h2>
                         <div class="text-muted fs-13" id="pendingCardSubtext">
-                            <i class="fas fa-exclamation-circle me-1"></i> Awaiting approval in this week
+                            <i class="fas fa-exclamation-circle me-1"></i> Awaiting approval in this month
                         </div>
                         <div class="progress mt-3" style="height: 4px;">
                             <div class="progress-bar bg-warning" id="pendingProgress" style="width: 0%"></div>
@@ -544,7 +544,7 @@
                             </div>
                             <select id="performancePeriod" class="form-select form-select-sm" style="width: auto;">
                                 <option value="week">This Week</option>
-                                <option value="month">This Month</option>
+                                <option value="month" selected>This Month</option>
                                 <option value="quarter">This Quarter</option>
                             </select>
                         </div>
@@ -671,7 +671,7 @@
         const studentProfileBase = @json(url('/student/profile'));
         let currentPage = 1;
         let totalPages = 1;
-        let currentTimePeriod = 'week';
+        let currentTimePeriod = 'month';
         let currentFilter = 'all';
         let chartInstances = {};
         
@@ -1087,7 +1087,7 @@
         }
         
         // Counselor Performance Chart
-        async function fetchCounselorPerformanceData(period = 'week') {
+        async function fetchCounselorPerformanceData(period = 'month') {
             try {
                 const data = await fetchJson(`/api/student-counselor/counselor-performance?${buildPeriodQuery({}, period)}`);
                 const rows = Array.isArray(data) ? data : [];
