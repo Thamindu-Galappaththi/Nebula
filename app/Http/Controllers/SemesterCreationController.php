@@ -9,6 +9,7 @@ use App\Models\Intake;
 use App\Models\Module;
 use App\Support\SemesterModuleSpecializationHelper;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class SemesterCreationController extends Controller
 {
@@ -55,7 +56,7 @@ class SemesterCreationController extends Controller
 
             // Map the form field 'semester' to 'name' for the database
             if ($request->has('semester')) {
-                $request->merge(['name' => $request->semester]);
+                $request->merge(['name' => (string) $request->semester]);
             }
 
             // Basic validation
@@ -155,11 +156,20 @@ class SemesterCreationController extends Controller
 
             // Map the form field 'semester' to 'name' for the database
             if ($request->has('semester')) {
-                $request->merge(['name' => $request->semester]);
+                $request->merge(['name' => (string) $request->semester]);
             }
 
             $validated = $request->validate([
-                'name' => 'required|string|max:255',
+                'name' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    Rule::unique('semesters', 'name')->where(function ($query) use ($request) {
+                        return $query
+                            ->where('course_id', $request->input('course_id'))
+                            ->where('intake_id', $request->input('intake_id'));
+                    }),
+                ],
                 'course_id' => 'required|exists:courses,course_id',
                 'intake_id' => 'required|exists:intakes,intake_id',
                 'start_date' => 'required|date',
@@ -225,11 +235,15 @@ class SemesterCreationController extends Controller
 
     public function getFilteredModules(Request $request)
     {
+        $creating = $request->boolean('creating');
+
         $request->validate([
             'course_id'  => 'required|exists:courses,course_id',
             'location'   => 'required|string',
             'intake_id'  => 'required|exists:intakes,intake_id',
-            'semester'   => 'required|integer|exists:semesters,id',
+            'semester'   => $creating
+                ? 'required|integer|min:1'
+                : 'required|integer|exists:semesters,id',
         ]);
 
         $courseId   = (int) $request->course_id;
@@ -248,19 +262,6 @@ class SemesterCreationController extends Controller
                 ], 422);
             }
 
-            $semester = Semester::where('id', $semesterId)
-                ->where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->first();
-
-            if (!$semester) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'The selected semester does not belong to the specified course and intake.',
-                    'modules' => [],
-                ], 422);
-            }
-
             $belongsToCourse = ($intake->course_id == $course->course_id)
                 || (is_null($intake->course_id) && $intake->course_name === $course->course_name);
 
@@ -272,51 +273,32 @@ class SemesterCreationController extends Controller
                 ], 422);
             }
 
-            if ($course->course_type === 'certificate') {
-                $modules = DB::table('modules')
-                    ->join('intake_modules', 'modules.module_id', '=', 'intake_modules.module_id')
-                    ->where('intake_modules.intake_id', $intake->intake_id)
-                    ->select(
-                        'modules.module_id',
-                        'modules.module_name',
-                        'modules.module_code',
-                        'modules.module_type',
-                        'modules.credits'
-                    )
-                    ->orderBy('modules.module_name')
-                    ->distinct()
-                    ->get();
-            } else {
-                $modules = DB::table('modules')
-                    ->join('semester_module', 'modules.module_id', '=', 'semester_module.module_id')
-                    ->where('semester_module.semester_id', $semesterId)
-                    ->select(
-                        'modules.module_id',
-                        'modules.module_name',
-                        'modules.module_code',
-                        'modules.module_type',
-                        'modules.credits'
-                    )
-                    ->orderBy('modules.module_name')
-                    ->distinct()
-                    ->get();
-
-                if ($modules->isEmpty()) {
-                    $modules = DB::table('modules')
-                        ->join('course_modules', 'modules.module_id', '=', 'course_modules.module_id')
-                        ->where('course_modules.course_id', $courseId)
-                        ->where('course_modules.semester', $semesterId)
-                        ->select(
-                            'modules.module_id',
-                            'modules.module_name',
-                            'modules.module_code',
-                            'modules.module_type',
-                            'modules.credits'
-                        )
-                        ->orderBy('modules.module_name')
-                        ->distinct()
-                        ->get();
+            if ($creating) {
+                $maxSemesters = (int) ($course->no_of_semesters ?? 0);
+                if ($maxSemesters > 0 && $semesterId > $maxSemesters) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The selected semester number is not valid for this course.',
+                        'modules' => [],
+                    ], 422);
                 }
+
+                $modules = $this->queryModulesForSemesterNumber($course, $intake, $semesterId);
+            } else {
+                $semester = Semester::where('id', $semesterId)
+                    ->where('course_id', $courseId)
+                    ->where('intake_id', $intakeId)
+                    ->first();
+
+                if (!$semester) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The selected semester does not belong to the specified course and intake.',
+                        'modules' => [],
+                    ], 422);
+                }
+
+                $modules = $this->queryModulesForExistingSemester($course, $intake, $semester);
             }
 
             $formattedModules = $modules->map(function ($module) {
@@ -527,6 +509,100 @@ class SemesterCreationController extends Controller
                 'message' => 'An error occurred while duplicating the semester.'
             ], 500);
         }
+    }
+
+    private function queryModulesForExistingSemester(Course $course, Intake $intake, Semester $semester)
+    {
+        if ($course->course_type === 'certificate') {
+            return $this->queryIntakeModules((int) $intake->intake_id);
+        }
+
+        $modules = $this->querySemesterAssignedModules((int) $semester->id);
+
+        if ($modules->isEmpty()) {
+            $modules = $this->queryCourseModules((int) $course->course_id, $this->resolveSemesterNumber($semester));
+        }
+
+        return $modules;
+    }
+
+    private function queryModulesForSemesterNumber(Course $course, Intake $intake, int $semesterNumber)
+    {
+        if ($course->course_type === 'certificate') {
+            return $this->queryIntakeModules((int) $intake->intake_id);
+        }
+
+        return $this->queryCourseModules((int) $course->course_id, $semesterNumber);
+    }
+
+    private function queryIntakeModules(int $intakeId)
+    {
+        return DB::table('modules')
+            ->join('intake_modules', 'modules.module_id', '=', 'intake_modules.module_id')
+            ->where('intake_modules.intake_id', $intakeId)
+            ->select(
+                'modules.module_id',
+                'modules.module_name',
+                'modules.module_code',
+                'modules.module_type',
+                'modules.credits'
+            )
+            ->orderBy('modules.module_name')
+            ->distinct()
+            ->get();
+    }
+
+    private function querySemesterAssignedModules(int $semesterId)
+    {
+        return DB::table('modules')
+            ->join('semester_module', 'modules.module_id', '=', 'semester_module.module_id')
+            ->where('semester_module.semester_id', $semesterId)
+            ->select(
+                'modules.module_id',
+                'modules.module_name',
+                'modules.module_code',
+                'modules.module_type',
+                'modules.credits'
+            )
+            ->orderBy('modules.module_name')
+            ->distinct()
+            ->get();
+    }
+
+    private function queryCourseModules(int $courseId, int $semesterNumber)
+    {
+        return DB::table('modules')
+            ->join('course_modules', 'modules.module_id', '=', 'course_modules.module_id')
+            ->where('course_modules.course_id', $courseId)
+            ->where('course_modules.semester', $semesterNumber)
+            ->select(
+                'modules.module_id',
+                'modules.module_name',
+                'modules.module_code',
+                'modules.module_type',
+                'modules.credits'
+            )
+            ->orderBy('modules.module_name')
+            ->distinct()
+            ->get();
+    }
+
+    private function resolveSemesterNumber(Semester $semester): int
+    {
+        $name = trim((string) $semester->name);
+
+        if (preg_match('/(\d+)/', $name, $matches)) {
+            return (int) $matches[1];
+        }
+
+        if (preg_match('/([A-Za-z])/', $name, $matches)) {
+            $offset = ord(strtoupper($matches[1])) - 64;
+            if ($offset >= 1 && $offset <= 26) {
+                return $offset;
+            }
+        }
+
+        return (int) $semester->id;
     }
 
     private function syncSemesterModules(int $semesterId, array $modules): void

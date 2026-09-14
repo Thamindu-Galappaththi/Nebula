@@ -3,21 +3,126 @@
 @section('title', 'NEBULA | Semester Creation')
 
 @section('content')
-<div class="container-fluid">
+<style nonce="{{ $cspNonce }}">
+    .semester-create-page .nebula-select {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+    .semester-create-header,
+    .semester-create-actions {
+        gap: 0.75rem;
+    }
+    .semester-create-page select:disabled,
+    .semester-create-page .nebula-select.is-disabled .nebula-select-toggle {
+        background-color: #f5f5f5 !important;
+        border-color: #ddd !important;
+        color: #aaa !important;
+        box-shadow: none;
+    }
+    .semester-module-picker {
+        display: grid;
+        grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr) auto;
+        gap: 0.5rem;
+        align-items: end;
+    }
+    .semester-module-add .btn {
+        white-space: nowrap;
+    }
+    .semester-modules-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    #modules_table {
+        min-width: 640px;
+    }
+    .semester-toast-wrap {
+        z-index: 9999;
+    }
+    @media (max-width: 767.98px) {
+        .semester-create-header {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+        .semester-create-actions,
+        .semester-create-actions .btn {
+            width: 100%;
+        }
+        .semester-module-picker {
+            grid-template-columns: 1fr;
+        }
+        .semester-module-add .btn {
+            width: 100%;
+        }
+        #modules_table {
+            min-width: 0;
+        }
+        #modules_table thead {
+            display: none;
+        }
+        #modules_table,
+        #modules_table tbody,
+        #modules_table tr,
+        #modules_table td {
+            display: block;
+            width: 100%;
+        }
+        #modules_table tbody tr {
+            margin-bottom: 0.85rem;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+            background: #fff;
+        }
+        #modules_table td {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+            border: 0;
+            border-bottom: 1px solid #f1f3f5;
+            padding: 0.45rem 0;
+        }
+        #modules_table td:last-child {
+            border-bottom: 0;
+        }
+        #modules_table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #6c757d;
+            flex: 0 0 38%;
+            max-width: 38%;
+        }
+        #modules_table td[data-label="Action"] {
+            justify-content: flex-end;
+            align-items: center;
+        }
+        .semester-toast-wrap {
+            top: auto !important;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+    }
+</style>
+
+<div class="container-fluid px-2 px-md-3 semester-create-page">
     <div class="card">
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 semester-create-header">
                 <h2 class="mb-0">Create Semester</h2>
-                <a href="{{ route('semesters.index') }}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Semesters
-                </a>
+                <div class="semester-create-actions">
+                    <a href="{{ route('semesters.index') }}" class="btn btn-secondary">
+                        <i class="ti ti-arrow-left"></i> Back to Semesters
+                    </a>
+                </div>
             </div>
             <hr>
-            <form action="{{ route('semesters.store') }}" method="POST">
+            <form action="{{ route('semesters.store') }}" method="POST" id="semesterCreateForm">
                 @csrf
-                <div class="mb-3 row mx-3">
-                    <label for="location" class="col-sm-2 col-form-label">Location <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+                <div class="row mb-3 g-2 align-items-md-center">
+                    <label for="location" class="col-md-3 col-lg-2 col-form-label">Location <span class="text-danger">*</span></label>
+                    <div class="col-md-9 col-lg-10">
                         <select name="location" id="location" class="form-select" required>
                             <option selected disabled value="">Select a Location</option>
                             <option value="Welisara">Nebula Institute of Technology - Welisara</option>
@@ -26,56 +131,51 @@
                         </select>
                     </div>
                 </div>
-                <div class="mb-3 row mx-3">
-                    <label for="course_id" class="col-sm-2 col-form-label">Course <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+                <div class="row mb-3 g-2 align-items-md-center">
+                    <label for="course_id" class="col-md-3 col-lg-2 col-form-label">Course <span class="text-danger">*</span></label>
+                    <div class="col-md-9 col-lg-10">
                         <select name="course_id" id="course_id" class="form-select" required disabled>
                             <option selected disabled value="">Select Course</option>
                         </select>
                     </div>
                 </div>
-                <div class="mb-3 row mx-3">
-                    <label for="intake_id" class="col-sm-2 col-form-label">Intake <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+                <div class="row mb-3 g-2 align-items-md-center">
+                    <label for="intake_id" class="col-md-3 col-lg-2 col-form-label">Intake <span class="text-danger">*</span></label>
+                    <div class="col-md-9 col-lg-10">
                         <select name="intake_id" id="intake_id" class="form-select" required disabled>
                             <option selected disabled value="">Select Intake</option>
                         </select>
                     </div>
                 </div>
-                <div class="mb-3 row mx-3">
-                    <label for="semester" class="col-sm-2 col-form-label">Semester <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+                <div class="row mb-3 g-2 align-items-md-center">
+                    <label for="semester" class="col-md-3 col-lg-2 col-form-label">Semester <span class="text-danger">*</span></label>
+                    <div class="col-md-9 col-lg-10">
                         <select name="semester" id="semester" class="form-select" required disabled>
                             <option selected disabled value="">Select Semester</option>
                         </select>
                     </div>
                 </div>
-                <div class="mb-3 row mx-3">
-                    <label for="start_date" class="col-sm-2 col-form-label">Start Date <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+                <div class="row mb-3 g-2 align-items-md-center">
+                    <label for="start_date" class="col-md-3 col-lg-2 col-form-label">Start Date <span class="text-danger">*</span></label>
+                    <div class="col-md-9 col-lg-10">
                         <input type="date" name="start_date" id="start_date" class="form-control" required>
                     </div>
                 </div>
-                <div class="mb-3 row mx-3">
-                    <label for="end_date" class="col-sm-2 col-form-label">End Date <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
+                <div class="row mb-3 g-2 align-items-md-center">
+                    <label for="end_date" class="col-md-3 col-lg-2 col-form-label">End Date <span class="text-danger">*</span></label>
+                    <div class="col-md-9 col-lg-10">
                         <input type="date" name="end_date" id="end_date" class="form-control" required>
                     </div>
                 </div>
-
-                <div class="mb-3 row mx-3">
-                    <label for="status" class="col-sm-2 col-form-label">Status <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select" id="status" name="status" required>
-                            <option value="">Select Status</option>
-                            <option value="open">Open</option>
-                            <option value="closed">Closed</option>
-                        </select>
+                <div class="row mb-3 g-2">
+                    <div class="col-md-3 col-lg-2 col-form-label">Status</div>
+                    <div class="col-md-9 col-lg-10">
+                        <p class="form-text mb-0 pt-md-2">Status is set automatically from the start and end dates (upcoming, active, or completed).</p>
                     </div>
                 </div>
-                <div class="mb-3 row mx-3" id="specializationScopeRow" style="display:none;">
-                    <label class="col-sm-2 col-form-label">Module Applicability</label>
-                    <div class="col-sm-10">
+                <div class="row mb-3 g-2" id="specializationScopeRow" style="display:none;">
+                    <label class="col-md-3 col-lg-2 col-form-label">Module Applicability</label>
+                    <div class="col-md-9 col-lg-10">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="spec_scope" id="spec_scope_all" value="all" checked>
                             <label class="form-check-label" for="spec_scope_all">All specializations (common)</label>
@@ -88,26 +188,33 @@
                         <small class="form-text text-muted">Use selected specializations when a module is common to only some tracks.</small>
                     </div>
                 </div>
-                <div class="mb-3 row mx-3">
-                    <label class="col-sm-2 col-form-label">Modules <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <div class="input-group">
-                            <select id="module_type" class="form-select" style="max-width:150px;">
-                                <option value="Core">Core</option>
-                                <option value="Elective">Elective</option>
-                                <option value="Special Unit Compulsory (S/U)">Special Unit Compulsory (S/U)</option>
-                            </select>
-                            <select id="module_select" class="form-select">
-                                <option selected disabled value="">Select a module...</option>
-                            </select>
-                            <button type="button" id="add_module_btn" class="btn btn-primary">Add</button>
+                <div class="row mb-3 g-2">
+                    <label class="col-md-3 col-lg-2 col-form-label">Modules <span class="text-danger">*</span></label>
+                    <div class="col-md-9 col-lg-10">
+                        <div class="semester-module-picker">
+                            <div class="semester-module-type">
+                                <label class="form-label small text-muted d-md-none" for="module_type">Type</label>
+                                <select id="module_type" class="form-select">
+                                    <option value="Core">Core</option>
+                                    <option value="Elective">Elective</option>
+                                    <option value="Special Unit Compulsory (S/U)">Special Unit Compulsory (S/U)</option>
+                                </select>
+                            </div>
+                            <div class="semester-module-choice">
+                                <label class="form-label small text-muted d-md-none" for="module_select">Module</label>
+                                <select id="module_select" class="form-select" disabled>
+                                    <option selected disabled value="">Select a module...</option>
+                                </select>
+                            </div>
+                            <div class="semester-module-add">
+                                <button type="button" id="add_module_btn" class="btn btn-primary">Add</button>
+                            </div>
                         </div>
-                        <div class="table-responsive mt-2">
-                            <table class="table table-bordered" id="modules_table">
+                        <div class="table-responsive semester-modules-scroll mt-2">
+                            <table class="table table-bordered mb-0" id="modules_table">
                                 <thead style="background:#6c8cff;color:white;">
                                     <tr id="modulesTableHeaderRow">
                                         <th>Semester</th>
-                                        <!-- Specialization column will be inserted here if needed -->
                                         <th>Module Name</th>
                                         <th>Type</th>
                                         <th>Credits</th>
@@ -115,13 +222,12 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- JS will populate rows here -->
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
-                <div class="d-grid mx-3">
+                <div class="d-grid">
                     <button type="submit" class="btn btn-success" id="submitBtn">
                         <span id="submitText">Create Semester</span>
                         <span id="submitSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
@@ -131,13 +237,10 @@
         </div>
     </div>
 </div>
-<!-- Toast Container -->
-<div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 9999">
+<div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3 semester-toast-wrap">
     <div id="mainToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
-            <div class="toast-body" id="mainToastBody">
-                <!-- Message will go here -->
-            </div>
+            <div class="toast-body" id="mainToastBody"></div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
     </div>
@@ -147,7 +250,8 @@
 @section('scripts')
 <script nonce="{{ $cspNonce }}">
 let courseSpecializations = [];
-let courseSemesterFormat = 'numerical'; // Default to numerical
+let courseSemesterFormat = 'numerical';
+
 document.addEventListener('DOMContentLoaded', function() {
     const locationSelect = document.getElementById('location');
     const courseSelect = document.getElementById('course_id');
@@ -157,26 +261,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const moduleSelect = document.getElementById('module_select');
     const addModuleBtn = document.getElementById('add_module_btn');
     const modulesTableBody = document.querySelector('#modules_table tbody');
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
     let addedModules = [];
     let allModules = [];
 
-    // Helper to reset and disable a select
-    function resetAndDisable(select, placeholder) {
-        $(select).html(`<option value="" selected disabled>${escapeHtml(placeholder)}</option>`).prop('disabled', true);
-        $(select).removeClass('enabled-highlight');
-    }
-    // Helper function to escape HTML entities and prevent XSS
     function escapeHtml(text) {
-        const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
-        return text.replace(/[&<>"']/g, m => map[m]);
-    }
-    // Helper to enable a select
-    function enableSelect(select) {
-        $(select).prop('disabled', false);
-        $(select).addClass('enabled-highlight');
+        if (text == null) {
+            return '';
+        }
+        const div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
     }
 
-    // Fetch intakes for the selected course/location from semester-specific endpoint.
+    function setSelectOptions(select, html, disabled) {
+        select.innerHTML = html;
+        select.disabled = !!disabled;
+    }
+
+    function resetAndDisable(select, placeholder) {
+        setSelectOptions(select, `<option value="" selected disabled>${escapeHtml(placeholder)}</option>`, true);
+    }
+
+    function enableSelect(select) {
+        select.disabled = false;
+    }
+
+    function clearAddedModules() {
+        addedModules = [];
+        allModules = [];
+        if (modulesTableBody) {
+            modulesTableBody.innerHTML = '';
+        }
+    }
+
     function fetchIntakesForSemesterCreation() {
         if (!courseSelect.value || !locationSelect.value) {
             resetAndDisable(intakeSelect, 'Select Intake');
@@ -191,8 +310,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.intakes.forEach(intake => {
                         options += `<option value="${escapeHtml(String(intake.intake_id))}">${escapeHtml(String(intake.batch))}</option>`;
                     });
-                    intakeSelect.innerHTML = options;
-                    enableSelect(intakeSelect);
+                    setSelectOptions(intakeSelect, options, false);
                 } else {
                     resetAndDisable(intakeSelect, 'No intakes available');
                 }
@@ -202,33 +320,32 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // 1. Location -> Course
     locationSelect.addEventListener('change', function() {
         resetAndDisable(courseSelect, 'Select Course');
         resetAndDisable(intakeSelect, 'Select Intake');
         resetAndDisable(semesterSelect, 'Select Semester');
         resetAndDisable(moduleSelect, 'Select a module...');
-        if (locationSelect.value) {
-            courseSelect.innerHTML = '<option value="" selected disabled>Loading courses...</option>';
-            courseSelect.disabled = true;
-            fetch(`/courses/by-location?location=${encodeURIComponent(locationSelect.value)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.courses && data.courses.length > 0) {
-                        let options = '<option value="" selected disabled>Select Course</option>';
-                        data.courses.forEach(course => {
-                            options += `<option value="${escapeHtml(String(course.course_id))}">${escapeHtml(String(course.course_name))}</option>`;
-                        });
-                        courseSelect.innerHTML = options;
-                        enableSelect(courseSelect);
-                    } else {
-                        resetAndDisable(courseSelect, 'No courses available');
-                    }
-                })
-                .catch(error => {
-                    resetAndDisable(courseSelect, 'Failed to load courses');
-                });
+        clearAddedModules();
+        if (!locationSelect.value) {
+            return;
         }
+        setSelectOptions(courseSelect, '<option value="" selected disabled>Loading courses...</option>', true);
+        fetch(`/courses/by-location?location=${encodeURIComponent(locationSelect.value)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.courses && data.courses.length > 0) {
+                    let options = '<option value="" selected disabled>Select Course</option>';
+                    data.courses.forEach(course => {
+                        options += `<option value="${escapeHtml(String(course.course_id))}">${escapeHtml(String(course.course_name))}</option>`;
+                    });
+                    setSelectOptions(courseSelect, options, false);
+                } else {
+                    resetAndDisable(courseSelect, 'No courses available');
+                }
+            })
+            .catch(() => {
+                resetAndDisable(courseSelect, 'Failed to load courses');
+            });
     });
 
     function populateSpecializationCheckboxes() {
@@ -285,207 +402,151 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Specialization logic for semester creation
     function updateModulesTableHeader() {
         const headerRow = document.getElementById('modulesTableHeaderRow');
-        // Remove any existing specialization column
-        const ths = headerRow.querySelectorAll('th');
-        ths.forEach(th => {
+        if (!headerRow) return;
+        headerRow.querySelectorAll('th').forEach(th => {
             if (th.textContent.trim() === 'Specialization') th.remove();
         });
-        // Insert specialization column if needed (after Semester)
         if (courseSpecializations.length > 0) {
             const th = document.createElement('th');
             th.textContent = 'Specialization';
             headerRow.insertBefore(th, headerRow.children[1]);
         }
     }
-    // Call this after fetching specializations
+
+    function applyCourseDetails(course) {
+        courseSemesterFormat = course.semester_format || 'numerical';
+        let specializations = [];
+
+        if (course.specializations) {
+            if (typeof course.specializations === 'string') {
+                try {
+                    specializations = JSON.parse(course.specializations);
+                } catch (e) {
+                    specializations = [];
+                }
+            } else if (Array.isArray(course.specializations)) {
+                specializations = course.specializations;
+            }
+        }
+
+        specializations = specializations.filter(spec => spec && String(spec).trim() !== '');
+
+        if (specializations.length > 0) {
+            courseSpecializations = specializations;
+            populateSpecializationCheckboxes();
+            document.getElementById('specializationScopeRow').style.display = '';
+            document.getElementById('spec_scope_all').checked = true;
+            document.getElementById('specializationCheckboxes').style.display = 'none';
+        } else {
+            courseSpecializations = [];
+            document.getElementById('specializationScopeRow').style.display = 'none';
+        }
+        updateModulesTableHeader();
+    }
+
     courseSelect.addEventListener('change', function() {
         resetAndDisable(intakeSelect, 'Select Intake');
         resetAndDisable(semesterSelect, 'Select Semester');
         resetAndDisable(moduleSelect, 'Select a module...');
-        // Fetch specializations for the selected course
-        if (courseSelect.value) {
-            fetch(`/api/courses/${courseSelect.value}`)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Course data received:', data);
-                    if (data.success && data.course) {
-                        // Store the semester format from the course
-                        const oldFormat = courseSemesterFormat;
-                        courseSemesterFormat = data.course.semester_format || 'numerical';
-                        console.log('Semester format changed from:', oldFormat, 'to:', courseSemesterFormat);
-                        console.log('Full course data:', data.course);
-                        
-                        let specializations = [];
-                        
-                        // Handle different formats of specializations
-                        if (data.course.specializations) {
-                            if (typeof data.course.specializations === 'string') {
-                                try {
-                                    specializations = JSON.parse(data.course.specializations);
-                                } catch (e) {
-                                    console.error('Error parsing specializations JSON:', e);
-                                    specializations = [];
-                                }
-                            } else if (Array.isArray(data.course.specializations)) {
-                                specializations = data.course.specializations;
-                            }
-                        }
-                        
-                        // Filter out empty/null values
-                        specializations = specializations.filter(spec => spec && spec.trim() !== '');
-                        
-                        if (specializations.length > 0) {
-                            courseSpecializations = specializations;
-                            populateSpecializationCheckboxes();
-                            document.getElementById('specializationScopeRow').style.display = '';
-                            document.getElementById('spec_scope_all').checked = true;
-                            document.getElementById('specializationCheckboxes').style.display = 'none';
-                            updateModulesTableHeader();
-                            console.log('Specializations loaded:', courseSpecializations);
-                        } else {
-                            courseSpecializations = [];
-                            document.getElementById('specializationScopeRow').style.display = 'none';
-                            updateModulesTableHeader();
-                            console.log('No specializations found for this course');
-                        }
-                    } else {
-                        courseSpecializations = [];
-                        document.getElementById('specializationScopeRow').style.display = 'none';
-                        updateModulesTableHeader();
-                        console.log('Course data not found or invalid');
-                    }
-                    // Always fetch intakes after handling specializations.
-                    fetchIntakesForSemesterCreation();
-                })
-                .catch(() => {
-                    courseSpecializations = [];
-                    document.getElementById('specializationScopeRow').style.display = 'none';
-                    updateModulesTableHeader();
-                    // Still fetch intakes even if specializations fetch fails.
-                    fetchIntakesForSemesterCreation();
-                });
-        } else {
+        clearAddedModules();
+        if (!courseSelect.value) {
             courseSpecializations = [];
             document.getElementById('specializationScopeRow').style.display = 'none';
             updateModulesTableHeader();
-            resetAndDisable(intakeSelect, 'Select Intake');
+            return;
         }
+        fetch(`/api/courses/${courseSelect.value}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.course) {
+                    applyCourseDetails(data.course);
+                } else {
+                    courseSpecializations = [];
+                    document.getElementById('specializationScopeRow').style.display = 'none';
+                    updateModulesTableHeader();
+                }
+                fetchIntakesForSemesterCreation();
+            })
+            .catch(() => {
+                courseSpecializations = [];
+                document.getElementById('specializationScopeRow').style.display = 'none';
+                updateModulesTableHeader();
+                fetchIntakesForSemesterCreation();
+            });
     });
+
+    function semesterDisplayName(semesterNumber) {
+        const number = parseInt(semesterNumber, 10);
+        if (courseSemesterFormat === 'alphabetical' && number >= 1 && number <= 26) {
+            return 'Semester ' + String.fromCharCode(64 + number);
+        }
+        return 'Semester ' + String(semesterNumber);
+    }
 
     intakeSelect.addEventListener('change', function() {
         resetAndDisable(semesterSelect, 'Select Semester');
         resetAndDisable(moduleSelect, 'Select a module...');
-        if (courseSelect.value && intakeSelect.value) {
-            semesterSelect.innerHTML = '<option value="" selected disabled>Loading semesters...</option>';
-            semesterSelect.disabled = true;
-            fetch(`/semester-registration/get-all-semesters-for-course?course_id=${encodeURIComponent(courseSelect.value)}&intake_id=${encodeURIComponent(intakeSelect.value)}`)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Semesters API response:', data);
-                    console.log('Current semester format:', courseSemesterFormat);
-                    if (data.success && data.semesters && data.semesters.length > 0) {
-                        let options = '<option value="" selected disabled>Select Semester</option>';
-                        data.semesters.forEach((sem, index) => {
-                            // The semester number is based on its position (0-indexed, so add 1)
-                            const semesterNumber = index + 1;
-                            let displayName = '';
-                            
-                            // Convert based on course format preference
-                            if (courseSemesterFormat === 'alphabetical') {
-                                // Show as letters (A, B, C, etc.)
-                                if (semesterNumber >= 1 && semesterNumber <= 26) {
-                                    displayName = 'Semester ' + String.fromCharCode(64 + semesterNumber);
-                                } else {
-                                    displayName = 'Semester ' + semesterNumber;
-                                }
-                            } else {
-                                // Show as numbers (1, 2, 3, etc.) - this is the default
-                                displayName = 'Semester ' + String(semesterNumber);
-                            }
-                            
-                            console.log(`Semester ${index}: Position=${semesterNumber}, Format=${courseSemesterFormat}, Display=${displayName}, ID=${sem.semester_id}`);
-                            options += `<option value="${escapeHtml(String(sem.semester_id))}">${escapeHtml(displayName)}</option>`;
-                        });
-                        semesterSelect.innerHTML = options;
-                        enableSelect(semesterSelect);
-                    } else {
-                        resetAndDisable(semesterSelect, 'No semesters available');
-                    }
-                })
-                .catch(error => {
-                    resetAndDisable(semesterSelect, 'Failed to load semesters');
-                });
+        clearAddedModules();
+        if (!courseSelect.value || !intakeSelect.value) {
+            return;
         }
-    });
-
-    
-    // utility: convert semester name based on course format
-    function semesterDisplay(name) {
-        if (courseSemesterFormat === 'alphabetical') {
-            const m = String(name).match(/(\d+)/);
-            if (m) {
-                const num = parseInt(m[1], 10);
-                if (num >= 1 && num <= 26) {
-                    return String.fromCharCode(64 + num);
-                }
-            }
-        } else if (courseSemesterFormat === 'numerical') {
-            const m = String(name).match(/[A-Za-z]/);
-            if (m) {
-                const char = name.charCodeAt(0);
-                if (char >= 65 && char <= 90) {
-                    return String(char - 64);
-                } else if (char >= 97 && char <= 122) {
-                    return String(char - 96);
-                }
-            }
-        }
-        return name;
-    }
-
-    // 4. Semester -> Modules
-    semesterSelect.addEventListener('change', function() {
-        resetAndDisable(moduleSelect, 'Select a module...');
-        allModules = [];
-        if (semesterSelect.value && intakeSelect.value && courseSelect.value && locationSelect.value) {
-            $(moduleSelect).html('<option value="" selected disabled>Loading modules...</option>').prop('disabled', true);
-            const data = {
-                location: locationSelect.value,
-                course_id: courseSelect.value,
-                intake_id: intakeSelect.value,
-                semester: semesterSelect.value
-            };
-            fetch('/semester/get-filtered-modules', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-                body: JSON.stringify(data)
-            })
+        setSelectOptions(semesterSelect, '<option value="" selected disabled>Loading semesters...</option>', true);
+        fetch(`/semester-registration/get-all-semesters-for-course?course_id=${encodeURIComponent(courseSelect.value)}&intake_id=${encodeURIComponent(intakeSelect.value)}`)
             .then(response => response.json())
             .then(data => {
-                if (data.modules && data.modules.length > 0) {
-                    allModules = data.modules;
-                    filterAndPopulateModules();
-                    $(moduleSelect).prop('disabled', false);
+                if (data.success && data.semesters && data.semesters.length > 0) {
+                    let options = '<option value="" selected disabled>Select Semester</option>';
+                    data.semesters.forEach(sem => {
+                        const semesterNumber = sem.semester_id;
+                        options += `<option value="${escapeHtml(String(semesterNumber))}">${escapeHtml(semesterDisplayName(semesterNumber))}</option>`;
+                    });
+                    setSelectOptions(semesterSelect, options, false);
                 } else {
-                    moduleSelect.innerHTML = '<option value="" selected disabled>No modules available</option>';
-                    $(moduleSelect).prop('disabled', true);
+                    resetAndDisable(semesterSelect, 'No semesters available');
                 }
             })
             .catch(() => {
-                moduleSelect.innerHTML = '<option value="" selected disabled>Failed to load modules</option>';
-                $(moduleSelect).prop('disabled', true);
+                resetAndDisable(semesterSelect, 'Failed to load semesters');
             });
-        } else {
-            resetAndDisable(moduleSelect, 'Select a module...');
-        }
     });
 
-    // Filter modules by type (Core/Elective) and populate dropdown
+    semesterSelect.addEventListener('change', function() {
+        resetAndDisable(moduleSelect, 'Select a module...');
+        clearAddedModules();
+        if (!semesterSelect.value || !intakeSelect.value || !courseSelect.value || !locationSelect.value) {
+            return;
+        }
+        setSelectOptions(moduleSelect, '<option value="" selected disabled>Loading modules...</option>', true);
+        fetch('/semester/get-filtered-modules', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json'},
+            body: JSON.stringify({
+                location: locationSelect.value,
+                course_id: courseSelect.value,
+                intake_id: intakeSelect.value,
+                semester: semesterSelect.value,
+                creating: true
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.modules && data.modules.length > 0) {
+                allModules = data.modules;
+                filterAndPopulateModules();
+            } else {
+                allModules = [];
+                resetAndDisable(moduleSelect, 'No modules available');
+            }
+        })
+        .catch(() => {
+            allModules = [];
+            resetAndDisable(moduleSelect, 'Failed to load modules');
+        });
+    });
+
     function filterAndPopulateModules() {
-        // Map UI selection to DB value
         const typeMap = {
             'Core': 'core',
             'Elective': 'elective',
@@ -493,53 +554,55 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         const selectedType = typeMap[moduleTypeSelect.value];
         let options = '<option value="" selected disabled>Select a module...</option>';
-        const filtered = allModules.filter(m => m.module_type === selectedType);
+        const filtered = allModules.filter(m => String(m.module_type || '').toLowerCase() === selectedType);
         if (filtered.length > 0) {
             filtered.forEach(module => {
                 const moduleCode = module.module_code ? ` (${escapeHtml(String(module.module_code))})` : '';
-                options += `<option value="${escapeHtml(String(module.module_id))}" data-type="${escapeHtml(String(module.module_type ?? ''))}" data-credits="${escapeHtml(String(module.credits ?? ''))}">
-                    ${escapeHtml(String(module.module_name))}${moduleCode}
-                </option>`;
+                options += `<option value="${escapeHtml(String(module.module_id))}" data-type="${escapeHtml(String(module.module_type ?? ''))}" data-credits="${escapeHtml(String(module.credits ?? ''))}">${escapeHtml(String(module.module_name))}${moduleCode}</option>`;
             });
-            moduleSelect.innerHTML = options;
-            $(moduleSelect).prop('disabled', false);
+            setSelectOptions(moduleSelect, options, false);
         } else {
-            moduleSelect.innerHTML = '<option value="" selected disabled>No modules available for this type</option>';
-            $(moduleSelect).prop('disabled', false);
+            setSelectOptions(moduleSelect, '<option value="" selected disabled>No modules available for this type</option>', false);
         }
     }
 
-    // When module type changes, filter the modules
     moduleTypeSelect.addEventListener('change', function() {
-        filterAndPopulateModules();
+        if (allModules.length > 0) {
+            filterAndPopulateModules();
+        }
     });
 
-    // 5. Add module to table
+    startDateInput.addEventListener('change', function() {
+        if (startDateInput.value) {
+            endDateInput.min = startDateInput.value;
+            if (endDateInput.value && endDateInput.value < startDateInput.value) {
+                endDateInput.value = startDateInput.value;
+            }
+        }
+    });
+
     addModuleBtn.addEventListener('click', function() {
         const moduleId = moduleSelect.value;
-        const moduleName = moduleSelect.options[moduleSelect.selectedIndex]?.text;
-        const moduleType = moduleTypeSelect.value;
         const moduleOption = moduleSelect.options[moduleSelect.selectedIndex];
+        const moduleName = moduleOption ? moduleOption.text : '';
+        const moduleType = moduleTypeSelect.value;
         const moduleCredits = moduleOption ? moduleOption.getAttribute('data-credits') : '';
         const semester = semesterSelect.value;
         const specializations = getSelectedSpecializationsForModule();
         if (specializations === undefined) {
             return;
         }
-        
-        // Validate required selections
+
         if (!moduleId || !moduleName || !semester) {
             window.showToast('Please select semester, module, and type.', 'danger');
             return;
         }
 
-        // One row per module per semester
         if (addedModules.some(m => m.moduleId === moduleId && m.semester === semester)) {
             window.showToast('This module is already added. Remove it first if you need to change its specialization scope.', 'warning');
             return;
         }
 
-        // Add to JS array
         addedModules.push({
             moduleId,
             moduleName,
@@ -549,17 +612,16 @@ document.addEventListener('DOMContentLoaded', function() {
             specializations
         });
 
-        // Build table row
         const row = document.createElement('tr');
-        let rowHtml = `<td>${semesterSelect.options[semesterSelect.selectedIndex].text}</td>`;
+        let rowHtml = `<td data-label="Semester">${escapeHtml(semesterSelect.options[semesterSelect.selectedIndex].text)}</td>`;
         if (courseSpecializations.length > 0) {
-            rowHtml += `<td>${formatSpecializationsLabel(specializations)}</td>`;
+            rowHtml += `<td data-label="Specialization">${escapeHtml(formatSpecializationsLabel(specializations))}</td>`;
         }
         rowHtml += `
-            <td>${moduleName}</td>
-            <td>${moduleType}</td>
-            <td>${moduleCredits}</td>
-            <td><button type="button" class="btn btn-danger btn-sm remove-module">Remove</button></td>
+            <td data-label="Module Name">${escapeHtml(moduleName)}</td>
+            <td data-label="Type">${escapeHtml(moduleType)}</td>
+            <td data-label="Credits">${escapeHtml(moduleCredits)}</td>
+            <td data-label="Action"><button type="button" class="btn btn-danger btn-sm remove-module">Remove</button></td>
         `;
         row.innerHTML = rowHtml;
         row.dataset.moduleId = moduleId;
@@ -569,73 +631,52 @@ document.addEventListener('DOMContentLoaded', function() {
         modulesTableBody.appendChild(row);
     });
 
-    // 6. Remove module from table
     modulesTableBody.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-module')) {
-            const row = e.target.closest('tr');
-            const moduleId = row.dataset.moduleId;
-            const semester = row.dataset.semester;
-            addedModules = addedModules.filter(m => !(m.moduleId === moduleId && m.semester === semester));
-            row.remove();
-        }
-    });
-});
-
-// Toast function
-window.showToast = function(message, type = 'success') {
-    const toastEl = document.getElementById('mainToast');
-    const toastBody = document.getElementById('mainToastBody');
-    toastBody.textContent = message;
-    toastEl.className = 'toast align-items-center border-0 text-bg-' + (type === 'success' ? 'success' : (type === 'danger' ? 'danger' : (type === 'warning' ? 'warning' : 'primary')));
-    const toast = new bootstrap.Toast(toastEl, { delay: 2500 });
-    toast.show();
-};
-
-// AJAX form submission for semester creation
-const semesterForm = document.querySelector('form[action="{{ route('semesters.store') }}"]');
-semesterForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    // Validate required fields
-    const requiredFields = [
-        'location', 'course_id', 'intake_id', 'semester',
-        'start_date', 'end_date', 'status'
-    ];
-    const missingFields = [];
-    requiredFields.forEach(field => {
-        const element = document.getElementById(field);
-        if (!element || !element.value) {
-            missingFields.push(field);
-        }
-    });
-    if (missingFields.length > 0) {
-        showToast('Please fill in all required fields: ' + missingFields.join(', '), 'danger');
-        return;
-    }
-
-    // Gather form data as JSON
-    const formData = {
-        location: document.getElementById('location').value,
-        course_id: document.getElementById('course_id').value,
-        intake_id: document.getElementById('intake_id').value,
-        semester: document.getElementById('semester').value,
-        start_date: document.getElementById('start_date').value,
-        end_date: document.getElementById('end_date').value,
-        status: document.getElementById('status').value,
-        _token: '{{ csrf_token() }}'
-    };
-    
-    // Validate CSRF token
-    if (!formData._token) {
-        showToast('CSRF token is missing. Please refresh the page and try again.', 'danger');
-        return;
-    }
-
-    // Gather modules with specialization using data attributes
-    const modules = [];
-    document.querySelectorAll('#modules_table tbody tr').forEach(row => {
+        const button = e.target.closest('.remove-module');
+        if (!button) return;
+        const row = button.closest('tr');
         const moduleId = row.dataset.moduleId;
-        if (moduleId) {
+        const semester = row.dataset.semester;
+        addedModules = addedModules.filter(m => !(m.moduleId === moduleId && m.semester === semester));
+        row.remove();
+    });
+
+    const semesterForm = document.getElementById('semesterCreateForm');
+    semesterForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const requiredFields = [
+            'location', 'course_id', 'intake_id', 'semester',
+            'start_date', 'end_date'
+        ];
+        const missingFields = requiredFields.filter(field => {
+            const element = document.getElementById(field);
+            return !element || !element.value;
+        });
+        if (missingFields.length > 0) {
+            window.showToast('Please fill in all required fields.', 'danger');
+            return;
+        }
+
+        if (endDateInput.value < startDateInput.value) {
+            window.showToast('End date must be on or after the start date.', 'danger');
+            return;
+        }
+
+        const formData = {
+            location: locationSelect.value,
+            course_id: courseSelect.value,
+            intake_id: intakeSelect.value,
+            semester: semesterSelect.value,
+            start_date: startDateInput.value,
+            end_date: endDateInput.value,
+            _token: '{{ csrf_token() }}'
+        };
+
+        const modules = [];
+        document.querySelectorAll('#modules_table tbody tr').forEach(row => {
+            const moduleId = row.dataset.moduleId;
+            if (!moduleId) return;
             let specializations = null;
             if (row.dataset.specializations) {
                 try {
@@ -644,105 +685,82 @@ semesterForm.addEventListener('submit', function(e) {
                     specializations = null;
                 }
             }
-
             modules.push({
                 module_id: moduleId,
                 specializations: specializations
             });
+        });
+        formData.modules = modules;
+
+        if (modules.length === 0) {
+            window.showToast('Please add at least one module to the semester.', 'danger');
+            return;
         }
-    });
-    formData.modules = modules;
 
-    // Validate that at least one module is added
-    if (modules.length === 0) {
-        showToast('Please add at least one module to the semester.', 'danger');
-        return;
-    }
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const submitSpinner = document.getElementById('submitSpinner');
 
-    // Debug: Log final data
-    console.log('Final data with modules:', formData);
-    console.log('Form action URL:', semesterForm.action);
-
-    // Show loading state
-    const submitBtn = document.getElementById('submitBtn');
-    const submitText = document.getElementById('submitText');
-    const submitSpinner = document.getElementById('submitSpinner');
-    
-    submitBtn.disabled = true;
-    submitText.textContent = 'Creating Semester...';
-    submitSpinner.style.display = 'inline-block';
-
-    // Send AJAX request
-    fetch(semesterForm.action, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify(formData)
-    })
-    .then(async response => {
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-        
-        let data;
-        try {
-            data = await response.json();
-            console.log('Response data:', data);
-        } catch (err) {
-            console.error('JSON parse error:', err);
-            throw new Error('Server returned invalid response.');
-        }
-        if (!response.ok) {
-            // Validation or server error
-            let errorMsg = data.message || 'An error occurred while creating the semester.';
-            if (data.errors) {
-                errorMsg += '<br>' + Object.values(data.errors).flat().join('<br>');
-            }
-            showToast(errorMsg, 'danger');
-            throw new Error(errorMsg);
-        }
-        return data;
-    })
-            .then(data => {
-            // Reset loading state
+        function resetSubmitState() {
             submitBtn.disabled = false;
             submitText.textContent = 'Create Semester';
             submitSpinner.style.display = 'none';
-            
+        }
+
+        submitBtn.disabled = true;
+        submitText.textContent = 'Creating Semester...';
+        submitSpinner.style.display = 'inline-block';
+
+        fetch(semesterForm.action, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(async response => {
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (err) {
+                throw new Error('Server returned an invalid response.');
+            }
+            if (!response.ok) {
+                const parts = [data.message || 'An error occurred while creating the semester.'];
+                if (data.errors) {
+                    Object.values(data.errors).flat().forEach(msg => parts.push(msg));
+                }
+                throw new Error(parts.filter(Boolean).join(' '));
+            }
+            return data;
+        })
+        .then(data => {
+            resetSubmitState();
             if (data.success) {
-                showToast(data.message || 'Semester created successfully!', 'success');
+                window.showToast(data.message || 'Semester created successfully!', 'success');
                 setTimeout(() => {
                     window.location.href = '{{ route("semesters.index") }}';
                 }, 1500);
             } else {
-                showToast(data.message || 'Failed to create semester.', 'danger');
+                window.showToast(data.message || 'Failed to create semester.', 'danger');
             }
         })
         .catch(error => {
-            // Reset loading state
-            submitBtn.disabled = false;
-            submitText.textContent = 'Create Semester';
-            submitSpinner.style.display = 'none';
-            
-            // Already handled above, but fallback here
-            console.error('Error:', error);
-            showToast(error.message || 'An unexpected error occurred.', 'danger');
+            resetSubmitState();
+            window.showToast(error.message || 'An unexpected error occurred.', 'danger');
         });
+    });
 });
 
+window.showToast = function(message, type = 'success') {
+    const toastEl = document.getElementById('mainToast');
+    const toastBody = document.getElementById('mainToastBody');
+    toastBody.textContent = message;
+    toastEl.className = 'toast align-items-center border-0 text-bg-' + (type === 'success' ? 'success' : (type === 'danger' ? 'danger' : (type === 'warning' ? 'warning' : 'primary')));
+    const toast = new bootstrap.Toast(toastEl, { delay: 2500 });
+    toast.show();
+};
 </script>
 @endsection
-
-<style nonce="{{ $cspNonce }}">
-    select:disabled {
-        background-color: #f5f5f5 !important;
-        border-color: #ddd !important;
-        color: #aaa !important;
-    }
-    select:enabled {
-        border-color: #6c8cff !important;
-        box-shadow: 0 0 0 0.1rem #6c8cff33;
-    }
-</style>
