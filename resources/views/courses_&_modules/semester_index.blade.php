@@ -18,6 +18,7 @@
         return \Carbon\Carbon::parse($start)->diffInDays(\Carbon\Carbon::parse($end));
     };
 @endphp
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
     .semester-page .nebula-select {
         width: 100%;
@@ -76,6 +77,10 @@
     }
     .semester-toast-wrap {
         z-index: 9999;
+    }
+    .semester-page ~ .swal2-container,
+    .swal2-container {
+        z-index: 20000;
     }
     @media (max-width: 991.98px) {
         .semester-page-header {
@@ -530,6 +535,7 @@
 @endsection
 
 @section('scripts')
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
@@ -702,6 +708,24 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    function confirmSemesterDelete(title, text) {
+        if (typeof Swal === 'undefined') {
+            return Promise.resolve(window.confirm(text));
+        }
+        return Swal.fire({
+            title: title,
+            text: text,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete it',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            focusCancel: true
+        }).then(result => result.isConfirmed);
+    }
+
     searchInput.addEventListener('input', function () {
         currentPage = 1;
         applyFilters();
@@ -790,32 +814,35 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast('Please select at least one semester.', 'warning');
             return;
         }
-        if (!window.confirm(`Are you sure you want to delete ${selectedCheckboxes.length} semester(s)? This action cannot be undone.`)) {
-            return;
-        }
+        confirmSemesterDelete(
+            'Delete selected semesters?',
+            `Are you sure you want to delete ${selectedCheckboxes.length} semester(s)? This action cannot be undone.`
+        ).then(confirmed => {
+            if (!confirmed) return;
 
-        const semesterIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+            const semesterIds = Array.from(selectedCheckboxes).map(cb => cb.value);
 
-        fetch('{{ route("semesters.bulkDelete") }}', {
-            method: 'POST',
-            headers: jsonHeaders(),
-            body: JSON.stringify({ semester_ids: semesterIds })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.success) {
-                showToast(data.message, 'danger');
-                return;
-            }
-            showToast(data.message, 'success');
-            if (bulkActionsModal) bulkActionsModal.hide();
-            selectedCheckboxes.forEach(checkbox => checkbox.closest('tr')?.remove());
-            selectAllCheckbox.checked = false;
-            updateBulkActionsButton();
-            applyFilters();
-        })
-        .catch(() => {
-            showToast('An error occurred while deleting semesters.', 'danger');
+            fetch('{{ route("semesters.bulkDelete") }}', {
+                method: 'POST',
+                headers: jsonHeaders(),
+                body: JSON.stringify({ semester_ids: semesterIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    showToast(data.message, 'danger');
+                    return;
+                }
+                showToast(data.message, 'success');
+                if (bulkActionsModal) bulkActionsModal.hide();
+                selectedCheckboxes.forEach(checkbox => checkbox.closest('tr')?.remove());
+                selectAllCheckbox.checked = false;
+                updateBulkActionsButton();
+                applyFilters();
+            })
+            .catch(() => {
+                showToast('An error occurred while deleting semesters.', 'danger');
+            });
         });
     });
 
@@ -824,27 +851,33 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!button) return;
 
         const semesterId = button.dataset.semesterId;
-        const semesterName = button.dataset.semesterName;
-        if (!window.confirm(`Are you sure you want to delete the semester "${semesterName}"? This action cannot be undone.`)) {
-            return;
-        }
+        const semesterName = button.dataset.semesterName || 'this semester';
+        confirmSemesterDelete(
+            'Delete this semester?',
+            `Are you sure you want to delete "${semesterName}"? This action cannot be undone.`
+        ).then(confirmed => {
+            if (!confirmed) return;
 
-        fetch(`{{ url('/semesters') }}/${encodeURIComponent(semesterId)}`, {
-            method: 'DELETE',
-            headers: jsonHeaders()
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.success) {
-                showToast(data.message, 'danger');
-                return;
-            }
-            showToast(data.message, 'success');
-            button.closest('tr')?.remove();
-            applyFilters();
-        })
-        .catch(() => {
-            showToast('An error occurred while deleting the semester.', 'danger');
+            button.disabled = true;
+            fetch(`{{ url('/semesters') }}/${encodeURIComponent(semesterId)}`, {
+                method: 'DELETE',
+                headers: jsonHeaders()
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    button.disabled = false;
+                    showToast(data.message, 'danger');
+                    return;
+                }
+                showToast(data.message, 'success');
+                button.closest('tr')?.remove();
+                applyFilters();
+            })
+            .catch(() => {
+                button.disabled = false;
+                showToast('An error occurred while deleting the semester.', 'danger');
+            });
         });
     });
 

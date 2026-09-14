@@ -84,5 +84,9 @@ class SemesterIndexPageTest extends TestCase
         $this->assertStringContainsString('ti ti-plus', $html);
         $this->assertStringContainsString('modal-fullscreen-sm-down', $html);
         $this->assertStringContainsString('semester-page-header', $html);
+        $this->assertStringContainsString('sweetalert2.min.js', $html);
+        $this->assertStringContainsString('Swal.fire', $html);
+        $this->assertStringContainsString('delete-semester', $html);
+        $this->assertStringContainsString('confirmSemesterDelete', $html);
     }
 }
