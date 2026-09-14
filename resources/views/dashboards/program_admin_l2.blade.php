@@ -111,6 +111,35 @@
             flex: 1 1 auto;
         }
 
+        .dashboard-chart-filter {
+            flex: 0 0 190px;
+            width: 190px;
+        }
+
+        .dashboard-chart-filter > .nebula-select,
+        .dashboard-chart-filter > .form-select,
+        .payment-course-filter .nebula-select-sm {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 1 1 auto !important;
+        }
+
+        .dashboard-chart-filter .nebula-select-toggle {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        .dashboard-chart-filter .nebula-select-menu {
+            position: absolute !important;
+            top: calc(100% + 4px) !important;
+            right: auto !important;
+            bottom: auto !important;
+            left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: 240px !important;
+        }
+
         @media (max-width: 575.98px) {
             .analytics-filter-field,
             .analytics-filter-field.location,
@@ -126,6 +155,11 @@
 
             .analytics-filter-actions .btn {
                 flex: 1 1 0;
+            }
+
+            .dashboard-chart-filter {
+                flex: 1 1 100%;
+                width: 100%;
             }
         }
 
@@ -188,6 +222,10 @@
         .badge-purple {
             background-color: #667eea;
             color: white;
+        }
+
+        .bg-light-purple {
+            background-color: rgba(102, 126, 234, 0.12) !important;
         }
 
         .badge-primary {
@@ -459,16 +497,17 @@
                                     <div class="col-xl-8 mb-4">
                                         <div class="card card-hover h-100">
                                             <div class="card-body">
-                                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                                                     <div>
                                                         <h5 class="card-title mb-1">📊 Student Count by Batch</h5>
                                                         <p class="text-muted mb-0">Monitor capacity distribution</p>
                                                     </div>
-                                                    <select id="batchChartType" class="form-select form-select-sm"
-                                                        style="width: auto;">
-                                                        <option value="bar">Bar Chart</option>
-                                                        <option value="horizontalBar">Horizontal Bar</option>
-                                                    </select>
+                                                    <div class="dashboard-chart-filter">
+                                                        <select id="batchChartType" class="form-select form-select-sm">
+                                                            <option value="bar">Bar Chart</option>
+                                                            <option value="horizontalBar">Horizontal Bar</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                                 <div class="chart-container">
                                                     <canvas id="batchStudentChart"></canvas>
@@ -642,17 +681,18 @@
                                     <div class="col-xl-8 mb-4">
                                         <div class="card card-hover h-100">
                                             <div class="card-body">
-                                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                                                     <div>
                                                         <h5 class="card-title mb-1">📈 Grade Distribution</h5>
                                                         <p class="text-muted mb-0">Overall academic performance</p>
                                                     </div>
-                                                    <select id="gradeChartType" class="form-select form-select-sm"
-                                                        style="width: auto;">
-                                                        <option value="bar">Bar Chart</option>
-                                                        <option value="pie">Pie Chart</option>
-                                                        <option value="doughnut">Doughnut Chart</option>
-                                                    </select>
+                                                    <div class="dashboard-chart-filter">
+                                                        <select id="gradeChartType" class="form-select form-select-sm">
+                                                            <option value="bar">Bar Chart</option>
+                                                            <option value="pie">Pie Chart</option>
+                                                            <option value="doughnut">Doughnut Chart</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                                 <div class="chart-container">
                                                     <canvas id="gradeDistributionChart"></canvas>
@@ -762,16 +802,17 @@
                                     <div class="col-xl-6 mb-4">
                                         <div class="card card-hover h-100">
                                             <div class="card-body">
-                                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                                                     <div>
                                                         <h5 class="card-title mb-1">📊 Clearance Request Status</h5>
                                                         <p class="text-muted mb-0">By clearance type</p>
                                                     </div>
-                                                    <select id="clearanceChartType" class="form-select form-select-sm"
-                                                        style="width: auto;">
-                                                        <option value="bar">Stacked Bar</option>
-                                                        <option value="stackedBar">Grouped Bar</option>
-                                                    </select>
+                                                    <div class="dashboard-chart-filter">
+                                                        <select id="clearanceChartType" class="form-select form-select-sm">
+                                                            <option value="bar">Stacked Bar</option>
+                                                            <option value="stackedBar">Grouped Bar</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                                 <div class="chart-container">
                                                     <canvas id="clearanceStatusChart"></canvas>
@@ -822,7 +863,7 @@
                             <!-- Payments Tab -->
                             <div class="tab-pane fade" id="payments" role="tabpanel">
                                 <div class="row mb-3">
-                                    <div class="col-lg-4 col-md-6 ms-auto">
+                                    <div class="payment-course-filter col-lg-4 col-md-6 ms-auto">
                                         <label for="paymentCourseFilter" class="form-label fw-semibold text-muted">Course Filter</label>
                                         <select id="paymentCourseFilter" class="form-select form-select-sm">
                                             <option value="">All Courses</option>
