@@ -83,7 +83,9 @@ class SemesterIndexPageTest extends TestCase
         $this->assertStringNotContainsString('fas fa-', $html);
         $this->assertStringContainsString('ti ti-plus', $html);
         $this->assertStringContainsString('modal-fullscreen-sm-down', $html);
-        $this->assertStringContainsString('semester-page-header', $html);
+        $this->assertStringContainsString('id="clearFilters"', $html);
+        $this->assertStringContainsString('resetFilterSelect', $html);
+        $this->assertDoesNotMatchRegularExpression('/id="clearFilters"[^>]*>\s*<i class="ti ti-x"/', $html);
         $this->assertStringContainsString('sweetalert2.min.js', $html);
         $this->assertStringContainsString('Swal.fire', $html);
         $this->assertStringContainsString('delete-semester', $html);

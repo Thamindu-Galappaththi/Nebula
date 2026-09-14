@@ -170,7 +170,7 @@
         }
         .bulk-actions-footer {
             display: flex;
-            flex-direction: column-reverse;
+            flex-direction: column;
             gap: 0.5rem;
         }
         .bulk-actions-footer .btn {
@@ -224,7 +224,7 @@
                 </div>
                 <div class="col-12 col-md-2 d-flex align-items-end">
                     <button type="button" id="clearFilters" class="btn btn-outline-secondary w-100">
-                        <i class="ti ti-x"></i> Clear
+                        Clear
                     </button>
                 </div>
             </div>
@@ -512,13 +512,13 @@
                 </div>
             </div>
             <div class="modal-footer bulk-actions-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-danger" id="bulkDeleteBtn">
                     <i class="ti ti-trash"></i> Delete Selected
                 </button>
                 <button type="button" class="btn btn-primary" id="bulkUpdateStatusBtn">
                     <i class="ti ti-device-floppy"></i> Update Status
                 </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
             </div>
         </div>
     </div>
@@ -738,10 +738,17 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPage = 1;
         applyFilters();
     });
+    function resetFilterSelect(select) {
+        if (!select) return;
+        select.value = '';
+        select.selectedIndex = 0;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
     clearFilters.addEventListener('click', function() {
         searchInput.value = '';
-        statusFilter.value = '';
-        courseFilter.value = '';
+        resetFilterSelect(statusFilter);
+        resetFilterSelect(courseFilter);
         currentPage = 1;
         applyFilters();
     });
