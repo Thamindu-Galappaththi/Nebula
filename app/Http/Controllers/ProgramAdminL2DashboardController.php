@@ -423,6 +423,7 @@ class ProgramAdminL2DashboardController extends Controller
         $location = $this->normalizeLocation($request->input('location'));
         $courseId = $request->get('course_id');
         $intakeId = $request->get('intake_id');
+        $moduleId = $request->get('module_id');
 
         try {
             $baseQuery = $this->constrainByLocation(ExamResult::query(), $location)
@@ -431,6 +432,9 @@ class ProgramAdminL2DashboardController extends Controller
                 })
                 ->when($intakeId, function ($query) use ($intakeId) {
                     $query->where('intake_id', $intakeId);
+                })
+                ->when($moduleId, function ($query) use ($moduleId) {
+                    $query->where('module_id', $moduleId);
                 });
 
             $performanceData = (clone $baseQuery)
@@ -454,31 +458,9 @@ class ProgramAdminL2DashboardController extends Controller
                 })->values();
             }
 
-            $passedSql = $this->examPassedSql();
-            $coursePerformance = (clone $baseQuery)
-                ->select(
-                    'exam_results.course_id',
-                    DB::raw('COUNT(*) as total'),
-                    DB::raw("SUM(CASE WHEN {$passedSql} THEN 1 ELSE 0 END) as passed")
-                )
-                ->groupBy('exam_results.course_id')
-                ->get()
-                ->map(function ($item) {
-                    $total = (int) $item->total;
-                    $passed = (int) $item->passed;
-                    $courseName = Course::where('course_id', $item->course_id)->value('course_name');
-                    return [
-                        'course_name' => $courseName ?? 'N/A',
-                        'pass_rate' => $total > 0 ? round(($passed / $total) * 100, 1) : 0,
-                        'total' => $total,
-                        'passed' => $passed,
-                    ];
-                })
-                ->filter(function ($item) {
-                    return $item['total'] > 0;
-                })
-                ->sortByDesc('pass_rate')
-                ->values();
+            $coursePerformance = $this->examPerformanceByGroup($baseQuery, 'course_id');
+            $intakePerformance = $this->examPerformanceByGroup($baseQuery, 'intake_id');
+            $modulePerformance = $this->examPerformanceByGroup($baseQuery, 'module_id');
 
             $repeatStudents = (clone $baseQuery)
                 ->where(function ($query) {
@@ -493,11 +475,14 @@ class ProgramAdminL2DashboardController extends Controller
                 'data' => [
                     'grade_distribution' => $performanceData,
                     'course_performance' => $coursePerformance,
+                    'intake_performance' => $intakePerformance,
+                    'module_performance' => $modulePerformance,
                     'repeat_students' => $repeatStudents,
                     'filters' => [
                         'location' => $location,
                         'course_id' => $courseId,
                         'intake_id' => $intakeId,
+                        'module_id' => $moduleId,
                         'period' => $request->input('period', 'month'),
                     ]
                 ]
@@ -1203,6 +1188,80 @@ class ProgramAdminL2DashboardController extends Controller
             $start->toDateString(),
             $end->toDateString(),
         ]);
+    }
+
+    private function examPerformanceByGroup($baseQuery, string $groupColumn)
+    {
+        $passedSql = $this->examPassedSql();
+
+        $rows = (clone $baseQuery)
+            ->select(
+                "exam_results.{$groupColumn}",
+                DB::raw('COUNT(*) as total'),
+                DB::raw("SUM(CASE WHEN {$passedSql} THEN 1 ELSE 0 END) as passed")
+            )
+            ->whereNotNull("exam_results.{$groupColumn}")
+            ->groupBy("exam_results.{$groupColumn}")
+            ->get();
+
+        $ids = $rows->pluck($groupColumn)->filter()->unique()->values();
+        $labels = $this->examGroupLabels($groupColumn, $ids);
+
+        return $rows
+            ->map(function ($item) use ($groupColumn, $labels) {
+                $id = $item->{$groupColumn};
+                $total = (int) $item->total;
+                $passed = (int) $item->passed;
+                $name = $labels[$id] ?? 'N/A';
+
+                return [
+                    'id' => $id,
+                    'name' => $name,
+                    'course_name' => $name,
+                    'pass_rate' => $total > 0 ? round(($passed / $total) * 100, 1) : 0,
+                    'total' => $total,
+                    'passed' => $passed,
+                ];
+            })
+            ->filter(function ($item) {
+                return $item['total'] > 0;
+            })
+            ->sortByDesc('pass_rate')
+            ->values();
+    }
+
+    private function examGroupLabels(string $groupColumn, $ids)
+    {
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        if ($groupColumn === 'course_id') {
+            return Course::whereIn('course_id', $ids)->pluck('course_name', 'course_id')->all();
+        }
+
+        if ($groupColumn === 'intake_id') {
+            return Intake::whereIn('intake_id', $ids)
+                ->get(['intake_id', 'batch', 'course_name'])
+                ->mapWithKeys(function ($intake) {
+                    $batch = $intake->batch ?: ('Intake ' . $intake->intake_id);
+                    $course = $intake->course_name ? ' (' . $intake->course_name . ')' : '';
+                    return [$intake->intake_id => $batch . $course];
+                })
+                ->all();
+        }
+
+        if ($groupColumn === 'module_id') {
+            return Module::whereIn('module_id', $ids)
+                ->get(['module_id', 'module_name', 'module_code'])
+                ->mapWithKeys(function ($module) {
+                    $code = $module->module_code ? $module->module_code . ' - ' : '';
+                    return [$module->module_id => trim($code . ($module->module_name ?: 'N/A'))];
+                })
+                ->all();
+        }
+
+        return [];
     }
 
     private function presentAttendanceSql(): string

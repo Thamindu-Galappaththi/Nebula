@@ -66,6 +66,28 @@
             border-color: transparent;
         }
 
+        .academic-breakdown-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #6c757d;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .academic-breakdown-btn:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        .academic-breakdown-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
         .chart-toggle-btn {
             padding: 8px;
             border-radius: 6px;
@@ -350,7 +372,7 @@
                         </div>
                         <div id="appliedFiltersBanner" class="alert alert-info d-none py-2 mb-0 mt-3">
                             Filtered results are shown on the <strong>Academic Performance</strong> and <strong>Attendance</strong> tabs.
-                            Module applies to Attendance only.
+                            Module applies to Academic Performance and Attendance.
                             <span id="appliedFiltersText"></span>
                         </div>
                         <div class="small text-muted mt-2">Choose location/course/intake/module, then click Apply to filter Academic Performance and Attendance. Time Period updates Overview period cards, average attendance, Attendance, and Payments period cards. Academic grades and Clearance status are current snapshots, not date-filtered.</div>
@@ -702,8 +724,8 @@
                                             <div class="card-body">
                                                 <div class="d-flex justify-content-between align-items-center mb-4">
                                                     <div>
-                                                        <h5 class="card-title mb-1">🏆 Top Performing Courses</h5>
-                                                        <p class="text-muted mb-0">Course-wise pass rates</p>
+                                                        <h5 class="card-title mb-1" id="academicTopTitle">🏆 Top Performing Courses</h5>
+                                                        <p class="text-muted mb-0" id="academicTopSubtitle">Course-wise pass rates</p>
                                                     </div>
                                                     <span class="badge badge-purple">Pass Rate</span>
                                                 </div>
@@ -719,6 +741,44 @@
                                                         <div class="text-muted">Repeat Students</div>
                                                         <div class="fw-bold fs-16" id="repeatStudents">0</div>
                                                     </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="card card-hover">
+                                            <div class="card-body">
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+                                                    <div>
+                                                        <h5 class="card-title mb-1">📋 Academic Performance Breakdown</h5>
+                                                        <p class="text-muted mb-0">Check pass rates course wise, intake wise, and module wise</p>
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-2">
+                                                        <button type="button" class="academic-breakdown-btn active" data-view="course">Course wise</button>
+                                                        <button type="button" class="academic-breakdown-btn" data-view="intake">Intake wise</button>
+                                                        <button type="button" class="academic-breakdown-btn" data-view="module">Module wise</button>
+                                                    </div>
+                                                </div>
+                                                <div class="table-responsive">
+                                                    <table class="table table-hover">
+                                                        <thead>
+                                                            <tr>
+                                                                <th id="academicBreakdownNameHeader">Course</th>
+                                                                <th>Pass Rate</th>
+                                                                <th>Passed</th>
+                                                                <th>Total Results</th>
+                                                                <th>Status</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="academicBreakdownBody">
+                                                            <tr>
+                                                                <td colspan="5" class="text-center py-4">Loading academic performance...</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
                                                 </div>
                                             </div>
                                         </div>
@@ -1074,6 +1134,12 @@
             attendance: @json(route('attendance')),
         };
         let currentTimePeriod = 'month';
+        let currentAcademicBreakdown = 'course';
+        let lastAcademicPerformance = {
+            course_performance: [],
+            intake_performance: [],
+            module_performance: []
+        };
         let currentRejectId = null;
         let currentSearchQuery = '';
         let chartInstances = {};
@@ -1122,6 +1188,16 @@
             document.querySelectorAll('.time-filter-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     setTimePeriod(this.dataset.period, this);
+                });
+            });
+
+            document.querySelectorAll('.academic-breakdown-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    currentAcademicBreakdown = this.dataset.view || 'course';
+                    document.querySelectorAll('.academic-breakdown-btn').forEach(function (item) {
+                        item.classList.toggle('active', item === btn);
+                    });
+                    renderAcademicBreakdown();
                 });
             });
 
@@ -1645,6 +1721,7 @@
         function applyDashboardSearch() {
             const query = currentSearchQuery;
             [
+                'academicBreakdownBody',
                 'activeSemestersBody',
                 'pendingApprovalsBody',
                 'courseAttendanceBody',
@@ -1965,7 +2042,7 @@
         async function fetchAcademicPerformance(chartType = null) {
             try {
                 const selectedChartType = chartType || document.getElementById('gradeChartType')?.value || 'bar';
-                const params = buildDashboardParams(false);
+                const params = buildDashboardParams(true);
                 const response = await fetch(`/api/program-admin-l2/academic-performance?${params.toString()}`, {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
@@ -1975,19 +2052,26 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    lastAcademicPerformance = {
+                        course_performance: data.data.course_performance || [],
+                        intake_performance: data.data.intake_performance || [],
+                        module_performance: data.data.module_performance || []
+                    };
                     updateGradeDistributionChart(data.data.grade_distribution, selectedChartType);
-                    updateCoursePerformanceList(data.data.course_performance);
+                    renderAcademicBreakdown();
                     document.getElementById('repeatStudents').textContent =
                         formatKpiNumber(data.data.repeat_students);
                     applyDashboardSearch();
                 } else {
+                    lastAcademicPerformance = { course_performance: [], intake_performance: [], module_performance: [] };
                     updateGradeDistributionChart([], selectedChartType);
-                    updateCoursePerformanceList([]);
+                    renderAcademicBreakdown();
                 }
             } catch (error) {
                 console.error('Error fetching academic performance:', error);
+                lastAcademicPerformance = { course_performance: [], intake_performance: [], module_performance: [] };
                 updateGradeDistributionChart([], document.getElementById('gradeChartType')?.value || 'bar');
-                updateCoursePerformanceList([]);
+                renderAcademicBreakdown();
             }
         }
 
@@ -2034,36 +2118,139 @@
             });
         }
 
-        function updateCoursePerformanceList(data) {
+        function academicBreakdownMeta(view) {
+            return {
+                course: {
+                    title: '🏆 Top Performing Courses',
+                    subtitle: 'Course-wise pass rates',
+                    header: 'Course',
+                    empty: 'No course performance data'
+                },
+                intake: {
+                    title: '🏆 Top Performing Intakes',
+                    subtitle: 'Intake-wise pass rates',
+                    header: 'Intake',
+                    empty: 'No intake performance data'
+                },
+                module: {
+                    title: '🏆 Top Performing Modules',
+                    subtitle: 'Module-wise pass rates',
+                    header: 'Module',
+                    empty: 'No module performance data'
+                }
+            }[view] || {
+                title: '🏆 Top Performing Courses',
+                subtitle: 'Course-wise pass rates',
+                header: 'Course',
+                empty: 'No course performance data'
+            };
+        }
+
+        function academicBreakdownRows(view) {
+            if (view === 'intake') {
+                return lastAcademicPerformance.intake_performance || [];
+            }
+            if (view === 'module') {
+                return lastAcademicPerformance.module_performance || [];
+            }
+            return lastAcademicPerformance.course_performance || [];
+        }
+
+        function academicStatusLabel(passRate) {
+            if (passRate >= 70) {
+                return { text: 'Strong', badge: 'bg-success' };
+            }
+            if (passRate >= 50) {
+                return { text: 'Average', badge: 'bg-warning text-dark' };
+            }
+            return { text: 'Needs Attention', badge: 'bg-danger' };
+        }
+
+        function renderAcademicBreakdown() {
+            const view = currentAcademicBreakdown || 'course';
+            const meta = academicBreakdownMeta(view);
+            const rows = academicBreakdownRows(view);
+            const title = document.getElementById('academicTopTitle');
+            const subtitle = document.getElementById('academicTopSubtitle');
+            const header = document.getElementById('academicBreakdownNameHeader');
+
+            if (title) title.textContent = meta.title;
+            if (subtitle) subtitle.textContent = meta.subtitle;
+            if (header) header.textContent = meta.header;
+
+            updateCoursePerformanceList(rows, meta.empty);
+            updateAcademicBreakdownTable(rows, meta.header, meta.empty);
+        }
+
+        function updateAcademicBreakdownTable(data, nameHeader, emptyText) {
+            const body = document.getElementById('academicBreakdownBody');
+            if (!body) {
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                body.innerHTML = `
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">${emptyText}</td>
+                                </tr>
+                            `;
+                return;
+            }
+
+            body.innerHTML = data.map(item => {
+                const name = item.name || item.course_name || 'N/A';
+                const passRate = Number(item.pass_rate) || 0;
+                const status = academicStatusLabel(passRate);
+                const barClass = passRate >= 70 ? 'bg-success' : (passRate >= 50 ? 'bg-warning' : 'bg-danger');
+                return `
+                                <tr>
+                                    <td>${name}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 8px;">
+                                                <div class="progress-bar ${barClass}" style="width: ${passRate}%"></div>
+                                            </div>
+                                            <span class="fw-semibold">${passRate}%</span>
+                                        </div>
+                                    </td>
+                                    <td>${formatKpiNumber(item.passed)}</td>
+                                    <td>${formatKpiNumber(item.total)}</td>
+                                    <td><span class="badge ${status.badge}">${status.text}</span></td>
+                                </tr>
+                            `;
+            }).join('');
+        }
+
+        function updateCoursePerformanceList(data, emptyText = 'No course performance data') {
             const container = document.getElementById('coursePerformanceList');
+            if (!container) {
+                return;
+            }
 
             if (!data || data.length === 0) {
                 container.innerHTML = `
                                 <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div class="text-muted">No course performance data</div>
+                                    <div class="text-muted">${emptyText}</div>
                                     <span class="badge bg-secondary">-</span>
                                 </div>
                             `;
                 return;
             }
 
-            let html = '';
-            data.slice(0, 5).forEach(course => {
-                const badgeClass = course.pass_rate >= 70 ? 'badge-success' :
-                    course.pass_rate >= 50 ? 'badge-warning' : 'badge-danger';
-
-                html += `
+            container.innerHTML = data.slice(0, 5).map(item => {
+                const name = item.name || item.course_name || 'N/A';
+                const badgeClass = item.pass_rate >= 70 ? 'badge-success' :
+                    item.pass_rate >= 50 ? 'badge-warning' : 'badge-danger';
+                return `
                                 <div class="list-group-item d-flex justify-content-between align-items-center">
                                     <div>
-                                        <div class="fw-medium">${course.course_name}</div>
-                                        <small class="text-muted">${course.passed}/${course.total} students</small>
+                                        <div class="fw-medium">${name}</div>
+                                        <small class="text-muted">${item.passed}/${item.total} students</small>
                                     </div>
-                                    <span class="badge ${badgeClass}">${course.pass_rate}%</span>
+                                    <span class="badge ${badgeClass}">${item.pass_rate}%</span>
                                 </div>
                             `;
-            });
-
-            container.innerHTML = html;
+            }).join('');
         }
 
         // Attendance Overview
