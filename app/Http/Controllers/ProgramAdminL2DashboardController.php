@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\Models\Student;
 use App\Models\CourseRegistration;
@@ -32,31 +33,33 @@ class ProgramAdminL2DashboardController extends Controller
      */
     public function getOverviewMetrics(Request $request)
     {
-        $location = auth()->user()->user_location ?? 'Welisara';
-        $location = str_replace('Nebula Institute of Technology – ', '', $location);
-        $location = str_replace('Nebula Institute of Technology - ', '', $location);
+        $request->validate([
+            'location' => 'nullable|in:Welisara,Moratuwa,Peradeniya',
+            'period' => 'nullable|in:today,week,month,quarter',
+        ]);
+
+        $location = $this->normalizeLocation($request->input('location'));
+        $period = $request->input('period', 'month');
+        [$startDate, $endDate] = $this->periodRange($period);
+        [$prevStart, $prevEnd] = $this->previousPeriodRange($period);
 
         try {
-            // Total Active Students (based on course registration status 'Registered')
-            $totalActiveStudents = CourseRegistration::where('location', $location)
+            $registrations = $this->constrainByLocation(CourseRegistration::query(), $location);
+
+            $totalActiveStudents = (clone $registrations)
                 ->where('status', 'Registered')
-                ->distinct('student_id')
+                ->distinct()
                 ->count('student_id');
 
-            // Active Batches (Intakes with registered students)
-            $activeBatches = Intake::where('location', $location)
+            $activeBatches = $this->constrainByLocation(Intake::query(), $location)
                 ->whereHas('courseRegistrations', function ($query) {
                     $query->where('status', 'Registered');
                 })
                 ->count();
 
-            // Pending Registration Approvals (course registrations pending approval)
-            $pendingApprovals = CourseRegistration::where('location', $location)
-                ->where('status', 'Pending')
-                ->count();
+            $pendingApprovals = $this->pendingApprovalsQuery($location)->count();
 
-            // Student Count by Batch/Intake
-            $studentCountByBatch = Intake::where('location', $location)
+            $studentCountByBatch = $this->constrainByLocation(Intake::query(), $location)
                 ->withCount([
                     'courseRegistrations' => function ($query) {
                         $query->where('status', 'Registered');
@@ -73,61 +76,44 @@ class ProgramAdminL2DashboardController extends Controller
                     ];
                 });
 
-            // Today's new registrations
-            $todayRegistrations = CourseRegistration::where('location', $location)
-                ->whereDate('registration_date', Carbon::today())
-                ->where('status', 'Registered')
-                ->count();
+            $periodRegistrations = (clone $registrations)
+                ->where('status', 'Registered');
+            $this->applyRegistrationPeriod($periodRegistrations, $startDate, $endDate);
+            $periodRegistrations = $periodRegistrations->count();
 
-            // Yesterday's registrations for growth calculation
-            $yesterdayRegistrations = CourseRegistration::where('location', $location)
-                ->whereDate('registration_date', Carbon::yesterday())
-                ->where('status', 'Registered')
-                ->count();
+            $previousPeriodRegistrations = (clone $registrations)
+                ->where('status', 'Registered');
+            $this->applyRegistrationPeriod($previousPeriodRegistrations, $prevStart, $prevEnd);
+            $previousPeriodRegistrations = $previousPeriodRegistrations->count();
 
-            // Calculate growth percentage
-            $growthPercentage = 0;
-            if ($yesterdayRegistrations > 0) {
-                $growthPercentage = (($todayRegistrations - $yesterdayRegistrations) / $yesterdayRegistrations) * 100;
-            }
+            $growthPercentage = $previousPeriodRegistrations > 0
+                ? (($periodRegistrations - $previousPeriodRegistrations) / $previousPeriodRegistrations) * 100
+                : ($periodRegistrations > 0 ? 100 : 0);
 
-            // Pending clearance requests
-            $pendingClearances = ClearanceRequest::where('location', $location)
-                ->where('status', 'pending')
-                ->count();
+            $pendingClearances = $this->constrainByLocation(ClearanceRequest::query(), $location)
+                ->where('status', 'pending');
+            $this->applyDatePeriod($pendingClearances, 'COALESCE(requested_at, created_at)', $startDate, $endDate);
+            $pendingClearances = $pendingClearances->count();
 
-            // Students needing special approval
-            $specialApprovalNeeded = CourseRegistration::where('location', $location)
-                ->where('status', 'Special approval required')
-                ->count();
+            $specialApprovalNeeded = (clone $registrations)
+                ->where('status', 'Special approval required');
+            $this->applyRegistrationPeriod($specialApprovalNeeded, $startDate, $endDate);
+            $specialApprovalNeeded = $specialApprovalNeeded->count();
 
-            // Average attendance rate
-            $avgAttendance = Attendance::where('location', $location)
-                ->selectRaw('AVG(status) as avg_attendance')
-                ->first();
-            $avgAttendanceRate = $avgAttendance ? round($avgAttendance->avg_attendance * 100, 1) : 0;
+            $avgAttendanceRate = $this->attendanceRateFor($location, $startDate, $endDate);
 
-            // Pass rate from exam results
-            $totalExamResults = ExamResult::where('location', $location)->count();
-            $passResults = ExamResult::where('location', $location)
-                ->where(function ($query) {
-                    $query->where('grade', 'A')
-                        ->orWhere('grade', 'B')
-                        ->orWhere('grade', 'C')
-                        ->orWhere('grade', 'D')
-                        ->orWhere(function ($q) {
-                            $q->whereNotNull('marks')
-                                ->where('marks', '>=', 40);
-                        });
-                })
+            $examQuery = $this->constrainByLocation(ExamResult::query(), $location);
+            $this->applyDatePeriod($examQuery, 'created_at', $startDate, $endDate);
+
+            $totalExamResults = (clone $examQuery)->count();
+            $passResults = (clone $examQuery)
+                ->whereRaw($this->examPassedSql())
                 ->count();
             $passRate = $totalExamResults > 0 ? round(($passResults / $totalExamResults) * 100, 1) : 0;
 
-            // Semester registrations this month
-            $monthSemesterReg = SemesterRegistration::where('location', $location)
-                ->whereMonth('registration_date', Carbon::now()->month)
-                ->whereYear('registration_date', Carbon::now()->year)
-                ->count();
+            $monthSemesterReg = $this->constrainByLocation(SemesterRegistration::query(), $location);
+            $this->applyRegistrationPeriod($monthSemesterReg, $startDate, $endDate, 'semester_registrations');
+            $monthSemesterReg = $monthSemesterReg->count();
 
             return response()->json([
                 'success' => true,
@@ -135,7 +121,7 @@ class ProgramAdminL2DashboardController extends Controller
                     'total_active_students' => $totalActiveStudents,
                     'active_batches' => $activeBatches,
                     'pending_approvals' => $pendingApprovals,
-                    'today_registrations' => $todayRegistrations,
+                    'today_registrations' => $periodRegistrations,
                     'growth_percentage' => round($growthPercentage, 2),
                     'pending_clearances' => $pendingClearances,
                     'special_approval_needed' => $specialApprovalNeeded,
@@ -143,10 +129,10 @@ class ProgramAdminL2DashboardController extends Controller
                     'pass_rate' => $passRate,
                     'month_semester_reg' => $monthSemesterReg,
                     'student_count_by_batch' => $studentCountByBatch,
-                    'location' => $location
+                    'location' => $location,
+                    'period' => $period,
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -161,13 +147,10 @@ class ProgramAdminL2DashboardController extends Controller
      */
     public function getPendingApprovals(Request $request)
     {
-        $location = auth()->user()->user_location ?? 'Welisara';
-        $location = str_replace('Nebula Institute of Technology – ', '', $location);
-        $location = str_replace('Nebula Institute of Technology - ', '', $location);
+        $location = $this->normalizeLocation($request->input('location'));
 
         try {
-            $pendingApprovals = CourseRegistration::where('location', $location)
-                ->where('status', 'Pending')
+            $pendingApprovals = $this->pendingApprovalsQuery($location)
                 ->with(['student', 'course', 'intake'])
                 ->orderBy('created_at', 'desc')
                 ->get()
@@ -178,11 +161,11 @@ class ProgramAdminL2DashboardController extends Controller
                         'student_name' => $registration->student->full_name ?? 'N/A',
                         'course_name' => $registration->course->course_name ?? $registration->course_id,
                         'batch' => $registration->intake->batch ?? 'N/A',
-                        'registration_date' => $registration->registration_date,
+                        'registration_date' => optional($registration->registration_date)->format('Y-m-d') ?? $registration->registration_date,
                         'registration_fee' => $registration->registration_fee,
                         'counselor_name' => $registration->counselor_name,
                         'remarks' => $registration->remarks,
-                        'created_at' => $registration->created_at->format('Y-m-d H:i:s')
+                        'created_at' => optional($registration->created_at)->format('Y-m-d H:i:s'),
                     ];
                 });
 
@@ -204,30 +187,37 @@ class ProgramAdminL2DashboardController extends Controller
      */
     public function getActiveSemesters(Request $request)
     {
-        $location = auth()->user()->user_location ?? 'Welisara';
-        $location = str_replace('Nebula Institute of Technology – ', '', $location);
-        $location = str_replace('Nebula Institute of Technology - ', '', $location);
+        $location = $this->normalizeLocation($request->input('location'));
+        $locationValues = $this->locationValues($location);
 
         try {
-            $activeSemesters = Semester::whereHas('course', function ($query) use ($location) {
-                $query->where('location', $location);
+            $activeSemesters = Semester::where(function ($query) use ($locationValues) {
+                $query->whereHas('course', function ($q) use ($locationValues) {
+                    $q->whereIn('location', $locationValues);
+                })->orWhereHas('intake', function ($q) use ($locationValues) {
+                    $q->whereIn('location', $locationValues);
+                });
             })
-                ->where('status', 'active')
-                ->with([
-                    'course',
-                    'semesterRegistrations' => function ($query) {
-                        $query->where('status', 'registered');
-                    }
-                ])
+                ->where(function ($query) {
+                    $query->whereIn('status', ['active', 'Active', 'ongoing'])
+                        ->orWhere(function ($q) {
+                            $q->whereDate('start_date', '<=', now())
+                                ->whereDate('end_date', '>=', now());
+                        });
+                })
+                ->with(['course', 'semesterRegistrations'])
+                ->orderBy('start_date', 'desc')
                 ->get()
                 ->map(function ($semester) {
                     return [
                         'id' => $semester->id,
                         'name' => $semester->name,
                         'course_name' => $semester->course->course_name ?? 'N/A',
-                        'start_date' => $semester->start_date,
-                        'end_date' => $semester->end_date,
-                        'registered_count' => $semester->semesterRegistrations->count(),
+                        'start_date' => optional($semester->start_date)->format('Y-m-d'),
+                        'end_date' => optional($semester->end_date)->format('Y-m-d'),
+                        'registered_count' => $semester->semesterRegistrations
+                            ->whereIn('status', ['registered', 'Registered'])
+                            ->count(),
                         'status' => $semester->status
                     ];
                 });
@@ -246,6 +236,100 @@ class ProgramAdminL2DashboardController extends Controller
     }
 
     /**
+     * Get courses for the analytics location filter.
+     */
+    public function getCoursesByLocation(Request $request)
+    {
+        $request->validate([
+            'location' => 'required|in:Welisara,Moratuwa,Peradeniya',
+        ]);
+
+        $courses = Course::select('course_id', 'course_name')
+            ->where('location', $request->location)
+            ->orderBy('course_name')
+            ->get();
+
+        $intakes = Intake::where('location', $request->location)
+            ->orderByDesc('start_date')
+            ->orderBy('batch')
+            ->get(['intake_id', 'batch', 'course_name'])
+            ->map(function ($intake) {
+                return [
+                    'intake_id' => $intake->intake_id,
+                    'intake_name' => $intake->batch,
+                    'batch' => $intake->batch,
+                    'course_name' => $intake->course_name,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'courses' => $courses,
+            'data' => $courses,
+            'intakes' => $intakes,
+        ]);
+    }
+
+    /**
+     * Get intakes for the analytics filter (location required, course optional).
+     */
+    public function getIntakes(Request $request)
+    {
+        $request->validate([
+            'location' => 'required|in:Welisara,Moratuwa,Peradeniya',
+            'course_id' => 'nullable|exists:courses,course_id',
+        ]);
+
+        $location = $request->location;
+        $courseId = $request->course_id;
+
+        try {
+            if (!empty($courseId)) {
+                $course = Course::find($courseId);
+                $intakes = $course
+                    ? Intake::forCourse($course, $location)
+                        ->orderByDesc('start_date')
+                        ->orderBy('batch')
+                        ->get(['intake_id', 'batch', 'course_name', 'location'])
+                    : collect();
+
+                if ($intakes->isEmpty() && $course) {
+                    $intakes = Intake::forCourse($course, null)
+                        ->orderByDesc('start_date')
+                        ->orderBy('batch')
+                        ->get(['intake_id', 'batch', 'course_name', 'location']);
+                }
+            } else {
+                $intakes = Intake::where('location', $location)
+                    ->orderByDesc('start_date')
+                    ->orderBy('batch')
+                    ->get(['intake_id', 'batch', 'course_name', 'location']);
+            }
+
+            $data = $intakes->map(function ($intake) {
+                return [
+                    'intake_id' => $intake->intake_id,
+                    'intake_name' => $intake->batch,
+                    'batch' => $intake->batch,
+                    'course_name' => $intake->course_name,
+                ];
+            })->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load intakes',
+                'data' => [],
+            ], 500);
+        }
+    }
+
+    /**
      * Get modules for a selected course
      */
 
@@ -253,46 +337,63 @@ class ProgramAdminL2DashboardController extends Controller
     public function getModulesByCourse(Request $request)
     {
         $request->validate([
-            'course_id' => 'required|exists:courses,course_id',
+            'course_id' => 'nullable|exists:courses,course_id',
             'intake_id' => 'nullable|exists:intakes,intake_id',
         ]);
 
         try {
-            $courseId = (int) $request->get('course_id');
-            $intakeId = $request->get('intake_id');
+            $courseId = $request->filled('course_id') ? (int) $request->get('course_id') : null;
+            $intakeId = $request->filled('intake_id') ? (int) $request->get('intake_id') : null;
 
-            // If intake_id is provided and not empty, fetch ONLY modules from that intake
-            if (!empty($intakeId)) {
-                $modules = DB::table('intake_modules')
-                    ->join('modules', 'intake_modules.module_id', '=', 'modules.module_id')
-                    ->where('intake_modules.intake_id', $intakeId)
-                    ->select('modules.module_id', 'modules.module_name', 'modules.module_code')
-                    ->orderBy('modules.module_name')
-                    ->get()
-                    ->map(function ($module) {
-                        return [
-                            'module_id' => $module->module_id,
-                            'module_name' => $module->module_name,
-                            'module_code' => $module->module_code,
-                            'display_name' => trim(($module->module_code ? $module->module_code . ' - ' : '') . $module->module_name),
-                        ];
-                    });
-            } else {
-                // Only if no intake specified, fetch course modules
-                $modules = Course::find($courseId)
-                    ->modules()
-                    ->select('modules.module_id', 'modules.module_name', 'modules.module_code')
-                    ->orderBy('modules.module_name')
-                    ->get()
-                    ->map(function ($module) {
-                        return [
-                            'module_id' => $module->module_id,
-                            'module_name' => $module->module_name,
-                            'module_code' => $module->module_code,
-                            'display_name' => trim(($module->module_code ? $module->module_code . ' - ' : '') . $module->module_name),
-                        ];
-                    });
+            if (!$courseId && !$intakeId) {
+                return response()->json(['success' => true, 'data' => []]);
             }
+
+            $moduleIds = collect();
+
+            if ($courseId && Schema::hasTable('course_modules')) {
+                $moduleIds = $moduleIds->merge(
+                    DB::table('course_modules')->where('course_id', $courseId)->pluck('module_id')
+                );
+            }
+
+            if ($intakeId && Schema::hasTable('intake_modules')) {
+                $moduleIds = $moduleIds->merge(
+                    DB::table('intake_modules')->where('intake_id', $intakeId)->pluck('module_id')
+                );
+            }
+
+            if (Schema::hasTable('semesters') && Schema::hasTable('semester_module') && ($courseId || $intakeId)) {
+                $semesterQuery = DB::table('semesters');
+                if ($courseId) {
+                    $semesterQuery->where('course_id', $courseId);
+                }
+                if ($intakeId) {
+                    $semesterQuery->where('intake_id', $intakeId);
+                }
+                $semesterIds = $semesterQuery->pluck('id');
+                if ($semesterIds->isNotEmpty()) {
+                    $moduleIds = $moduleIds->merge(
+                        DB::table('semester_module')->whereIn('semester_id', $semesterIds)->pluck('module_id')
+                    );
+                }
+            }
+
+            $moduleIds = $moduleIds->filter()->unique()->values();
+
+            $modules = $moduleIds->isEmpty()
+                ? collect()
+                : Module::whereIn('module_id', $moduleIds)
+                    ->orderBy('module_name')
+                    ->get(['module_id', 'module_name', 'module_code'])
+                    ->map(function ($module) {
+                        return [
+                            'module_id' => $module->module_id,
+                            'module_name' => $module->module_name,
+                            'module_code' => $module->module_code,
+                            'display_name' => trim(($module->module_code ? $module->module_code . ' - ' : '') . $module->module_name),
+                        ];
+                    });
 
             return response()->json([
                 'success' => true,
@@ -315,63 +416,58 @@ class ProgramAdminL2DashboardController extends Controller
             'location' => 'nullable|in:Welisara,Moratuwa,Peradeniya',
             'course_id' => 'nullable|exists:courses,course_id',
             'intake_id' => 'nullable|exists:intakes,intake_id',
+            'module_id' => 'nullable|exists:modules,module_id',
+            'period' => 'nullable|in:today,week,month,quarter',
         ]);
 
-        $defaultLocation = auth()->user()->user_location ?? 'Welisara';
-        $defaultLocation = str_replace('Nebula Institute of Technology – ', '', $defaultLocation);
-        $defaultLocation = str_replace('Nebula Institute of Technology - ', '', $defaultLocation);
-
-        $location = $request->filled('location') ? $request->location : $defaultLocation;
+        $location = $this->normalizeLocation($request->input('location'));
         $courseId = $request->get('course_id');
         $intakeId = $request->get('intake_id');
+        $moduleId = $request->get('module_id');
 
         try {
-            $baseQuery = ExamResult::where('location', $location)
+            $baseQuery = $this->constrainByLocation(ExamResult::query(), $location)
                 ->when($courseId, function ($query) use ($courseId) {
                     $query->where('course_id', $courseId);
                 })
                 ->when($intakeId, function ($query) use ($intakeId) {
                     $query->where('intake_id', $intakeId);
+                })
+                ->when($moduleId, function ($query) use ($moduleId) {
+                    $query->where('module_id', $moduleId);
                 });
 
-            // Get exam results with grades
             $performanceData = (clone $baseQuery)
                 ->select('grade', DB::raw('COUNT(*) as count'))
                 ->whereNotNull('grade')
+                ->where('grade', '!=', '')
                 ->groupBy('grade')
+                ->orderBy('grade')
                 ->get();
 
-            // Get course-wise pass rates
-            $coursePerformance = (clone $baseQuery)
-                ->select(
-                    'course_id',
-                    DB::raw('COUNT(*) as total'),
-                    DB::raw('SUM(CASE WHEN marks >= 40 OR grade IN ("A", "B", "C", "D") THEN 1 ELSE 0 END) as passed')
-                )
-                ->groupBy('course_id')
-                ->with('course')
-                ->get()
-                ->map(function ($item) {
-                    $passRate = $item->total > 0 ? round(($item->passed / $item->total) * 100, 1) : 0;
+            if ($performanceData->isEmpty()) {
+                $performanceData = collect(['A', 'B', 'C', 'D', 'F'])->map(function ($grade) {
+                    return ['grade' => $grade, 'count' => 0];
+                });
+            } else {
+                $performanceData = $performanceData->map(function ($row) {
                     return [
-                        'course_name' => $item->course->course_name ?? 'N/A',
-                        'pass_rate' => $passRate,
-                        'total' => $item->total,
-                        'passed' => $item->passed
+                        'grade' => $row->grade,
+                        'count' => (int) $row->count,
                     ];
-                })
-                ->sortByDesc('pass_rate')
-                ->values();
+                })->values();
+            }
 
-            // Get repeat students (failed in exam)
+            $coursePerformance = $this->examPerformanceByGroup($baseQuery, 'course_id');
+            $intakePerformance = $this->examPerformanceByGroup($baseQuery, 'intake_id');
+            $modulePerformance = $this->examPerformanceByGroup($baseQuery, 'module_id');
+
             $repeatStudents = (clone $baseQuery)
                 ->where(function ($query) {
                     $query->where('marks', '<', 40)
-                        ->orWhere('grade', 'F')
-                        ->orWhere('grade', 'NA')
-                        ->orWhere('remarks', 'like', '%repeat%');
+                        ->orWhereIn('grade', ['F', 'NA', 'E']);
                 })
-                ->distinct('student_id')
+                ->distinct()
                 ->count('student_id');
 
             return response()->json([
@@ -379,19 +475,23 @@ class ProgramAdminL2DashboardController extends Controller
                 'data' => [
                     'grade_distribution' => $performanceData,
                     'course_performance' => $coursePerformance,
+                    'intake_performance' => $intakePerformance,
+                    'module_performance' => $modulePerformance,
                     'repeat_students' => $repeatStudents,
                     'filters' => [
                         'location' => $location,
                         'course_id' => $courseId,
                         'intake_id' => $intakeId,
+                        'module_id' => $moduleId,
+                        'period' => $request->input('period', 'month'),
                     ]
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to load academic performance data'
+                'message' => 'Failed to load academic performance data',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -409,38 +509,18 @@ class ProgramAdminL2DashboardController extends Controller
             'period' => 'nullable|in:today,week,month,quarter',
         ]);
 
-        $defaultLocation = auth()->user()->user_location ?? 'Welisara';
-        $defaultLocation = str_replace('Nebula Institute of Technology – ', '', $defaultLocation);
-        $defaultLocation = str_replace('Nebula Institute of Technology - ', '', $defaultLocation);
-
-        $location = $request->filled('location') ? $request->location : $defaultLocation;
+        $location = $this->normalizeLocation($request->input('location'));
         $courseId = $request->get('course_id');
         $intakeId = $request->get('intake_id');
         $moduleId = $request->get('module_id');
-
         $period = $request->get('period', 'month');
-        $endDate = Carbon::now();
-
-        switch ($period) {
-            case 'today':
-                $startDate = Carbon::today();
-                break;
-            case 'week':
-                $startDate = Carbon::now()->subWeek();
-                break;
-            case 'month':
-                $startDate = Carbon::now()->subMonth();
-                break;
-            case 'quarter':
-                $startDate = Carbon::now()->subMonths(3);
-                break;
-            default:
-                $startDate = Carbon::now()->subMonth();
-        }
+        [$startDate, $endDate] = $this->periodRange($period);
 
         try {
-            $baseQuery = Attendance::where('location', $location)
-                ->whereBetween('date', [$startDate, $endDate])
+            $presentExpr = $this->presentAttendanceSql();
+
+            $baseQuery = $this->constrainByLocation(Attendance::query(), $location)
+                ->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()])
                 ->when($courseId, function ($query) use ($courseId) {
                     $query->where('course_id', $courseId);
                 })
@@ -451,43 +531,34 @@ class ProgramAdminL2DashboardController extends Controller
                     $query->where('module_id', $moduleId);
                 });
 
-            // Daily attendance rate
             $dailyAttendance = (clone $baseQuery)
                 ->select(
                     DB::raw('DATE(date) as attendance_date'),
-                    DB::raw('AVG(status) * 100 as attendance_rate'),
-                    DB::raw('COUNT(*) as total_records')
+                    DB::raw("ROUND(SUM($presentExpr) * 100.0 / NULLIF(COUNT(*), 0), 1) as attendance_rate"),
+                    DB::raw('COUNT(*) as total_records'),
+                    DB::raw("SUM($presentExpr) as present_records")
                 )
                 ->groupBy(DB::raw('DATE(date)'))
                 ->orderBy('attendance_date', 'asc')
-                ->get();
-
-            // Course-wise attendance
-            $courseAttendance = (clone $baseQuery)
-                ->select(
-                    'course_id',
-                    DB::raw('AVG(status) * 100 as attendance_rate'),
-                    DB::raw('COUNT(*) as total_records')
-                )
-                ->groupBy('course_id')
-                ->with('course')
                 ->get()
-                ->map(function ($item) {
+                ->map(function ($row) {
                     return [
-                        'course_name' => $item->course->course_name ?? 'N/A',
-                        'attendance_rate' => round($item->attendance_rate, 1),
-                        'total_records' => $item->total_records
+                        'attendance_date' => Carbon::parse($row->attendance_date)->toDateString(),
+                        'attendance_rate' => round((float) $row->attendance_rate, 1),
+                        'total_records' => (int) $row->total_records,
                     ];
                 })
-                ->sortByDesc('attendance_rate')
                 ->values();
 
-            // Overall statistics
+            $courseAttendance = $this->attendanceGroupedBy($baseQuery, 'course_id', $presentExpr);
+            $intakeAttendance = $this->attendanceGroupedBy($baseQuery, 'intake_id', $presentExpr);
+            $moduleAttendance = $this->attendanceGroupedBy($baseQuery, 'module_id', $presentExpr);
+
             $overallStats = (clone $baseQuery)
                 ->select(
                     DB::raw('COUNT(*) as total'),
-                    DB::raw('SUM(status) as present'),
-                    DB::raw('AVG(status) * 100 as overall_rate')
+                    DB::raw("SUM($presentExpr) as present"),
+                    DB::raw("ROUND(SUM($presentExpr) * 100.0 / NULLIF(COUNT(*), 0), 1) as overall_rate")
                 )
                 ->first();
 
@@ -496,6 +567,8 @@ class ProgramAdminL2DashboardController extends Controller
                 'data' => [
                     'daily_attendance' => $dailyAttendance,
                     'course_attendance' => $courseAttendance,
+                    'intake_attendance' => $intakeAttendance,
+                    'module_attendance' => $moduleAttendance,
                     'overall_stats' => $overallStats,
                     'period' => $period,
                     'filters' => [
@@ -520,12 +593,12 @@ class ProgramAdminL2DashboardController extends Controller
      */
     public function getClearanceStatus(Request $request)
     {
-        $location = auth()->user()->user_location ?? 'Welisara';
-        $location = str_replace('Nebula Institute of Technology – ', '', $location);
-        $location = str_replace('Nebula Institute of Technology - ', '', $location);
+        $location = $this->normalizeLocation($request->input('location'));
 
         try {
-            $clearanceStats = ClearanceRequest::where('location', $location)
+            $clearanceQuery = $this->constrainByLocation(ClearanceRequest::query(), $location);
+
+            $clearanceStats = (clone $clearanceQuery)
                 ->select(
                     'clearance_type',
                     'status',
@@ -534,37 +607,53 @@ class ProgramAdminL2DashboardController extends Controller
                 ->groupBy('clearance_type', 'status')
                 ->get();
 
-            // Group by clearance type
             $clearanceByType = [];
+            foreach (ClearanceRequest::getClearanceTypes() as $type => $label) {
+                $clearanceByType[$label] = [
+                    'pending' => 0,
+                    'approved' => 0,
+                    'rejected' => 0,
+                    'total' => 0,
+                ];
+            }
+
             foreach ($clearanceStats as $stat) {
-                if (!isset($clearanceByType[$stat->clearance_type])) {
-                    $clearanceByType[$stat->clearance_type] = [
+                $label = $this->clearanceTypeLabel($stat->clearance_type);
+                $statusKey = $this->clearanceStatusKey($stat->status);
+
+                if (!isset($clearanceByType[$label])) {
+                    $clearanceByType[$label] = [
                         'pending' => 0,
                         'approved' => 0,
                         'rejected' => 0,
-                        'total' => 0
+                        'total' => 0,
                     ];
                 }
-                $clearanceByType[$stat->clearance_type][$stat->status] = $stat->count;
-                $clearanceByType[$stat->clearance_type]['total'] += $stat->count;
+
+                if (!in_array($statusKey, ['pending', 'approved', 'rejected'], true)) {
+                    $statusKey = 'pending';
+                }
+
+                $clearanceByType[$label][$statusKey] += (int) $stat->count;
+                $clearanceByType[$label]['total'] += (int) $stat->count;
             }
 
-            // Recent clearance requests
-            $recentRequests = ClearanceRequest::where('location', $location)
+            $recentRequests = (clone $clearanceQuery)
                 ->with(['student', 'course', 'intake'])
-                ->orderBy('created_at', 'desc')
+                ->orderByRaw('COALESCE(requested_at, created_at) DESC')
                 ->limit(10)
                 ->get()
                 ->map(function ($request) {
+                    $status = $this->clearanceStatusKey($request->status);
                     return [
                         'id' => $request->id,
                         'student_name' => $request->student->full_name ?? 'N/A',
-                        'clearance_type' => $request->clearance_type,
+                        'clearance_type' => $this->clearanceTypeLabel($request->clearance_type),
                         'course_name' => $request->course->course_name ?? 'N/A',
                         'batch' => $request->intake->batch ?? 'N/A',
-                        'status' => $request->status,
-                        'requested_at' => $request->created_at->format('Y-m-d H:i:s'),
-                        'remarks' => $request->remarks
+                        'status' => $status,
+                        'requested_at' => optional($request->requested_at ?? $request->created_at)->format('Y-m-d H:i:s'),
+                        'remarks' => $request->remarks,
                     ];
                 });
 
@@ -572,10 +661,9 @@ class ProgramAdminL2DashboardController extends Controller
                 'success' => true,
                 'data' => [
                     'clearance_by_type' => $clearanceByType,
-                    'recent_requests' => $recentRequests
+                    'recent_requests' => $recentRequests,
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -589,47 +677,63 @@ class ProgramAdminL2DashboardController extends Controller
      */
     public function getPaymentOverview(Request $request)
     {
-        $location = auth()->user()->user_location ?? 'Welisara';
-        $location = str_replace('Nebula Institute of Technology – ', '', $location);
-        $location = str_replace('Nebula Institute of Technology - ', '', $location);
+        $request->validate([
+            'location' => 'nullable|in:Welisara,Moratuwa,Peradeniya',
+            'course_id' => 'nullable|exists:courses,course_id',
+            'period' => 'nullable|in:today,week,month,quarter',
+        ]);
+
+        $location = $this->normalizeLocation($request->input('location'));
+        $locationValues = $this->locationValues($location);
         $courseId = $request->input('course_id');
+        $period = $request->input('period', 'month');
+        [$startDate, $endDate] = $this->periodRange($period);
+        $paymentDateSql = $this->paymentDateSql();
+        $paidAmountSql = $this->paidAmountSql();
 
         try {
             $paymentQuery = PaymentDetail::whereHas('registration', function ($query) use ($location, $courseId) {
-                $query->where('location', $location)
-                    ->when($courseId, function ($query) use ($courseId) {
-                        $query->where('course_id', (int) $courseId);
-                    });
+                $this->constrainByLocation($query, $location);
+                $query->when($courseId, function ($query) use ($courseId) {
+                    $query->where('course_id', (int) $courseId);
+                });
             });
 
-            $registrationQuery = CourseRegistration::where('location', $location)
+            $registrationQuery = $this->constrainByLocation(CourseRegistration::query(), $location)
                 ->when($courseId, function ($query) use ($courseId) {
                     $query->where('course_id', (int) $courseId);
                 });
 
-            $totalRevenue = (clone $paymentQuery)->where('status', 'paid')->sum('amount');
-            $pendingPayments = (clone $paymentQuery)->where('status', 'pending')->count();
+            $paidQuery = (clone $paymentQuery)->whereRaw("LOWER(COALESCE(status, '')) IN ('paid', 'complete', 'completed')");
+            $pendingQuery = (clone $paymentQuery)->whereRaw("LOWER(COALESCE(status, '')) IN ('pending', 'overdue', 'unpaid', 'partial')");
 
-            $monthlyRevenue = (clone $paymentQuery)
-                ->where('status', 'paid')
-                ->selectRaw('DATE_FORMAT(payment_effective_date, "%b %Y") as month, SUM(amount) as revenue')
-                ->groupByRaw('DATE_FORMAT(payment_effective_date, "%b %Y")')
-                ->orderByRaw('MAX(payment_effective_date) DESC')
-                ->limit(12)
+            $totalRevenue = (float) ((clone $paidQuery)->selectRaw("SUM({$paidAmountSql}) as total")->value('total') ?? 0);
+            $pendingPayments = (clone $pendingQuery)->count();
+
+            $periodRevenue = (float) ((clone $paidQuery)
+                ->whereRaw("DATE({$paymentDateSql}) BETWEEN ? AND ?", [$startDate->toDateString(), $endDate->toDateString()])
+                ->selectRaw("SUM({$paidAmountSql}) as total")
+                ->value('total') ?? 0);
+
+            $monthlyRows = (clone $paidQuery)
+                ->selectRaw("DATE_FORMAT({$paymentDateSql}, '%Y-%m') as month_key, DATE_FORMAT({$paymentDateSql}, '%b %Y') as month, SUM({$paidAmountSql}) as revenue")
+                ->groupByRaw("DATE_FORMAT({$paymentDateSql}, '%Y-%m'), DATE_FORMAT({$paymentDateSql}, '%b %Y')")
                 ->get()
-                ->reverse()
-                ->map(function ($item) {
-                    return [
-                        'month' => $item->month ?? 'N/A',
-                        'revenue' => (float) ($item->revenue ?? 0),
-                    ];
-                })
-                ->values()
-                ->toArray();
+                ->keyBy('month_key');
+
+            $monthlyRevenue = [];
+            for ($i = 5; $i >= 0; $i--) {
+                $month = Carbon::now()->subMonths($i);
+                $key = $month->format('Y-m');
+                $monthlyRevenue[] = [
+                    'month' => $month->format('M Y'),
+                    'revenue' => (float) ($monthlyRows->get($key)->revenue ?? 0),
+                ];
+            }
 
             $paymentStats = (clone $paymentQuery)
-                ->selectRaw('status, COUNT(*) as count')
-                ->groupBy('status')
+                ->selectRaw("LOWER(COALESCE(status, 'unknown')) as status, COUNT(*) as count")
+                ->groupByRaw("LOWER(COALESCE(status, 'unknown'))")
                 ->get()
                 ->map(function ($item) {
                     return [
@@ -639,10 +743,7 @@ class ProgramAdminL2DashboardController extends Controller
                 })
                 ->toArray();
 
-            $availableCourses = Course::where('location', $location)
-                ->when($courseId, function ($query) use ($courseId) {
-                    $query->where('course_id', (int) $courseId);
-                })
+            $availableCourses = $this->constrainByLocation(Course::query(), $location)
                 ->orderBy('course_name')
                 ->get(['course_id', 'course_name'])
                 ->map(function ($course) {
@@ -653,26 +754,30 @@ class ProgramAdminL2DashboardController extends Controller
                 })
                 ->values();
 
+            $registrationDateSql = $this->registrationDateSql();
             $registrationSummary = (clone $registrationQuery)
                 ->select(
                     'course_id',
                     DB::raw('COUNT(*) as total_registrations'),
                     DB::raw("SUM(CASE WHEN status = 'Registered' THEN 1 ELSE 0 END) as ongoing_courses"),
-                    DB::raw("SUM(CASE WHEN registration_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as new_registrations")
+                    DB::raw("SUM(CASE WHEN {$registrationDateSql} BETWEEN '{$startDate->toDateString()}' AND '{$endDate->toDateString()}' THEN 1 ELSE 0 END) as new_registrations")
                 )
                 ->groupBy('course_id')
                 ->get()
                 ->keyBy('course_id');
 
             $paymentSummary = PaymentDetail::join('course_registration', 'payment_details.course_registration_id', '=', 'course_registration.id')
-                ->where('course_registration.location', $location)
+                ->where(function ($query) use ($locationValues, $location) {
+                    $query->whereIn('course_registration.location', $locationValues)
+                        ->orWhere('course_registration.location', 'like', '%' . $location . '%');
+                })
                 ->when($courseId, function ($query) use ($courseId) {
                     $query->where('course_registration.course_id', (int) $courseId);
                 })
                 ->select(
                     'course_registration.course_id',
-                    DB::raw("SUM(CASE WHEN payment_details.status = 'paid' THEN payment_details.amount ELSE 0 END) as paid_amount"),
-                    DB::raw("SUM(CASE WHEN payment_details.status = 'pending' THEN payment_details.amount ELSE 0 END) as pending_amount"),
+                    DB::raw("SUM(CASE WHEN LOWER(COALESCE(payment_details.status, '')) IN ('paid', 'complete', 'completed') THEN {$paidAmountSql} ELSE 0 END) as paid_amount"),
+                    DB::raw("SUM(CASE WHEN LOWER(COALESCE(payment_details.status, '')) IN ('pending', 'overdue', 'unpaid', 'partial') THEN {$paidAmountSql} ELSE 0 END) as pending_amount"),
                     DB::raw('COUNT(payment_details.id) as payment_count')
                 )
                 ->groupBy('course_registration.course_id')
@@ -681,12 +786,12 @@ class ProgramAdminL2DashboardController extends Controller
 
             $courseWiseSummary = $availableCourses
                 ->map(function ($course) use ($registrationSummary, $paymentSummary) {
-                    $courseId = (int) $course['course_id'];
-                    $registrationRow = $registrationSummary->get($courseId);
-                    $paymentRow = $paymentSummary->get($courseId);
+                    $rowCourseId = (int) $course['course_id'];
+                    $registrationRow = $registrationSummary->get($rowCourseId);
+                    $paymentRow = $paymentSummary->get($rowCourseId);
 
                     return [
-                        'course_id' => $courseId,
+                        'course_id' => $rowCourseId,
                         'course_name' => $course['course_name'] ?? 'N/A',
                         'total_registrations' => (int) ($registrationRow->total_registrations ?? 0),
                         'new_registrations' => (int) ($registrationRow->new_registrations ?? 0),
@@ -700,10 +805,10 @@ class ProgramAdminL2DashboardController extends Controller
                 ->values()
                 ->toArray();
 
-            $newRegistrations = (clone $registrationQuery)
-                ->with(['student', 'course'])
-                ->whereBetween('registration_date', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])
-                ->orderBy('registration_date', 'desc')
+            $newRegistrationsQuery = (clone $registrationQuery)->with(['student', 'course']);
+            $this->applyRegistrationPeriod($newRegistrationsQuery, $startDate, $endDate);
+            $newRegistrations = $newRegistrationsQuery
+                ->orderByRaw("{$registrationDateSql} DESC")
                 ->limit(10)
                 ->get()
                 ->map(function ($registration) {
@@ -718,9 +823,9 @@ class ProgramAdminL2DashboardController extends Controller
                 })
                 ->toArray();
 
-            $newRegistrationsCount = (clone $registrationQuery)
-                ->whereBetween('registration_date', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])
-                ->count();
+            $newRegistrationsCountQuery = clone $registrationQuery;
+            $this->applyRegistrationPeriod($newRegistrationsCountQuery, $startDate, $endDate);
+            $newRegistrationsCount = $newRegistrationsCountQuery->count();
 
             $ongoingCoursesCount = (clone $registrationQuery)
                 ->where('status', 'Registered')
@@ -735,7 +840,8 @@ class ProgramAdminL2DashboardController extends Controller
                 'data' => [
                     'total_revenue' => (float) ($totalRevenue ?? 0),
                     'pending_payments' => (int) ($pendingPayments ?? 0),
-                    'monthly_revenue' => $monthlyRevenue ?? [],
+                    'period_revenue' => (float) ($periodRevenue ?? 0),
+                    'monthly_revenue' => $monthlyRevenue,
                     'payment_stats' => $paymentStats ?? [],
                     'available_courses' => $availableCourses,
                     'course_wise_summary' => $courseWiseSummary,
@@ -743,6 +849,7 @@ class ProgramAdminL2DashboardController extends Controller
                     'new_registrations_count' => (int) $newRegistrationsCount,
                     'ongoing_courses_count' => (int) $ongoingCoursesCount,
                     'selected_course_name' => $selectedCourseName,
+                    'period' => $period,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -764,12 +871,7 @@ class ProgramAdminL2DashboardController extends Controller
         try {
             $registration = CourseRegistration::findOrFail($id);
 
-            // Check if user has permission for this location
-            $userLocation = auth()->user()->user_location ?? 'Welisara';
-            $userLocation = str_replace('Nebula Institute of Technology – ', '', $userLocation);
-            $userLocation = str_replace('Nebula Institute of Technology - ', '', $userLocation);
-
-            if ($registration->location !== $userLocation) {
+            if (!$this->canManageRegistration($registration)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to approve registration from this location',
@@ -805,12 +907,7 @@ class ProgramAdminL2DashboardController extends Controller
         try {
             $registration = CourseRegistration::findOrFail($id);
 
-            // Check if user has permission for this location
-            $userLocation = auth()->user()->user_location ?? 'Welisara';
-            $userLocation = str_replace('Nebula Institute of Technology – ', '', $userLocation);
-            $userLocation = str_replace('Nebula Institute of Technology - ', '', $userLocation);
-
-            if ($registration->location !== $userLocation) {
+            if (!$this->canManageRegistration($registration)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized to reject registration from this location',
@@ -833,5 +930,430 @@ class ProgramAdminL2DashboardController extends Controller
                 'message' => 'Failed to reject registration',
             ], 500);
         }
+    }
+
+    /**
+     * Approve all pending registrations for this campus
+     */
+    public function approveAllPending(Request $request)
+    {
+        try {
+            $registrations = $this->pendingApprovalsQuery($request->input('location'))->get();
+            $count = 0;
+
+            foreach ($registrations as $registration) {
+                if (!$this->canManageRegistration($registration)) {
+                    continue;
+                }
+
+                $registration->status = 'Registered';
+                $registration->approval_status = 'Approved by manager';
+                $registration->updated_at = now();
+                $registration->save();
+                $count++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'count' => $count,
+                'message' => $count > 0
+                    ? "{$count} registration(s) approved successfully"
+                    : 'No pending registrations to approve',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to approve registrations',
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject all pending registrations for this campus
+     */
+    public function rejectAllPending(Request $request)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        try {
+            $registrations = $this->pendingApprovalsQuery($request->input('location'))->get();
+            $count = 0;
+
+            foreach ($registrations as $registration) {
+                if (!$this->canManageRegistration($registration)) {
+                    continue;
+                }
+
+                $registration->status = 'Not eligible';
+                $registration->approval_status = 'Rejected';
+                $registration->remarks = $request->reason;
+                $registration->updated_at = now();
+                $registration->save();
+                $count++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'count' => $count,
+                'message' => $count > 0
+                    ? "{$count} registration(s) rejected"
+                    : 'No pending registrations to reject',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reject registrations',
+            ], 500);
+        }
+    }
+
+    private function constrainByLocation($query, ?string $location = null, string $column = 'location')
+    {
+        $short = $this->normalizeLocation($location);
+        $values = $this->locationValues($short);
+
+        return $query->where(function ($inner) use ($column, $values, $short) {
+            $inner->whereIn($column, $values)
+                ->orWhere($column, 'like', '%' . $short . '%');
+        });
+    }
+
+    private function pendingApprovalsQuery(?string $location = null)
+    {
+        return $this->constrainByLocation(CourseRegistration::query(), $location)
+            ->where(function ($query) {
+                $query->whereIn('status', ['Pending', 'Special approval required'])
+                    ->orWhere(function ($inner) {
+                        $inner->where('approval_status', 'Pending')
+                            ->whereNotIn('status', ['Registered', 'Not eligible']);
+                    });
+            })
+            ->where(function ($query) {
+                $query->whereNull('approval_status')
+                    ->orWhereNotIn('approval_status', ['Approved by manager', 'Rejected', 'Sent to DGM']);
+            });
+    }
+
+    private function canManageRegistration(CourseRegistration $registration): bool
+    {
+        $userLocation = $this->normalizeLocation();
+        $allowed = $this->locationValues($userLocation);
+
+        return in_array($registration->location, $allowed, true)
+            || stripos((string) $registration->location, $userLocation) !== false;
+    }
+
+    private function paymentDateSql(): string
+    {
+        static $sql = null;
+        if ($sql !== null) {
+            return $sql;
+        }
+
+        $columns = [];
+        if (Schema::hasColumn('payment_details', 'payment_effective_date')) {
+            $columns[] = 'payment_effective_date';
+        }
+        if (Schema::hasColumn('payment_details', 'payment_date')) {
+            $columns[] = 'payment_date';
+        }
+        $columns[] = 'created_at';
+
+        $sql = 'COALESCE(' . implode(', ', $columns) . ')';
+
+        return $sql;
+    }
+
+    private function paidAmountSql(): string
+    {
+        static $sql = null;
+        if ($sql !== null) {
+            return $sql;
+        }
+
+        $amount = Schema::hasColumn('payment_details', 'amount') ? 'payment_details.amount' : '0';
+        $totalFee = Schema::hasColumn('payment_details', 'total_fee') ? 'payment_details.total_fee' : '0';
+        $sql = "COALESCE({$amount}, {$totalFee}, 0)";
+
+        return $sql;
+    }
+
+    private function normalizeLocation(?string $location = null): string
+    {
+        $value = trim((string) ($location ?: (auth()->user()->user_location ?? 'Welisara')));
+        $value = str_replace(['Nebula Institute of Technology – ', 'Nebula Institute of Technology - '], '', $value);
+
+        if ($value === '' || strcasecmp($value, 'Default Location') === 0) {
+            $value = str_replace(
+                ['Nebula Institute of Technology – ', 'Nebula Institute of Technology - '],
+                '',
+                (string) (auth()->user()->user_location ?? 'Welisara')
+            );
+        }
+
+        foreach (['Welisara', 'Moratuwa', 'Peradeniya'] as $campus) {
+            if (stripos($value, $campus) !== false) {
+                return $campus;
+            }
+        }
+
+        return $value !== '' ? $value : 'Welisara';
+    }
+
+    private function locationValues(?string $location = null): array
+    {
+        $short = $this->normalizeLocation($location);
+
+        return array_values(array_unique([
+            $short,
+            'Nebula Institute of Technology - ' . $short,
+            'Nebula Institute of Technology – ' . $short,
+        ]));
+    }
+
+    private function periodRange(?string $period): array
+    {
+        $end = Carbon::now()->endOfDay();
+
+        switch ($period) {
+            case 'today':
+                $start = Carbon::today()->startOfDay();
+                break;
+            case 'week':
+                $start = Carbon::now()->startOfWeek()->startOfDay();
+                break;
+            case 'quarter':
+                $start = Carbon::now()->subMonths(2)->startOfMonth()->startOfDay();
+                break;
+            case 'month':
+            default:
+                $start = Carbon::now()->startOfMonth()->startOfDay();
+                break;
+        }
+
+        return [$start, $end];
+    }
+
+    private function previousPeriodRange(?string $period): array
+    {
+        switch ($period) {
+            case 'today':
+                return [Carbon::yesterday()->startOfDay(), Carbon::yesterday()->endOfDay()];
+            case 'week':
+                return [Carbon::now()->subWeek()->startOfWeek()->startOfDay(), Carbon::now()->subWeek()->endOfWeek()->endOfDay()];
+            case 'quarter':
+                $currentStart = Carbon::now()->subMonths(2)->startOfMonth()->startOfDay();
+                return [
+                    $currentStart->copy()->subMonths(3)->startOfMonth()->startOfDay(),
+                    $currentStart->copy()->subDay()->endOfDay(),
+                ];
+            case 'month':
+            default:
+                return [Carbon::now()->subMonth()->startOfMonth()->startOfDay(), Carbon::now()->subMonth()->endOfMonth()->endOfDay()];
+        }
+    }
+
+    private function registrationDateSql(string $table = 'course_registration'): string
+    {
+        return "DATE(COALESCE({$table}.registration_date, {$table}.created_at))";
+    }
+
+    private function applyDatePeriod($query, string $columnSql, Carbon $start, Carbon $end)
+    {
+        return $query->whereRaw("DATE({$columnSql}) BETWEEN ? AND ?", [
+            $start->toDateString(),
+            $end->toDateString(),
+        ]);
+    }
+
+    private function applyRegistrationPeriod($query, Carbon $start, Carbon $end, string $table = 'course_registration')
+    {
+        return $query->whereRaw($this->registrationDateSql($table) . ' BETWEEN ? AND ?', [
+            $start->toDateString(),
+            $end->toDateString(),
+        ]);
+    }
+
+    private function examPerformanceByGroup($baseQuery, string $groupColumn)
+    {
+        $passedSql = $this->examPassedSql();
+
+        $rows = (clone $baseQuery)
+            ->select(
+                "exam_results.{$groupColumn}",
+                DB::raw('COUNT(*) as total'),
+                DB::raw("SUM(CASE WHEN {$passedSql} THEN 1 ELSE 0 END) as passed")
+            )
+            ->whereNotNull("exam_results.{$groupColumn}")
+            ->groupBy("exam_results.{$groupColumn}")
+            ->get();
+
+        $ids = $rows->pluck($groupColumn)->filter()->unique()->values();
+        $labels = $this->examGroupLabels($groupColumn, $ids);
+
+        return $rows
+            ->map(function ($item) use ($groupColumn, $labels) {
+                $id = $item->{$groupColumn};
+                $total = (int) $item->total;
+                $passed = (int) $item->passed;
+                $name = $labels[$id] ?? 'N/A';
+
+                return [
+                    'id' => $id,
+                    'name' => $name,
+                    'course_name' => $name,
+                    'pass_rate' => $total > 0 ? round(($passed / $total) * 100, 1) : 0,
+                    'total' => $total,
+                    'passed' => $passed,
+                ];
+            })
+            ->filter(function ($item) {
+                return $item['total'] > 0;
+            })
+            ->sortByDesc('pass_rate')
+            ->values();
+    }
+
+    private function examGroupLabels(string $groupColumn, $ids)
+    {
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        if ($groupColumn === 'course_id') {
+            return Course::whereIn('course_id', $ids)->pluck('course_name', 'course_id')->all();
+        }
+
+        if ($groupColumn === 'intake_id') {
+            return Intake::whereIn('intake_id', $ids)
+                ->get(['intake_id', 'batch', 'course_name'])
+                ->mapWithKeys(function ($intake) {
+                    $batch = $intake->batch ?: ('Intake ' . $intake->intake_id);
+                    $course = $intake->course_name ? ' (' . $intake->course_name . ')' : '';
+                    return [$intake->intake_id => $batch . $course];
+                })
+                ->all();
+        }
+
+        if ($groupColumn === 'module_id') {
+            return Module::whereIn('module_id', $ids)
+                ->get(['module_id', 'module_name', 'module_code'])
+                ->mapWithKeys(function ($module) {
+                    $code = $module->module_code ? $module->module_code . ' - ' : '';
+                    return [$module->module_id => trim($code . ($module->module_name ?: 'N/A'))];
+                })
+                ->all();
+        }
+
+        return [];
+    }
+
+    private function attendanceGroupedBy($baseQuery, string $groupColumn, string $presentExpr)
+    {
+        $rows = (clone $baseQuery)
+            ->select(
+                $groupColumn,
+                DB::raw("ROUND(SUM($presentExpr) * 100.0 / NULLIF(COUNT(*), 0), 1) as attendance_rate"),
+                DB::raw('COUNT(*) as total_records'),
+                DB::raw("SUM($presentExpr) as present_records")
+            )
+            ->whereNotNull($groupColumn)
+            ->groupBy($groupColumn)
+            ->get();
+
+        $ids = $rows->pluck($groupColumn)->filter()->unique()->values();
+        $labels = $this->examGroupLabels($groupColumn, $ids);
+
+        return $rows
+            ->map(function ($item) use ($groupColumn, $labels) {
+                $id = $item->{$groupColumn};
+                $name = $labels[$id] ?? 'N/A';
+
+                return [
+                    'id' => $id,
+                    'name' => $name,
+                    'course_name' => $name,
+                    'attendance_rate' => round((float) $item->attendance_rate, 1),
+                    'total_records' => (int) $item->total_records,
+                    'present_records' => (int) ($item->present_records ?? 0),
+                ];
+            })
+            ->sortByDesc('attendance_rate')
+            ->values();
+    }
+
+    private function presentAttendanceSql(): string
+    {
+        // attendance.status is boolean 1=present, 0=absent.
+        // Do not use IN ('true','Present') — MySQL casts those strings to 0 and counts absences as present.
+        return "CASE WHEN status = 1 OR LOWER(CAST(status AS CHAR)) IN ('1', 'present') THEN 1 ELSE 0 END";
+    }
+
+    private function examPassedSql(): string
+    {
+        // Production L2 dashboard: a result passes if marks are at least 40,
+        // or the letter grade is A-D (including + / -). BTEC P/M/D without marks do not pass here.
+        return "(
+            (marks IS NOT NULL AND marks >= 40)
+            OR UPPER(TRIM(COALESCE(grade, ''))) IN ('A', 'A+', 'A-', 'B', 'B+', 'B-', 'C', 'C+', 'C-', 'D')
+        )";
+    }
+
+    private function examResultPassed($grade, $marks): bool
+    {
+        if (is_numeric($marks) && (float) $marks >= 40) {
+            return true;
+        }
+
+        return in_array(strtoupper(trim((string) $grade)), ['A', 'A+', 'A-', 'B', 'B+', 'B-', 'C', 'C+', 'C-', 'D'], true);
+    }
+
+    private function clearanceTypeLabel(?string $type): string
+    {
+        $value = strtolower(trim((string) $type));
+        foreach (ClearanceRequest::getClearanceTypes() as $key => $label) {
+            if ($value === strtolower($key) || $value === strtolower($label) || str_contains($value, $key)) {
+                return $label;
+            }
+        }
+
+        return $type ? ucwords(str_replace('_', ' ', $type)) : 'Other';
+    }
+
+    private function clearanceStatusKey(?string $status): string
+    {
+        $value = strtolower(trim((string) $status));
+
+        if (in_array($value, ['approved', 'approve', 'accepted'], true)) {
+            return 'approved';
+        }
+        if (in_array($value, ['rejected', 'reject', 'declined'], true)) {
+            return 'rejected';
+        }
+
+        return 'pending';
+    }
+
+    private function attendanceRateFor(?string $location, ?Carbon $startDate = null, ?Carbon $endDate = null): float
+    {
+        $presentExpr = $this->presentAttendanceSql();
+        $query = Attendance::query()->where(function ($inner) use ($location) {
+            $this->constrainByLocation($inner, $location);
+            $inner->orWhereHas('course', function ($courseQuery) use ($location) {
+                $this->constrainByLocation($courseQuery, $location);
+            });
+        });
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()]);
+        }
+
+        $row = $query
+            ->selectRaw("ROUND(SUM($presentExpr) * 100.0 / NULLIF(COUNT(*), 0), 1) as avg_attendance")
+            ->first();
+
+        return $row && $row->avg_attendance !== null ? round((float) $row->avg_attendance, 1) : 0.0;
     }
 }

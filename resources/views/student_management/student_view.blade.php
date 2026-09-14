@@ -3,45 +3,167 @@
 @section('title', 'All Students View')
 
 @section('content')
-<div class="container mt-5 mb-5">
+<style nonce="{{ $cspNonce }}">
+  .student-view-page,
+  .student-view-page .card,
+  .student-view-page .card-body {
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+  }
+  .student-view-page [class*="col-"] {
+    min-width: 0;
+  }
+  .student-view-page .form-select {
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
+  .student-view-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .student-view-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .student-view-columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+  }
+  .student-view-columns .form-check {
+    margin: 0;
+    min-height: auto;
+  }
+  .student-view-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .student-view-table-scroll::-webkit-scrollbar {
+    height: 10px;
+  }
+  .student-view-table-scroll::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 8px;
+  }
+  .student-view-table-scroll::-webkit-scrollbar-thumb {
+    background: #b0b0b0;
+    border-radius: 8px;
+  }
+  .student-view-table-scroll table {
+    min-width: 860px;
+    width: 100%;
+    margin-bottom: 0;
+  }
+  .student-view-table-scroll th {
+    white-space: nowrap;
+  }
+  #searchBtn { width: 100%; }
+  .student-view-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.25rem;
+  }
+  .student-view-page-size {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .student-view-page-size select {
+    width: auto;
+    min-width: 4.5rem;
+  }
+  .student-view-pagination {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .student-view-pagination .pagination {
+    flex-wrap: wrap;
+    margin-bottom: 0;
+  }
+  @media (max-width: 767.98px) {
+    .student-view-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .student-view-actions,
+    .student-view-actions .btn {
+      width: 100%;
+    }
+    .student-view-page .card-body {
+      padding: 1rem 0.75rem;
+    }
+    .student-view-columns .form-check-input {
+      width: 1.15em;
+      height: 1.15em;
+    }
+    .student-view-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .student-view-page-size {
+      width: 100%;
+    }
+    .student-view-page-size select {
+      width: 5.75rem;
+      min-width: 5.75rem;
+      flex: 0 0 5.75rem;
+    }
+    .student-view-pagination .pagination {
+      justify-content: center;
+    }
+  }
+</style>
+
+<div class="container-fluid px-2 px-md-3 student-view-page">
   <div class="card shadow border-0">
     <div class="card-body">
-      <h3 class="text-primary mb-4">All Students View</h3>
+      <h3 class="text-center mb-4">All Students View</h3>
+      <hr>
 
-      <!-- 🔹 Filter Form -->
       <form id="filterForm" class="row g-3 mb-4">
         @csrf
-        <div class="col-md-3">
-          <label class="form-label">Student ID / NIC</label>
-          <input type="text" id="student_id" name="student_id" class="form-control" placeholder="Enter Student ID or NIC">
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label" for="student_id">Student ID / NIC</label>
+          <input type="text" id="student_id" name="student_id" class="form-control" placeholder="Enter Student ID or NIC" autocomplete="off">
         </div>
 
-        <div class="col-md-3">
-          <label class="form-label">Course</label>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label" for="courseSelect">Course</label>
           <select id="courseSelect" name="course_id" class="form-select">
             <option value="">All Courses</option>
-            @foreach(\App\Models\Course::orderBy('course_name')->get() as $course)
+            @foreach($courses as $course)
               <option value="{{ $course->course_id }}">{{ $course->course_name }} ({{ $course->location }})</option>
             @endforeach
           </select>
         </div>
 
-        <div class="col-md-3">
-          <label class="form-label">Intake</label>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label" for="intakeSelect">Intake</label>
           <select id="intakeSelect" name="intake_id" class="form-select">
             <option value="">All Intakes</option>
           </select>
         </div>
 
-        <div class="col-md-3" id="specializationFilterWrap" style="display:none;">
-          <label class="form-label">Specialization</label>
+        <div class="col-12 col-md-6 col-lg-4" id="specializationFilterWrap" style="display:none;">
+          <label class="form-label" for="specializationSelect">Specialization</label>
           <select id="specializationSelect" name="specialization" class="form-select">
             <option value="all">All Specializations</option>
           </select>
         </div>
 
-        <div class="col-md-2">
-          <label class="form-label">Status</label>
+        <div class="col-12 col-md-6 col-lg-4">
+          <label class="form-label" for="statusSelect">Status</label>
           <select id="statusSelect" name="status" class="form-select">
             <option value="">All</option>
             <option value="active">Active</option>
@@ -51,45 +173,67 @@
           </select>
         </div>
 
-        <div class="col-md-1 d-flex align-items-end">
-          <button id="searchBtn" class="btn btn-primary w-auto" type="submit">
+        <div class="col-12 col-md-6 col-lg-4 d-flex align-items-end">
+          <button id="searchBtn" class="btn btn-primary w-100" type="submit">
             <span class="spinner-border spinner-border-sm d-none" id="searchSpinner" role="status"></span>
             <span id="searchText">Search</span>
           </button>
         </div>
       </form>
 
-      <!-- 🔹 Column Selector -->
       <div class="mb-3">
         <h6 class="text-secondary fw-bold">Select Columns to Display:</h6>
-        <div id="columnSelector" class="d-flex flex-wrap gap-3">
-          <div><input type="checkbox" class="colToggle" value="student" checked> Student</div>
-          <div><input type="checkbox" class="colToggle" value="nic" checked> NIC</div>
-          <div><input type="checkbox" class="colToggle" value="course" checked> Course</div>
-          <div><input type="checkbox" class="colToggle" value="intake" checked> Intake</div>
-          <div><input type="checkbox" class="colToggle" value="specialization" checked> Specialization</div>
-          <div><input type="checkbox" class="colToggle" value="location" checked> Location</div>
-          <div><input type="checkbox" class="colToggle" value="status" checked> Status</div>
+        <div id="columnSelector" class="student-view-columns">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input colToggle" id="col-student" value="student" checked>
+            <label class="form-check-label" for="col-student">Student</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input colToggle" id="col-nic" value="nic" checked>
+            <label class="form-check-label" for="col-nic">NIC</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input colToggle" id="col-course" value="course" checked>
+            <label class="form-check-label" for="col-course">Course</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input colToggle" id="col-intake" value="intake" checked>
+            <label class="form-check-label" for="col-intake">Intake</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input colToggle" id="col-specialization" value="specialization" checked>
+            <label class="form-check-label" for="col-specialization">Specialization</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input colToggle" id="col-location" value="location" checked>
+            <label class="form-check-label" for="col-location">Location</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input colToggle" id="col-status" value="status" checked>
+            <label class="form-check-label" for="col-status">Status</label>
+          </div>
         </div>
       </div>
 
-      <div class="text-end mb-3">
-        <button class="btn btn-outline-secondary btn-sm me-2" id="clearFilters">
-          <i class="ti ti-refresh"></i> Clear Filters
-        </button>
-        <button class="btn btn-outline-success btn-sm me-2" id="exportCsv">
-          <i class="ti ti-file-spreadsheet"></i> Export CSV
-        </button>
-        <button class="btn btn-outline-danger btn-sm" id="exportPdf">
-          <i class="ti ti-file-text"></i> Export PDF
-        </button>
+      <div class="student-view-toolbar mb-3">
+        <div class="text-muted small align-self-center" id="resultCount"></div>
+        <div class="student-view-actions">
+          <button class="btn btn-outline-secondary btn-sm" id="clearFilters" type="button">
+            <i class="ti ti-refresh"></i> Clear Filters
+          </button>
+          <button class="btn btn-outline-success btn-sm" id="exportExcel" type="button">
+            <i class="ti ti-file-spreadsheet"></i> Export Excel
+          </button>
+          <button class="btn btn-outline-danger btn-sm" id="exportPdf" type="button">
+            <i class="ti ti-file-text"></i> Export PDF
+          </button>
+        </div>
       </div>
 
-      <!-- 📋 Results -->
       <div id="resultSection" style="display:none;">
         <h5 class="fw-bold text-secondary mb-3">Search Results</h5>
-        <div class="table-responsive">
-          <table id="studentTable" class="table table-bordered align-middle">
+        <div class="student-view-table-scroll">
+          <table id="studentTable" class="table table-bordered table-hover align-middle">
             <thead class="table-light">
               <tr>
                 <th>#</th>
@@ -105,31 +249,135 @@
             <tbody id="studentRows"></tbody>
           </table>
         </div>
+        <div class="student-view-footer mt-3" id="paginationBar" style="display:none;">
+          <div class="student-view-page-size">
+            <label class="form-label mb-0 small text-muted" for="perPageSelect">Per page</label>
+            <select id="perPageSelect" class="form-select form-select-sm page-size-select">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <div class="text-muted small align-self-center" id="resultRange"></div>
+          <nav class="student-view-pagination" aria-label="Student results pages">
+            <ul class="pagination pagination-sm" id="studentPagination"></ul>
+          </nav>
+        </div>
       </div>
     </div>
   </div>
 </div>
+@endsection
 
-<!-- 🔹 JS Section -->
-<script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
-<script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js" integrity="sha384-Zj5NAMJ45tB1L13yWiQlFjFjlyyeUBZTWQKktGXeW303njR3jSLmfN16iUgF8I8n" crossorigin="anonymous"></script>
-
+@push('scripts')
 <script nonce="{{ $cspNonce }}">
+const allCourses = @json($courses);
 let tableData = [];
+let currentPage = 1;
+let lastPage = 1;
+let totalCount = 0;
+let hasSearched = false;
 
 const specializationWrap = document.getElementById('specializationFilterWrap');
 const specializationSelect = document.getElementById('specializationSelect');
+const courseSelect = document.getElementById('courseSelect');
+const intakeSelect = document.getElementById('intakeSelect');
+const columnLabels = {
+  student: 'Student',
+  nic: 'NIC',
+  course: 'Course',
+  intake: 'Intake',
+  specialization: 'Specialization',
+  location: 'Location',
+  status: 'Status'
+};
+
+function escapeHtml(text) {
+  const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+  return String(text ?? '').replace(/[&<>"']/g, m => map[m]);
+}
+
+function resetIntakeFilter() {
+  intakeSelect.innerHTML = '';
+  intakeSelect.add(new Option('All Intakes', ''));
+}
 
 function resetSpecializationFilter() {
-  specializationSelect.innerHTML = '<option value="all">All Specializations</option>';
+  specializationSelect.innerHTML = '';
+  specializationSelect.add(new Option('All Specializations', 'all'));
   specializationWrap.style.display = 'none';
+}
+
+function fillCourseSelect(courses, emptyLabel = 'All Courses') {
+  courseSelect.innerHTML = '';
+  courseSelect.add(new Option(emptyLabel, ''));
+  (courses || []).forEach(course => {
+    if (!course) return;
+    const label = `${course.course_name || ''} (${course.location || '-'})`;
+    courseSelect.add(new Option(label, course.course_id));
+  });
+}
+
+function visibleColumns() {
+  return [...document.querySelectorAll('.colToggle:checked')].map(c => c.value);
+}
+
+function applyColumnVisibility() {
+  document.querySelectorAll('.colToggle').forEach(checkbox => {
+    document.querySelectorAll(`.col-${checkbox.value}`).forEach(cell => {
+      cell.style.display = checkbox.checked ? '' : 'none';
+    });
+  });
+}
+
+function currentFilters(page = currentPage) {
+  return {
+    student_id: document.getElementById('student_id').value.trim(),
+    course_id: courseSelect.value,
+    intake_id: intakeSelect.value,
+    status: document.getElementById('statusSelect').value,
+    specialization: specializationSelect.value,
+    columns: visibleColumns(),
+    page,
+    per_page: Number(document.getElementById('perPageSelect')?.value || 10)
+  };
+}
+
+function rowValues(s) {
+  return {
+    student: s.full_name || '-',
+    nic: s.id_value || '-',
+    course: s.course || s.course_registrations?.[0]?.course?.course_name || '-',
+    intake: s.intake || s.course_registrations?.[0]?.intake?.batch || '-',
+    specialization: s.specialization || s.course_registrations?.[0]?.specialization || '-',
+    location: s.location || s.institute_location || '-',
+    status: s.academic_status || '-'
+  };
+}
+
+function getStatusColor(status) {
+  switch (String(status || '').toLowerCase()) {
+    case 'active': return 'success';
+    case 'terminated': return 'danger';
+    case 'suspended': return 'warning';
+    case 'graduated': return 'info';
+    default: return 'secondary';
+  }
+}
+
+function setSearchBusy(isBusy) {
+  const btn = document.getElementById('searchBtn');
+  const spin = document.getElementById('searchSpinner');
+  const text = document.getElementById('searchText');
+  btn.disabled = isBusy;
+  spin.classList.toggle('d-none', !isBusy);
+  text.textContent = isBusy ? 'Loading...' : 'Search';
 }
 
 function loadSpecializations(courseId) {
   resetSpecializationFilter();
-  if (!courseId) {
-    return;
-  }
+  if (!courseId) return;
 
   fetch(`/api/course/${encodeURIComponent(courseId)}/specializations`)
     .then(response => response.json())
@@ -138,202 +386,269 @@ function loadSpecializations(courseId) {
         return;
       }
 
-      let html = '<option value="all">All Specializations</option>';
+      specializationSelect.innerHTML = '';
+      specializationSelect.add(new Option('All Specializations', 'all'));
       data.specializations.forEach(spec => {
         const value = typeof spec === 'object' ? (spec.name || spec.value || spec.specialization || '') : spec;
         if (value) {
-          html += `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`;
+          specializationSelect.add(new Option(value, value));
         }
       });
-      specializationSelect.innerHTML = html;
-      specializationWrap.style.display = 'block';
+      specializationWrap.style.display = '';
     })
     .catch(() => resetSpecializationFilter());
 }
 
-/* HTML Escape Helper Function */
-function escapeHtml(text) {
-  const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
-  return String(text).replace(/[&<>"']/g, m => map[m]);
-}
+function renderPagination(meta) {
+  const bar = document.getElementById('paginationBar');
+  const ul = document.getElementById('studentPagination');
+  const rangeEl = document.getElementById('resultRange');
+  ul.innerHTML = '';
 
-/* HTML Escape Helper Function */
-function escapeHtml(text) {
-  const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
-  return String(text).replace(/[&<>"']/g, m => map[m]);
-}
+  const total = Number(meta.total || 0);
+  const page = Number(meta.current_page || 1);
+  const pages = Math.max(1, Number(meta.last_page || 1));
+  currentPage = page;
+  lastPage = pages;
+  totalCount = total;
 
-/* -------------------------------
-   🔹 Filter Form Submit
---------------------------------*/
-document.getElementById('filterForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('searchBtn');
-  const spin = document.getElementById('searchSpinner');
-  const text = document.getElementById('searchText');
-  btn.disabled = true; spin.classList.remove('d-none'); text.textContent = 'Loading...';
+  bar.style.display = hasSearched ? 'flex' : 'none';
 
-  const payload = {
-    student_id: document.getElementById('student_id').value.trim(),
-    course_id: document.getElementById('courseSelect').value,
-    intake_id: document.getElementById('intakeSelect').value,
-    status: document.getElementById('statusSelect').value,
-    specialization: document.getElementById('specializationSelect').value,
-  };
-
-  const res = await fetch('{{ route("student_management.filter") }}', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await res.json();
-  tableData = data.data || [];
-  renderResults(tableData);
-
-  btn.disabled = false; spin.classList.add('d-none'); text.textContent = 'Search';
-});
-
-/* -------------------------------
-   🔹 Clear Filters
---------------------------------*/
-document.getElementById('clearFilters').addEventListener('click', () => {
-  document.getElementById('filterForm').reset();
-  resetSpecializationFilter();
-  document.getElementById('studentRows').innerHTML = '';
-  document.getElementById('resultSection').style.display = 'none';
-});
-
-/* -------------------------------
-   🔹 Render Results
---------------------------------*/
-function renderResults(items) {
-  const table = document.getElementById('studentRows');
-  table.innerHTML = '';
-
-  if (!items.length) {
-    table.innerHTML = `<tr><td colspan="8" class="text-center text-muted p-3">No records found.</td></tr>`;
-    document.getElementById('resultSection').style.display = 'block';
+  if (!total) {
+    rangeEl.textContent = '';
     return;
   }
 
-  items.forEach((s, i) => {
-    const course = escapeHtml(s.course_registrations?.[0]?.course?.course_name || '-');
-    const intake = escapeHtml(s.course_registrations?.[0]?.intake?.batch || '-');
-    const specialization = escapeHtml(s.course_registrations?.[0]?.specialization || s.specialization || '-');
-    const location = escapeHtml(s.institute_location || '-');
-    const status = s.academic_status
-      ? `<span class="badge bg-${getStatusColor(s.academic_status)}">${escapeHtml(s.academic_status)}</span>`
-      : '-';
+  rangeEl.textContent = `Showing ${meta.from} to ${meta.to} of ${total}`;
 
-    table.innerHTML += `
-      <tr>
-        <td>${i + 1}</td>
-        <td class="col-student">${escapeHtml(s.full_name)}</td>
-        <td class="col-nic">${escapeHtml(s.id_value || '-')}</td>
-        <td class="col-course">${course}</td>
-        <td class="col-intake">${intake}</td>
-        <td class="col-specialization">${specialization}</td>
-        <td class="col-location">${location}</td>
-        <td class="col-status">${status}</td>
-      </tr>`;
-  });
+  const addItem = (label, targetPage, options = {}) => {
+    const li = document.createElement('li');
+    li.className = 'page-item';
+    if (options.disabled) li.classList.add('disabled');
+    if (options.active) li.classList.add('active');
 
-  document.getElementById('resultSection').style.display = 'block';
+    const btn = document.createElement(options.disabled || options.active ? 'span' : 'button');
+    btn.className = 'page-link';
+    btn.textContent = label;
+    if (btn.tagName === 'BUTTON') {
+      btn.type = 'button';
+      btn.addEventListener('click', () => searchStudents(targetPage));
+    }
+    li.appendChild(btn);
+    ul.appendChild(li);
+  };
+
+  addItem('Previous', page - 1, { disabled: page <= 1 });
+
+  const start = Math.max(1, page - 2);
+  const end = Math.min(pages, page + 2);
+  if (start > 1) {
+    addItem('1', 1);
+    if (start > 2) addItem('...', page, { disabled: true });
+  }
+  for (let i = start; i <= end; i++) {
+    addItem(String(i), i, { active: i === page });
+  }
+  if (end < pages) {
+    if (end < pages - 1) addItem('...', page, { disabled: true });
+    addItem(String(pages), pages);
+  }
+
+  addItem('Next', page + 1, { disabled: page >= pages });
 }
 
-/* -------------------------------
-   🔹 Toggle Column Visibility
---------------------------------*/
-document.querySelectorAll('.colToggle').forEach(checkbox => {
-  checkbox.addEventListener('change', e => {
-    const val = e.target.value;
-    const show = e.target.checked;
-    document.querySelectorAll(`.col-${val}`).forEach(td => {
-      td.style.display = show ? '' : 'none';
+function renderResults(items, meta = {}) {
+  const table = document.getElementById('studentRows');
+  const countEl = document.getElementById('resultCount');
+  table.innerHTML = '';
+
+  const total = Number(meta.total ?? items.length);
+  const from = Number(meta.from || (items.length ? 1 : 0));
+
+  if (!items.length) {
+    const colCount = visibleColumns().length + 1;
+    table.innerHTML = `<tr><td colspan="${colCount}" class="text-center text-muted p-3">No records found.</td></tr>`;
+    document.getElementById('resultSection').style.display = 'block';
+    countEl.textContent = '0 students';
+    renderPagination({ total: 0, current_page: 1, last_page: 1, from: null, to: null });
+    return;
+  }
+
+  const rows = items.map((s, i) => {
+    const values = rowValues(s);
+    const statusText = values.status && values.status !== '-'
+      ? String(values.status).charAt(0).toUpperCase() + String(values.status).slice(1)
+      : '';
+    const statusLabel = statusText
+      ? `<span class="badge bg-${getStatusColor(values.status)}">${escapeHtml(statusText)}</span>`
+      : '-';
+
+    return `<tr>
+      <td>${from + i}</td>
+      <td class="col-student">${escapeHtml(values.student)}</td>
+      <td class="col-nic">${escapeHtml(values.nic)}</td>
+      <td class="col-course">${escapeHtml(values.course)}</td>
+      <td class="col-intake">${escapeHtml(values.intake)}</td>
+      <td class="col-specialization">${escapeHtml(values.specialization)}</td>
+      <td class="col-location">${escapeHtml(values.location)}</td>
+      <td class="col-status">${statusLabel}</td>
+    </tr>`;
+  });
+
+  table.innerHTML = rows.join('');
+  document.getElementById('resultSection').style.display = 'block';
+  countEl.textContent = total + (total === 1 ? ' student' : ' students');
+  renderPagination(meta);
+  applyColumnVisibility();
+}
+
+async function searchStudents(page = 1) {
+  setSearchBusy(true);
+  currentPage = page;
+
+  try {
+    const res = await fetch('{{ route("student_management.filter") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(currentFilters(page))
     });
+
+    if (!res.ok) {
+      throw new Error('Search failed');
+    }
+
+    const data = await res.json();
+    hasSearched = true;
+    tableData = data.data || [];
+    renderResults(tableData, data);
+  } catch (error) {
+    tableData = [];
+    totalCount = 0;
+    alert('Could not load students. Please try again.');
+  } finally {
+    setSearchBusy(false);
+  }
+}
+
+function downloadBlob(url, fallbackName, button) {
+  if (!hasSearched || !totalCount) {
+    alert('No data to export. Search first.');
+    return;
+  }
+
+  const originalHtml = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = 'Preparing...';
+
+  const formData = new FormData();
+  formData.append('_token', '{{ csrf_token() }}');
+  const filters = currentFilters();
+  Object.keys(filters).forEach(key => {
+    if (key === 'page' || key === 'per_page') {
+      return;
+    }
+    if (key === 'columns') {
+      filters.columns.forEach(col => formData.append('columns[]', col));
+    } else {
+      formData.append(key, filters[key] ?? '');
+    }
   });
+
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-TOKEN': '{{ csrf_token() }}',
+      'Accept': 'application/octet-stream'
+    },
+    body: formData
+  })
+    .then(async response => {
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
+      if (contentType.includes('text/html') || contentType.includes('application/json')) {
+        throw new Error('Download failed');
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^\";]+)"?/i);
+      const filename = match ? decodeURIComponent(match[1].replace(/['"]/g, '')) : fallbackName;
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    })
+    .catch(() => alert('Failed to download the file.'))
+    .finally(() => {
+      button.disabled = false;
+      button.innerHTML = originalHtml;
+    });
+}
+
+document.getElementById('filterForm').addEventListener('submit', e => {
+  e.preventDefault();
+  searchStudents(1);
 });
 
-/* -------------------------------
-   🔹 CSV Export
---------------------------------*/
-document.getElementById('exportCsv').addEventListener('click', () => {
-  if (!tableData.length) return alert('No data to export');
-  const visibleCols = [...document.querySelectorAll('.colToggle:checked')].map(c => c.value);
-
-  let csv = 'No,';
-  csv += visibleCols.join(',') + '\n';
-
-  tableData.forEach((s, i) => {
-    const c = s.course_registrations?.[0]?.course?.course_name || '-';
-    const inb = s.course_registrations?.[0]?.intake?.batch || '-';
-    const spec = s.course_registrations?.[0]?.specialization || s.specialization || '-';
-    const row = {
-      student: s.full_name,
-      nic: s.id_value || '-',
-      course: c,
-      intake: inb,
-      specialization: spec,
-      location: s.institute_location || '-',
-      status: s.academic_status || '-'
-    };
-    csv += `${i + 1},${visibleCols.map(col => row[col] || '-').join(',')}\n`;
-  });
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'students.csv';
-  link.click();
+document.getElementById('clearFilters').addEventListener('click', () => {
+  document.getElementById('filterForm').reset();
+  fillCourseSelect(allCourses);
+  resetIntakeFilter();
+  resetSpecializationFilter();
+  tableData = [];
+  hasSearched = false;
+  currentPage = 1;
+  lastPage = 1;
+  totalCount = 0;
+  document.getElementById('studentRows').innerHTML = '';
+  document.getElementById('resultSection').style.display = 'none';
+  document.getElementById('resultCount').textContent = '';
+  document.getElementById('paginationBar').style.display = 'none';
+  document.getElementById('studentPagination').innerHTML = '';
+  document.getElementById('resultRange').textContent = '';
 });
 
-/* -------------------------------
-   🔹 PDF Export
---------------------------------*/
-document.getElementById('exportPdf').addEventListener('click', () => {
-  if (!tableData.length) return alert('No data to export');
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('l', 'pt', 'a4');
-  const visibleCols = [...document.querySelectorAll('.colToggle:checked')].map(c => c.value);
+document.getElementById('perPageSelect').addEventListener('change', () => {
+  if (hasSearched) {
+    searchStudents(1);
+  }
+});
 
-  const headers = ['No', ...visibleCols.map(v => v.toUpperCase())];
-  const body = tableData.map((s, i) => {
-    const c = s.course_registrations?.[0]?.course?.course_name || '-';
-    const inb = s.course_registrations?.[0]?.intake?.batch || '-';
-    const spec = s.course_registrations?.[0]?.specialization || s.specialization || '-';
-    const row = {
-      student: s.full_name,
-      nic: s.id_value || '-',
-      course: c,
-      intake: inb,
-      specialization: spec,
-      location: s.institute_location || '-',
-      status: s.academic_status || '-'
-    };
-    return [i + 1, ...visibleCols.map(col => row[col] || '-')];
-  });
+document.querySelectorAll('.colToggle').forEach(checkbox => {
+  checkbox.addEventListener('change', applyColumnVisibility);
+});
 
-  doc.text('All Students Report', 40, 40);
-  doc.autoTable({
-    head: [headers],
-    body,
-    startY: 60,
-    styles: { fontSize: 9, cellPadding: 4, valign: 'middle' },
-    headStyles: { fillColor: [0, 123, 255], textColor: 255 }
-  });
-  doc.save('students.pdf');
+document.getElementById('exportExcel').addEventListener('click', e => {
+  downloadBlob('{{ route("student_management.view.export.excel") }}', 'all_students.xlsx', e.currentTarget);
+});
+
+document.getElementById('exportPdf').addEventListener('click', e => {
+  downloadBlob('{{ route("student_management.view.export.pdf") }}', 'all_students.pdf', e.currentTarget);
+});
+
+document.getElementById('student_id').addEventListener('input', () => {
+  resetIntakeFilter();
+  if ([...specializationSelect.options].some(option => option.value === 'all')) {
+    specializationSelect.value = 'all';
+  }
 });
 
 document.getElementById('student_id').addEventListener('change', async e => {
   const studentId = e.target.value.trim();
+  resetIntakeFilter();
+  resetSpecializationFilter();
 
   if (!studentId) {
-    // Reset to all courses
-    document.getElementById('courseSelect').innerHTML = '<option value="">All Courses</option>';
-    @foreach(\App\Models\Course::orderBy('course_name')->get() as $course)
-      document.getElementById('courseSelect').innerHTML += '<option value="{{ $course->course_id }}">{{ $course->course_name }} ({{ $course->location }})</option>';
-    @endforeach
+    fillCourseSelect(allCourses);
     return;
   }
 
@@ -341,27 +656,23 @@ document.getElementById('student_id').addEventListener('change', async e => {
     const res = await fetch('{{ route("student_management.courses") }}?student_id=' + encodeURIComponent(studentId));
     const data = await res.json();
 
-    if (data.success && data.courses.length > 0) {
-      let html = '<option value="">All Courses</option>';
-      data.courses.forEach(course => {
-        const courseName = escapeHtml(String(course.course_name || ''));
-        const courseLocation = escapeHtml(String(course.location || '-'));
-        html += `<option value="${escapeHtml(String(course.course_id))}">${courseName} (${courseLocation})</option>`;
-      });
-      document.getElementById('courseSelect').innerHTML = html;
+    if (data.success && Array.isArray(data.courses) && data.courses.length > 0) {
+      fillCourseSelect(data.courses);
+      if (data.courses.length === 1 && data.courses[0]?.course_id) {
+        courseSelect.value = String(data.courses[0].course_id);
+        courseSelect.dispatchEvent(new Event('change'));
+      }
     } else {
-      document.getElementById('courseSelect').innerHTML = '<option value="">No courses found</option>';
+      fillCourseSelect([], 'No courses found');
     }
   } catch (error) {
-    console.error('Error fetching courses:', error);
-    document.getElementById('courseSelect').innerHTML = '<option value="">Error loading courses</option>';
+    fillCourseSelect([], 'Error loading courses');
   }
 });
 
-document.getElementById('courseSelect').addEventListener('change', () => {
-  const courseId = document.getElementById('courseSelect').value;
-  const intakeSelect = document.getElementById('intakeSelect');
-  intakeSelect.innerHTML = '<option value="">All Intakes</option>';
+courseSelect.addEventListener('change', () => {
+  const courseId = courseSelect.value;
+  resetIntakeFilter();
   loadSpecializations(courseId);
 
   if (!courseId) return;
@@ -374,24 +685,9 @@ document.getElementById('courseSelect').addEventListener('change', () => {
         intakeSelect.add(new Option(intake.batch, intake.intake_id));
       });
     })
-    .catch(() => {
-      intakeSelect.innerHTML = '<option value="">All Intakes</option>';
-    });
+    .catch(() => resetIntakeFilter());
 });
 
 resetSpecializationFilter();
-
-/* -------------------------------
-   🔹 Status Color Helper
---------------------------------*/
-function getStatusColor(status) {
-  switch(status) {
-    case 'active': return 'success';
-    case 'terminated': return 'danger';
-    case 'suspended': return 'warning';
-    case 'graduated': return 'info';
-    default: return 'secondary';
-  }
-}
 </script>
-@endsection
+@endpush

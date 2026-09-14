@@ -3,17 +3,50 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClearanceRequest;
+use App\Models\Course;
 use App\Models\CourseRegistration;
+use App\Models\Intake;
 use App\Models\Student;
 use App\Models\StudentStatusHistory;
-use Illuminate\Support\Collection;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class TerminationTrackingController extends Controller
 {
-    public function index()
+    public function index(Request $request)
+    {
+        $payload = $this->buildIndexPayload();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'summary' => $payload['summary'],
+                'filters' => $payload['filters'],
+                'processes' => $payload['processes']->values()->all(),
+            ]);
+        }
+
+        return view('student_management.termination_tracking', $payload);
+    }
+
+    private function buildIndexPayload(): array
     {
         $processes = Student::where('academic_status', Student::ACADEMIC_TERMINATED)
+            ->with([
+                'statusHistories' => function ($query) {
+                    $query->where('to_status', Student::ACADEMIC_TERMINATED)
+                        ->with('user')
+                        ->latest('created_at');
+                },
+                'courseRegistrations' => function ($query) {
+                    $query->with(['course', 'intake'])
+                        ->orderByDesc('registration_date')
+                        ->orderByDesc('id');
+                },
+                'clearanceRequests.approvedBy',
+                'clearanceRequests.course',
+                'clearanceRequests.intake',
+            ])
             ->orderByDesc('updated_at')
             ->get()
             ->map(function (Student $student) {
@@ -21,64 +54,96 @@ class TerminationTrackingController extends Controller
             })
             ->values();
 
-        $summary = [
-            'total' => $processes->count(),
-            'clearance_in_progress' => $processes->filter(function ($process) {
-                return in_array($process['overall_status']['key'], ['not_started', 'awaiting_clearances', 'clearance_rejected'], true);
-            })->count(),
-            'completed' => $processes->filter(function ($process) {
-                return $process['overall_status']['key'] === 'completed';
-            })->count(),
-        ];
-
-        $filters = [
-            'locations' => $this->uniqueProcessValues($processes, 'location'),
-            'courses' => $this->uniqueProcessValues($processes, 'course_name'),
-            'intakes' => $this->uniqueProcessValues($processes, 'intake_name'),
-        ];
-
-        return view('student_management.termination_tracking', [
+        return [
             'processes' => $processes,
-            'summary' => $summary,
-            'filters' => $filters,
-        ]);
+            'summary' => [
+                'total' => $processes->count(),
+                'clearance_in_progress' => $processes->filter(function ($process) {
+                    return in_array($process['overall_status']['key'], ['not_started', 'awaiting_clearances', 'clearance_rejected'], true);
+                })->count(),
+                'completed' => $processes->filter(function ($process) {
+                    return $process['overall_status']['key'] === 'completed';
+                })->count(),
+            ],
+            'filters' => $this->filterCatalog(),
+        ];
     }
 
-    private function uniqueProcessValues(Collection $processes, string $key): Collection
+    private function filterCatalog(): array
     {
-        return $processes
-            ->map(function (array $process) use ($key) {
-                return $process[$key] ?? null;
-            })
-            ->filter()
-            ->unique()
-            ->sortBy(function (string $value) {
-                return strtolower($value);
-            })
-            ->values();
+        return [
+            'locations' => ['Welisara', 'Moratuwa', 'Peradeniya'],
+            'courses' => Course::query()
+                ->orderBy('course_name')
+                ->get(['course_id', 'course_name', 'location'])
+                ->map(function (Course $course) {
+                    return [
+                        'id' => (int) $course->course_id,
+                        'name' => $course->course_name,
+                        'location' => $course->location,
+                    ];
+                })
+                ->unique('id')
+                ->values()
+                ->all(),
+            'intakes' => Intake::query()
+                ->orderBy('batch')
+                ->get(['intake_id', 'batch', 'course_id', 'location'])
+                ->map(function (Intake $intake) {
+                    return [
+                        'id' => (int) $intake->intake_id,
+                        'name' => $intake->batch,
+                        'course_id' => (int) $intake->course_id,
+                        'location' => $intake->location,
+                    ];
+                })
+                ->unique('id')
+                ->values()
+                ->all(),
+        ];
     }
 
     private function buildProcessRow(Student $student): array
     {
-        $terminationHistory = StudentStatusHistory::where('student_id', $student->student_id)
-            ->where('to_status', Student::ACADEMIC_TERMINATED)
-            ->with('user')
-            ->latest('created_at')
-            ->first();
+        $terminationHistory = $student->relationLoaded('statusHistories')
+            ? $student->statusHistories->first()
+            : StudentStatusHistory::where('student_id', $student->student_id)
+                ->where('to_status', Student::ACADEMIC_TERMINATED)
+                ->with('user')
+                ->latest('created_at')
+                ->first();
 
-        $latestRegistration = CourseRegistration::where('student_id', $student->student_id)
-            ->with(['course', 'intake'])
-            ->orderByDesc('registration_date')
-            ->orderByDesc('id')
-            ->first();
+        $latestRegistration = $student->relationLoaded('courseRegistrations')
+            ? $student->courseRegistrations->first()
+            : CourseRegistration::where('student_id', $student->student_id)
+                ->with(['course', 'intake'])
+                ->orderByDesc('registration_date')
+                ->orderByDesc('id')
+                ->first();
+
+        $studentClearances = $student->relationLoaded('clearanceRequests')
+            ? $student->clearanceRequests
+            : ClearanceRequest::where('student_id', $student->student_id)
+                ->with(['approvedBy', 'course', 'intake'])
+                ->get();
+
+        if ($latestRegistration) {
+            $studentClearances = $studentClearances
+                ->filter(function ($clearance) use ($latestRegistration) {
+                    return (int) $clearance->course_id === (int) $latestRegistration->course_id
+                        && (int) $clearance->intake_id === (int) $latestRegistration->intake_id;
+                })
+                ->values();
+        }
 
         $clearances = collect(ClearanceRequest::getClearanceTypes())
-            ->map(function ($label, $type) use ($student) {
-                $request = ClearanceRequest::where('student_id', $student->student_id)
+            ->map(function ($label, $type) use ($studentClearances) {
+                $request = $studentClearances
                     ->where('clearance_type', $type)
-                    ->with(['approvedBy', 'course', 'intake'])
-                    ->orderByDesc('requested_at')
-                    ->orderByDesc('id')
+                    ->sortByDesc(function (ClearanceRequest $clearance) {
+                        return optional($clearance->requested_at)->timestamp
+                            ?? $clearance->id;
+                    })
                     ->first();
 
                 if (!$request) {
@@ -133,12 +198,14 @@ class TerminationTrackingController extends Controller
             'student_nic' => $student->id_value,
             'location' => $student->institute_location,
             'academic_status' => $student->academic_status,
-            'termination_reason' => $terminationHistory->reason ?? $student->academic_status_reason,
-            'terminated_at' => optional($terminationHistory->created_at ?? $student->academic_status_changed_at)->format('Y-m-d H:i'),
+            'termination_reason' => $terminationHistory?->reason ?? $student->academic_status_reason,
+            'terminated_at' => optional($terminationHistory?->created_at ?? $student->academic_status_changed_at)->format('Y-m-d H:i'),
             'terminated_by' => optional($terminationHistory?->user)->name ?? optional($terminationHistory?->user)->full_name,
-            'termination_document_url' => $this->publicFileUrl($terminationHistory->document ?? $student->academic_status_document),
+            'termination_document_url' => $this->publicFileUrl($terminationHistory?->document ?? $student->academic_status_document),
             'course_name' => optional($latestRegistration?->course)->course_name,
+            'course_id' => $latestRegistration?->course_id ? (int) $latestRegistration->course_id : null,
             'intake_name' => optional($latestRegistration?->intake)->batch,
+            'intake_id' => $latestRegistration?->intake_id ? (int) $latestRegistration->intake_id : null,
             'clearances' => $clearances,
             'clearance_summary' => $clearanceSummary,
             'overall_status' => $overallStatus,

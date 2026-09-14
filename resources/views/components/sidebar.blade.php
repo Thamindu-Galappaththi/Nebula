@@ -96,7 +96,7 @@
             @endif
             @if(RoleHelper::hasPermission($role, 'course.badge'))
                 <li class="sidebar-item">
-                    <a class="sidebar-link {{ Route::currentRouteName() == 'badges.index' ? 'active' : '' }}" href="{{ route('badges.index') }}">
+                    <a class="sidebar-link {{ in_array(Route::currentRouteName(), ['badges.index', 'badges.generate'], true) ? 'active' : '' }}" href="{{ route('badges.generate') }}">
                         <span><i class="ti ti-id-badge"></i></span>
                         <span class="hide-menu">Badges Generation</span>
                     </a>

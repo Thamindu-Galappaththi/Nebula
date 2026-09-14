@@ -41,7 +41,7 @@
         <!-- Navigation Tabs -->
         <nav class="bg-white shadow-sm">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex space-x-1 py-3">
+                <div class="flex flex-wrap gap-1 py-3">
                     <button data-tab="overview" id="tab-overview"
                         class="px-4 py-2 rounded-lg text-sm font-medium tab-active">
                         <i class="fas fa-chart-line mr-2"></i>Overview
@@ -70,8 +70,8 @@
             <!-- Overview Tab -->
             <div id="content-overview" class="tab-content active">
                 <!-- Key Metrics Cards -->
-                <div class="flex gap-10">
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-sky-500">
+                <div class="flex flex-wrap gap-4">
+                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-sky-500 flex-1" style="min-width: 160px;">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Total Students</p>
@@ -81,7 +81,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-green-500">
+                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-green-500 flex-1" style="min-width: 160px;">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Yearly Revenue</p>
@@ -91,7 +91,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-orange-500">
+                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-orange-500 flex-1" style="min-width: 160px;">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Due this year</p>
@@ -100,7 +100,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2  rounded-xl shadow-sm border-4 border-red-500">
+                    <div class="stat-card bg-white p-2  rounded-xl shadow-sm border-4 border-red-500 flex-1" style="min-width: 160px;">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Outstanding</p>
@@ -221,7 +221,7 @@
                                                     class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                     disabled>
                                                     @for($y = date('Y'); $y >= 2010; $y--)
-                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                        <option value="{{ $y }}" @selected($y == date('Y') - 1)>{{ $y }}</option>
                                                     @endfor
                                                 </select>
                                             </div>
@@ -230,9 +230,8 @@
                                                 <select id="fromMonthSelect"
                                                     class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
                                                     disabled>
-                                                    <option value="">All</option>
                                                     @for($m = 1; $m <= 12; $m++)
-                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}">{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m === 1)>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
                                                     @endfor
                                                 </select>
                                             </div>
@@ -242,7 +241,7 @@
                                                     class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                     disabled>
                                                     @for($y = date('Y'); $y >= 2010; $y--)
-                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                        <option value="{{ $y }}" @selected($y == date('Y'))>{{ $y }}</option>
                                                     @endfor
                                                 </select>
                                             </div>
@@ -251,9 +250,8 @@
                                                 <select id="toMonthSelect"
                                                     class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
                                                     disabled>
-                                                    <option value="">All</option>
                                                     @for($m = 1; $m <= 12; $m++)
-                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}">{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m == (int) date('n'))>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
                                                     @endfor
                                                 </select>
                                             </div>
@@ -270,7 +268,7 @@
                                                     class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                     disabled>
                                                     @for($y = date('Y'); $y >= 2010; $y--)
-                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                        <option value="{{ $y }}" @selected($y == date('Y') - 1)>{{ $y }}</option>
                                                     @endfor
                                                 </select>
                                             </div>
@@ -279,9 +277,8 @@
                                                 <select id="rangeStartMonthSelect"
                                                     class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
                                                     disabled>
-                                                    <option value="">All</option>
                                                     @for($m = 1; $m <= 12; $m++)
-                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}">{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m === 1)>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
                                                     @endfor
                                                 </select>
                                             </div>
@@ -291,7 +288,7 @@
                                                     class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                     disabled>
                                                     @for($y = date('Y'); $y >= 2010; $y--)
-                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                        <option value="{{ $y }}" @selected($y == date('Y'))>{{ $y }}</option>
                                                     @endfor
                                                 </select>
                                             </div>
@@ -300,14 +297,13 @@
                                                 <select id="rangeEndMonthSelect"
                                                     class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
                                                     disabled>
-                                                    <option value="">All</option>
                                                     @for($m = 1; $m <= 12; $m++)
-                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}">{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m == (int) date('n'))>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
                                                     @endfor
                                                 </select>
                                             </div>
                                         </div>
-                                        <div id="rangeRangeError" class="text-red-500 text-xs hidden">⚠ "Start" must be earlier than or equal to "End"</div>
+                                        <div id="rangeRangeError" class="text-red-500 text-xs hidden">⚠ "Start" must be earlier than "End"</div>
                                     </div>
 
                                 </div>
@@ -454,7 +450,7 @@
                                                 class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                 disabled>
                                                 @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                    <option value="{{ $y }}" @selected($y == date('Y') - 1)>{{ $y }}</option>
                                                 @endfor
                                             </select>
                                         </div>
@@ -463,9 +459,8 @@
                                             <select id="revenueFromMonthSelect"
                                                 class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
                                                 disabled>
-                                                <option value="">All</option>
                                                 @for($m = 1; $m <= 12; $m++)
-                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}">{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m === 1)>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
                                                 @endfor
                                             </select>
                                         </div>
@@ -475,7 +470,7 @@
                                                 class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                 disabled>
                                                 @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                    <option value="{{ $y }}" @selected($y == date('Y'))>{{ $y }}</option>
                                                 @endfor
                                             </select>
                                         </div>
@@ -484,9 +479,8 @@
                                             <select id="revenueToMonthSelect"
                                                 class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
                                                 disabled>
-                                                <option value="">All</option>
                                                 @for($m = 1; $m <= 12; $m++)
-                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}">{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m == (int) date('n'))>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
                                                 @endfor
                                             </select>
                                         </div>
@@ -502,7 +496,7 @@
                                                 class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                 disabled>
                                                 @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                    <option value="{{ $y }}" @selected($y == date('Y') - 1)>{{ $y }}</option>
                                                 @endfor
                                             </select>
                                         </div>
@@ -511,9 +505,8 @@
                                             <select id="revenueRangeStartMonthSelect"
                                                 class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
                                                 disabled>
-                                                <option value="">All</option>
                                                 @for($m = 1; $m <= 12; $m++)
-                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}">{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m === 1)>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
                                                 @endfor
                                             </select>
                                         </div>
@@ -523,7 +516,7 @@
                                                 class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                 disabled>
                                                 @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                    <option value="{{ $y }}" @selected($y == date('Y'))>{{ $y }}</option>
                                                 @endfor
                                             </select>
                                         </div>
@@ -532,14 +525,13 @@
                                             <select id="revenueRangeEndMonthSelect"
                                                 class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
                                                 disabled>
-                                                <option value="">All</option>
                                                 @for($m = 1; $m <= 12; $m++)
-                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}">{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m == (int) date('n'))>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
                                                 @endfor
                                             </select>
                                         </div>
                                         </div>
-                                        <div id="revenueRangeRangeError" class="text-red-500 text-xs hidden">⚠ "Start" must be earlier than or equal to "End"</div>
+                                        <div id="revenueRangeRangeError" class="text-red-500 text-xs hidden">⚠ "Start" must be earlier than "End"</div>
                                     </div>
                                 </div>
                             </div>
@@ -723,11 +715,11 @@
         }
 
         .tab-content {
-            display: none;
+            display: none !important;
         }
 
         .tab-content.active {
-            display: block;
+            display: block !important;
         }
 
         select:disabled {
@@ -839,7 +831,6 @@
                     break;
                 case 'revenues':
                     loadRevenueData();
-                    loadOutstandingData();
                     break;
                 case 'outstanding':
                     loadOutstandingTabData();
@@ -1289,6 +1280,8 @@
                 }
             } catch (error) {
                 console.error('Error loading revenue data:', error);
+            } finally {
+                await loadOutstandingData();
             }
         }
 
@@ -1352,35 +1345,45 @@
             }
         }
 
+        function getSelectedRevenueLocations() {
+            const allLocations = ['Welisara', 'Moratuwa', 'Peradeniya'];
+            const sel = document.getElementById('revenueLocationSelect');
+            if (!sel) return allLocations;
+            const concrete = Array.from(sel.selectedOptions)
+                .map(opt => opt.value)
+                .filter(v => v && v !== 'all');
+            if (!concrete.length) return allLocations;
+            return allLocations.filter(loc => concrete.includes(loc));
+        }
+
         async function loadOutstandingData() {
             const params = getRevenueFilterParams();
 
             try {
                 const res = await fetch(`/api/dashboard/outstanding-by-year-course?${new URLSearchParams(params)}`);
                 const data = await res.json(); // [{year, location, outstanding}, ...]
+                const rows = Array.isArray(data) ? data : [];
 
-                // Get all years in data
-                let years = [...new Set(data.map(d => d.year))].sort();
+                let years = [...new Set(rows.map(d => Number(d.year)))].filter(Boolean).sort((a, b) => a - b);
 
-                // Filter years for compare/range
                 if (params.compare && params.from_year && params.to_year) {
-                    years = [parseInt(params.from_year), parseInt(params.to_year)].sort();
+                    years = [...new Set([parseInt(params.from_year, 10), parseInt(params.to_year, 10)])].sort((a, b) => a - b);
                 } else if (params.range && params.range_start_year && params.range_end_year) {
-                    const start = parseInt(params.range_start_year);
-                    const end = parseInt(params.range_end_year);
+                    const start = parseInt(params.range_start_year, 10);
+                    const end = parseInt(params.range_end_year, 10);
                     years = [];
                     for (let y = start; y <= end; y++) years.push(y);
+                } else if (params.year) {
+                    years = [parseInt(params.year, 10)];
                 }
 
-                // Get all locations
-                const locations = ['Welisara', 'Moratuwa', 'Peradeniya'];
+                const locations = getSelectedRevenueLocations();
                 const colors = ['#EF4444', '#6366F1', '#10B981'];
 
-                // Sum outstanding for each location across selected years
                 const locationOutstanding = locations.map(loc => {
-                    return data
-                        .filter(d => years.includes(d.year) && d.location === loc)
-                        .reduce((sum, d) => sum + (d.outstanding || 0), 0);
+                    return rows
+                        .filter(d => years.includes(Number(d.year)) && d.location === loc)
+                        .reduce((sum, d) => sum + (Number(d.outstanding) || 0), 0);
                 });
 
                 // Draw pie chart
@@ -1469,23 +1472,31 @@
             }
         }
 
+        function getSelectedOutstandingLocations() {
+            const allLocations = ['Welisara', 'Moratuwa', 'Peradeniya'];
+            const sel = document.getElementById('outstandingLocationSelect');
+            if (!sel) return allLocations;
+            const concrete = Array.from(sel.selectedOptions)
+                .map(opt => opt.value)
+                .filter(v => v && v !== 'all');
+            if (!concrete.length) return allLocations;
+            return allLocations.filter(loc => concrete.includes(loc));
+        }
+
         async function loadOutstandingTabData() {
             const params = getOutstandingFilterParams();
             try {
                 const res = await fetch(`/api/dashboard/outstanding-by-year-course?${new URLSearchParams(params)}`);
                 const data = await res.json(); // [{year, location, course_name, outstanding}, ...]
 
-                // Build unique lists of courses and locations from payload
+                const locations = getSelectedOutstandingLocations();
                 const coursesSet = new Set();
-                const locationsSet = new Set();
-                data.forEach(item => {
-                    const course = item.course_name || item.course || 'Unknown';
-                    const loc = item.location || item.institute_location || 'Unknown';
-                    coursesSet.add(course);
-                    locationsSet.add(loc);
+                (Array.isArray(data) ? data : []).forEach(item => {
+                    const loc = item.location || item.institute_location || '';
+                    if (locations.length && loc && !locations.includes(loc)) return;
+                    coursesSet.add(item.course_name || item.course || 'Unknown');
                 });
                 const courses = Array.from(coursesSet).sort();
-                const locations = Array.from(locationsSet).length ? Array.from(locationsSet) : ['Welisara', 'Moratuwa', 'Peradeniya'];
 
                 // Aggregate outstanding per location (for summary table) and prepare datasets per course by location
                 const locationTotals = {};
@@ -1642,12 +1653,13 @@
             const revenueCourseSelect = document.getElementById('revenueCourseSelect');
             const revenueLocationSelect = document.getElementById('revenueLocationSelect');
 
-            // Get selected courses
             const selectedCourses = Array.from(revenueCourseSelect.selectedOptions).map(opt => opt.value);
-            const courseParam = selectedCourses.length === 0 || selectedCourses.includes('all') ? 'all' : selectedCourses.join(',');
+            const concreteCourses = selectedCourses.filter(v => v && v !== 'all');
+            const courseParam = concreteCourses.length ? concreteCourses.join(',') : 'all';
 
             const selectedLocations = Array.from(revenueLocationSelect.selectedOptions).map(opt => opt.value);
-            const locationParam = selectedLocations.length === 0 || selectedLocations.includes('all') ? 'all' : selectedLocations.join(',');
+            const concreteLocations = selectedLocations.filter(v => v && v !== 'all');
+            const locationParam = concreteLocations.length ? concreteLocations.join(',') : 'all';
 
             if (rangeToggle) {
                 return {
@@ -1686,10 +1698,12 @@
             const courseSelect = document.getElementById('outstandingCourseSelect');
 
             const selectedLocations = Array.from(locationSelect.selectedOptions).map(opt => opt.value);
-            const locationParam = selectedLocations.length === 0 || selectedLocations.includes('all') ? 'all' : selectedLocations.join(',');
+            const concreteLocations = selectedLocations.filter(v => v && v !== 'all');
+            const locationParam = concreteLocations.length ? concreteLocations.join(',') : 'all';
 
             const selectedCourses = Array.from(courseSelect.selectedOptions).map(opt => opt.value);
-            const courseParam = selectedCourses.length === 0 || selectedCourses.includes('all') ? 'all' : selectedCourses.join(',');
+            const concreteCourses = selectedCourses.filter(v => v && v !== 'all');
+            const courseParam = concreteCourses.length ? concreteCourses.join(',') : 'all';
 
             return {
                 year: new Date().getFullYear(),
@@ -1745,28 +1759,19 @@
             const revenueRangeRangeError = document.getElementById('revenueRangeRangeError');
 
             /**
-             * Validate that (fromYear, fromMonth) is strictly before (toYear, toMonth).
-             * Month values may be empty string (treat as "any").
-             * For Compare: from < to strictly.
-             * For Range: from <= to, but not exactly equal (same year & same/no month).
+             * Show an error only when From/Start is the same as or later than To/End.
              */
-            function periodValue(year, month) {
-                return parseInt(year) * 100 + (month ? parseInt(month) : 0);
-            }
-
             function isValidComparePeriod(fy, fm, ty, tm) {
-                if (!fy || !ty) return true; // incomplete selection, skip
-                // "All" months: from-side defaults to Jan (1), to-side to Dec (12)
-                const fv = parseInt(fy) * 100 + (fm ? parseInt(fm) : 1);
-                const tv = parseInt(ty) * 100 + (tm ? parseInt(tm) : 12);
+                if (!fy || !ty || !fm || !tm) return true;
+                const fv = parseInt(fy, 10) * 100 + parseInt(fm, 10);
+                const tv = parseInt(ty, 10) * 100 + parseInt(tm, 10);
                 return fv < tv;
             }
 
             function isValidRangePeriod(sy, sm, ey, em) {
-                if (!sy || !ey) return true;
-                // "All" months: start-side defaults to Jan (1), end-side to Dec (12)
-                const sv = parseInt(sy) * 100 + (sm ? parseInt(sm) : 1);
-                const ev = parseInt(ey) * 100 + (em ? parseInt(em) : 12);
+                if (!sy || !ey || !sm || !em) return true;
+                const sv = parseInt(sy, 10) * 100 + parseInt(sm, 10);
+                const ev = parseInt(ey, 10) * 100 + parseInt(em, 10);
                 return sv < ev;
             }
 
@@ -1995,7 +2000,11 @@
                 const yEl = document.getElementById(yId);
                 const mEl = document.getElementById(mId);
                 if (yEl && mEl) {
-                    yEl.addEventListener('change', () => updateMonthOptions(mEl, yEl.value));
+                    yEl.addEventListener('change', () => {
+                        updateMonthOptions(mEl, yEl.value);
+                        // Re-run month listeners so errors reflect the month after future dates are disabled
+                        mEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
                 }
             });
 
@@ -2052,18 +2061,23 @@
             const selectedYear = parseInt(year) || currentYear;
 
             Array.from(monthSelectEl.options).forEach(opt => {
-                if (!opt.value) return; // skip blank "All Months" option
-                const m = parseInt(opt.value);
+                if (!opt.value) return;
+                const m = parseInt(opt.value, 10);
                 const isFuture = (selectedYear > currentYear) ||
                                  (selectedYear === currentYear && m > currentMonth);
                 opt.disabled = isFuture;
                 opt.style.color = isFuture ? '#9CA3AF' : '';
             });
 
-            // If the currently-selected month is now disabled, reset to blank
-            const sel = monthSelectEl.selectedIndex;
-            if (sel > 0 && monthSelectEl.options[sel] && monthSelectEl.options[sel].disabled) {
-                monthSelectEl.value = '';
+            const selected = monthSelectEl.options[monthSelectEl.selectedIndex];
+            if (selected && selected.disabled) {
+                const allOpt = Array.from(monthSelectEl.options).find(opt => !opt.value);
+                if (allOpt) {
+                    monthSelectEl.value = '';
+                } else {
+                    const firstEnabled = Array.from(monthSelectEl.options).find(opt => opt.value && !opt.disabled);
+                    monthSelectEl.value = firstEnabled ? firstEnabled.value : '';
+                }
             }
         }
 
@@ -2179,7 +2193,7 @@
             }
 
             bindUpload('studentUploadForm', 'studentUploadModal', () => loadStudentsData());
-            bindUpload('revenueUploadForm', 'revenueUploadModal', () => { loadRevenueData(); loadOutstandingData(); });
+            bindUpload('revenueUploadForm', 'revenueUploadModal', () => { loadRevenueData(); });
         });
 
         // Download exports (actual uploaded table data)

@@ -33,7 +33,7 @@ class PaymentSummaryController extends Controller
         $endDateInput = $request->input('end_date');
         $breakdownScope = $request->input('breakdown_scope', 'paid');
 
-        $startDate = $this->getDateFromRange($range);
+        $startDate = in_array($range, ['10y', 'all', ''], true) ? null : $this->getDateFromRange($range);
 
         return $this->generateAdvancedSummary(null, $startDate, [
             'payment_method' => $paymentMethod,
@@ -64,7 +64,7 @@ class PaymentSummaryController extends Controller
         $endDateInput = $request->input('end_date');
         $breakdownScope = $request->input('breakdown_scope', 'paid');
 
-        $startDate = $this->getDateFromRange($range);
+        $startDate = in_array($range, ['10y', 'all', ''], true) ? null : $this->getDateFromRange($range);
 
         return $this->generateAdvancedSummary($studentId, $startDate, [
             'payment_method' => $paymentMethod,
@@ -95,6 +95,7 @@ class PaymentSummaryController extends Controller
 
         return response()->json([
             'success' => true,
+            'data' => $courses,
             'courses' => $courses,
             'message' => $courses->isEmpty() ? 'No courses found.' : 'Courses loaded successfully.'
         ]);
@@ -242,9 +243,6 @@ class PaymentSummaryController extends Controller
      */
     public function analytics(Request $request)
     {
-        $selectedLocation = $request->input('location') ?? auth()->user()->user_location ?? null;
-
-        // Support an explicit month filter (format: YYYY-MM)
         $monthParam = $request->input('month');
         if (!empty($monthParam)) {
             try {
@@ -259,25 +257,36 @@ class PaymentSummaryController extends Controller
             $endOfMonth = Carbon::now()->endOfMonth();
         }
 
-        // Every analytics KPI on this page is period based.  Keep one shared
+        $paymentTable = $this->getPaymentDetailsTable();
+        $paidDateExpr = $this->getPaidDateSqlExpression($paymentTable);
+        $collectedAmountExpr = $this->getCollectedAmountSqlExpression($paymentTable);
+        $hasStatus = $this->hasPaymentDetailColumn('status');
+
+        // Every analytics KPI on this page is period based. Keep one shared
         // month query so the cards, chart, and course summary cannot drift.
         $query = PaymentDetail::query()
-            ->whereBetween('created_at', [$startOfMonth, $endOfMonth]);
+            ->whereRaw("DATE({$paidDateExpr}) >= ?", [$startOfMonth->toDateString()])
+            ->whereRaw("DATE({$paidDateExpr}) <= ?", [$endOfMonth->toDateString()]);
 
-        // Revenue Analytics
-        $revenueByDay = (clone $query)
+        $paidQuery = clone $query;
+        if ($hasStatus) {
+            $paidQuery->where($paymentTable . '.status', 'paid');
+        }
+
+        $revenueByDay = (clone $paidQuery)
             ->select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('SUM(CASE WHEN status = "paid" THEN total_fee ELSE 0 END) as revenue')
+                DB::raw("DATE({$paidDateExpr}) as date"),
+                DB::raw("SUM({$collectedAmountExpr}) as revenue")
             )
-            ->where('status', 'paid')
             ->groupBy('date')
             ->orderBy('date')
             ->get();
 
         $totalRevenue = $revenueByDay->sum('revenue');
-        $totalPendingPayments = (clone $query)->where('status', 'pending')->sum('total_fee');
-        $averagePaidTransaction = (clone $query)->where('status', 'paid')->avg('total_fee') ?? 0;
+        $totalPendingPayments = $hasStatus
+            ? (clone $query)->where($paymentTable . '.status', 'pending')->sum(DB::raw($collectedAmountExpr))
+            : 0;
+        $averagePaidTransaction = (clone $paidQuery)->avg(DB::raw($collectedAmountExpr)) ?? 0;
 
         // Keep $currentMonthStart/$currentMonthEnd for backwards compatibility elsewhere
         $currentMonthStart = $startOfMonth->toDateString();
@@ -317,11 +326,12 @@ class PaymentSummaryController extends Controller
         $paymentSummary = PaymentDetail::join('course_registration', 'payment_details.course_registration_id', '=', 'course_registration.id')
             ->select(
                 'course_registration.course_id',
-                DB::raw("SUM(CASE WHEN payment_details.status = 'paid' THEN payment_details.amount ELSE 0 END) as paid_amount"),
-                DB::raw("SUM(CASE WHEN payment_details.status = 'pending' THEN payment_details.amount ELSE 0 END) as pending_amount"),
+                DB::raw("SUM(CASE WHEN payment_details.status = 'paid' THEN {$collectedAmountExpr} ELSE 0 END) as paid_amount"),
+                DB::raw("SUM(CASE WHEN payment_details.status = 'pending' THEN {$collectedAmountExpr} ELSE 0 END) as pending_amount"),
                 DB::raw('COUNT(payment_details.id) as payment_count')
             )
-            ->whereBetween('payment_details.created_at', [$startOfMonth, $endOfMonth])
+            ->whereRaw("DATE({$paidDateExpr}) >= ?", [$startOfMonth->toDateString()])
+            ->whereRaw("DATE({$paidDateExpr}) <= ?", [$endOfMonth->toDateString()])
             ->groupBy('course_registration.course_id')
             ->get()
             ->keyBy('course_id');
@@ -344,9 +354,6 @@ class PaymentSummaryController extends Controller
                 'payment_count' => (int) ($paymentRow->payment_count ?? 0),
             ];
         })->sortByDesc('paid_amount')->values();
-
-        $paymentTable = $this->getPaymentDetailsTable();
-        $paidDateExpr = $this->getPaidDateSqlExpression($paymentTable);
 
         // This KPI must represent actual paid registration-fee transactions
         // captured via Payment Management / Update Records, not eligibility
@@ -508,7 +515,7 @@ class PaymentSummaryController extends Controller
         }
 
         $range = $request->input('range', '1y');
-        $startDate = $this->getDateFromRange($range);
+        $startDate = in_array($range, ['10y', 'all', ''], true) ? null : $this->getDateFromRange($range);
 
         // DomPDF holds the complete document tree in memory.  Rendering every
         // transaction in a long date range can exhaust PHP memory, so keep the
@@ -526,7 +533,7 @@ class PaymentSummaryController extends Controller
         return $this->exportPDF($payments, $totalRecords);
     }
 
-    private function buildExportPaymentsQuery(Request $request, Carbon $startDate)
+    private function buildExportPaymentsQuery(Request $request, ?Carbon $startDate = null)
     {
         $table = $this->getPaymentDetailsTable();
         $dashboardDateExpr = $this->getDashboardDateSqlExpression($table);
@@ -535,8 +542,10 @@ class PaymentSummaryController extends Controller
         $studentSearch = trim((string) $request->input('student_id', ''));
         if ($studentSearch !== '') {
             $matchingStudentIds = Student::query()
-                ->where('id_value', $studentSearch)
-                ->orWhere('student_id', $studentSearch)
+                ->where(function ($q) use ($studentSearch) {
+                    $q->where('id_value', $studentSearch)
+                        ->orWhere('student_id', $studentSearch);
+                })
                 ->pluck('student_id')
                 ->unique()
                 ->values();
@@ -550,18 +559,7 @@ class PaymentSummaryController extends Controller
 
         $startDateInput = !empty($request->input('start_date')) ? Carbon::parse($request->input('start_date'))->toDateString() : null;
         $endDateInput = !empty($request->input('end_date')) ? Carbon::parse($request->input('end_date'))->toDateString() : null;
-
-        if ($startDateInput || $endDateInput) {
-            if ($startDateInput) {
-                $query->whereRaw("DATE({$dashboardDateExpr}) >= ?", [$startDateInput]);
-            }
-
-            if ($endDateInput) {
-                $query->whereRaw("DATE({$dashboardDateExpr}) <= ?", [$endDateInput]);
-            }
-        } else {
-            $query->whereRaw("DATE({$dashboardDateExpr}) >= ?", [$startDate->toDateString()]);
-        }
+        $this->applyDashboardDateFilter($query, $dashboardDateExpr, $startDateInput, $endDateInput, $startDate);
 
         if (!empty($request->input('location'))) {
             $query->whereHas('registration', function ($q) use ($request) {
@@ -663,38 +661,47 @@ class PaymentSummaryController extends Controller
      */
     public function comparison(Request $request)
     {
+        $table = $this->getPaymentDetailsTable();
+        $dateExpr = $this->getDashboardDateSqlExpression($table);
+        $collectedAmountExpr = $this->getCollectedAmountSqlExpression($table);
+        $hasStatus = $this->hasPaymentDetailColumn('status');
         $currentYear = Carbon::now()->year;
         $previousYear = $currentYear - 1;
+        $yearExpr = $this->sqlYearExpression($dateExpr);
+        $monthExpr = $this->sqlMonthExpression($dateExpr);
 
-        // Year over Year Comparison
-        $currentYearData = PaymentDetail::whereYear('created_at', $currentYear)
-            ->where('status', 'paid')
+        $paidQuery = PaymentDetail::query();
+        if ($hasStatus) {
+            $paidQuery->where($table . '.status', 'paid');
+        }
+
+        $currentYearData = (clone $paidQuery)
+            ->whereRaw("{$yearExpr} = ?", [$currentYear])
             ->select(
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('SUM(total_fee) as revenue')
+                DB::raw("{$monthExpr} as month"),
+                DB::raw("SUM({$collectedAmountExpr}) as revenue")
             )
             ->groupBy('month')
             ->get()
-            ->keyBy('month');
+            ->keyBy(fn ($row) => (int) $row->month);
 
-        $previousYearData = PaymentDetail::whereYear('created_at', $previousYear)
-            ->where('status', 'paid')
+        $previousYearData = (clone $paidQuery)
+            ->whereRaw("{$yearExpr} = ?", [$previousYear])
             ->select(
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('SUM(total_fee) as revenue')
+                DB::raw("{$monthExpr} as month"),
+                DB::raw("SUM({$collectedAmountExpr}) as revenue")
             )
             ->groupBy('month')
             ->get()
-            ->keyBy('month');
+            ->keyBy(fn ($row) => (int) $row->month);
 
-        // Growth Metrics
-        $currentYearTotal = PaymentDetail::whereYear('created_at', $currentYear)
-            ->where('status', 'paid')
-            ->sum('total_fee');
+        $currentYearTotal = (float) (clone $paidQuery)
+            ->whereRaw("{$yearExpr} = ?", [$currentYear])
+            ->sum(DB::raw($collectedAmountExpr));
 
-        $previousYearTotal = PaymentDetail::whereYear('created_at', $previousYear)
-            ->where('status', 'paid')
-            ->sum('total_fee');
+        $previousYearTotal = (float) (clone $paidQuery)
+            ->whereRaw("{$yearExpr} = ?", [$previousYear])
+            ->sum(DB::raw($collectedAmountExpr));
 
         $growthRate = $previousYearTotal > 0
             ? (($currentYearTotal - $previousYearTotal) / $previousYearTotal) * 100
@@ -713,6 +720,7 @@ class PaymentSummaryController extends Controller
     {
         $paymentTable = $this->getPaymentDetailsTable();
         $dashboardDateExpr = $this->getDashboardDateSqlExpression($paymentTable);
+        $collectedAmountExpr = $this->getCollectedAmountSqlExpression($paymentTable);
         $query = PaymentDetail::query();
         $hasStatus = $this->hasPaymentDetailColumn('status');
         $breakdownScope = ($filters['breakdown_scope'] ?? 'paid') === 'all' ? 'all' : 'paid';
@@ -722,8 +730,10 @@ class PaymentSummaryController extends Controller
         $studentSearch = trim((string) ($filters['student_id'] ?? $studentId ?? ''));
         if ($studentSearch !== '') {
             $matchingStudentIds = Student::query()
-                ->where('id_value', $studentSearch)
-                ->orWhere('student_id', $studentSearch)
+                ->where(function ($q) use ($studentSearch) {
+                    $q->where('id_value', $studentSearch)
+                        ->orWhere('student_id', $studentSearch);
+                })
                 ->pluck('student_id')
                 ->unique()
                 ->values();
@@ -735,21 +745,10 @@ class PaymentSummaryController extends Controller
             }
         }
 
-        // Apply date range filter
+        // Apply date range filter using the collection date, not installment due date.
         $startDateInput = !empty($filters['start_date']) ? Carbon::parse($filters['start_date'])->toDateString() : null;
         $endDateInput = !empty($filters['end_date']) ? Carbon::parse($filters['end_date'])->toDateString() : null;
-
-        if ($startDateInput || $endDateInput) {
-            if ($startDateInput) {
-                $query->whereRaw("DATE({$dashboardDateExpr}) >= ?", [$startDateInput]);
-            }
-
-            if ($endDateInput) {
-                $query->whereRaw("DATE({$dashboardDateExpr}) <= ?", [$endDateInput]);
-            }
-        } elseif ($startDate) {
-            $query->whereRaw("DATE({$dashboardDateExpr}) >= ?", [$startDate->toDateString()]);
-        }
+        $this->applyDashboardDateFilter($query, $dashboardDateExpr, $startDateInput, $endDateInput, $startDate);
 
         // Apply location filter via registration context
         if (!empty($filters['location'])) {
@@ -785,10 +784,10 @@ class PaymentSummaryController extends Controller
             $query->where($paymentTable . '.status', $filters['status']);
         }
 
-        // Core KPIs
+        // Core KPIs — collected totals are LKR, including converted franchise fees.
         $totalCollected = $hasStatus
-            ? (clone $query)->where($paymentTable . '.status', 'paid')->sum($paymentTable . '.total_fee')
-            : (clone $query)->sum($paymentTable . '.total_fee');
+            ? (clone $query)->where($paymentTable . '.status', 'paid')->sum(DB::raw($collectedAmountExpr))
+            : (clone $query)->sum(DB::raw($collectedAmountExpr));
         $totalPending = $hasStatus
             ? $this->sumIfColumnExists((clone $query)->where($paymentTable . '.status', 'pending'), 'remaining_amount')
             : 0;
@@ -807,9 +806,12 @@ class PaymentSummaryController extends Controller
             $methodTypeQuery->where($paymentTable . '.status', 'paid');
         }
 
+        $yearMonthExpr = $this->sqlYearMonthExpression($dashboardDateExpr);
+        $yearWeekExpr = $this->sqlYearWeekExpression($dashboardDateExpr);
+
         $paymentByMethod = (clone $methodTypeQuery)
             ->select($paymentTable . '.payment_method',
-                DB::raw("SUM({$paymentTable}.total_fee) as total"),
+                DB::raw("SUM({$collectedAmountExpr}) as total"),
                 DB::raw('COUNT(*) as count'))
             ->groupBy($paymentTable . '.payment_method')
             ->get();
@@ -817,7 +819,7 @@ class PaymentSummaryController extends Controller
         $paymentByType = (clone $methodTypeQuery)
             ->select(
                 DB::raw($this->getPaymentTypeCase()),
-                DB::raw("SUM({$paymentTable}.total_fee) as total"),
+                DB::raw("SUM({$collectedAmountExpr}) as total"),
                 DB::raw('COUNT(*) as count')
             )
             ->groupBy('type')
@@ -826,7 +828,7 @@ class PaymentSummaryController extends Controller
         $paymentByStatus = $hasStatus
             ? (clone $query)
                 ->select($paymentTable . '.status',
-                    DB::raw("SUM({$paymentTable}.total_fee) as total"),
+                    DB::raw("SUM({$collectedAmountExpr}) as total"),
                     DB::raw('COUNT(*) as count'))
                 ->groupBy($paymentTable . '.status')
                 ->get()
@@ -836,17 +838,17 @@ class PaymentSummaryController extends Controller
         $monthlyIncome = $hasStatus
             ? (clone $query)
                 ->select(
-                    DB::raw("DATE_FORMAT({$dashboardDateExpr}, '%Y-%m') as month"),
-                    DB::raw("SUM(CASE WHEN {$paymentTable}.status = 'paid' THEN {$paymentTable}.total_fee ELSE 0 END) as paid"),
-                    DB::raw("SUM(CASE WHEN {$paymentTable}.status = 'pending' THEN {$paymentTable}.total_fee ELSE 0 END) as pending")
+                    DB::raw("{$yearMonthExpr} as month"),
+                    DB::raw("SUM(CASE WHEN {$paymentTable}.status = 'paid' THEN {$collectedAmountExpr} ELSE 0 END) as paid"),
+                    DB::raw("SUM(CASE WHEN {$paymentTable}.status = 'pending' THEN {$collectedAmountExpr} ELSE 0 END) as pending")
                 )
                 ->groupBy('month')
                 ->orderBy('month')
                 ->get()
             : (clone $query)
                 ->select(
-                    DB::raw("DATE_FORMAT({$dashboardDateExpr}, '%Y-%m') as month"),
-                    DB::raw("SUM({$paymentTable}.total_fee) as paid"),
+                    DB::raw("{$yearMonthExpr} as month"),
+                    DB::raw("SUM({$collectedAmountExpr}) as paid"),
                     DB::raw('0 as pending')
                 )
                 ->groupBy('month')
@@ -855,8 +857,8 @@ class PaymentSummaryController extends Controller
 
         $weeklyTrend = (clone $query)
             ->select(
-                DB::raw("YEARWEEK({$dashboardDateExpr}) as week"),
-                DB::raw("SUM({$paymentTable}.total_fee) as total")
+                DB::raw("{$yearWeekExpr} as week"),
+                DB::raw("SUM({$collectedAmountExpr}) as total")
             )
             ->when($hasStatus, function ($q) {
                 return $q->where($this->getPaymentDetailsTable() . '.status', 'paid');
@@ -928,13 +930,14 @@ class PaymentSummaryController extends Controller
             ->orderBy('course_name')
             ->get();
 
+        $recentRegistrationsSince = Carbon::now()->subDays(30)->toDateString();
         $registrationSummary = (clone $registrationQuery)
             ->select(
                 'course_id',
                 DB::raw('COUNT(*) as total_registrations'),
                 DB::raw("SUM(CASE WHEN status = 'Registered' THEN 1 ELSE 0 END) as ongoing_courses"),
                 DB::raw("SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending_registrations"),
-                DB::raw("SUM(CASE WHEN registration_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as new_registrations")
+                DB::raw("SUM(CASE WHEN registration_date >= '{$recentRegistrationsSince}' THEN 1 ELSE 0 END) as new_registrations")
             )
             ->groupBy('course_id')
             ->get()
@@ -956,20 +959,12 @@ class PaymentSummaryController extends Controller
                 }
             })
             ->when($startDateInput || $endDateInput || $startDate, function ($query) use ($dashboardDateExpr, $startDateInput, $endDateInput, $startDate) {
-                if ($startDateInput) {
-                    $query->whereRaw("DATE({$dashboardDateExpr}) >= ?", [$startDateInput]);
-                } elseif ($startDate) {
-                    $query->whereRaw("DATE({$dashboardDateExpr}) >= ?", [$startDate->toDateString()]);
-                }
-
-                if ($endDateInput) {
-                    $query->whereRaw("DATE({$dashboardDateExpr}) <= ?", [$endDateInput]);
-                }
+                $this->applyDashboardDateFilter($query, $dashboardDateExpr, $startDateInput, $endDateInput, $startDate);
             })
             ->select(
                 'course_registration.course_id',
-                DB::raw("SUM(CASE WHEN payment_details.status = 'paid' THEN payment_details.amount ELSE 0 END) as paid_amount"),
-                DB::raw("SUM(CASE WHEN payment_details.status = 'pending' THEN payment_details.amount ELSE 0 END) as pending_amount"),
+                DB::raw("SUM(CASE WHEN payment_details.status = 'paid' THEN {$collectedAmountExpr} ELSE 0 END) as paid_amount"),
+                DB::raw("SUM(CASE WHEN payment_details.status = 'pending' THEN {$collectedAmountExpr} ELSE 0 END) as pending_amount"),
                 DB::raw('COUNT(payment_details.id) as payment_count')
             )
             ->groupBy('course_registration.course_id')
@@ -1084,8 +1079,9 @@ class PaymentSummaryController extends Controller
             ->orderBy('course_name')
             ->get();
 
-        $intakeQuery = $selectedCourseId
-            ? Intake::forCourse(Course::findOrFail($selectedCourseId), $selectedLocation)
+        $selectedCourse = $selectedCourseId ? Course::find($selectedCourseId) : null;
+        $intakeQuery = $selectedCourse
+            ? Intake::forCourse($selectedCourse, $selectedLocation)
             : Intake::query()->when($selectedLocation, function ($q) use ($selectedLocation) {
                 $q->where('location', $selectedLocation);
             });
@@ -1256,14 +1252,9 @@ class PaymentSummaryController extends Controller
 
     private function getPaidDateSqlExpression(string $table): string
     {
-        // Analytics month filters must be based on the actual effective date,
-        // not the date the row happened to be created.  Retain created_at only
-        // for older installations that do not yet have this column.
-        if ($this->hasPaymentDetailColumn('payment_effective_date')) {
-            return "{$table}.payment_effective_date";
-        }
-
-        return "{$table}.created_at";
+        // Prefer the effective payment date, then payment_date, then created_at.
+        // Due date is excluded so period revenue is collected, not scheduled.
+        return $this->getDashboardDateSqlExpression($table);
     }
 
     private function fetchPendingSltLoanRecoveries(Carbon $startOfMonth, Carbon $endOfMonth)
@@ -1377,13 +1368,14 @@ class PaymentSummaryController extends Controller
     }
 
     /**
-     * Use the best available payment date, with created_at as a safe fallback.
+     * Collection date for revenue KPIs: when the payment was actually made.
+     * Never use installment due_date here — that is scheduled, not collected.
      */
     private function getDashboardDateSqlExpression(string $table): string
     {
         $dateColumns = [];
 
-        foreach (['payment_effective_date', 'payment_date', 'due_date'] as $column) {
+        foreach (['payment_effective_date', 'payment_date'] as $column) {
             if (Schema::hasColumn($table, $column)) {
                 $dateColumns[] = "{$table}.{$column}";
             }
@@ -1392,6 +1384,139 @@ class PaymentSummaryController extends Controller
         $dateColumns[] = "{$table}.created_at";
 
         return 'COALESCE(' . implode(', ', $dateColumns) . ')';
+    }
+
+    /**
+     * Bound a query to the dashboard period. Preset ranges are closed at today
+     * so future-dated rows are not counted as already collected.
+     */
+    private function applyDashboardDateFilter($query, string $dateExpr, ?string $startDateInput, ?string $endDateInput, ?Carbon $rangeStart): void
+    {
+        if ($startDateInput || $endDateInput) {
+            if ($startDateInput) {
+                $query->whereRaw("DATE({$dateExpr}) >= ?", [$startDateInput]);
+            }
+
+            if ($endDateInput) {
+                $query->whereRaw("DATE({$dateExpr}) <= ?", [$endDateInput]);
+            }
+
+            return;
+        }
+
+        if ($rangeStart) {
+            $query->whereRaw("DATE({$dateExpr}) >= ?", [$rangeStart->toDateString()]);
+            $query->whereRaw("DATE({$dateExpr}) <= ?", [Carbon::now()->toDateString()]);
+        }
+    }
+
+    /**
+     * LKR amount collected. Franchise rows that still store the foreign amount
+     * in total_fee are converted with the saved rate plus SSCL and bank charges.
+     */
+    private function getCollectedAmountSqlExpression(string $table): string
+    {
+        $fallback = "COALESCE({$table}.total_fee, {$table}.amount, 0)";
+        $typeExpr = $this->getPaymentTypeSqlExpression($table);
+
+        if (
+            !$typeExpr
+            || !Schema::hasColumn($table, 'foreign_currency_amount')
+            || !Schema::hasColumn($table, 'conversion_rate')
+        ) {
+            return $fallback;
+        }
+
+        $sscl = Schema::hasColumn($table, 'sscl_tax_amount')
+            ? "COALESCE({$table}.sscl_tax_amount, 0)"
+            : '0';
+        $bank = Schema::hasColumn($table, 'bank_charges')
+            ? "COALESCE({$table}.bank_charges, 0)"
+            : '0';
+        $late = Schema::hasColumn($table, 'late_fee')
+            ? "COALESCE({$table}.late_fee, 0)"
+            : '0';
+        $approved = Schema::hasColumn($table, 'approved_late_fee')
+            ? "COALESCE({$table}.approved_late_fee, 0)"
+            : '0';
+
+        return "(CASE
+            WHEN {$typeExpr} = 'franchise_fee'
+                 AND {$table}.conversion_rate IS NOT NULL
+                 AND {$table}.conversion_rate > 0
+                 AND {$table}.foreign_currency_amount IS NOT NULL
+            THEN ROUND({$table}.foreign_currency_amount * {$table}.conversion_rate, 2)
+                 + {$sscl} + {$bank} + {$late} - {$approved}
+            ELSE {$fallback}
+        END)";
+    }
+
+    private function getPaymentTypeSqlExpression(string $table): ?string
+    {
+        $hasInstallmentType = Schema::hasColumn($table, 'installment_type');
+        $hasPaymentType = Schema::hasColumn($table, 'payment_type');
+
+        if ($hasInstallmentType && $hasPaymentType) {
+            return "COALESCE({$table}.installment_type, {$table}.payment_type)";
+        }
+
+        if ($hasInstallmentType) {
+            return "{$table}.installment_type";
+        }
+
+        if ($hasPaymentType) {
+            return "{$table}.payment_type";
+        }
+
+        return null;
+    }
+
+    private function collectedAmountForPayment($payment): float
+    {
+        $type = $payment->installment_type ?? $payment->payment_type ?? null;
+        $rate = (float) ($payment->conversion_rate ?? 0);
+        $foreign = $payment->foreign_currency_amount;
+
+        if ($type === 'franchise_fee' && $rate > 0 && $foreign !== null) {
+            return round(
+                ((float) $foreign * $rate)
+                + (float) ($payment->sscl_tax_amount ?? 0)
+                + (float) ($payment->bank_charges ?? 0)
+                + (float) ($payment->late_fee ?? 0)
+                - (float) ($payment->approved_late_fee ?? 0),
+                2
+            );
+        }
+
+        return (float) ($payment->total_fee ?? $payment->amount ?? 0);
+    }
+
+    private function sqlYearExpression(string $dateExpr): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%Y', {$dateExpr}) AS INTEGER)"
+            : "YEAR({$dateExpr})";
+    }
+
+    private function sqlMonthExpression(string $dateExpr): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', {$dateExpr}) AS INTEGER)"
+            : "MONTH({$dateExpr})";
+    }
+
+    private function sqlYearMonthExpression(string $dateExpr): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', {$dateExpr})"
+            : "DATE_FORMAT({$dateExpr}, '%Y-%m')";
+    }
+
+    private function sqlYearWeekExpression(string $dateExpr): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y%W', {$dateExpr})"
+            : "YEARWEEK({$dateExpr})";
     }
 
     /**
@@ -1411,6 +1536,7 @@ class PaymentSummaryController extends Controller
                             : null;
 
         $table = $this->getPaymentDetailsTable();
+        $collectedAmountExpr = $this->getCollectedAmountSqlExpression($table);
 
         // ── Build base query joining payment_details → course_registration ──
         $base = PaymentDetail::query()
@@ -1441,9 +1567,21 @@ class PaymentSummaryController extends Controller
             $base->where("{$table}.installment_number", $installmentNo);
         }
 
+        $startDateInput = $request->filled('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : null;
+        $endDateInput = $request->filled('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : null;
+        $range = $request->input('range', '10y');
+        $rangeStart = in_array($range, ['10y', 'all', ''], true) ? null : $this->getDateFromRange($range);
+        $this->applyDashboardDateFilter(
+            $base,
+            $this->getDashboardDateSqlExpression($table),
+            $startDateInput,
+            $endDateInput,
+            $rangeStart
+        );
+
         // ── Aggregate ───────────────────────────────────────────────────────
-        $paidTotal    = (float) (clone $base)->where("{$table}.status", 'paid')->sum("{$table}.total_fee");
-        $pendingTotal = (float) (clone $base)->where("{$table}.status", 'pending')->sum("{$table}.total_fee");
+        $paidTotal    = (float) (clone $base)->where("{$table}.status", 'paid')->sum(DB::raw($collectedAmountExpr));
+        $pendingTotal = (float) (clone $base)->where("{$table}.status", 'pending')->sum(DB::raw($collectedAmountExpr));
         $totalCount   = (clone $base)->count();
         $paidCount    = (clone $base)->where("{$table}.status", 'paid')->count();
 
@@ -1517,6 +1655,18 @@ class PaymentSummaryController extends Controller
             $query->where("{$table}.installment_number", $installmentNo);
         }
 
+        $startDateInput = $request->filled('start_date') ? Carbon::parse($request->input('start_date'))->toDateString() : null;
+        $endDateInput = $request->filled('end_date') ? Carbon::parse($request->input('end_date'))->toDateString() : null;
+        $range = $request->input('range', '10y');
+        $rangeStart = in_array($range, ['10y', 'all', ''], true) ? null : $this->getDateFromRange($range);
+        $this->applyDashboardDateFilter(
+            $query,
+            $this->getDashboardDateSqlExpression($table),
+            $startDateInput,
+            $endDateInput,
+            $rangeStart
+        );
+
         if ($statusFilter !== 'all') {
             $query->where("{$table}.status", $statusFilter);
         }
@@ -1525,9 +1675,9 @@ class PaymentSummaryController extends Controller
 
         $transactions = $query->get();
 
-        $paidTotal    = $transactions->where('status', 'paid')->sum('total_fee');
-        $pendingTotal = $transactions->where('status', 'pending')->sum('total_fee');
-        $grandTotal   = $transactions->sum('total_fee');
+        $paidTotal    = $transactions->where('status', 'paid')->sum(fn ($row) => $this->collectedAmountForPayment($row));
+        $pendingTotal = $transactions->where('status', 'pending')->sum(fn ($row) => $this->collectedAmountForPayment($row));
+        $grandTotal   = $transactions->sum(fn ($row) => $this->collectedAmountForPayment($row));
 
         $courseName = $courseId ? \App\Models\Course::find($courseId)?->course_name : 'All Courses';
         $intakeName = $intakeId ? \App\Models\Intake::find($intakeId)?->batch : 'All Intakes';

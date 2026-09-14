@@ -13,18 +13,17 @@ use App\Models\SemesterRegistration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\ClearanceRequest;
+use App\Models\SpecializationRegistration;
 use App\Support\SpecializationStudentScope;
+use App\Support\SemesterModuleSpecializationHelper;
+use Illuminate\Support\Facades\Schema;
 
 
 class SemesterRegistrationController extends Controller
 {
     public function index()
     {
-        $courses   = Course::all();
-        $intakes   = Intake::all();
-        $semesters = Semester::all();
-        // Render Semester Registration UI
-        return view('registration.semester_registration', compact('courses', 'intakes', 'semesters'));
+        return view('registration.semester_registration');
     }
 
     /**
@@ -45,7 +44,7 @@ class SemesterRegistrationController extends Controller
             'course_id'         => 'required|exists:courses,course_id',
             'intake_id'         => 'required|exists:intakes,intake_id',
             'semester_id'       => 'required|exists:semesters,id',
-            'location'          => 'required|string',
+            'location'          => 'required|in:Welisara,Moratuwa,Peradeniya',
             'specialization'    => 'nullable|string|max:255',
             'register_students' => 'required|string',
 
@@ -178,7 +177,11 @@ class SemesterRegistrationController extends Controller
                             [
                                 'course_id'             => $request->course_id,
                                 'location'              => $request->location,
-                                'specialization'        => $request->specialization,
+                                'specialization'        => $this->registeredSpecialization(
+                                    $studentId,
+                                    (int) $request->course_id,
+                                    (int) $request->intake_id
+                                ) ?? $current?->specialization,
 
                                 // keep status TERMINATED until DGM approves
                                 'status'                => 'terminated',
@@ -207,7 +210,11 @@ class SemesterRegistrationController extends Controller
                     $update = [
                         'course_id'         => $request->course_id,
                         'location'          => $request->location,
-                        'specialization'    => $request->specialization,
+                        'specialization'    => $this->registeredSpecialization(
+                            $studentId,
+                            (int) $request->course_id,
+                            (int) $request->intake_id
+                        ) ?? $current?->specialization,
                         'status'            => $approvedToRegistered ? 'registered' : $newStatus, // Handles 'holding' here
                         'registration_date' => now()->toDateString(),
                         'updated_at'        => now(),
@@ -271,8 +278,17 @@ class SemesterRegistrationController extends Controller
             ]);
         }
 
+        if (!in_array($location, ['Welisara', 'Moratuwa', 'Peradeniya'], true)) {
+            return response()->json([
+                'success' => false,
+                'courses' => [],
+                'message' => 'Location is required.'
+            ]);
+        }
+
         $courses = Course::where('location', $location)
-             ->whereIn('course_type', ['degree', 'diploma'])
+            ->whereIn('course_type', ['degree', 'diploma'])
+            ->orderBy('course_name')
             ->get(['course_id', 'course_name', 'course_type']);
 
         return response()->json([
@@ -289,26 +305,25 @@ class SemesterRegistrationController extends Controller
         $location = $request->input('location');
         $now = now();
 
-        \Log::info('getOngoingIntakes called', compact('courseId', 'location', 'now'));
+        $course = Course::find($courseId);
+        if (!$course) {
+            return response()->json(['success' => true, 'intakes' => []]);
+        }
 
-        $activeIntakes = Intake::where('course_name', function ($q) use ($courseId) {
-            $q->select('course_name')->from('courses')->where('course_id', $courseId)->limit(1);
-        })
-            ->where('location', $location)
+        $base = Intake::forCourse($course, $location);
+
+        $activeIntakes = (clone $base)
             ->where('start_date', '<=', $now)
             ->where('end_date', '>=', $now)
             ->get(['intake_id', 'batch']);
 
-        $intakesWithSemesters = Intake::where('course_name', function ($q) use ($courseId) {
-            $q->select('course_name')->from('courses')->where('course_id', $courseId)->limit(1);
-        })
-            ->where('location', $location)
+        $intakesWithSemesters = (clone $base)
             ->whereIn('intake_id', function ($q) use ($courseId) {
                 $q->select('intake_id')->from('semesters')->where('course_id', $courseId);
             })
             ->get(['intake_id', 'batch']);
 
-        $allIntakes = $activeIntakes->merge($intakesWithSemesters)->unique('intake_id');
+        $allIntakes = $activeIntakes->merge($intakesWithSemesters)->unique('intake_id')->values();
 
         return response()->json(['success' => true, 'intakes' => $allIntakes]);
     }
@@ -339,6 +354,24 @@ class SemesterRegistrationController extends Controller
             });
 
         return response()->json(['success' => true, 'semesters' => $semesters]);
+    }
+
+    private function registeredSpecialization(int $studentId, int $courseId, int $intakeId): ?string
+    {
+        if (!Schema::hasTable('specialization_registrations')) {
+            return null;
+        }
+
+        $specialization = SpecializationRegistration::query()
+            ->where('student_id', $studentId)
+            ->where('course_id', $courseId)
+            ->where('intake_id', $intakeId)
+            ->where('status', 'registered')
+            ->value('specialization');
+
+        $specialization = is_string($specialization) ? trim($specialization) : '';
+
+        return $specialization === '' ? null : $specialization;
     }
 
     private function decodeCourseSpecializations(?Course $course): array
@@ -453,7 +486,7 @@ class SemesterRegistrationController extends Controller
             ? $this->getSemesterCommonSpecializations((int) $courseId, (int) $intakeId, $semesterId ? (int) $semesterId : null, $courseSpecializations)
             : $courseSpecializations;
 
-        $students = CourseRegistration::where('course_id', $courseId)
+        $registrations = CourseRegistration::where('course_id', $courseId)
             ->where('intake_id', $intakeId)
             ->when($location, fn ($query) => $query->where('location', $location))
             ->eligible()
@@ -470,24 +503,43 @@ class SemesterRegistrationController extends Controller
                     $effectiveCourseSpecializations
                 );
             })
+            ->whereHas('student')
             ->with('student')
-            ->get()
-            ->map(function ($reg) use ($semesterId) {
-                $semReg = SemesterRegistration::where('student_id', $reg->student->student_id)
-                    ->where('course_id', $reg->course_id)
-                    ->where('intake_id', $reg->intake_id)
-                    ->when($semesterId, fn ($query) => $query->where('semester_id', $semesterId))
-                    ->latest()
-                    ->first();
+            ->get();
+
+        $studentIds = $registrations->pluck('student.student_id')->unique()->filter()->values();
+        $semesterRegs = $studentIds->isEmpty()
+            ? collect()
+            : SemesterRegistration::query()
+                ->whereIn('student_id', $studentIds)
+                ->where('course_id', $courseId)
+                ->where('intake_id', $intakeId)
+                ->when($semesterId, fn ($query) => $query->where('semester_id', $semesterId))
+                ->orderByDesc('id')
+                ->get()
+                ->unique('student_id')
+                ->keyBy('student_id');
+
+        $students = $registrations
+            ->map(function ($reg) use ($semesterRegs) {
+                $student = $reg->student;
+                if (!$student) {
+                    return null;
+                }
+
+                $semReg = $semesterRegs->get($student->student_id);
 
                 return [
-                    'student_id' => $reg->student->student_id,
-                    'name'       => $reg->student->name_with_initials,
-                    'email'      => $reg->student->email,
-                    'nic'        => $reg->student->id_value,
+                    'student_id' => $student->student_id,
+                    'name'       => $student->name_with_initials ?: $student->full_name,
+                    'email'      => $student->email,
+                    'nic'        => $student->id_value,
                     'status'     => $semReg?->status ?? 'pending',
                 ];
-            });
+            })
+            ->filter()
+            ->unique('student_id')
+            ->values();
 
         return response()->json(['success' => true, 'students' => $students]);
     }
@@ -756,8 +808,9 @@ class SemesterRegistrationController extends Controller
 
         $studentId = $request->student_id;
 
-        // get clearance requests for this student (any type)
         $rows = ClearanceRequest::where('student_id', $studentId)
+            ->when($request->course_id, fn ($query) => $query->where('course_id', $request->course_id))
+            ->when($request->intake_id, fn ($query) => $query->where('intake_id', $request->intake_id))
             ->orderByDesc('requested_at')
             ->get();
 

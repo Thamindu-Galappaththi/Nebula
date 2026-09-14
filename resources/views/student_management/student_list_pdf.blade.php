@@ -33,8 +33,14 @@
                     <strong>Location:</strong> {{ $locationText }}<br>
                     <strong>Course:</strong> {{ $courseText }}<br>
                     <strong>Batch:</strong> {{ $intakeText }}<br>
+                    @if(!empty($specializationText) && $specializationText !== 'All')
+                        <strong>Specialization:</strong> {{ $specializationText }}<br>
+                    @endif
                         <strong>View:</strong>
-                    @if(($status ?? 'all') === 'all') All @else {{ ucfirst($status) }} @endif
+                    @if(($status ?? 'all') === 'all') All
+                    @elseif(($status ?? '') === 'terminated') Not Eligible
+                    @else {{ ucfirst($status) }}
+                    @endif
                 </div>
 
                 <div class="mt-4">
@@ -58,7 +64,11 @@
                                     <td>{{ $st->name }}</td>
                                     <td style="text-align:center;">{{ $st->specialization ?: '-' }}</td>
                                     <td style="text-align:center;">
-                                        <span class="status-chip">{{ $st->status }}</span>
+                                        <span class="status-chip">
+                                            @if(($st->status ?? '') === 'terminated') Not Eligible
+                                            @else {{ ucfirst($st->status) }}
+                                            @endif
+                                        </span>
                                     </td>
                                 </tr>
                             @empty

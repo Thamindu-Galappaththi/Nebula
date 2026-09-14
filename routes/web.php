@@ -185,6 +185,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Bursar,Marketing Manager,Developer'])->group(function () {
         Route::get('/students/view', [StudentViewController::class, 'index'])->name('student_management.view');
         Route::post('/students/filter', [StudentViewController::class, 'filter'])->name('student_management.filter');
+        Route::post('/students/view/export-excel', [StudentViewController::class, 'exportExcel'])->name('student_management.view.export.excel');
+        Route::post('/students/view/export-pdf', [StudentViewController::class, 'exportPdf'])->name('student_management.view.export.pdf');
         Route::get('/students/courses', [StudentViewController::class, 'getStudentCourses'])->name('student_management.courses');
         Route::get('/students/intakes', [StudentViewController::class, 'getCourseIntakes'])->name('student_management.intakes');
     });
@@ -213,6 +215,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/api/student/{studentId}/clearances', [StudentProfileController::class, 'getStudentClearances']);
         Route::get('/api/student/{studentId}/status-history', [StudentProfileController::class, 'getStudentStatusHistory']);
         Route::get('/student/{studentId}/certificates', [StudentProfileController::class, 'getStudentCertificates']);
+        Route::get('/api/student/{studentId}/certificates', [StudentProfileController::class, 'getStudentCertificates']);
         Route::post('/student/{studentId}/upload-ol-certificate', [StudentProfileController::class, 'uploadOLCertificate'])->name('student.uploadOLCertificate');
         Route::post('/student/{studentId}/upload-al-certificate', [StudentProfileController::class, 'uploadALCertificate'])->name('student.uploadALCertificate');
         Route::get('/api/course/{courseId}/specializations', [StudentProfileController::class, 'getCourseSpecializations']);
@@ -668,7 +671,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     });
 
     // Special Approval Rejected List
-    Route::middleware(['auth', 'role:DGM,Developer'])->group(function () {
+    Route::middleware(['auth', 'role:DGM,Developer,Student Counselor,Program Administrator (level 01)'])->group(function () {
         Route::get('/get-special-approval-rejected', [EligibilityCheckingAndRegistrationController::class, 'getSpecialApprovalRejectedList'])->name('special.approval.rejected');
     });
 
@@ -695,6 +698,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     Route::middleware(['auth', 'role:Bursar,Marketing Manager,Developer,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Student Counselor Trainee'])->group(function () {
         Route::get('/payment-plans', [PaymentPlanController::class, 'index'])->name('payment.plan.index');
+        Route::get('/payment-plans/export/excel', [PaymentPlanController::class, 'exportExcel'])->name('payment.plan.export.excel');
+        Route::get('/payment-plans/export/pdf', [PaymentPlanController::class, 'exportPdf'])->name('payment.plan.export.pdf');
         Route::get('/payment-plan', [PaymentPlanController::class, 'create'])->name('payment.plan');
         Route::get('/payment-plan/create', [PaymentPlanController::class, 'create'])->name('payment.plan.create');
         Route::post('/payment-plan/store', [PaymentPlanController::class, 'store'])->name('payment.plan.store');
@@ -753,9 +758,10 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // BADGES
     // ========================================================================
     Route::middleware(['auth', 'role:DGM,Marketing Manager,Developer,Student Counselor,Program Administrator (level 01),Program Administrator (level 02)'])->group(function () {
-        Route::get('/badges', [BadgeController::class, 'index'])->name('badges.index');
-        Route::post('/badges/search', [BadgeController::class, 'searchStudent'])->name('badges.search');
-        Route::post('/badges/search-by-course', [BadgeController::class, 'searchByCourse'])->name('badges.searchByCourse');
+        Route::get('/badges', [BadgeController::class, 'index'])->name('badges.generate');
+        Route::post('/badges/search', [BadgeController::class, 'search'])->name('badges.search');
+        Route::post('/badges/search-by-course', [BadgeController::class, 'search'])->name('badges.searchByCourse');
+        Route::get('/badges/intakes', [BadgeController::class, 'getCourseIntakes'])->name('badges.intakes');
         Route::post('/badges/complete', [BadgeController::class, 'completeCourse'])->name('badges.complete');
         Route::delete('/badges/cancel', [BadgeController::class, 'cancelBadge'])->name('badges.cancel');
         Route::get('/badges/details/{code}', [BadgeController::class, 'details'])->name('badges.details');
@@ -927,6 +933,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/api/program-admin-l2/overview', [ProgramAdminL2DashboardController::class, 'getOverviewMetrics'])->name('api.program.admin.l2.overview');
         Route::get('/api/program-admin-l2/pending-approvals', [ProgramAdminL2DashboardController::class, 'getPendingApprovals'])->name('api.program.admin.l2.pending.approvals');
         Route::get('/api/program-admin-l2/active-semesters', [ProgramAdminL2DashboardController::class, 'getActiveSemesters'])->name('api.program.admin.l2.active.semesters');
+        Route::get('/api/program-admin-l2/courses-by-location', [ProgramAdminL2DashboardController::class, 'getCoursesByLocation'])->name('api.program.admin.l2.courses.by.location');
+        Route::get('/api/program-admin-l2/intakes', [ProgramAdminL2DashboardController::class, 'getIntakes'])->name('api.program.admin.l2.intakes');
         Route::get('/api/program-admin-l2/modules-by-course', [ProgramAdminL2DashboardController::class, 'getModulesByCourse'])->name('api.program.admin.l2.modules.by.course');
         Route::get('/api/program-admin-l2/academic-performance', [ProgramAdminL2DashboardController::class, 'getAcademicPerformance'])->name('api.program.admin.l2.academic.performance');
         Route::get('/api/program-admin-l2/attendance-overview', [ProgramAdminL2DashboardController::class, 'getAttendanceOverview'])->name('api.program.admin.l2.attendance.overview');
@@ -934,6 +942,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/api/program-admin-l2/payment-overview', [ProgramAdminL2DashboardController::class, 'getPaymentOverview'])->name('api.program.admin.l2.payment.overview');
         Route::post('/api/program-admin-l2/approve-registration/{id}', [ProgramAdminL2DashboardController::class, 'approveRegistration'])->name('api.program.admin.l2.approve.registration');
         Route::post('/api/program-admin-l2/reject-registration/{id}', [ProgramAdminL2DashboardController::class, 'rejectRegistration'])->name('api.program.admin.l2.reject.registration');
+        Route::post('/api/program-admin-l2/approve-all', [ProgramAdminL2DashboardController::class, 'approveAllPending'])->name('api.program.admin.l2.approve.all');
+        Route::post('/api/program-admin-l2/reject-all', [ProgramAdminL2DashboardController::class, 'rejectAllPending'])->name('api.program.admin.l2.reject.all');
     });
 
     // Admin L2 Trainee Dashboard

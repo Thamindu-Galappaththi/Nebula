@@ -38,12 +38,17 @@ class CourseChangeController extends Controller
 
             Log::info('Searching student by NIC: ' . $request->nic);
 
-            $student = Student::where('id_value', $request->nic)
-                ->orWhere('student_id', $request->nic)
+            $nic = trim((string) $request->nic);
+            $student = Student::query()
+                ->where(function ($query) use ($nic) {
+                    $query->where('id_value', $nic);
+                    if (ctype_digit($nic)) {
+                        $query->orWhere('student_id', (int) $nic);
+                    }
+                })
                 ->first();
 
             if (!$student) {
-                Log::warning('Student not found: ' . $request->nic);
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Student not found. Please check the NIC and try again.'
@@ -52,21 +57,30 @@ class CourseChangeController extends Controller
 
             $today = now()->toDateString();
 
-            // Get registrations with proper relationships
             $registrations = CourseRegistration::where('student_id', $student->student_id)
                 ->where('status', 'Registered')
                 ->with(['course' => function($query) {
                     $query->select('course_id', 'course_name', 'location', 'course_type');
                 }, 'intake' => function($query) {
-                    $query->select('intake_id', 'batch', 'start_date', 'course_name');
+                    $query->select('intake_id', 'batch', 'start_date', 'course_name', 'location');
                 }])
                 ->orderBy('course_start_date', 'desc')
                 ->get()
                 ->map(function($reg) use ($today) {
-                    $startDate = Carbon::parse($reg->course_start_date);
+                    $startDateRaw = $reg->course_start_date ?? optional($reg->intake)->start_date;
+                    if (!$startDateRaw) {
+                        $reg->is_change_allowed = false;
+                        $reg->change_deadline = null;
+                        $reg->is_future = false;
+                        $reg->course_start_date = null;
+                        return $reg;
+                    }
+
+                    $startDate = Carbon::parse($startDateRaw);
                     $deadline = $startDate->copy()->addYear();
                     $now = Carbon::parse($today);
 
+                    $reg->course_start_date = $startDate->toDateString();
                     $reg->is_change_allowed = $now->lt($deadline);
                     $reg->change_deadline = $deadline->toDateString();
                     $reg->is_future = $startDate->toDateString() >= $today;
@@ -79,10 +93,10 @@ class CourseChangeController extends Controller
                 'status' => 'success',
                 'student' => [
                     'student_id' => $student->student_id,
-                    'full_name' => $student->full_name,
+                    'full_name' => $student->name_with_initials ?: $student->full_name,
                     'id_value' => $student->id_value,
                     'email' => $student->email,
-                    'phone' => $student->phone_number
+                    'phone' => $student->mobile_phone
                 ],
                 'registrations' => $registrations,
                 'count' => $registrations->count()
@@ -144,9 +158,16 @@ class CourseChangeController extends Controller
                 'course_id' => 'required|integer|exists:courses,course_id'
             ]);
 
-            Log::info('Getting intakes for course: ' . $request->course_id);
+            $course = Course::find($request->course_id);
+            if (!$course) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Course not found',
+                    'intakes' => []
+                ], 404);
+            }
 
-            $intakesQuery = Intake::where('course_id', $request->course_id);
+            $intakesQuery = Intake::forCourse($course, $course->location);
             if (Schema::hasColumn('intakes', 'status')) {
                 $intakesQuery->where(function($query) {
                     $query->where('status', 'active')
@@ -156,7 +177,7 @@ class CourseChangeController extends Controller
 
             $intakes = $intakesQuery
                 ->orderBy('start_date', 'desc')
-                ->get();
+                ->get(['intake_id', 'batch', 'start_date', 'location', 'course_id']);
 
             Log::info('Found ' . $intakes->count() . ' intakes for course: ' . $request->course_id);
 
@@ -197,13 +218,17 @@ class CourseChangeController extends Controller
                 ], 404);
             }
 
-            // Check if pattern exists
             if (!$intake->course_registration_id_pattern) {
-                // Generate default pattern if not exists
                 $course = Course::find($intake->course_id);
-                $pattern = strtoupper(substr($course->location, 0, 3)) . '/' . 
-                          date('Y') . '/' . 
-                          strtoupper(substr($course->course_type, 0, 3)) . '/' .
+                if (!$course) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Course not found for this intake'
+                    ], 404);
+                }
+                $pattern = strtoupper(substr((string) $course->location, 0, 3)) . '/' .
+                          date('Y') . '/' .
+                          strtoupper(substr((string) $course->course_type, 0, 3)) . '/' .
                           '001';
                 
                 // Update intake with generated pattern
@@ -501,8 +526,12 @@ private function buildPaymentHistoryPreview($paymentDetails): array
                 'change_type' => $isIntakeOnlyChange ? 'intake_only' : 'course_and_intake'
             ]);
 
-            // Check if course change is within 1 year from course start date
-            $startDate = Carbon::parse($registration->course_start_date);
+            $startDateRaw = $registration->course_start_date ?? optional($registration->intake)->start_date;
+            if (!$startDateRaw) {
+                throw new \Exception('This registration has no course start date, so it cannot be changed.');
+            }
+
+            $startDate = Carbon::parse($startDateRaw);
             $deadline = $startDate->copy()->addYear();
 
             if (Carbon::now()->greaterThanOrEqualTo($deadline)) {
@@ -1278,6 +1307,37 @@ private function buildPaymentHistoryPreview($paymentDetails): array
                     ->orderBy('created_at', 'desc')
                     ->get()
                 : collect();
+
+            $courseIds = $logs->flatMap(fn ($log) => [$log->old_course_id ?? null, $log->new_course_id ?? null])
+                ->merge($payments->pluck('old_course_id'))
+                ->filter()
+                ->unique()
+                ->values();
+            $intakeIds = $logs->flatMap(fn ($log) => [$log->old_intake_id ?? null, $log->new_intake_id ?? null])
+                ->merge($payments->pluck('old_intake_id'))
+                ->filter()
+                ->unique()
+                ->values();
+
+            $courseNames = $courseIds->isNotEmpty()
+                ? Course::whereIn('course_id', $courseIds)->pluck('course_name', 'course_id')
+                : collect();
+            $intakeBatches = $intakeIds->isNotEmpty()
+                ? Intake::whereIn('intake_id', $intakeIds)->pluck('batch', 'intake_id')
+                : collect();
+
+            $logs = $logs->map(function ($log) use ($courseNames, $intakeBatches) {
+                $log->old_course_name = $courseNames[$log->old_course_id] ?? $log->old_course_id;
+                $log->new_course_name = $courseNames[$log->new_course_id] ?? $log->new_course_id;
+                $log->old_intake_batch = $intakeBatches[$log->old_intake_id] ?? $log->old_intake_id;
+                $log->new_intake_batch = $intakeBatches[$log->new_intake_id] ?? $log->new_intake_id;
+                return $log;
+            });
+            $payments = $payments->map(function ($payment) use ($courseNames, $intakeBatches) {
+                $payment->old_course_name = $courseNames[$payment->old_course_id] ?? $payment->old_course_id;
+                $payment->old_intake_batch = $intakeBatches[$payment->old_intake_id] ?? $payment->old_intake_id;
+                return $payment;
+            });
 
             return response()->json([
                 'status' => 'success',

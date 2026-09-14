@@ -91,7 +91,7 @@ class TimetableExport implements FromArray, WithHeadings, WithStyles, WithColumn
         ]);
 
         // Style all cells
-        $sheet->getStyle('A4:H' . (count($this->data) + 3))->applyFromArray([
+        $sheet->getStyle('A4:H' . (count($this->data) + 4))->applyFromArray([
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
                 'vertical' => Alignment::VERTICAL_CENTER,

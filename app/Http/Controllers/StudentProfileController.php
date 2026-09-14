@@ -298,6 +298,7 @@ class StudentProfileController extends Controller
                 'status' => $registration->status ?? 'N/A',
                 'full_grade' => $registration->full_grade ?? '',
                 'specialization' => $semesterReg ? $semesterReg->specialization : ($registration->specialization ?? ''),
+                'specializations' => $this->specializationsForCourse($registration->course),
             ];
         });
 
@@ -314,38 +315,7 @@ class StudentProfileController extends Controller
             return response()->json(['success' => false, 'message' => 'Course not found.'], 404);
         }
 
-        $specializations = [];
-        if ($course->specializations) {
-            if (is_string($course->specializations)) {
-                try {
-                    $specializations = json_decode($course->specializations, true);
-                } catch (\Exception $e) {
-                    $specializations = [];
-                }
-            } elseif (is_array($course->specializations)) {
-                $specializations = $course->specializations;
-            }
-        }
-
-        $specializations = array_filter($specializations, function ($s) {
-            return $s && trim((string) $s) !== '';
-        });
-
-        $specializations = array_values(array_map('strval', $specializations));
-
-        $hasCommonModule = \DB::table('semester_module')
-            ->join('semesters', 'semesters.id', '=', 'semester_module.semester_id')
-            ->where('semesters.course_id', $course->course_id)
-            ->where(function ($query) {
-                $query->whereNull('semester_module.specializations')
-                    ->orWhere('semester_module.specializations', '[]')
-                    ->orWhere('semester_module.specializations', 'null');
-            })
-            ->exists();
-
-        if ($hasCommonModule) {
-            $specializations = array_values(array_unique(array_merge(['Common'], $specializations)));
-        }
+        $specializations = $this->specializationsForCourse($course);
 
         return response()->json(['success' => true, 'specializations' => $specializations]);
     }
@@ -600,16 +570,28 @@ class StudentProfileController extends Controller
 
     public function getStudentDetailsByNic(Request $request)
     {
-        $nic = $request->query('nic');
-        if (!$nic) {
-            return response()->json(['success' => false, 'message' => 'NIC is required.'], 400);
+        $nic = strtoupper(preg_replace('/\s+/', '', trim((string) $request->query('nic', ''))));
+        if ($nic === '') {
+            return response()->json(['success' => false, 'message' => 'Please enter a NIC number.'], 400);
         }
-        $student = \App\Models\Student::with(['parentGuardian', 'otherInformation', 'exams'])->where('id_value', $nic)->first();
+
+        $student = Student::with(['parentGuardian', 'otherInformation', 'exams'])
+            ->whereRaw("UPPER(REPLACE(id_value, ' ', '')) = ?", [$nic])
+            ->first();
+
         if (!$student) {
-            return response()->json(['success' => false, 'message' => 'Student not found.'], 404);
+            return response()->json(['success' => false, 'message' => 'No student profile found for this NIC.'], 404);
         }
-        
-        return response()->json(['success' => true, 'student' => $student]);
+
+        $payload = $student->toArray();
+        $payload['parent'] = $student->parentGuardian;
+        $payload['other_information'] = $student->otherInformation;
+        $payload['birthday'] = $student->birthday
+            ? \Illuminate\Support\Carbon::parse($student->birthday)->format('Y-m-d')
+            : null;
+        $payload['academic_status'] = $student->academic_status;
+
+        return response()->json(['success' => true, 'student' => $payload]);
     }
     // Other methods (academic details, attendance, clearance, certificates, etc.) remain unchanged
 
@@ -628,50 +610,63 @@ class StudentProfileController extends Controller
 
     public function getSemesters($studentId, $courseId)
     {
-        // Get semesters from both ExamResult and Attendance tables to ensure we have all available semesters
+        $semestersList = \App\Models\Semester::where('course_id', (int) $courseId)
+            ->orderBy('id')
+            ->get();
+
+        $courseSemesters = $semestersList->map(function ($s) {
+            return trim((string) ($s->name ?: $s->id));
+        })->filter()->unique()->values();
+
         $examSemesters = \App\Models\ExamResult::where('student_id', $studentId)
             ->where('course_id', $courseId)
-            ->pluck('semester')
-            ->toArray();
+            ->pluck('semester');
 
         $attendanceSemesters = \App\Models\Attendance::where('student_id', $studentId)
             ->where('course_id', $courseId)
-            ->pluck('semester')
-            ->toArray();
+            ->pluck('semester');
 
-        $semestersList = \App\Models\Semester::where('course_id', (int)$courseId)->get();
-
-        // Merge and get unique values, mapping IDs to names if applicable
-        $allSemesters = collect(array_merge($examSemesters, $attendanceSemesters))
-            ->filter() // Remove nulls
+        $fromRecords = $examSemesters->merge($attendanceSemesters)
+            ->filter()
             ->map(function ($sem) use ($semestersList) {
                 foreach ($semestersList as $sModel) {
-                    if ((string)$sModel->id === (string)$sem) {
-                        return trim((string)$sModel->name);
+                    if ((string) $sModel->id === (string) $sem || (string) $sModel->name === (string) $sem) {
+                        return trim((string) $sModel->name);
                     }
                 }
-                return (string)$sem;
-            })
-            ->unique()
-            ->sort()
-            ->values();
+                return (string) $sem;
+            });
 
-        \Log::debug('getSemesters result', [
-            'student_id' => $studentId,
-            'course_id' => $courseId,
-            'exam_semesters' => $examSemesters,
-            'attendance_semesters' => $attendanceSemesters,
-            'all_semesters' => $allSemesters->toArray()
-        ]);
+        $allSemesters = $courseSemesters->merge($fromRecords)->filter()->unique()->values();
+
+        if ($allSemesters->isEmpty()) {
+            $course = \App\Models\Course::find($courseId);
+            $count = (int) ($course->no_of_semesters ?? 0);
+            if ($count > 0) {
+                $allSemesters = collect(range(1, $count))->map(fn ($n) => (string) $n)->values();
+            }
+        }
 
         return response()->json(['success' => true, 'semesters' => $allSemesters]);
     }
 
     public function getModuleResults($studentId, $courseId, $semester)
     {
+        $semesterIds = \App\Models\Semester::where('course_id', (int) $courseId)
+            ->where(function ($q) use ($semester) {
+                $q->where('name', $semester)->orWhere('id', $semester);
+            })
+            ->pluck('id')
+            ->all();
+
         $results = \App\Models\ExamResult::where('student_id', $studentId)
             ->where('course_id', $courseId)
-            ->where('semester', $semester)
+            ->where(function ($q) use ($semester, $semesterIds) {
+                $q->where('semester', $semester);
+                if ($semesterIds) {
+                    $q->orWhereIn('semester', $semesterIds);
+                }
+            })
             ->with('module')
             ->get()
             ->map(function ($r) {
@@ -718,150 +713,86 @@ class StudentProfileController extends Controller
                 ->first();
 
             $registrationFee = $this->calculateRegistrationFeeAmount($baseRegistrationFee, $studentPaymentPlan);
-            $franchiseCurrency = $registration->intake->international_currency ?? 'USD';
+            $intakeCourseFee = (float) ($registration->intake->course_fee ?? $registration->course->course_fee ?? 0);
+            $intakeFranchiseFee = (float) ($registration->intake->franchise_payment ?? 0);
+            $franchiseCurrency = $registration->intake->franchise_payment_currency
+                ?? $registration->intake->international_currency
+                ?? 'USD';
             if ($studentPaymentPlan && !empty($studentPaymentPlan->international_currency)) {
                 $franchiseCurrency = $studentPaymentPlan->international_currency;
             }
+
+            $installmentSpecs = $this->collectPaymentInstallmentSpecs($studentPaymentPlan, $registration, $franchiseCurrency);
+            if (!empty($installmentSpecs['franchise_currency'])) {
+                $franchiseCurrency = $installmentSpecs['franchise_currency'];
+            }
+            $specs = $installmentSpecs['specs'];
+            $includesRegistration = $this->planLocalTotalsIncludeRegistration(
+                $specs,
+                (float) $registrationFee,
+                $intakeCourseFee,
+                $studentPaymentPlan
+            );
+            if ($includesRegistration) {
+                $specs = $this->unbundleRegistrationFromLocalSpecs($specs, (float) $registrationFee);
+            }
+
             $courseInstallmentRows = [];
             $franchiseInstallmentRows = [];
             $courseFee = 0;
             $franchiseFee = 0;
 
-            if ($studentPaymentPlan && $studentPaymentPlan->installments->isNotEmpty()) {
-                foreach ($studentPaymentPlan->installments->sortBy('installment_number') as $installment) {
-                    $installmentNumber = $installment->installment_number;
-                    $dueDate = optional($installment->due_date)->format('Y-m-d');
-                    $isFranchise = !is_null($installment->international_amount) && (float) $installment->international_amount > 0;
-                    $totalAmount = $isFranchise
-                        ? (float) ($installment->international_amount ?? 0)
-                        : (float) ($installment->final_amount ?? $installment->amount ?? $installment->local_amount ?? 0);
+            foreach ($specs as $spec) {
+                $installmentNumber = $spec['installment_number'];
+                $dueDate = $spec['due_date'];
+                $localAmount = round((float) ($spec['local_amount'] ?? 0), 2);
+                $franchiseAmount = round((float) ($spec['franchise_amount'] ?? 0), 2);
 
-                    if ($totalAmount <= 0) {
-                        continue;
-                    }
-
-                    $paymentsForInstallment = $payments->filter(function ($payment) use ($installmentNumber, $isFranchise) {
-                        return $this->categorizePaymentType($payment->installment_type ?? $payment->payment_type ?? '') === ($isFranchise ? 'franchise_fee' : 'course_fee')
-                            && $payment->installment_number == $installmentNumber;
-                    });
-
-                    $paidAmount = (float) $paymentsForInstallment->sum('amount');
-                    $outstanding = max($totalAmount - $paidAmount, 0);
-                    $latestPayment = $paymentsForInstallment->sortByDesc(function ($payment) {
-                        return $payment->payment_effective_date ? $payment->payment_effective_date->timestamp : $payment->created_at->timestamp;
-                    })->first();
-                    $paymentDate = $latestPayment ? ($latestPayment->payment_effective_date ? $latestPayment->payment_effective_date->format('Y-m-d') : $latestPayment->created_at->format('Y-m-d')) : null;
-
-                    $row = [
-                        'total_amount' => $totalAmount,
-                        'paid_amount' => $paidAmount,
-                        'outstanding' => $outstanding,
-                        'payment_date' => $paymentDate,
-                        'due_date' => $dueDate,
-                        'receipt_no' => $latestPayment->transaction_id ?? null,
-                        'uploaded_receipt' => $latestPayment && $latestPayment->paid_slip_path ? asset('storage/' . $latestPayment->paid_slip_path) : null,
-                        'installment_number' => $installmentNumber,
-                    ];
-
-                    if ($isFranchise) {
-                        $row['amount_currency'] = $totalAmount;
-                        $row['currency'] = $franchiseCurrency;
-                        $row['sscl_tax'] = $latestPayment ? (float) ($latestPayment->sscl_tax_amount ?? 0) : 0;
-                        $row['bank_charges'] = $latestPayment ? (float) ($latestPayment->bank_charges ?? 0) : 0;
-                        $row['total_amount_lkr'] = $latestPayment ? (float) ($latestPayment->total_fee ?? $totalAmount) : $totalAmount;
-                        $franchiseFee += $totalAmount;
-                        $franchiseInstallmentRows[] = $row;
-                    } else {
-                        $courseFee += $totalAmount;
-                        $courseInstallmentRows[] = $row;
-                    }
+                if ($localAmount > 0) {
+                    $row = $this->buildFeeRowFromPayments($payments, 'course_fee', $installmentNumber, $localAmount, $dueDate);
+                    $courseFee += $localAmount;
+                    $courseInstallmentRows[] = $row;
                 }
-            } else {
-                $paymentPlan = \App\Models\PaymentPlan::where('course_id', $registration->course_id)
-                    ->where('intake_id', $registration->intake_id)
-                    ->first();
-                if ($paymentPlan && !empty($paymentPlan->international_currency)) {
-                    $franchiseCurrency = $paymentPlan->international_currency;
-                }
-                if ($paymentPlan && $paymentPlan->installments) {
-                    $installmentsData = $paymentPlan->installments;
-                    if (is_string($installmentsData)) {
-                        $installmentsData = json_decode($installmentsData, true);
-                    }
-                    if (is_array($installmentsData)) {
-                        foreach ($installmentsData as $installment) {
-                            $installmentNumber = $installment['installment_number'] ?? null;
-                            $internationalAmount = (float) ($installment['international_amount'] ?? 0);
-                            $localAmount = (float) ($installment['local_amount'] ?? $installment['amount'] ?? 0);
-                            $isFranchise = $internationalAmount > 0;
-                            $totalAmount = $isFranchise ? $internationalAmount : $localAmount;
-                            if ($totalAmount <= 0) {
-                                continue;
-                            }
 
-                            $paymentsForInstallment = $payments->filter(function ($payment) use ($installmentNumber, $isFranchise) {
-                                return $this->categorizePaymentType($payment->installment_type ?? $payment->payment_type ?? '') === ($isFranchise ? 'franchise_fee' : 'course_fee')
-                                    && (!is_null($installmentNumber) ? $payment->installment_number == $installmentNumber : true);
-                            });
-
-                            $paidAmount = (float) $paymentsForInstallment->sum('amount');
-                            $outstanding = max($totalAmount - $paidAmount, 0);
-                            $latestPayment = $paymentsForInstallment->sortByDesc(function ($payment) {
-                                return $payment->payment_effective_date ? $payment->payment_effective_date->timestamp : $payment->created_at->timestamp;
-                            })->first();
-                            $paymentDate = $latestPayment ? ($latestPayment->payment_effective_date ? $latestPayment->payment_effective_date->format('Y-m-d') : $latestPayment->created_at->format('Y-m-d')) : null;
-                            $dueDate = $installment['due_date'] ?? null;
-
-                            $row = [
-                                'total_amount' => $totalAmount,
-                                'paid_amount' => $paidAmount,
-                                'outstanding' => $outstanding,
-                                'payment_date' => $paymentDate,
-                                'due_date' => $dueDate,
-                                'receipt_no' => $latestPayment->transaction_id ?? null,
-                                'uploaded_receipt' => $latestPayment && $latestPayment->paid_slip_path ? asset('storage/' . $latestPayment->paid_slip_path) : null,
-                                'installment_number' => $installmentNumber,
-                            ];
-
-                            if ($isFranchise) {
-                                $row['amount_currency'] = $totalAmount;
-                                $row['currency'] = $franchiseCurrency;
-                                $row['sscl_tax'] = $latestPayment ? (float) ($latestPayment->sscl_tax_amount ?? 0) : 0;
-                                $row['bank_charges'] = $latestPayment ? (float) ($latestPayment->bank_charges ?? 0) : 0;
-                                $row['total_amount_lkr'] = $latestPayment ? (float) ($latestPayment->total_fee ?? $totalAmount) : $totalAmount;
-                                $franchiseFee += $totalAmount;
-                                $franchiseInstallmentRows[] = $row;
-                            } else {
-                                $courseFee += $totalAmount;
-                                $courseInstallmentRows[] = $row;
-                            }
-                        }
-                    }
+                if ($franchiseAmount > 0) {
+                    $row = $this->buildFeeRowFromPayments($payments, 'franchise_fee', $installmentNumber, $franchiseAmount, $dueDate);
+                    $row['amount_currency'] = $franchiseAmount;
+                    $row['currency'] = $franchiseCurrency;
+                    $row['sscl_tax'] = $row['sscl_tax'] ?? 0;
+                    $row['bank_charges'] = $row['bank_charges'] ?? 0;
+                    $row['total_amount_lkr'] = $row['total_amount_lkr'] ?? $franchiseAmount;
+                    $franchiseFee += $franchiseAmount;
+                    $franchiseInstallmentRows[] = $row;
                 }
             }
 
-            if (empty($courseInstallmentRows)) {
-                $courseInstallmentRows = $this->buildPaymentRowsFromDetails($payments, 'course_fee');
+            if (empty($courseInstallmentRows) && $intakeCourseFee > 0) {
+                $courseInstallmentRows[] = $this->buildContractedFeeFallbackRow($payments, 'course_fee', $intakeCourseFee, optional($registration->registration_date)->format('Y-m-d'));
+                $courseFee = $intakeCourseFee;
+            }
+            if (empty($franchiseInstallmentRows) && $intakeFranchiseFee > 0) {
+                $row = $this->buildContractedFeeFallbackRow($payments, 'franchise_fee', $intakeFranchiseFee, optional($registration->registration_date)->format('Y-m-d'));
+                $row['amount_currency'] = $intakeFranchiseFee;
+                $row['currency'] = $franchiseCurrency;
+                $franchiseInstallmentRows[] = $row;
+                $franchiseFee = $intakeFranchiseFee;
+            }
+
+            $registrationPayments = $this->paymentsOfType($payments, 'registration_fee');
+            $registrationPaid = (float) $registrationPayments->sum('amount');
+            if ($includesRegistration) {
+                $allocated = $this->allocateBundledRegistrationPaid($courseInstallmentRows, $registrationPaid, (float) $registrationFee);
+                $courseInstallmentRows = $allocated['course_rows'];
+                $registrationPaid = $allocated['registration_paid'];
                 $courseFee = collect($courseInstallmentRows)->sum('total_amount');
             }
-            if (empty($franchiseInstallmentRows)) {
-                $franchiseInstallmentRows = $this->buildPaymentRowsFromDetails($payments, 'franchise_fee');
-                $franchiseFee = collect($franchiseInstallmentRows)->sum('total_amount');
-            }
-
-            $registrationPayments = $payments->filter(function ($payment) {
-                return $this->categorizePaymentType($payment->installment_type ?? $payment->payment_type ?? '') === 'registration_fee';
-            });
-            $registrationPaid = (float) $registrationPayments->sum('amount');
-            $registrationOutstanding = max($registrationFee - $registrationPaid, 0);
-            $latestRegistrationPayment = $registrationPayments->sortByDesc(function ($payment) {
-                return $payment->payment_effective_date ? $payment->payment_effective_date->timestamp : $payment->created_at->timestamp;
-            })->first();
+            $registrationOutstanding = max(round((float) $registrationFee - $registrationPaid, 2), 0);
+            $latestRegistrationPayment = $this->latestPayment($registrationPayments);
             $registrationRows = [[
-                'total_amount' => $registrationFee,
-                'paid_amount' => $registrationPaid,
+                'total_amount' => round((float) $registrationFee, 2),
+                'paid_amount' => round($registrationPaid, 2),
                 'outstanding' => $registrationOutstanding,
-                'payment_date' => $latestRegistrationPayment ? ($latestRegistrationPayment->payment_effective_date ? $latestRegistrationPayment->payment_effective_date->format('Y-m-d') : $latestRegistrationPayment->created_at->format('Y-m-d')) : null,
+                'payment_date' => $this->paymentDate($latestRegistrationPayment),
                 'due_date' => optional($registration->registration_date)->format('Y-m-d'),
                 'receipt_no' => $latestRegistrationPayment->transaction_id ?? null,
                 'uploaded_receipt' => $latestRegistrationPayment && $latestRegistrationPayment->paid_slip_path ? asset('storage/' . $latestRegistrationPayment->paid_slip_path) : null,
@@ -932,11 +863,13 @@ class StudentProfileController extends Controller
                 'total_paid' => $totalPaid,
                 'total_outstanding' => $totalOutstanding,
                 'payment_rate' => $overallPaymentRate,
-                'total_local_amount' => $courseFee + $registrationFee,
-                'total_franchise_amount' => $franchiseFee,
-                'local_paid' => $localPaid,
-                'franchise_paid' => $franchisePaid,
-                'local_outstanding' => max(0, ($courseFee + $registrationFee) - $localPaid),
+                'course_fee' => round((float) $courseFee, 2),
+                'registration_fee' => round((float) $registrationFee, 2),
+                'total_local_amount' => round((float) $courseFee + (float) $registrationFee, 2),
+                'total_franchise_amount' => round((float) $franchiseFee, 2),
+                'local_paid' => round((float) $localPaid, 2),
+                'franchise_paid' => round((float) $franchisePaid, 2),
+                'local_outstanding' => round(max(0, ($courseFee + $registrationFee) - $localPaid), 2),
                 'franchise_currency' => $franchiseCurrency,
                 'payment_details' => $paymentDetails,
                 'payment_history' => $paymentHistory,
@@ -979,6 +912,240 @@ class StudentProfileController extends Controller
         }
 
         return max(0, (float) $baseRegistrationFee - $discountAmount);
+    }
+
+    private function collectPaymentInstallmentSpecs(?StudentPaymentPlan $studentPaymentPlan, $registration, string $franchiseCurrency): array
+    {
+        $specs = [];
+        $resolvedCurrency = $franchiseCurrency;
+
+        if ($studentPaymentPlan && $studentPaymentPlan->installments->isNotEmpty()) {
+            foreach ($studentPaymentPlan->installments->sortBy('installment_number') as $installment) {
+                $localAmount = (float) ($installment->final_amount ?? $installment->amount ?? 0);
+                $franchiseAmount = (float) ($installment->international_amount ?? 0);
+                if ($localAmount <= 0 && $franchiseAmount <= 0) {
+                    continue;
+                }
+
+                $specs[] = [
+                    'installment_number' => $installment->installment_number,
+                    'due_date' => optional($installment->due_date)->format('Y-m-d'),
+                    'local_amount' => $localAmount,
+                    'franchise_amount' => $franchiseAmount,
+                    'base_local_amount' => (float) ($installment->base_amount ?? $installment->amount ?? $localAmount),
+                ];
+            }
+
+            return ['specs' => $specs, 'franchise_currency' => $resolvedCurrency];
+        }
+
+        $paymentPlan = PaymentPlan::where('course_id', $registration->course_id)
+            ->where('intake_id', $registration->intake_id)
+            ->first();
+        if ($paymentPlan && !empty($paymentPlan->international_currency)) {
+            $resolvedCurrency = $paymentPlan->international_currency;
+        }
+        if (!$paymentPlan || !$paymentPlan->installments) {
+            return ['specs' => $specs, 'franchise_currency' => $resolvedCurrency];
+        }
+
+        $installmentsData = $paymentPlan->installments;
+        if (is_string($installmentsData)) {
+            $installmentsData = json_decode($installmentsData, true);
+        }
+        if (!is_array($installmentsData)) {
+            return ['specs' => $specs, 'franchise_currency' => $resolvedCurrency];
+        }
+
+        foreach ($installmentsData as $installment) {
+            $localAmount = (float) ($installment['local_amount'] ?? $installment['amount'] ?? 0);
+            $franchiseAmount = (float) ($installment['international_amount'] ?? 0);
+            if ($localAmount <= 0 && $franchiseAmount <= 0) {
+                continue;
+            }
+
+            $specs[] = [
+                'installment_number' => $installment['installment_number'] ?? null,
+                'due_date' => $installment['due_date'] ?? null,
+                'local_amount' => $localAmount,
+                'franchise_amount' => $franchiseAmount,
+                'base_local_amount' => $localAmount,
+            ];
+        }
+
+        return ['specs' => $specs, 'franchise_currency' => $resolvedCurrency];
+    }
+
+    private function planLocalTotalsIncludeRegistration(array $specs, float $registrationFee, float $intakeCourseFee, ?StudentPaymentPlan $plan): bool
+    {
+        if ($registrationFee <= 0 || empty($specs)) {
+            return false;
+        }
+
+        $localAmounts = [];
+        $baseAmounts = [];
+        foreach ($specs as $spec) {
+            $local = round((float) ($spec['local_amount'] ?? 0), 2);
+            if ($local <= 0) {
+                continue;
+            }
+            $localAmounts[] = $local;
+            $baseAmounts[] = round((float) ($spec['base_local_amount'] ?? $local), 2);
+        }
+
+        if (empty($localAmounts)) {
+            return false;
+        }
+
+        $baseSum = round(array_sum($baseAmounts), 2);
+        $bundledList = round($intakeCourseFee + $registrationFee, 2);
+        $planTotal = $plan ? round((float) ($plan->total_amount ?? 0), 2) : 0.0;
+
+        if ($bundledList > 0 && abs($baseSum - $bundledList) <= 1) {
+            return true;
+        }
+
+        if ($planTotal > 0 && abs($baseSum - $planTotal) <= 1 && abs($planTotal - $bundledList) <= 1) {
+            return true;
+        }
+
+        if (count($localAmounts) === 1 && $intakeCourseFee > 0) {
+            $amount = $localAmounts[0];
+            if ($amount > $intakeCourseFee + 1 && $amount <= $bundledList + 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function unbundleRegistrationFromLocalSpecs(array $specs, float $registrationFee): array
+    {
+        $remaining = round($registrationFee, 2);
+        foreach ($specs as &$spec) {
+            if ($remaining <= 0) {
+                break;
+            }
+            $local = round((float) ($spec['local_amount'] ?? 0), 2);
+            if ($local <= 0) {
+                continue;
+            }
+            $deduct = min($local, $remaining);
+            $spec['local_amount'] = round($local - $deduct, 2);
+            $remaining = round($remaining - $deduct, 2);
+        }
+        unset($spec);
+
+        return $specs;
+    }
+
+    private function paymentsOfType($payments, string $type)
+    {
+        return $payments->filter(function ($payment) use ($type) {
+            return $this->categorizePaymentType($payment->installment_type ?? $payment->payment_type ?? '') === $type;
+        });
+    }
+
+    private function latestPayment($payments)
+    {
+        return $payments->sortByDesc(function ($payment) {
+            return $payment->payment_effective_date
+                ? $payment->payment_effective_date->timestamp
+                : $payment->created_at->timestamp;
+        })->first();
+    }
+
+    private function paymentDate($payment): ?string
+    {
+        if (!$payment) {
+            return null;
+        }
+
+        return $payment->payment_effective_date
+            ? $payment->payment_effective_date->format('Y-m-d')
+            : $payment->created_at->format('Y-m-d');
+    }
+
+    private function buildFeeRowFromPayments($payments, string $type, $installmentNumber, float $totalAmount, ?string $dueDate): array
+    {
+        $matched = $this->paymentsOfType($payments, $type)->filter(function ($payment) use ($installmentNumber) {
+            return is_null($installmentNumber) || $payment->installment_number == $installmentNumber;
+        });
+        $latestPayment = $this->latestPayment($matched);
+        $paidAmount = round((float) $matched->sum('amount'), 2);
+        $totalAmount = round($totalAmount, 2);
+
+        $row = [
+            'total_amount' => $totalAmount,
+            'paid_amount' => $paidAmount,
+            'outstanding' => round(max($totalAmount - $paidAmount, 0), 2),
+            'payment_date' => $this->paymentDate($latestPayment),
+            'due_date' => $dueDate,
+            'receipt_no' => $latestPayment->transaction_id ?? null,
+            'uploaded_receipt' => $latestPayment && $latestPayment->paid_slip_path ? asset('storage/' . $latestPayment->paid_slip_path) : null,
+            'installment_number' => $installmentNumber,
+        ];
+
+        if ($type === 'franchise_fee' && $latestPayment) {
+            $row['sscl_tax'] = (float) ($latestPayment->sscl_tax_amount ?? 0);
+            $row['bank_charges'] = (float) ($latestPayment->bank_charges ?? 0);
+            $row['total_amount_lkr'] = (float) ($latestPayment->total_fee ?? $totalAmount);
+        }
+
+        return $row;
+    }
+
+    private function buildContractedFeeFallbackRow($payments, string $type, float $contractedTotal, ?string $dueDate): array
+    {
+        $matched = $this->paymentsOfType($payments, $type);
+        $latestPayment = $this->latestPayment($matched);
+        $paidAmount = round((float) $matched->sum('amount'), 2);
+        $contractedTotal = round($contractedTotal, 2);
+
+        $row = [
+            'total_amount' => $contractedTotal,
+            'paid_amount' => $paidAmount,
+            'outstanding' => round(max($contractedTotal - $paidAmount, 0), 2),
+            'payment_date' => $this->paymentDate($latestPayment),
+            'due_date' => $dueDate,
+            'receipt_no' => $latestPayment->transaction_id ?? null,
+            'uploaded_receipt' => $latestPayment && $latestPayment->paid_slip_path ? asset('storage/' . $latestPayment->paid_slip_path) : null,
+            'installment_number' => $latestPayment->installment_number ?? 1,
+        ];
+
+        if ($type === 'franchise_fee' && $latestPayment) {
+            $row['sscl_tax'] = (float) ($latestPayment->sscl_tax_amount ?? 0);
+            $row['bank_charges'] = (float) ($latestPayment->bank_charges ?? 0);
+            $row['total_amount_lkr'] = (float) ($latestPayment->total_fee ?? $contractedTotal);
+        }
+
+        return $row;
+    }
+
+    private function allocateBundledRegistrationPaid(array $courseRows, float $registrationPaid, float $registrationFee): array
+    {
+        $regGap = round(max(0, $registrationFee - $registrationPaid), 2);
+        if ($regGap <= 0) {
+            return ['course_rows' => $courseRows, 'registration_paid' => round($registrationPaid, 2)];
+        }
+
+        foreach ($courseRows as &$row) {
+            if ($regGap <= 0) {
+                break;
+            }
+            $paid = round((float) ($row['paid_amount'] ?? 0), 2);
+            if ($paid <= 0) {
+                continue;
+            }
+            $shift = min($paid, $regGap);
+            $row['paid_amount'] = round($paid - $shift, 2);
+            $row['outstanding'] = round(max((float) $row['total_amount'] - (float) $row['paid_amount'], 0), 2);
+            $registrationPaid = round($registrationPaid + $shift, 2);
+            $regGap = round($regGap - $shift, 2);
+        }
+        unset($row);
+
+        return ['course_rows' => $courseRows, 'registration_paid' => round($registrationPaid, 2)];
     }
 
     private function buildSltLoanReceivableSummary(?StudentPaymentPlan $plan): ?array
@@ -1034,10 +1201,10 @@ class StudentProfileController extends Controller
         $payments->filter(function ($payment) use ($type) {
             return $this->categorizePaymentType($payment->installment_type ?? $payment->payment_type ?? '') === $type;
         })->each(function ($payment) use (&$rows, $type) {
-            $totalAmount = (float) ($payment->total_fee ?? $payment->amount ?? 0);
             $paidAmount = (float) ($payment->amount ?? 0);
+            $totalAmount = (float) ($payment->total_fee ?? $payment->amount ?? 0);
             $outstanding = $payment->remaining_amount !== null
-                ? (float) $payment->remaining_amount
+                ? max(0, (float) $payment->remaining_amount)
                 : max($totalAmount - $paidAmount, 0);
             $paymentDate = $payment->payment_effective_date
                 ? $payment->payment_effective_date->format('Y-m-d')
@@ -1635,7 +1802,8 @@ class StudentProfileController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Profile picture updated successfully.',
-                'url' => asset('storage/' . $path),
+                'path' => $path,
+                'url' => '/storage/' . ltrim($path, '/'),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update student profile picture', [
@@ -1758,5 +1926,54 @@ class StudentProfileController extends Controller
                 'message' => 'Failed to update A/L exam results. Please try again.',
             ], 500);
         }
+    }
+
+    private function specializationsForCourse($course): array
+    {
+        if (!$course) {
+            return [];
+        }
+
+        $specializations = $this->normalizeSpecializationList($course->specializations ?? []);
+
+        $hasCommonModule = \DB::table('semester_module')
+            ->join('semesters', 'semesters.id', '=', 'semester_module.semester_id')
+            ->where('semesters.course_id', $course->course_id)
+            ->where(function ($query) {
+                $query->whereNull('semester_module.specializations')
+                    ->orWhere('semester_module.specializations', '[]')
+                    ->orWhere('semester_module.specializations', 'null');
+            })
+            ->exists();
+
+        if ($hasCommonModule) {
+            $specializations = array_values(array_unique(array_merge(['Common'], $specializations)));
+        }
+
+        return $specializations;
+    }
+
+    private function normalizeSpecializationList($raw): array
+    {
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : preg_split('/\s*,\s*/', $raw);
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($raw as $item) {
+            if (is_array($item)) {
+                $item = $item['name'] ?? $item['specialization'] ?? $item['title'] ?? reset($item);
+            }
+            $item = trim((string) $item);
+            if ($item !== '' && strtolower($item) !== 'null') {
+                $out[] = $item;
+            }
+        }
+
+        return array_values(array_unique($out));
     }
 }

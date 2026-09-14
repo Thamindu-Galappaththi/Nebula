@@ -13,48 +13,81 @@ use App\Models\PaymentPlanDiscount;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\PaymentPlanExport;
 
 class PaymentPlanController extends Controller
 {
-    // NEW: list all plans with filters/pagination
     public function index(Request $request)
-{
-    $locations = ['Welisara','Moratuwa','Peradeniya'];
+    {
+        $locations = ['Welisara', 'Moratuwa', 'Peradeniya'];
+        $perPage = $this->resolvedPerPage($request);
 
-    $query = PaymentPlan::query()
-        ->with(['course','intake'])
-        ->when($request->filled('location'), fn($q) => $q->where('location', $request->location))
-        ->when($request->filled('course_id'), fn($q) => $q->where('course_id', $request->course_id))
-        ->when($request->filled('intake_id'), fn($q) => $q->where('intake_id', $request->intake_id))
-        ->orderByDesc('id');
+        $plans = $this->filteredPlansQuery($request)
+            ->paginate($perPage)
+            ->withQueryString();
 
-    $plans   = $query->paginate(10)->withQueryString();
-    $courses = Course::orderBy('course_name')->get(['course_id','course_name']);
+        $courses = Course::query()
+            ->select('course_id', 'course_name')
+            ->when($request->filled('location'), fn ($q) => $q->where('location', $request->location))
+            ->orderBy('course_name')
+            ->get();
 
-    // 🧩 FIXED — use course_id for intake filter (not course_name)
-    $intakes = collect();
-    if ($request->filled('course_id') && $request->filled('location')) {
-        $intakes = Intake::where('course_id', $request->course_id)
-            ->where('location', $request->location)
-            ->orderBy('batch')
-            ->get(['intake_id', 'batch']);
+        $intakes = collect();
+        if ($request->filled('course_id')) {
+            $course = Course::find((int) $request->course_id);
+            if ($course) {
+                $intakes = Intake::forCourse($course, $request->input('location'))
+                    ->orderBy('batch')
+                    ->get(['intake_id', 'batch']);
+            }
+        }
+
+        return view('payments.payment_plan_index', compact('plans', 'locations', 'courses', 'intakes'));
     }
 
-    return view('payments.payment_plan_index', compact('plans','locations','courses','intakes'));
-}
+    public function exportExcel(Request $request)
+    {
+        $plans = $this->filteredPlansQuery($request)->limit(2000)->get();
+
+        return Excel::download(
+            new PaymentPlanExport($this->mapPlansForExport($plans)),
+            'payment_plans_' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $maxRows = 250;
+        $query = $this->filteredPlansQuery($request);
+        $totalRecords = (clone $query)->count();
+        $plans = $query->limit($maxRows)->get();
+
+        $pdf = Pdf::loadView('payments.payment_plan_export_pdf', [
+            'rows' => $this->mapPlansForExport($plans),
+            'totalRecords' => $totalRecords,
+            'maxRows' => $maxRows,
+            'generatedAt' => now()->format('Y-m-d H:i'),
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('payment_plans_' . now()->format('Y-m-d') . '.pdf');
+    }
 
     public function getCoursesByLocation(Request $request)
     {
         $request->validate([
-            'location' => 'required|string',
+            'location' => 'nullable|string',
         ]);
 
-        $courses = Course::where('location', $request->location)
+        $courses = Course::query()
+            ->when($request->filled('location'), fn ($q) => $q->where('location', $request->location))
             ->orderBy('course_name')
             ->get(['course_id','course_name']);
 
         return response()->json([
             'success' => true,
+            'data' => $courses,
             'courses' => $courses,
             'message' => $courses->isEmpty() ? 'No courses found.' : 'Courses loaded successfully.'
         ]);
@@ -99,6 +132,14 @@ class PaymentPlanController extends Controller
             'installments' => 'nullable',
         ]);
 
+        $installments = $request->input('installments');
+        if (is_string($installments)) {
+            $installments = json_decode($installments, true);
+        }
+        if (!is_array($installments)) {
+            $installments = [];
+        }
+
         $course = Course::find($validated['course']);
         $courseType = $course->course_type ?? null;
         $supportsCourseType = Schema::hasColumn('payment_plans', 'course_type');
@@ -120,11 +161,6 @@ class PaymentPlanController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'A payment plan already exists for this Location, Course, and Intake.');
-        }
-
-        $installments = $request->input('installments');
-        if (is_string($installments)) {
-            $installments = json_decode($installments, true);
         }
 
         $syncSummary = DB::transaction(function () use ($validated, $request, $installments, $courseType, $supportsCourseType, $localFee, $internationalFee) {
@@ -801,16 +837,16 @@ private function normalizeTemplateInstallments($installments): array
             'registration_fee' => $plan->registration_fee,
             'course_fee' => $plan->local_fee,
             'franchise_payment' => $plan->international_fee,
-            'franchise_payment_currency' => $plan->international_currency,
-            'sscl_tax' => $plan->sscl_tax,
-            'bank_charges' => $plan->bank_charges,
+            'franchise_payment_currency' => $plan->international_currency ?: 'LKR',
+            'sscl_tax' => $plan->sscl_tax ?? 0,
+            'bank_charges' => $plan->bank_charges ?? 0,
         ]);
     }
     public function getIntakesByCourse(Request $request)
 {
     $request->validate([
         'course_id' => 'required|integer',
-        'location'  => 'required|string',
+        'location'  => 'nullable|string',
     ]);
 
     $course = Course::find($request->course_id);
@@ -827,5 +863,57 @@ private function normalizeTemplateInstallments($installments): array
         'data' => $intakes
     ]);
 }
+
+    private function filteredPlansQuery(Request $request)
+    {
+        $query = PaymentPlan::query()
+            ->with(['course', 'intake'])
+            ->when($request->filled('location'), fn ($q) => $q->where('location', $request->location))
+            ->when($request->filled('course_id'), fn ($q) => $q->where('course_id', $request->course_id))
+            ->when($request->filled('intake_id'), fn ($q) => $q->where('intake_id', $request->intake_id));
+
+        return match ($request->input('sort', 'newest')) {
+            'oldest' => $query->orderBy('id'),
+            'location_asc' => $query->orderBy('location')->orderByDesc('id'),
+            'location_desc' => $query->orderByDesc('location')->orderByDesc('id'),
+            default => $query->orderByDesc('id'),
+        };
+    }
+
+    private function resolvedPerPage(Request $request): int
+    {
+        $perPage = (int) $request->input('per_page', 10);
+
+        return in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+    }
+
+    private function campusLabel(?string $location): string
+    {
+        $known = ['Welisara', 'Moratuwa', 'Peradeniya'];
+        if (in_array($location, $known, true)) {
+            return 'Nebula Institute of Technology - ' . $location;
+        }
+
+        return $location ?: '—';
+    }
+
+    private function mapPlansForExport($plans): array
+    {
+        return $plans->map(function ($plan) {
+            return [
+                'id' => $plan->id,
+                'location' => $this->campusLabel($plan->location),
+                'course' => optional($plan->course)->course_name ?? '—',
+                'intake' => optional($plan->intake)->batch ?? '—',
+                'registration_fee' => number_format((float) $plan->registration_fee, 2, '.', ''),
+                'local_fee' => number_format((float) $plan->local_fee, 2, '.', ''),
+                'international_fee' => number_format((float) $plan->international_fee, 2, '.', ''),
+                'currency' => $plan->international_currency ?: '',
+                'discount' => $plan->apply_discount ? ((float) $plan->discount) . '%' : '—',
+                'installments' => $plan->installment_plan ? 'Yes' : 'No',
+                'created_at' => optional($plan->created_at)?->format('Y-m-d H:i') ?? '',
+            ];
+        })->all();
+    }
 
 }

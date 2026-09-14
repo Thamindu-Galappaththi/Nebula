@@ -106,6 +106,16 @@ class Student extends Model
         return $this->hasMany(CourseRegistration::class, 'student_id', 'student_id');
     }
 
+    public function statusHistories()
+    {
+        return $this->hasMany(StudentStatusHistory::class, 'student_id', 'student_id');
+    }
+
+    public function clearanceRequests()
+    {
+        return $this->hasMany(ClearanceRequest::class, 'student_id', 'student_id');
+    }
+
     public function semesterRegistrations()
     {
         return $this->hasMany(SemesterRegistration::class, 'student_id', 'student_id');

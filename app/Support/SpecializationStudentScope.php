@@ -79,6 +79,17 @@ class SpecializationStudentScope
         }
 
         if (strcasecmp($specialization, 'Common') !== 0) {
+            $moduleSpecializations = SemesterModuleSpecializationHelper::decodeList(
+                $moduleSpecializationsJson,
+                $moduleLegacySpecialization
+            );
+
+            // A module assigned to specific specializations (e.g. Cloud Fundamentals → AI)
+            // must never include students from other tracks.
+            if (is_array($moduleSpecializations) && $moduleSpecializations !== []) {
+                return in_array($specialization, $moduleSpecializations, true) ? [$specialization] : [];
+            }
+
             return [$specialization];
         }
 
@@ -163,9 +174,11 @@ class SpecializationStudentScope
         );
 
         if (empty($studentIds)) {
-            // If no student IDs can be resolved for this specialization, preserve the existing
-            // query instead of forcing an empty result set.
-            return $query;
+            if (self::normalize($specialization) === null) {
+                return $query;
+            }
+
+            return $query->whereRaw('1 = 0');
         }
 
         return $query->whereIn($studentColumn, $studentIds);

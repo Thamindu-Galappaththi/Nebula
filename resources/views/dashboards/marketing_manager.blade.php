@@ -137,34 +137,268 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+
+        .contact-modal .modal-content {
+            border: 0;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 24px 48px rgba(102, 126, 234, 0.22);
+        }
+
+        .contact-modal .modal-header.contact-modal-header {
+            position: relative;
+            display: block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-bottom: 0;
+            padding: 28px 24px 24px;
+            text-align: center;
+        }
+
+        .contact-modal-header .btn-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+
+        .contact-modal-avatar {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.18);
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .contact-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            border: 1px solid #eef0f5;
+            border-radius: 14px;
+            background: #f8f9ff;
+        }
+
+        .contact-row + .contact-row {
+            margin-top: 12px;
+        }
+
+        .contact-row-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .contact-row-copy {
+            min-width: 96px;
+            border-radius: 10px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .contact-row-copy.is-copied {
+            background: #198754;
+            border-color: #198754;
+            color: #fff;
+        }
+
+        .contact-row-copy.is-unavailable {
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
+        .contact-copy-hint {
+            min-height: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #198754;
+        }
+
+        .min-width-0 {
+            min-width: 0;
+        }
+
+        .dashboard-page-heading {
+            min-width: 0;
+        }
+
+        .dashboard-page-heading h4,
+        .dashboard-page-heading p {
+            overflow-wrap: anywhere;
+        }
+
+        .dashboard-chart-filter {
+            flex: 0 0 190px;
+            width: 190px;
+            max-width: 100%;
+        }
+
+        .dashboard-chart-filter > .nebula-select,
+        .dashboard-chart-filter > .form-select,
+        .dashboard-chart-filter .nebula-select-sm,
+        .dashboard-chart-filter .nebula-select-toggle {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 1 1 auto !important;
+        }
+
+        .chart-container {
+            max-width: 100%;
+        }
+
+        .table-responsive {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .marketing-manager-page .card-body > .d-flex.justify-content-between {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 767.98px) {
+            .marketing-manager-page {
+                overflow-x: hidden;
+            }
+
+            .page-title-box {
+                align-items: stretch !important;
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .dashboard-page-heading h4 {
+                font-size: 1.15rem;
+            }
+
+            .dashboard-page-actions {
+                width: 100%;
+            }
+
+            .dashboard-page-actions .btn {
+                flex: 1 1 0;
+            }
+
+            .kpi-card h2 {
+                font-size: 1.4rem;
+            }
+
+            .chart-container,
+            .chart-container[style] {
+                height: 220px !important;
+            }
+
+            .card-hover:hover {
+                transform: none;
+            }
+
+            .time-filter-btn {
+                flex: 1 1 calc(50% - 8px);
+                margin-right: 0;
+                text-align: center;
+            }
+
+            .marketing-date-wrap {
+                flex: 1 1 100%;
+                margin-left: 0 !important;
+                width: 100%;
+            }
+
+            .marketing-date-wrap #customDate {
+                width: 100% !important;
+            }
+
+            .dashboard-chart-filter {
+                flex: 1 1 100%;
+                width: 100%;
+            }
+
+            .table-responsive table {
+                min-width: 720px;
+            }
+
+            .registrations-pagination {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 12px;
+            }
+
+            .registrations-pagination .d-flex {
+                width: 100%;
+            }
+
+            .registrations-pagination .btn {
+                flex: 1 1 0;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .bg-white.p-4 {
+                padding: 1rem !important;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+
+            .time-filter-btn {
+                flex-basis: 100%;
+            }
+
+            .contact-row {
+                flex-wrap: wrap;
+            }
+
+            .contact-row-copy {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .quick-stat-value {
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+        }
     </style>
 
-    <div class="container-fluid">
+    <div class="container-fluid marketing-manager-page">
         <!-- Page Header -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="page-title-box d-flex align-items-center justify-content-between">
-                    <div class="bg-white p-4 rounded shadow-sm mb-3">
-    <div class="d-flex align-items-center">
-        <div class="me-3">
-            <div class="avatar-initial">
-                <i class="fas fa-bullseye"></i>
-            </div>
-        </div>
-        <div>
-            <h4 class="mb-1 fw-bold text-dark">🎯 Marketing Manager Dashboard</h4>
-            <p class="text-muted mb-0">Track campaign performance and student acquisition metrics</p>
-        </div>
-    </div>
-</div>
-
-                    <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-outline-primary btn-sm" onclick="refreshAllData()">
-                            <i class="fas fa-sync-alt me-1"></i> Refresh
-                        </button>
-                        <button class="btn btn-primary btn-sm" onclick="exportDashboard()">
-                            <i class="fas fa-download me-1"></i> Export
-                        </button>
+                <div class="bg-white p-4 rounded shadow-sm">
+                    <div class="page-title-box d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-start dashboard-page-heading">
+                            <div class="me-3">
+                                <div class="avatar-initial">
+                                    <i class="fas fa-bullseye"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="mb-1 fw-bold text-dark">🎯 Marketing Manager Dashboard</h4>
+                                <p class="text-muted mb-0">Track campaign performance and student acquisition metrics</p>
+                            </div>
+                        </div>
+                        <div class="dashboard-page-actions d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm text-nowrap" onclick="refreshAllData()">
+                                <i class="fas fa-sync-alt me-1"></i> Refresh
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm text-nowrap" onclick="exportDashboard()">
+                                <i class="fas fa-download me-1"></i> Export
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -175,16 +409,16 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body py-3">
-                        <div class="d-flex flex-wrap align-items-center">
-                            <span class="me-3 text-muted"><i class="fas fa-calendar-alt me-1"></i> Time Period:</span>
-                            <div class="d-flex flex-wrap">
-                                <button class="time-filter-btn active" onclick="setTimePeriod('today')">Today</button>
-                                <button class="time-filter-btn" onclick="setTimePeriod('week')">This Week</button>
-                                <button class="time-filter-btn" onclick="setTimePeriod('month')">This Month</button>
-                                <button class="time-filter-btn" onclick="setTimePeriod('quarter')">This Quarter</button>
-                                <button class="time-filter-btn" onclick="setTimePeriod('year')">This Year</button>
-                                <div class="d-inline-block ms-2">
-                                    <input type="date" id="customDate" class="form-control form-control-sm" style="width: 140px;">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="text-muted"><i class="fas fa-calendar-alt me-1"></i> Time Period:</span>
+                            <div class="d-flex flex-wrap gap-2 flex-grow-1">
+                                <button type="button" class="time-filter-btn" data-period="today">Today</button>
+                                <button type="button" class="time-filter-btn" data-period="week">This Week</button>
+                                <button type="button" class="time-filter-btn active" data-period="month">This Month</button>
+                                <button type="button" class="time-filter-btn" data-period="quarter">This Quarter</button>
+                                <button type="button" class="time-filter-btn" data-period="year">This Year</button>
+                                <div class="marketing-date-wrap">
+                                    <input type="date" id="customDate" class="form-control form-control-sm">
                                 </div>
                             </div>
                         </div>
@@ -225,9 +459,9 @@
                                 <span id="growthValue" class="badge"></span>
                             </div>
                         </div>
-                        <h5 class="card-title text-muted text-uppercase fs-12">This Month</h5>
+                        <h5 class="card-title text-muted text-uppercase fs-12" id="periodMetricTitle">This Month</h5>
                         <h2 class="fw-bold mb-1" id="thisMonth">-</h2>
-                        <div class="text-muted fs-13">
+                        <div class="text-muted fs-13" id="periodMetricSubtext">
                             <i class="fas fa-users me-1"></i> New registrations
                         </div>
                     </div>
@@ -261,10 +495,10 @@
                             </div>
                             <span class="badge bg-danger bg-opacity-10 text-danger">Previous</span>
                         </div>
-                        <h5 class="card-title text-muted text-uppercase fs-12">Last Month</h5>
+                        <h5 class="card-title text-muted text-uppercase fs-12" id="previousMetricTitle">Last Month</h5>
                         <h2 class="fw-bold mb-1" id="lastMonth">-</h2>
-                        <div class="text-muted fs-13">
-                            <i class="fas fa-history me-1"></i> Registrations
+                        <div class="text-muted fs-13" id="previousMetricSubtext">
+                            <i class="fas fa-history me-1"></i> Previous period
                         </div>
                     </div>
                 </div>
@@ -276,16 +510,18 @@
             <div class="col-xl-8 mb-4">
                 <div class="card card-hover h-100">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                             <div>
                                 <h5 class="card-title mb-1">📊 Marketing Survey Analysis</h5>
                                 <p class="text-muted mb-0">Channel performance overview</p>
                             </div>
-                            <select id="chartTypeSelect" class="form-select form-select-sm" style="width: auto;">
-                                <option value="bar">Bar Chart</option>
-                                <option value="line">Line Chart</option>
-                                <option value="pie">Pie Chart</option>
-                            </select>
+                            <div class="dashboard-chart-filter">
+                                <select id="chartTypeSelect" class="form-select form-select-sm">
+                                    <option value="bar">Bar Chart</option>
+                                    <option value="line">Line Chart</option>
+                                    <option value="pie">Pie Chart</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="chart-container">
                             <canvas id="marketingSurveyChart"></canvas>
@@ -302,11 +538,11 @@
                                 <h5 class="card-title mb-1">📍 Location Distribution</h5>
                                 <p class="text-muted mb-0">Student registrations by region</p>
                             </div>
-                            <div class="btn-group btn-group-sm">
-                                <button class="chart-toggle-btn active" onclick="toggleLocationChart('doughnut')">
-                                    <i class="fas fa-chart-pie"></i>
+                            <div class="btn-group btn-group-sm" id="locationChartToggles">
+                                <button type="button" class="chart-toggle-btn active" data-chart-type="doughnut" onclick="toggleLocationChart('doughnut', this)">
+                                    <i class="fas fa-dot-circle"></i>
                                 </button>
-                                <button class="chart-toggle-btn" onclick="toggleLocationChart('pie')">
+                                <button type="button" class="chart-toggle-btn" data-chart-type="pie" onclick="toggleLocationChart('pie', this)">
                                     <i class="fas fa-chart-pie"></i>
                                 </button>
                             </div>
@@ -326,14 +562,14 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <div>
-                                <h5 class="card-title mb-1">📈 12-Month Registration Trend</h5>
-                                <p class="text-muted mb-0">Monthly overview</p>
+                                <h5 class="card-title mb-1" id="trendChartTitle">📈 Registration Trend</h5>
+                                <p class="text-muted mb-0" id="trendChartSubtitle">Selected time period</p>
                             </div>
-                            <div class="btn-group btn-group-sm">
-                                <button class="chart-toggle-btn active" onclick="toggleTrendChart('line')">
+                            <div class="btn-group btn-group-sm" id="trendChartToggles">
+                                <button type="button" class="chart-toggle-btn active" data-chart-type="line" onclick="toggleTrendChart('line', this)">
                                     <i class="fas fa-chart-line"></i>
                                 </button>
-                                <button class="chart-toggle-btn" onclick="toggleTrendChart('bar')">
+                                <button type="button" class="chart-toggle-btn" data-chart-type="bar" onclick="toggleTrendChart('bar', this)">
                                     <i class="fas fa-chart-bar"></i>
                                 </button>
                             </div>
@@ -391,17 +627,6 @@
                                 <h5 class="card-title mb-1">📋 Recent Registrations</h5>
                                 <p class="text-muted mb-0">Latest student sign-ups</p>
                             </div>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-outline-secondary btn-sm" onclick="previousPage()">
-                                    <i class="fas fa-chevron-left"></i>
-                                </button>
-                                <button class="btn btn-outline-secondary btn-sm" onclick="nextPage()">
-                                    <i class="fas fa-chevron-right"></i>
-                                </button>
-                                <button class="btn btn-primary btn-sm" onclick="loadMoreRegistrations()">
-                                    <i class="fas fa-redo me-1"></i> Load More
-                                </button>
-                            </div>
                         </div>
                         
                         <div class="table-responsive">
@@ -430,9 +655,17 @@
                             </table>
                         </div>
                         
-                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pt-3 border-top registrations-pagination">
                             <div class="text-muted fs-13" id="registrationsCount">
                                 Showing 0 registrations
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="prevPageBtn" onclick="previousPage()">
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="nextPageBtn" onclick="nextPage()">
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -447,20 +680,20 @@
                     <div class="card-body">
                         <div class="row text-center">
                             <div class="col-md-3 mb-3 mb-md-0">
-                                <div class="fs-4 fw-bold" id="avgRegistration">-</div>
+                                <div class="fs-4 fw-bold quick-stat-value" id="avgRegistration">-</div>
                                 <div class="text-white-50 fs-13">Avg. Daily Registrations</div>
                             </div>
                             <div class="col-md-3 mb-3 mb-md-0">
-                                <div class="fs-4 fw-bold" id="bestSource">-</div>
+                                <div class="fs-4 fw-bold quick-stat-value" id="bestSource">-</div>
                                 <div class="text-white-50 fs-13">Best Performing Source</div>
                             </div>
                             <div class="col-md-3 mb-3 mb-md-0">
-                                <div class="fs-4 fw-bold" id="topLocation">-</div>
+                                <div class="fs-4 fw-bold quick-stat-value" id="topLocation">-</div>
                                 <div class="text-white-50 fs-13">Top Location</div>
                             </div>
                             <div class="col-md-3">
-                                <div class="fs-4 fw-bold" id="conversionRate">-</div>
-                                <div class="text-white-50 fs-13">Overall Conversion Rate</div>
+                                <div class="fs-4 fw-bold quick-stat-value" id="conversionRate">-</div>
+                                <div class="text-white-50 fs-13" id="conversionRateLabel">Period Conversion Rate</div>
                             </div>
                         </div>
                     </div>
@@ -469,181 +702,310 @@
         </div>
     </div>
 
+    <div id="marketingToastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 20000;"></div>
+
+    <div class="modal fade contact-modal" id="contactStudentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header contact-modal-header">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="contact-modal-avatar" id="contactStudentInitial">S</div>
+                    <h5 class="modal-title w-100" id="contactStudentName">Student</h5>
+                    <p class="mb-0 mt-1" style="opacity: .85; font-size: 13px;">Copy email or phone to contact this student</p>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="contact-row">
+                        <div class="contact-row-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="text-muted fs-13 mb-1">Email</div>
+                            <div class="fw-semibold text-break" id="contactStudentEmail">-</div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary contact-row-copy" id="copyStudentEmailBtn">
+                            <i class="fas fa-copy me-1"></i> Copy
+                        </button>
+                    </div>
+                    <div class="contact-row">
+                        <div class="contact-row-icon"><i class="fas fa-phone"></i></div>
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="text-muted fs-13 mb-1">Phone</div>
+                            <div class="fw-semibold text-break" id="contactStudentMobile">-</div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary contact-row-copy" id="copyStudentMobileBtn">
+                            <i class="fas fa-copy me-1"></i> Copy
+                        </button>
+                    </div>
+                    <div class="contact-copy-hint mt-3 text-center" id="contactCopyHint" aria-live="polite"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script nonce="{{ $cspNonce }}">
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+        const studentProfileBase = @json(url('/student/profile'));
         let currentPage = 1;
         let totalPages = 1;
         let currentTimePeriod = 'month';
         let chartInstances = {};
         
-        // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadDashboardData();
-            
-            // Add event listeners
-            document.getElementById('chartTypeSelect').addEventListener('change', function() {
+
+            document.querySelectorAll('.time-filter-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    setTimePeriod(this.dataset.period, this);
+                });
+            });
+
+            document.getElementById('chartTypeSelect')?.addEventListener('change', function() {
                 fetchMarketingSurveyData(this.value);
             });
-            
-            // Auto-refresh every 5 minutes
+
+            document.getElementById('customDate')?.addEventListener('change', function() {
+                if (this.value) {
+                    setTimePeriod('custom');
+                }
+            });
+
+            const registrationsContainer = document.getElementById('recentRegistrationsContainer');
+            if (registrationsContainer) {
+                registrationsContainer.addEventListener('click', function (e) {
+                    const contactBtn = e.target.closest('.js-contact-student');
+                    if (contactBtn) {
+                        e.preventDefault();
+                        contactStudent(
+                            contactBtn.getAttribute('data-email') || '',
+                            contactBtn.getAttribute('data-mobile') || '',
+                            contactBtn.getAttribute('data-name') || ''
+                        );
+                        return;
+                    }
+
+                    const viewBtn = e.target.closest('.js-view-student');
+                    if (viewBtn) {
+                        e.preventDefault();
+                        viewStudentDetails(viewBtn.getAttribute('data-student-id'));
+                    }
+                });
+            }
+
+            document.getElementById('copyStudentEmailBtn')?.addEventListener('click', function () {
+                copyContactValue(this, document.getElementById('contactStudentEmail')?.textContent, 'Email copied');
+            });
+            document.getElementById('copyStudentMobileBtn')?.addEventListener('click', function () {
+                copyContactValue(this, document.getElementById('contactStudentMobile')?.textContent, 'Phone number copied');
+            });
+
             setInterval(loadDashboardData, 300000);
         });
-        
-        function loadDashboardData() {
-            fetchOverviewMetrics();
-            fetchMarketingSurveyData('bar');
-            fetchMonthlyTrend('line');
-            fetchLocationData('doughnut');
-            fetchTopCourses();
-            fetchROIData();
-            fetchRecentRegistrations(1);
+
+        function getPeriodQuery() {
+            const params = new URLSearchParams({ period: currentTimePeriod });
+            const customDate = document.getElementById('customDate')?.value;
+            if (currentTimePeriod === 'custom' && customDate) {
+                params.set('date', customDate);
+            }
+            return params.toString();
         }
-        
-        function refreshAllData() {
-            // Add loading state
+
+        function getPeriodMeta() {
+            return {
+                today: { title: 'Today', previous: 'Yesterday', short: 'today', trend: 'Today by day' },
+                week: { title: 'This Week', previous: 'Last Week', short: 'this week', trend: 'Daily this week' },
+                month: { title: 'This Month', previous: 'Last Month', short: 'this month', trend: 'Daily this month' },
+                quarter: { title: 'This Quarter', previous: 'Previous Quarter', short: 'this quarter', trend: 'Monthly this quarter' },
+                year: { title: 'This Year', previous: 'Last Year', short: 'this year', trend: 'Monthly this year' },
+                custom: { title: 'Selected Day', previous: 'Previous Day', short: 'on the selected day', trend: 'Selected day' }
+            }[currentTimePeriod] || { title: 'This Month', previous: 'Last Month', short: 'this month', trend: 'Daily this month' };
+        }
+
+        function buildChartColors(count) {
+            const colors = [
+                'rgba(102, 126, 234, 0.8)',
+                'rgba(118, 75, 162, 0.8)',
+                'rgba(59, 130, 246, 0.8)',
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(245, 158, 11, 0.8)',
+                'rgba(239, 68, 68, 0.8)'
+            ];
+            return Array.from({ length: count }, (_, index) => colors[index % colors.length]);
+        }
+
+        function truncateLabel(value, max = 28) {
+            const text = String(value || 'Unknown');
+            return text.length > max ? text.substring(0, max) + '...' : text;
+        }
+
+        async function loadDashboardData() {
+            const surveyType = document.getElementById('chartTypeSelect')?.value || 'bar';
+            const trendType = document.querySelector('#trendChartToggles .chart-toggle-btn.active')?.dataset.chartType || 'line';
+            const locationType = document.querySelector('#locationChartToggles .chart-toggle-btn.active')?.dataset.chartType || 'doughnut';
+
+            await Promise.all([
+                fetchOverviewMetrics(),
+                fetchMarketingSurveyData(surveyType),
+                fetchMonthlyTrend(trendType),
+                fetchLocationData(locationType),
+                fetchTopCourses(),
+                fetchROIData(),
+                fetchRecentRegistrations(1)
+            ]);
+        }
+
+        async function refreshAllData() {
             document.body.classList.add('data-loading');
-            
-            loadDashboardData();
-            
-            // Show toast notification
-            showToast('Data refreshed successfully', 'success');
-            
-            setTimeout(() => {
+            try {
+                await loadDashboardData();
+                showToast('Dashboard data refreshed', 'success');
+            } catch (error) {
+                showToast('Failed to refresh dashboard data', 'danger');
+            } finally {
                 document.body.classList.remove('data-loading');
-            }, 1000);
+            }
         }
-        
-        function setTimePeriod(period) {
+
+        function setTimePeriod(period, buttonElement = null) {
             currentTimePeriod = period;
-            
-            // Update active button
+
             document.querySelectorAll('.time-filter-btn').forEach(btn => {
-                btn.classList.remove('active');
+                btn.classList.toggle('active', btn.dataset.period === period);
             });
-            event.target.classList.add('active');
-            
-            // Refresh data
+
+            if (period !== 'custom') {
+                const customDateInput = document.getElementById('customDate');
+                if (customDateInput) customDateInput.value = '';
+            }
+
+            if (buttonElement) buttonElement.blur();
+            const periodMeta = getPeriodMeta();
+            const trendSubtitle = document.getElementById('trendChartSubtitle');
+            if (trendSubtitle) trendSubtitle.textContent = periodMeta.trend;
             loadDashboardData();
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[ch]));
+        }
+
+        async function fetchJson(url) {
+            const response = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Request failed: ' + response.status);
+            }
+            return response.json();
+        }
+
+        function renderChart(key, canvasId, config) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || typeof Chart === 'undefined') return;
+            if (chartInstances[key]) chartInstances[key].destroy();
+            chartInstances[key] = new Chart(canvas.getContext('2d'), config);
         }
         
         function showToast(message, type = 'info') {
-            // Create toast element
             const toast = document.createElement('div');
             toast.className = `toast align-items-center text-bg-${type} border-0`;
             toast.setAttribute('role', 'alert');
             toast.setAttribute('aria-live', 'assertive');
             toast.setAttribute('aria-atomic', 'true');
-            
             toast.innerHTML = `
                 <div class="d-flex">
                     <div class="toast-body">
                         <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
-                        ${message}
+                        ${escapeHtml(message)}
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>
             `;
-            
-            // Add to container
-            const container = document.querySelector('.toast-container') || document.body;
+
+            const container = document.getElementById('marketingToastContainer')
+                || document.querySelector('.toast-container')
+                || document.body;
             container.appendChild(toast);
-            
-            // Initialize and show toast
-            const bsToast = new bootstrap.Toast(toast);
+
+            const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
             bsToast.show();
-            
-            // Remove after hidden
-            toast.addEventListener('hidden.bs.toast', () => {
-                toast.remove();
-            });
+            toast.addEventListener('hidden.bs.toast', () => toast.remove());
         }
-        
-        // Overview Metrics
+
         async function fetchOverviewMetrics() {
             try {
-                const response = await fetch(`/api/marketing-manager/overview?period=${currentTimePeriod}`, {
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                
-                // Update KPI cards
+                const data = await fetchJson(`/api/marketing-manager/overview?${getPeriodQuery()}`);
+                const periodMeta = getPeriodMeta();
+
                 document.getElementById('totalRegistered').textContent = data.total_registered?.toLocaleString() || '0';
-                document.getElementById('thisMonth').textContent = data.this_month_registrations?.toLocaleString() || '0';
-                document.getElementById('lastMonth').textContent = data.last_month_registrations?.toLocaleString() || '0';
+                document.getElementById('thisMonth').textContent = (data.period_registrations ?? data.this_month_registrations ?? 0).toLocaleString();
+                document.getElementById('lastMonth').textContent = (data.previous_period_registrations ?? data.last_month_registrations ?? 0).toLocaleString();
                 document.getElementById('totalStudents').textContent = data.total_students?.toLocaleString() || '0';
-                
-                // Update growth indicator
+
+                const periodTitle = document.getElementById('periodMetricTitle');
+                const periodSubtext = document.getElementById('periodMetricSubtext');
+                const previousTitle = document.getElementById('previousMetricTitle');
+                if (periodTitle) periodTitle.textContent = periodMeta.title;
+                if (periodSubtext) periodSubtext.innerHTML = `<i class="fas fa-users me-1"></i> Registrations ${periodMeta.short}`;
+                if (previousTitle) previousTitle.textContent = periodMeta.previous;
+
+                const trendTitle = document.getElementById('trendChartTitle');
+                const trendSubtitle = document.getElementById('trendChartSubtitle');
+                if (trendTitle) trendTitle.textContent = '📈 Registration Trend';
+                if (trendSubtitle) trendSubtitle.textContent = periodMeta.trend;
+
                 const growthIndicator = document.getElementById('growthIndicator');
                 const growthValue = document.getElementById('growthValue');
                 const growthIcon = document.getElementById('growthIcon');
-                
+
                 if (data.growth_percentage && data.growth_percentage !== 0) {
                     growthIndicator.style.display = 'flex';
                     const isPositive = data.growth_percentage > 0;
-                    
-                    // Set icon
                     growthIcon.innerHTML = `<i class="fas fa-arrow-${isPositive ? 'up' : 'down'}"></i>`;
-                    
-                    // Set badge class and text
                     growthValue.className = `badge bg-${isPositive ? 'success' : 'danger'} bg-opacity-10 text-${isPositive ? 'success' : 'danger'}`;
                     growthValue.textContent = (isPositive ? '+' : '') + data.growth_percentage + '%';
-                } else {
+                } else if (growthIndicator) {
                     growthIndicator.style.display = 'none';
                 }
-                
-                // Update quick stats
+
                 updateQuickStats(data);
             } catch (error) {
                 console.error('Error fetching overview metrics:', error);
                 showToast('Failed to load metrics', 'danger');
             }
         }
-        
+
         function updateQuickStats(data) {
-            if (data.avg_daily) document.getElementById('avgRegistration').textContent = data.avg_daily.toLocaleString();
-            if (data.best_source) document.getElementById('bestSource').textContent = data.best_source;
-            if (data.top_location) document.getElementById('topLocation').textContent = data.top_location;
-            if (data.conversion_rate) document.getElementById('conversionRate').textContent = data.conversion_rate + '%';
+            document.getElementById('avgRegistration').textContent = data.avg_daily != null ? Number(data.avg_daily).toLocaleString() : '-';
+            document.getElementById('bestSource').textContent = data.best_source || '-';
+            document.getElementById('topLocation').textContent = data.top_location || '-';
+            document.getElementById('conversionRate').textContent = data.conversion_rate != null ? data.conversion_rate + '%' : '-';
         }
         
-        // Marketing Survey Chart
         async function fetchMarketingSurveyData(chartType = 'bar') {
             try {
-                const response = await fetch(`/api/marketing-manager/marketing-survey?period=${currentTimePeriod}`, {
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                
-                const ctx = document.getElementById('marketingSurveyChart');
-                if (chartInstances.marketingSurvey) {
-                    chartInstances.marketingSurvey.destroy();
-                }
-                
-                chartInstances.marketingSurvey = new Chart(ctx, {
+                const data = await fetchJson(`/api/marketing-manager/marketing-survey?${getPeriodQuery()}`);
+                const rows = Array.isArray(data) ? data : [];
+                const isCircular = chartType === 'pie' || chartType === 'doughnut';
+
+                renderChart('marketingSurvey', 'marketingSurveyChart', {
                     type: chartType,
                     data: {
-                        labels: data.map(item => item.source),
+                        labels: rows.map(item => item.source),
                         datasets: [{
                             label: 'Number of Students',
-                            data: data.map(item => item.count),
-                            backgroundColor: data.map((_, index) => {
-                                const colors = [
-                                    'rgba(102, 126, 234, 0.8)',
-                                    'rgba(118, 75, 162, 0.8)',
-                                    'rgba(59, 130, 246, 0.8)',
-                                    'rgba(16, 185, 129, 0.8)',
-                                    'rgba(245, 158, 11, 0.8)',
-                                    'rgba(239, 68, 68, 0.8)'
-                                ];
-                                return colors[index % colors.length];
-                            }),
-                            borderWidth: 0,
+                            data: rows.map(item => item.count),
+                            backgroundColor: buildChartColors(rows.length),
+                            borderColor: chartType === 'line' ? 'rgba(102, 126, 234, 1)' : 'transparent',
+                            borderWidth: chartType === 'line' ? 2 : 0,
+                            fill: chartType === 'line',
+                            tension: 0.4,
                             borderRadius: chartType === 'bar' ? 6 : 0
                         }]
                     },
@@ -652,31 +1014,14 @@
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                display: chartType === 'pie' || chartType === 'doughnut',
+                                display: isCircular,
                                 position: 'bottom'
-                            },
-                            tooltip: {
-                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                                padding: 10,
-                                cornerRadius: 6
                             }
                         },
-                        scales: chartType === 'bar' ? {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 1
-                                },
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)'
-                                }
-                            },
-                            x: {
-                                grid: {
-                                    display: false
-                                }
-                            }
-                        } : {}
+                        scales: isCircular ? {} : {
+                            y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
+                            x: { grid: { display: false } }
+                        }
                     }
                 });
             } catch (error) {
@@ -684,146 +1029,88 @@
             }
         }
         
-        // Monthly Trend Chart
         async function fetchMonthlyTrend(chartType = 'line') {
             try {
-                const response = await fetch(`/api/marketing-manager/monthly-trend?period=${currentTimePeriod}`, {
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                
-                const ctx = document.getElementById('monthlyTrendChart');
-                if (chartInstances.monthlyTrend) {
-                    chartInstances.monthlyTrend.destroy();
-                }
-                
-                chartInstances.monthlyTrend = new Chart(ctx, {
+                const data = await fetchJson(`/api/marketing-manager/monthly-trend?${getPeriodQuery()}`);
+                const rows = Array.isArray(data) ? data : [];
+
+                renderChart('monthlyTrend', 'monthlyTrendChart', {
                     type: chartType,
                     data: {
-                        labels: data.map(item => item.month),
+                        labels: rows.map(item => item.month),
                         datasets: [{
                             label: 'Registrations',
-                            data: data.map(item => item.count),
+                            data: rows.map(item => item.count),
                             borderColor: 'rgba(102, 126, 234, 1)',
-                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            backgroundColor: chartType === 'line' ? 'rgba(102, 126, 234, 0.1)' : 'rgba(102, 126, 234, 0.8)',
                             borderWidth: 2,
-                            fill: true,
+                            fill: chartType === 'line',
                             tension: 0.4
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
                     }
                 });
             } catch (error) {
                 console.error('Error fetching monthly trend:', error);
             }
         }
-        
-        function toggleTrendChart(type) {
-            // Update button states
-            document.querySelectorAll('.chart-toggle-btn').forEach(btn => {
-                btn.classList.remove('active');
+
+        function toggleTrendChart(type, buttonElement) {
+            document.querySelectorAll('#trendChartToggles .chart-toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn === buttonElement || btn.dataset.chartType === type);
             });
-            event.target.closest('button').classList.add('active');
-            
             fetchMonthlyTrend(type);
         }
         
-        // Location Chart
         async function fetchLocationData(chartType = 'doughnut') {
             try {
-                const response = await fetch(`/api/marketing-manager/location-data?period=${currentTimePeriod}`, {
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                
-                const ctx = document.getElementById('locationChart');
-                if (chartInstances.locationChart) {
-                    chartInstances.locationChart.destroy();
-                }
-                
-                chartInstances.locationChart = new Chart(ctx, {
+                const data = await fetchJson(`/api/marketing-manager/location-data?${getPeriodQuery()}`);
+                const rows = Array.isArray(data) ? data : [];
+
+                renderChart('locationChart', 'locationChart', {
                     type: chartType,
                     data: {
-                        labels: data.map(item => item.location),
+                        labels: rows.map(item => item.location),
                         datasets: [{
-                            data: data.map(item => item.count),
-                            backgroundColor: [
-                                'rgba(102, 126, 234, 0.8)',
-                                'rgba(118, 75, 162, 0.8)',
-                                'rgba(59, 130, 246, 0.8)',
-                                'rgba(16, 185, 129, 0.8)',
-                                'rgba(245, 158, 11, 0.8)'
-                            ]
+                            data: rows.map(item => item.count),
+                            backgroundColor: buildChartColors(rows.length)
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
+                        plugins: { legend: { position: 'bottom' } }
                     }
                 });
             } catch (error) {
                 console.error('Error fetching location data:', error);
             }
         }
-        
-        function toggleLocationChart(type) {
-            // Update button states
-            const buttons = event.target.closest('.btn-group').querySelectorAll('.chart-toggle-btn');
-            buttons.forEach(btn => {
-                btn.classList.remove('active');
+
+        function toggleLocationChart(type, buttonElement) {
+            document.querySelectorAll('#locationChartToggles .chart-toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn === buttonElement || btn.dataset.chartType === type);
             });
-            event.target.closest('button').classList.add('active');
-            
             fetchLocationData(type);
         }
         
-        // Top Courses Chart
         async function fetchTopCourses() {
             try {
-                const response = await fetch(`/api/marketing-manager/top-courses?period=${currentTimePeriod}`, {
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                
-                const ctx = document.getElementById('topCoursesChart');
-                if (chartInstances.topCourses) {
-                    chartInstances.topCourses.destroy();
-                }
-                
-                chartInstances.topCourses = new Chart(ctx, {
+                const data = await fetchJson(`/api/marketing-manager/top-courses?${getPeriodQuery()}`);
+                const rows = Array.isArray(data) ? data : [];
+
+                renderChart('topCourses', 'topCoursesChart', {
                     type: 'bar',
                     data: {
-                        labels: data.map(item => item.course_name.substring(0, 25) + '...'),
+                        labels: rows.map(item => truncateLabel(item.course_name)),
                         datasets: [{
                             label: 'Registrations',
-                            data: data.map(item => item.registrations),
+                            data: rows.map(item => item.registrations),
                             backgroundColor: 'rgba(245, 158, 11, 0.8)',
                             borderRadius: 4
                         }]
@@ -832,16 +1119,8 @@
                         indexAxis: 'y',
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            x: {
-                                beginAtZero: true
-                            }
-                        }
+                        plugins: { legend: { display: false } },
+                        scales: { x: { beginAtZero: true } }
                     }
                 });
             } catch (error) {
@@ -849,29 +1128,19 @@
             }
         }
         
-        // ROI Chart
         async function fetchROIData() {
             try {
-                const response = await fetch(`/api/marketing-manager/roi-data?period=${currentTimePeriod}`, {
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                
-                const ctx = document.getElementById('roiChart');
-                if (chartInstances.roiChart) {
-                    chartInstances.roiChart.destroy();
-                }
-                
-                chartInstances.roiChart = new Chart(ctx, {
+                const data = await fetchJson(`/api/marketing-manager/roi-data?${getPeriodQuery()}`);
+                const rows = Array.isArray(data) ? data : [];
+                const maxRate = Math.max(100, ...rows.map(item => Number(item.conversion_rate) || 0));
+
+                renderChart('roiChart', 'roiChart', {
                     type: 'bar',
                     data: {
-                        labels: data.map(item => item.source),
+                        labels: rows.map(item => item.source),
                         datasets: [{
                             label: 'Conversion Rate %',
-                            data: data.map(item => item.conversion_rate),
+                            data: rows.map(item => item.conversion_rate),
                             backgroundColor: 'rgba(16, 185, 129, 0.8)',
                             borderRadius: 4
                         }]
@@ -880,17 +1149,15 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: {
-                                display: false
-                            },
+                            legend: { display: false },
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
-                                        const item = data[context.dataIndex];
+                                        const item = rows[context.dataIndex] || {};
                                         return [
-                                            'Students: ' + item.students,
-                                            'Registrations: ' + item.registrations,
-                                            'Conversion: ' + item.conversion_rate + '%'
+                                            'Students: ' + (item.students ?? 0),
+                                            'Converted: ' + (item.registrations ?? 0),
+                                            'Conversion: ' + (item.conversion_rate ?? 0) + '%'
                                         ];
                                     }
                                 }
@@ -899,12 +1166,8 @@
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                max: 100,
-                                ticks: {
-                                    callback: function(value) {
-                                        return value + '%';
-                                    }
-                                }
+                                max: maxRate,
+                                ticks: { callback: value => value + '%' }
                             }
                         }
                     }
@@ -914,10 +1177,8 @@
             }
         }
         
-        // Recent Registrations
         async function fetchRecentRegistrations(page = 1) {
             currentPage = page;
-            
             const container = document.getElementById('recentRegistrationsContainer');
             container.innerHTML = `
                 <tr>
@@ -929,24 +1190,17 @@
                     </td>
                 </tr>
             `;
-            
+
             try {
-                const response = await fetch(`/api/marketing-manager/recent-registrations?page=${page}&period=${currentTimePeriod}`, {
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                
-                renderRegistrationsTable(data);
+                const payload = await fetchJson(`/api/marketing-manager/recent-registrations?page=${page}&${getPeriodQuery()}`);
+                renderRegistrationsTable(payload);
             } catch (error) {
                 container.innerHTML = `
                     <tr>
                         <td colspan="7" class="text-center py-5 text-danger">
                             <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
                             <p>Failed to load registrations</p>
-                            <button class="btn btn-sm btn-outline-danger mt-2" onclick="fetchRecentRegistrations(${currentPage})">
+                            <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="fetchRecentRegistrations(${currentPage})">
                                 Retry
                             </button>
                         </td>
@@ -954,11 +1208,20 @@
                 `;
             }
         }
-        
-        function renderRegistrationsTable(data) {
+
+        function renderRegistrationsTable(payload) {
             const container = document.getElementById('recentRegistrationsContainer');
-            
-            if (!data || data.length === 0) {
+            const rows = Array.isArray(payload) ? payload : (payload.data || []);
+            currentPage = payload.current_page || currentPage;
+            totalPages = payload.last_page || 1;
+            const total = payload.total ?? rows.length;
+
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+            if (prevBtn) prevBtn.disabled = currentPage <= 1;
+            if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+
+            if (!rows.length) {
                 container.innerHTML = `
                     <tr>
                         <td colspan="7" class="text-center py-5 text-muted">
@@ -968,61 +1231,57 @@
                         </td>
                     </tr>
                 `;
+                document.getElementById('registrationsCount').textContent = 'Showing 0 registrations';
                 return;
             }
-            
+
             let html = '';
-            data.forEach(reg => {
-                const statusClass = reg.status === 'Registered' ? 'status-registered' : 'status-pending';
-                const sourceColors = {
-                    'Social Media': 'bg-primary bg-opacity-10 text-primary',
-                    'Email': 'bg-info bg-opacity-10 text-info',
-                    'Referral': 'bg-success bg-opacity-10 text-success',
-                    'Website': 'bg-warning bg-opacity-10 text-warning',
-                    'Event': 'bg-danger bg-opacity-10 text-danger'
-                };
-                
+            rows.forEach(reg => {
+                const status = String(reg.status || 'Pending');
+                const statusClass = status.toLowerCase() === 'registered' ? 'status-registered' : 'status-pending';
+                const studentId = Number(reg.student_id) || 0;
+
                 html += `
                     <tr>
                         <td>
                             <div class="d-flex align-items-center">
                                 <div class="avatar-initial me-3">
-                                    ${reg.student_name?.charAt(0) || 'U'}
+                                    ${escapeHtml((reg.student_name || 'S').charAt(0))}
                                 </div>
                                 <div>
-                                    <div class="fw-medium">${reg.student_name}</div>
-                                    <small class="text-muted">${reg.email || ''}</small>
+                                    <div class="fw-medium">${escapeHtml(reg.student_name)}</div>
+                                    <small class="text-muted">${escapeHtml(reg.email || '')}</small>
                                 </div>
                             </div>
                         </td>
                         <td>
-                            <div class="fw-medium">${reg.course_name}</div>
-                            <small class="text-muted">${reg.course_code || ''}</small>
+                            <div class="fw-medium">${escapeHtml(reg.course_name)}</div>
+                            <small class="text-muted">${escapeHtml(reg.course_code || '')}</small>
                         </td>
                         <td>
-                            <div class="fw-medium">${reg.registration_date}</div>
-                            <small class="text-muted">${reg.time || ''}</small>
+                            <div class="fw-medium">${escapeHtml(reg.registration_date)}</div>
+                            <small class="text-muted">${escapeHtml(reg.time || '')}</small>
                         </td>
                         <td>
                             <i class="fas fa-map-marker-alt text-muted me-1"></i>
-                            ${reg.location}
+                            ${escapeHtml(reg.location)}
                         </td>
                         <td>
-                            <span class="badge ${sourceColors[reg.marketing_source] || 'bg-secondary'}">
-                                ${reg.marketing_source}
+                            <span class="badge bg-secondary">
+                                ${escapeHtml(reg.marketing_source || 'Direct')}
                             </span>
                         </td>
                         <td>
                             <span class="status-badge ${statusClass}">
-                                ${reg.status}
+                                ${escapeHtml(status)}
                             </span>
                         </td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary" onclick="viewRegistration(${reg.id})" title="View">
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-outline-primary btn-sm js-view-student" data-student-id="${studentId}" title="View profile">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button class="btn btn-outline-success" onclick="contactStudent(${reg.id})" title="Contact">
+                                <button type="button" class="btn btn-outline-success btn-sm js-contact-student" data-name="${escapeHtml(reg.student_name || '')}" data-email="${escapeHtml(reg.email || '')}" data-mobile="${escapeHtml(reg.mobile || '')}" title="Contact">
                                     <i class="fas fa-envelope"></i>
                                 </button>
                             </div>
@@ -1030,45 +1289,157 @@
                     </tr>
                 `;
             });
-            
+
             container.innerHTML = html;
-            document.getElementById('registrationsCount').textContent = 
-                `Showing ${data.length} registrations`;
+            document.getElementById('registrationsCount').textContent =
+                `Showing ${rows.length} of ${total} registration${total === 1 ? '' : 's'} (page ${currentPage} of ${totalPages})`;
         }
-        
-        function loadMoreRegistrations() {
-            if (currentPage < totalPages) {
-                fetchRecentRegistrations(currentPage + 1);
-            }
-        }
-        
+
         function previousPage() {
-            if (currentPage > 1) {
-                fetchRecentRegistrations(currentPage - 1);
-            }
+            if (currentPage > 1) fetchRecentRegistrations(currentPage - 1);
         }
-        
+
         function nextPage() {
-            if (currentPage < totalPages) {
-                fetchRecentRegistrations(currentPage + 1);
+            if (currentPage < totalPages) fetchRecentRegistrations(currentPage + 1);
+        }
+
+        function viewStudentDetails(studentId) {
+            if (!studentId) {
+                showToast('Student profile is not available', 'danger');
+                return;
+            }
+            window.location.href = studentProfileBase + '/' + studentId;
+        }
+
+        function copyContactValue(button, value, successMessage) {
+            const text = String(value || '').trim();
+            if (!text || text === '-' || text === 'Not available') {
+                setCopyHint('Nothing to copy', false);
+                return;
+            }
+
+            const copied = () => markCopied(button, successMessage);
+            const failed = () => setCopyHint('Could not copy. Select the text and copy it manually.', false);
+
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                navigator.clipboard.writeText(text).then(copied).catch(() => {
+                    try {
+                        fallbackCopy(text);
+                        copied();
+                    } catch (error) {
+                        failed();
+                    }
+                });
+                return;
+            }
+
+            try {
+                fallbackCopy(text);
+                copied();
+            } catch (error) {
+                failed();
             }
         }
-        
+
+        function fallbackCopy(text) {
+            const input = document.createElement('textarea');
+            input.value = text;
+            input.setAttribute('readonly', '');
+            input.style.position = 'fixed';
+            input.style.top = '0';
+            input.style.left = '0';
+            input.style.opacity = '0';
+            document.body.appendChild(input);
+            input.focus();
+            input.select();
+            input.setSelectionRange(0, text.length);
+            const ok = document.execCommand('copy');
+            input.remove();
+            if (!ok) throw new Error('Copy command failed');
+        }
+
+        function markCopied(button, successMessage) {
+            if (button) {
+                button.classList.add('is-copied');
+                button.innerHTML = '<i class="fas fa-check me-1"></i> Copied';
+                window.clearTimeout(button._copyReset);
+                button._copyReset = window.setTimeout(() => {
+                    button.classList.remove('is-copied');
+                    button.innerHTML = '<i class="fas fa-copy me-1"></i> Copy';
+                }, 2000);
+            }
+            setCopyHint(successMessage, true);
+        }
+
+        function setCopyHint(message, success) {
+            const hint = document.getElementById('contactCopyHint');
+            if (!hint) return;
+            hint.textContent = message || '';
+            hint.style.color = success ? '#198754' : '#dc3545';
+        }
+
+        function setContactField(id, value, copyBtnId) {
+            const el = document.getElementById(id);
+            const btn = document.getElementById(copyBtnId);
+            const text = String(value || '').trim();
+            if (el) el.textContent = text || 'Not available';
+            if (btn) {
+                btn.classList.toggle('is-unavailable', !text);
+                btn.classList.remove('is-copied');
+                btn.innerHTML = '<i class="fas fa-copy me-1"></i> Copy';
+                btn.disabled = !text;
+            }
+        }
+
+        function contactStudent(email, mobile, name) {
+            email = String(email || '').trim();
+            mobile = String(mobile || '').trim();
+            name = String(name || '').trim() || 'Student';
+
+            if (!email && !mobile) {
+                showToast('No email or phone number is available for this student', 'danger');
+                return;
+            }
+
+            const nameEl = document.getElementById('contactStudentName');
+            const initialEl = document.getElementById('contactStudentInitial');
+            if (nameEl) nameEl.textContent = name;
+            if (initialEl) initialEl.textContent = name.charAt(0).toUpperCase();
+
+            setContactField('contactStudentEmail', email, 'copyStudentEmailBtn');
+            setContactField('contactStudentMobile', mobile, 'copyStudentMobileBtn');
+            setCopyHint('', true);
+
+            const modalEl = document.getElementById('contactStudentModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        }
+
         function exportDashboard() {
-            // Implement export functionality
-            showToast('Export feature coming soon!', 'info');
-        }
-        
-        function viewRegistration(id) {
-            // Implement view registration details
-            console.log('View registration:', id);
-            showToast('View feature coming soon!', 'info');
-        }
-        
-        function contactStudent(id) {
-            // Implement contact student
-            console.log('Contact student:', id);
-            showToast('Contact feature coming soon!', 'info');
+            const period = getPeriodMeta();
+            const rows = [
+                ['Metric', 'Value'],
+                ['Period', period.title],
+                ['Total Registered Students', document.getElementById('totalRegistered')?.textContent || '0'],
+                [period.title + ' Registrations', document.getElementById('thisMonth')?.textContent || '0'],
+                ['Total Students', document.getElementById('totalStudents')?.textContent || '0'],
+                [period.previous + ' Registrations', document.getElementById('lastMonth')?.textContent || '0'],
+                ['Avg. Daily Registrations', document.getElementById('avgRegistration')?.textContent || '-'],
+                ['Best Performing Source', document.getElementById('bestSource')?.textContent || '-'],
+                ['Top Location', document.getElementById('topLocation')?.textContent || '-'],
+                ['Overall Conversion Rate', document.getElementById('conversionRate')?.textContent || '-']
+            ];
+            const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `marketing-manager-dashboard-${currentTimePeriod}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
         }
     </script>
 @endsection

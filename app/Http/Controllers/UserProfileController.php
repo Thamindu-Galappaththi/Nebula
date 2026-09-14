@@ -240,6 +240,8 @@ public function updateUserStatus(Request $request)
         // Prepare the array with user details
         $usersArray = $users->map(function ($user) {
             $displayRoles = implode(', ', $user->getRoleList());
+            $createdAt = $user->createdAtSriLanka();
+            $updatedAt = $user->updatedAtSriLanka();
 
             return [
                 'user_id' => $user->user_id,
@@ -249,8 +251,8 @@ public function updateUserStatus(Request $request)
                 'user_role' => $displayRoles !== '' ? $displayRoles : 'N/A',
                 'status' => ($user->status == "1" ? "Active" : ($user->status == "0" ? "Inactive" : ($user->status == "2" ? "Suspended" : "Unknown"))),
                 'user_location' => $user->user_location ?? 'Unknown',
-                'created_at' => $user->created_at ? $user->created_at->format('Y-m-d H:i:s') : 'N/A',
-                'updated_at' => $user->updated_at ? $user->updated_at->format('Y-m-d H:i:s') : 'N/A'
+                'created_at' => $createdAt ? $createdAt->format('Y-m-d H:i') : 'N/A',
+                'updated_at' => $updatedAt ? $updatedAt->format('Y-m-d H:i') : 'N/A'
             ];
         });
 
