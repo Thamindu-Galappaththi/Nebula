@@ -67,11 +67,11 @@
                     <input type="text" class="form-control" id="studentFilter" name="student_id" placeholder="Enter Student ID or NIC">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small text-muted">From Due Date</label>
+                    <label class="form-label small text-muted">From Collection Date</label>
                     <input type="date" class="form-control" id="startDateFilter" name="start_date">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small text-muted">To Due Date</label>
+                    <label class="form-label small text-muted">To Collection Date</label>
                     <input type="date" class="form-control" id="endDateFilter" name="end_date">
                 </div>
                 <div class="col-md-3">
@@ -1432,6 +1432,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!elLoc) return; // guard if element missing
 
+    function appendDashboardPeriodParams(params) {
+        const range = document.getElementById('rangeFilter')?.value;
+        const startDate = document.getElementById('startDateFilter')?.value;
+        const endDate = document.getElementById('endDateFilter')?.value;
+        if (range) params.append('range', range);
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+    }
+
     const fmt = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtLKR = v => `LKR ${fmt.format(Number(v || 0))}`;
 
@@ -1530,6 +1539,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (courseId) params.append('course_id',    courseId);
         if (intakeId) params.append('intake_id',    intakeId);
         if (ptype)    params.append('payment_type', ptype);
+        appendDashboardPeriodParams(params);
 
         try {
             const res  = await fetch(`${kpiUrl}?${params.toString()}`);
@@ -1567,6 +1577,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (intakeId) params.append('intake_id',      intakeId);
         if (ptype)    params.append('payment_type',   ptype);
         if (instNo)   params.append('installment_no', instNo);
+        appendDashboardPeriodParams(params);
 
         try {
             const res  = await fetch(`${kpiUrl}?${params.toString()}`);
