@@ -270,11 +270,48 @@ class StudentViewFilterTest extends TestCase
         $response = $this->actingAs($this->actor)
             ->postJson($this->route(), ['student_id' => '200528805146']);
 
-        $response->assertOk()
-            ->assertJsonPath('data.0.student_id', $student->student_id)
-            ->assertJsonPath('data.0.course', 'Pearson BTEC International Level 03 Foundation Diploma in Engineering')
-            ->assertJsonPath('data.0.intake', 'BTEC Foundation B04')
-            ->assertJsonPath('data.0.specialization', '-');
+        $response->assertOk();
+        $rows = collect($response->json('data'));
+        $this->assertCount(2, $rows);
+        $this->assertTrue($rows->every(fn ($row) => $row['student_id'] === $student->student_id));
+
+        $byCourse = $rows->keyBy('course');
+        $this->assertSame('-', $byCourse['Pearson BTEC International Level 03 Foundation Diploma in Engineering']['specialization']);
+        $this->assertSame('BTEC Foundation B04', $byCourse['Pearson BTEC International Level 03 Foundation Diploma in Engineering']['intake']);
+        $this->assertSame(
+            'Electrical & Electronic Engineering',
+            $byCourse['B.Eng. (Hons) Electrical & Electronic Engineering']['specialization']
+        );
+    }
+
+    public function test_all_courses_filter_returns_one_row_per_course_registration(): void
+    {
+        $student = $this->makeStudent('200416003270');
+        $dataScience = $this->makeRegistration($student->student_id, 46, 41);
+        $foundation = $this->makeRegistration($student->student_id, 47, 71);
+        $dataScience->course->update(['course_name' => 'B.Sc. (Hons) Data Science']);
+        $dataScience->intake->update(['batch' => '2025-JUl-B09-DS']);
+        $foundation->course->update(['course_name' => 'Pearson BTEC International Level 03 Foundation Diploma in Engineering']);
+        $foundation->intake->update(['batch' => 'BTEC Foundation B04']);
+
+        $response = $this->actingAs($this->actor)
+            ->postJson($this->route(), ['student_id' => '200416003270']);
+
+        $response->assertOk();
+        $rows = collect($response->json('data'));
+
+        $this->assertCount(2, $rows);
+        $this->assertEqualsCanonicalizing(
+            [
+                'B.Sc. (Hons) Data Science',
+                'Pearson BTEC International Level 03 Foundation Diploma in Engineering',
+            ],
+            $rows->pluck('course')->all()
+        );
+        $this->assertEqualsCanonicalizing(
+            ['2025-JUl-B09-DS', 'BTEC Foundation B04'],
+            $rows->pluck('intake')->all()
+        );
     }
 
     public function test_named_course_filter_still_shows_that_course_specialization(): void
