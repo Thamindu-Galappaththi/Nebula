@@ -3,787 +3,660 @@
 @section('title', 'NEBULA | Payment Discount')
 
 @section('content')
-
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
-/* Toast Notification Styles */
-.toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
-    max-width: 400px;
-}
-
-.toast {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    margin-bottom: 10px;
-    padding: 16px 20px;
+  .payment-discount-page [class*="col-"] {
+    min-width: 0;
+  }
+  .payment-discount-page .form-select,
+  .payment-discount-page .form-control {
+    max-width: 100%;
+  }
+  .payment-discount-tabs {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .payment-discount-tabs .nav-link {
+    white-space: nowrap;
+  }
+  .payment-discount-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .payment-discount-table-scroll table {
+    min-width: 720px;
+    margin-bottom: 0;
+  }
+  .payment-discount-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .payment-discount-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .payment-discount-page-size {
     display: flex;
     align-items: center;
-    transform: translateX(100%);
-    transition: transform 0.3s ease-in-out;
-    border-left: 4px solid;
-    min-width: 300px;
-}
-
-.toast.show {
-    transform: translateX(0);
-}
-
-.toast.success {
-    border-left-color: #10b981;
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-}
-
-.toast.error {
-    border-left-color: #ef4444;
-    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-}
-
-.toast.warning {
-    border-left-color: #f59e0b;
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-}
-
-.toast.info {
-    border-left-color: #3b82f6;
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-}
-
-.toast-icon {
-    width: 24px;
-    height: 24px;
-    margin-right: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-}
-
-.toast.success .toast-icon {
-    background: #10b981;
-    color: white;
-}
-
-.toast.error .toast-icon {
-    background: #ef4444;
-    color: white;
-}
-
-.toast.warning .toast-icon {
-    background: #f59e0b;
-    color: white;
-}
-
-.toast.info .toast-icon {
-    background: #3b82f6;
-    color: white;
-}
-
-.toast-content {
-    flex: 1;
-}
-
-.toast-title {
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: #1f2937;
-}
-
-.toast-message {
-    color: #6b7280;
-    font-size: 14px;
-}
-
-.toast-close {
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: color 0.2s;
-}
-
-.toast-close:hover {
-    color: #6b7280;
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
+    gap: 0.5rem;
+  }
+  .payment-discount-page-size select {
+    width: auto;
+    min-width: 4.5rem;
+  }
+  .payment-discount-pagination {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .payment-discount-pagination .pagination {
+    flex-wrap: wrap;
+    margin-bottom: 0;
+  }
+  @media (max-width: 767.98px) {
+    .payment-discount-page .card-body {
+      padding: 1rem 0.75rem;
     }
-    to {
-        transform: translateX(0);
-        opacity: 1;
+    .payment-discount-add-btn,
+    #saveEditDiscount {
+      width: 100%;
     }
-}
-
-@keyframes slideOut {
-    from {
-        transform: translateX(0);
-        opacity: 1;
+    .edit-discount-footer {
+      flex-direction: column;
     }
-    to {
-        transform: translateX(100%);
-        opacity: 0;
+    .edit-discount-footer .btn {
+      width: 100%;
     }
-}
-
-.toast.slide-in {
-    animation: slideIn 0.3s ease-out;
-}
-
-.toast.slide-out {
-    animation: slideOut 0.3s ease-in;
-}
+  }
 </style>
 
-<!-- Toast Container -->
-<div class="toast-container" id="toastContainer"></div>
+<div class="container-fluid px-2 px-md-3 payment-discount-page">
+  <div class="card">
+    <div class="card-body">
+      <h2 class="text-center mb-4">Payment Discount</h2>
+      <hr>
+      <ul class="nav nav-tabs mb-4 payment-discount-tabs" id="discountTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active bg-primary text-white" id="local-course-discounts-tab" data-bs-toggle="tab" data-bs-target="#local-course-discounts" type="button" role="tab" aria-controls="local-course-discounts" aria-selected="true">Discounts for Local Course Fee</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="registration-discounts-tab" data-bs-toggle="tab" data-bs-target="#registration-discounts" type="button" role="tab" aria-controls="registration-discounts" aria-selected="false">Discounts for Registration Fee</button>
+        </li>
+      </ul>
 
-<div class="container-fluid">
-    <div class="card">
-        <div class="card-body">
-            <h2 class="text-center mb-4">Payment Discount</h2>
-            <hr>
-            <ul class="nav nav-tabs mb-4" id="discountTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active bg-primary text-white" id="local-course-discounts-tab" data-bs-toggle="tab" data-bs-target="#local-course-discounts" type="button" role="tab" aria-controls="local-course-discounts" aria-selected="true">Discounts for Local Course Fee</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="registration-discounts-tab" data-bs-toggle="tab" data-bs-target="#registration-discounts" type="button" role="tab" aria-controls="registration-discounts" aria-selected="false">Discounts for Registration Fee</button>
-                </li>
-            </ul>
-            <div class="tab-content" id="discountTabsContent">
-                <!-- Local Course Fee Discounts Tab -->
-                <div class="tab-pane fade show active" id="local-course-discounts" role="tabpanel" aria-labelledby="local-course-discounts-tab">
-                    <form id="local-course-discount-form">
-                        <input type="hidden" id="localCourseDiscountCategory" value="local_course_fee">
-                        <div class="row mb-3 align-items-center">
-                            <label class="col-sm-3 col-form-label fw-bold">Name of Discount<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <input type="text" class="form-control" id="localCourseDiscountName" name="discount_name" required>
-                            </div>
-                        </div>
-                        <div class="row mb-3 align-items-center">
-                            <label class="col-sm-3 col-form-label fw-bold">Discount Type<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <select class="form-select" id="localCourseDiscountType" name="discount_type" required>
-                                    <option value="">Select Type</option>
-                                    <option value="amount">Amount</option>
-                                    <option value="percentage">Percentage</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mb-3 align-items-center">
-                            <label class="col-sm-3 col-form-label fw-bold" id="localCourseDiscountValueLabel">Amount<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <input type="number" class="form-control" id="localCourseDiscountValue" name="discount_value" min="0" step="0.01" required>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-sm-12 text-center">
-                                <button type="button" class="btn btn-success" id="addLocalCourseDiscount">
-                                    <i class="ti ti-plus"></i> Add Discount
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                    
-                    <!-- Local Course Fee Discounts Table -->
-                    <div class="row mb-3">
-                        <div class="col-sm-12">
-                            <h5>Created Discounts for Local Course Fee</h5>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="localCourseDiscountsTable">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Discount Name</th>
-                                            <th>Type</th>
-                                            <th>Value</th>
-                                            <th>Created Date</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Populated by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Registration Fee Discounts Tab -->
-                <div class="tab-pane fade" id="registration-discounts" role="tabpanel" aria-labelledby="registration-discounts-tab">
-                    <form id="registration-discount-form">
-                        <input type="hidden" id="registrationDiscountCategory" value="registration_fee">
-                        <div class="row mb-3 align-items-center">
-                            <label class="col-sm-3 col-form-label fw-bold">Name of Discount<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <input type="text" class="form-control" id="registrationDiscountName" name="discount_name" required>
-                            </div>
-                        </div>
-                        <div class="row mb-3 align-items-center">
-                            <label class="col-sm-3 col-form-label fw-bold">Discount Type<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <select class="form-select" id="registrationDiscountType" name="discount_type" required>
-                                    <option value="">Select Type</option>
-                                    <option value="amount">Amount</option>
-                                    <option value="percentage">Percentage</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mb-3 align-items-center">
-                            <label class="col-sm-3 col-form-label fw-bold" id="registrationDiscountValueLabel">Amount<span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
-                                <input type="number" class="form-control" id="registrationDiscountValue" name="discount_value" min="0" step="0.01" required>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-sm-12 text-center">
-                                <button type="button" class="btn btn-success" id="addRegistrationDiscount">
-                                    <i class="ti ti-plus"></i> Add Discount
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                    
-                    <!-- Registration Fee Discounts Table -->
-                    <div class="row mb-3">
-                        <div class="col-sm-12">
-                            <h5>Created Discounts for Registration Fee</h5>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="registrationDiscountsTable">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Discount Name</th>
-                                            <th>Type</th>
-                                            <th>Value</th>
-                                            <th>Created Date</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Populated by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+      <div class="tab-content" id="discountTabsContent">
+        <div class="tab-pane fade show active" id="local-course-discounts" role="tabpanel" aria-labelledby="local-course-discounts-tab">
+          <form id="local-course-discount-form" novalidate>
+            <input type="hidden" id="localCourseDiscountCategory" value="local_course_fee">
+            <div class="row g-2 mb-3 align-items-center">
+              <label class="col-md-3 col-form-label fw-bold" for="localCourseDiscountName">Name of Discount <span class="text-danger">*</span></label>
+              <div class="col-md-9">
+                <input type="text" class="form-control" id="localCourseDiscountName" name="discount_name" required maxlength="255" autocomplete="off">
+              </div>
             </div>
+            <div class="row g-2 mb-3 align-items-center">
+              <label class="col-md-3 col-form-label fw-bold" for="localCourseDiscountType">Discount Type <span class="text-danger">*</span></label>
+              <div class="col-md-9">
+                <select class="form-select" id="localCourseDiscountType" name="discount_type" required>
+                  <option value="" selected disabled>Select Type</option>
+                  <option value="amount">Amount</option>
+                  <option value="percentage">Percentage</option>
+                </select>
+              </div>
+            </div>
+            <div class="row g-2 mb-3 align-items-center">
+              <label class="col-md-3 col-form-label fw-bold" id="localCourseDiscountValueLabel" for="localCourseDiscountValue">Amount <span class="text-danger">*</span></label>
+              <div class="col-md-9">
+                <input type="number" class="form-control" id="localCourseDiscountValue" name="discount_value" min="0.01" step="0.01" required>
+              </div>
+            </div>
+            <div class="row mb-4">
+              <div class="col-12 col-md-9 offset-md-3">
+                <button type="submit" class="btn btn-success payment-discount-add-btn" id="addLocalCourseDiscount">
+                  <i class="ti ti-plus"></i> Add Discount
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <h5 class="mb-3">Created Discounts for Local Course Fee</h5>
+          <div class="payment-discount-table-scroll">
+            <table class="table table-bordered table-hover align-middle" id="localCourseDiscountsTable">
+              <thead class="table-light">
+                <tr>
+                  <th>#</th>
+                  <th>Discount Name</th>
+                  <th>Type</th>
+                  <th>Value</th>
+                  <th>Created Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="payment-discount-footer mt-3" data-pagination="local_course_fee">
+            <div class="payment-discount-page-size">
+              <label class="form-label mb-0 small text-muted" for="localPerPage">Per page</label>
+              <select id="localPerPage" class="form-select form-select-sm page-size-select" data-category="local_course_fee">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+            <div class="text-muted small" data-range="local_course_fee"></div>
+            <nav class="payment-discount-pagination" aria-label="Local course discounts pages">
+              <ul class="pagination pagination-sm mb-0" data-pages="local_course_fee"></ul>
+            </nav>
+          </div>
         </div>
+
+        <div class="tab-pane fade" id="registration-discounts" role="tabpanel" aria-labelledby="registration-discounts-tab">
+          <form id="registration-discount-form" novalidate>
+            <input type="hidden" id="registrationDiscountCategory" value="registration_fee">
+            <div class="row g-2 mb-3 align-items-center">
+              <label class="col-md-3 col-form-label fw-bold" for="registrationDiscountName">Name of Discount <span class="text-danger">*</span></label>
+              <div class="col-md-9">
+                <input type="text" class="form-control" id="registrationDiscountName" name="discount_name" required maxlength="255" autocomplete="off">
+              </div>
+            </div>
+            <div class="row g-2 mb-3 align-items-center">
+              <label class="col-md-3 col-form-label fw-bold" for="registrationDiscountType">Discount Type <span class="text-danger">*</span></label>
+              <div class="col-md-9">
+                <select class="form-select" id="registrationDiscountType" name="discount_type" required>
+                  <option value="" selected disabled>Select Type</option>
+                  <option value="amount">Amount</option>
+                  <option value="percentage">Percentage</option>
+                </select>
+              </div>
+            </div>
+            <div class="row g-2 mb-3 align-items-center">
+              <label class="col-md-3 col-form-label fw-bold" id="registrationDiscountValueLabel" for="registrationDiscountValue">Amount <span class="text-danger">*</span></label>
+              <div class="col-md-9">
+                <input type="number" class="form-control" id="registrationDiscountValue" name="discount_value" min="0.01" step="0.01" required>
+              </div>
+            </div>
+            <div class="row mb-4">
+              <div class="col-12 col-md-9 offset-md-3">
+                <button type="submit" class="btn btn-success payment-discount-add-btn" id="addRegistrationDiscount">
+                  <i class="ti ti-plus"></i> Add Discount
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <h5 class="mb-3">Created Discounts for Registration Fee</h5>
+          <div class="payment-discount-table-scroll">
+            <table class="table table-bordered table-hover align-middle" id="registrationDiscountsTable">
+              <thead class="table-light">
+                <tr>
+                  <th>#</th>
+                  <th>Discount Name</th>
+                  <th>Type</th>
+                  <th>Value</th>
+                  <th>Created Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="payment-discount-footer mt-3" data-pagination="registration_fee">
+            <div class="payment-discount-page-size">
+              <label class="form-label mb-0 small text-muted" for="registrationPerPage">Per page</label>
+              <select id="registrationPerPage" class="form-select form-select-sm page-size-select" data-category="registration_fee">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+            <div class="text-muted small" data-range="registration_fee"></div>
+            <nav class="payment-discount-pagination" aria-label="Registration discounts pages">
+              <ul class="pagination pagination-sm mb-0" data-pages="registration_fee"></ul>
+            </nav>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 
+<div class="modal fade" id="editDiscountModal" tabindex="-1" aria-labelledby="editDiscountModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="edit-discount-form" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="editDiscountModalLabel">Edit Discount</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editDiscountId">
+          <input type="hidden" id="editDiscountCategory">
+          <div class="mb-3">
+            <label class="form-label fw-bold" for="editDiscountName">Name of Discount <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="editDiscountName" required maxlength="255" autocomplete="off">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" for="editDiscountType">Discount Type <span class="text-danger">*</span></label>
+            <select class="form-select" id="editDiscountType" required>
+              <option value="" disabled>Select Type</option>
+              <option value="amount">Amount</option>
+              <option value="percentage">Percentage</option>
+            </select>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-bold" id="editDiscountValueLabel" for="editDiscountValue">Amount <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="editDiscountValue" min="0.01" step="0.01" required>
+          </div>
+        </div>
+        <div class="modal-footer edit-discount-footer">
+          <button type="submit" class="btn btn-primary" id="saveEditDiscount">
+            <i class="ti ti-device-floppy"></i> Update Discount
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+@endsection
+
+@push('scripts')
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
-$(document).ready(function() {
-    // Local Course Fee Discount tab: change label based on type
-    $('#localCourseDiscountType').on('change', function() {
-        const type = $(this).val();
-        $('#localCourseDiscountValueLabel').text(type === 'percentage' ? 'Percentage' : 'Amount');
-    });
+document.addEventListener('DOMContentLoaded', () => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  const editModalEl = document.getElementById('editDiscountModal');
+  const editModal = editModalEl && typeof bootstrap !== 'undefined'
+    ? bootstrap.Modal.getOrCreateInstance(editModalEl)
+    : null;
 
-    // Registration Fee Discount tab: change label based on type
-    $('#registrationDiscountType').on('change', function() {
-        const type = $(this).val();
-        $('#registrationDiscountValueLabel').text(type === 'percentage' ? 'Percentage' : 'Amount');
-    });
+  const state = {
+    local_course_fee: { page: 1, perPage: 10 },
+    registration_fee: { page: 1, perPage: 10 },
+  };
 
-    // Load discounts from database when page loads
-    loadLocalCourseDiscountsFromDatabase();
-    loadRegistrationDiscountsFromDatabase();
-    
-    // Load local course discounts from database
-    function loadLocalCourseDiscountsFromDatabase() {
-        console.log('Loading local course discounts from database...');
-        
-        fetch('/payment-discount/get-discounts-by-category', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            body: JSON.stringify({
-                category: 'local_course_fee'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Local course discounts API response:', data);
-            if (data.success) {
-                updateLocalCourseDiscountsTable(data.discounts);
-            } else {
-                console.error('Failed to load local course discounts:', data.message);
-                showErrorMessage('Failed to load local course discounts: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error loading local course discounts:', error);
-            showErrorMessage('Error loading local course discounts. Please try again.');
-        });
+  const tables = {
+    local_course_fee: document.querySelector('#localCourseDiscountsTable tbody'),
+    registration_fee: document.querySelector('#registrationDiscountsTable tbody'),
+  };
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+  }
+
+  function showToast(title, message, bg) {
+    const container = document.querySelector('.toast-container');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = `toast align-items-center text-white ${bg} border-0`;
+    el.role = 'alert';
+    el.ariaLive = 'assertive';
+    el.ariaAtomic = 'true';
+    el.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body"><strong>${escapeHtml(title)}:</strong> ${escapeHtml(message)}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>`;
+    container.appendChild(el);
+    if (typeof bootstrap !== 'undefined') {
+      new bootstrap.Toast(el).show();
     }
-    
-    // Load registration discounts from database
-    function loadRegistrationDiscountsFromDatabase() {
-        console.log('Loading registration discounts from database...');
-        
-        fetch('/payment-discount/get-discounts-by-category', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            body: JSON.stringify({
-                category: 'registration_fee'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Registration discounts API response:', data);
-            if (data.success) {
-                updateRegistrationDiscountsTable(data.discounts);
-            } else {
-                console.error('Failed to load registration discounts:', data.message);
-                showErrorMessage('Failed to load registration discounts: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error loading registration discounts:', error);
-            showErrorMessage('Error loading registration discounts. Please try again.');
-        });
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+  }
+
+  function jsonHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': csrfToken,
+      'Accept': 'application/json',
+    };
+  }
+
+  function requiredStarHtml(label) {
+    return `${label} <span class="text-danger">*</span>`;
+  }
+
+  function syncValueField(typeSelect, valueInput, labelEl) {
+    const isPercentage = typeSelect.value === 'percentage';
+    labelEl.innerHTML = requiredStarHtml(isPercentage ? 'Percentage' : 'Amount');
+    valueInput.min = '0.01';
+    if (isPercentage) {
+      valueInput.max = '100';
+    } else {
+      valueInput.removeAttribute('max');
     }
+  }
 
-    // Add/Update Local Course Fee discount functionality
-    $('#addLocalCourseDiscount').on('click', function() {
-        const discountName = $('#localCourseDiscountName').val().trim();
-        const discountType = $('#localCourseDiscountType').val();
-        const discountValue = parseFloat($('#localCourseDiscountValue').val()) || 0;
-        const discountCategory = $('#localCourseDiscountCategory').val();
-        const editId = $(this).attr('data-edit-id');
+  function readForm(form) {
+    const name = form.querySelector('[name="discount_name"], #editDiscountName').value.trim();
+    const type = form.querySelector('[name="discount_type"], #editDiscountType').value;
+    const value = parseFloat(form.querySelector('[name="discount_value"], #editDiscountValue').value);
+    return { name, type, value };
+  }
 
-        // Validation
-        if (!discountName) {
-            alert('Please enter a discount name.');
-            return;
-        }
-        if (!discountType) {
-            alert('Please select a discount type.');
-            return;
-        }
-        if (discountValue <= 0) {
-            alert('Please enter a valid discount value.');
-            return;
-        }
+  function validateDiscount({ name, type, value }) {
+    if (!name) return 'Please enter a discount name.';
+    if (!type) return 'Please select a discount type.';
+    if (!Number.isFinite(value) || value <= 0) return 'Please enter a valid discount value.';
+    if (type === 'percentage' && value > 100) return 'Percentage cannot be greater than 100.';
+    return null;
+  }
 
-        if (editId) {
-            // Update existing discount
-            updateDiscountInDatabase(editId, discountName, discountType, discountValue, discountCategory, 'local');
-        } else {
-            // Save new discount to database
-            saveDiscountToDatabase(discountName, discountType, discountValue, discountCategory, 'local');
-        }
-    });
+  function typeLabel(type) {
+    return type === 'percentage' ? 'Percentage' : 'Amount';
+  }
 
-    // Add/Update Registration Fee discount functionality
-    $('#addRegistrationDiscount').on('click', function() {
-        const discountName = $('#registrationDiscountName').val().trim();
-        const discountType = $('#registrationDiscountType').val();
-        const discountValue = parseFloat($('#registrationDiscountValue').val()) || 0;
-        const discountCategory = $('#registrationDiscountCategory').val();
-        const editId = $(this).attr('data-edit-id');
+  function valueDisplay(discount) {
+    const numericValue = parseFloat(discount.value) || 0;
+    return discount.type === 'percentage'
+      ? `${numericValue}%`
+      : `LKR ${numericValue.toFixed(2)}`;
+  }
 
-        // Validation
-        if (!discountName) {
-            alert('Please enter a discount name.');
-            return;
-        }
-        if (!discountType) {
-            alert('Please select a discount type.');
-            return;
-        }
-        if (discountValue <= 0) {
-            alert('Please enter a valid discount value.');
-            return;
-        }
+  function confirmDelete() {
+    if (typeof Swal === 'undefined') {
+      return Promise.resolve(false);
+    }
+    return Swal.fire({
+      title: 'Delete discount?',
+      text: 'This discount will no longer be available.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+      focusCancel: true,
+    }).then(result => result.isConfirmed);
+  }
 
-        if (editId) {
-            // Update existing discount
-            updateDiscountInDatabase(editId, discountName, discountType, discountValue, discountCategory, 'registration');
-        } else {
-            // Save new discount to database
-            saveDiscountToDatabase(discountName, discountType, discountValue, discountCategory, 'registration');
-        }
-    });
+  function renderPagination(category, meta) {
+    const rangeEl = document.querySelector(`[data-range="${category}"]`);
+    const pagesEl = document.querySelector(`[data-pages="${category}"]`);
+    if (!rangeEl || !pagesEl) return;
 
-    // Save discount to database
-    function saveDiscountToDatabase(name, type, value, category, tabType) {
-        console.log('Saving discount:', { name, type, value, category, tabType });
-        console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
-        
-        const requestData = {
-            name: name,
-            type: type,
-            discount_category: category,
-            value: value
-        };
-        
-        console.log('Request data:', requestData);
-        
-        fetch('/payment-discount/save-discount', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            body: JSON.stringify(requestData)
-        })
-        .then(response => {
-            console.log('Response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('Save discount response:', data);
-            if (data.success) {
-                showSuccessMessage('Discount saved successfully! 🎉');
-                if (tabType === 'local') {
-                    loadLocalCourseDiscountsFromDatabase();
-                    $('#local-course-discount-form')[0].reset();
-                    $('#localCourseDiscountValueLabel').text('Amount');
-                } else {
-                    loadRegistrationDiscountsFromDatabase();
-                    $('#registration-discount-form')[0].reset();
-                    $('#registrationDiscountValueLabel').text('Amount');
-                }
-            } else {
-                showErrorMessage('Error saving discount: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error saving discount:', error);
-            showErrorMessage('Error saving discount. Please try again.');
-        });
+    const total = Number(meta.total || 0);
+    const page = Number(meta.current_page || 1);
+    const lastPage = Math.max(1, Number(meta.last_page || 1));
+    pagesEl.innerHTML = '';
+
+    if (!total) {
+      rangeEl.textContent = '';
+      return;
     }
 
-    // Update discount in database
-    function updateDiscountInDatabase(id, name, type, value, category, tabType) {
-        fetch('/payment-discount/update-discount', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            body: JSON.stringify({
-                id: id,
-                name: name,
-                type: type,
-                discount_category: category,
-                value: value
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showSuccessMessage('Discount updated successfully! ✨');
-                if (tabType === 'local') {
-                    loadLocalCourseDiscountsFromDatabase();
-                    $('#local-course-discount-form')[0].reset();
-                    $('#localCourseDiscountValueLabel').text('Amount');
-                    $('#addLocalCourseDiscount').text('Add Discount').removeAttr('data-edit-id');
-                } else {
-                    loadRegistrationDiscountsFromDatabase();
-                    $('#registration-discount-form')[0].reset();
-                    $('#registrationDiscountValueLabel').text('Amount');
-                    $('#addRegistrationDiscount').text('Add Discount').removeAttr('data-edit-id');
-                }
-            } else {
-                showErrorMessage('Error updating discount: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error updating discount:', error);
-            showErrorMessage('Error updating discount. Please try again.');
-        });
-    }
+    rangeEl.textContent = `Showing ${meta.from} to ${meta.to} of ${total}`;
 
-    function updateLocalCourseDiscountsTable(discounts) {
-        let tableRows = '';
-        if (discounts.length === 0) {
-            tableRows = '<tr><td colspan="7" class="text-center text-muted">No discounts found</td></tr>';
-        } else {
-            discounts.forEach((discount, index) => {
-                // Ensure value is a number before calling toFixed
-                const numericValue = parseFloat(discount.value) || 0;
-                const valueDisplay = discount.type === 'percentage' ? 
-                    `${numericValue}%` : 
-                    `LKR ${numericValue.toFixed(2)}`;
-                
-                tableRows += `<tr>
-                    <td>${index + 1}</td>
-                    <td>${discount.name}</td>
-                    <td><span class="badge bg-${discount.type === 'percentage' ? 'info' : 'primary'}">${discount.type}</span></td>
-                    <td>${valueDisplay}</td>
-                    <td>${new Date(discount.created_at).toLocaleDateString()}</td>
-                    <td><span class="badge bg-success">${discount.status}</span></td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-warning edit-local-course-discount" data-id="${discount.id}">
-                            <i class="ti ti-edit"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-danger delete-local-course-discount" data-id="${discount.id}">
-                            <i class="ti ti-trash"></i>
-                        </button>
-                    </td>
-                </tr>`;
-            });
-        }
-        $('#localCourseDiscountsTable tbody').html(tableRows);
-    }
-
-    function updateRegistrationDiscountsTable(discounts) {
-        console.log('Updating registration discounts table with:', discounts);
-        
-        let tableRows = '';
-        if (discounts.length === 0) {
-            tableRows = '<tr><td colspan="7" class="text-center text-muted">No discounts found</td></tr>';
-        } else {
-            discounts.forEach((discount, index) => {
-                // Ensure value is a number before calling toFixed
-                const numericValue = parseFloat(discount.value) || 0;
-                const valueDisplay = discount.type === 'percentage' ? 
-                    `${numericValue}%` : 
-                    `LKR ${numericValue.toFixed(2)}`;
-                
-                tableRows += `<tr>
-                    <td>${index + 1}</td>
-                    <td>${discount.name}</td>
-                    <td><span class="badge bg-${discount.type === 'percentage' ? 'info' : 'primary'}">${discount.type}</span></td>
-                    <td>${valueDisplay}</td>
-                    <td>${new Date(discount.created_at).toLocaleDateString()}</td>
-                    <td><span class="badge bg-success">${discount.status}</span></td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-warning edit-registration-discount" data-id="${discount.id}">
-                            <i class="ti ti-edit"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-danger delete-registration-discount" data-id="${discount.id}">
-                            <i class="ti ti-trash"></i>
-                        </button>
-                    </td>
-                </tr>`;
-            });
-        }
-        $('#registrationDiscountsTable tbody').html(tableRows);
-        console.log('Table updated successfully. Rows added:', discounts.length);
-    }
-
-    // Edit Local Course Fee discount
-    $(document).on('click', '.edit-local-course-discount', function() {
-        const discountId = parseInt($(this).data('id'));
-        
-        // Load discount details for editing
-        fetch(`/payment-discount/get-discounts`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const discount = data.discounts.find(d => d.id === discountId);
-                if (discount) {
-                    $('#localCourseDiscountName').val(discount.name);
-                    $('#localCourseDiscountType').val(discount.type);
-                    $('#localCourseDiscountValue').val(discount.value);
-                    $('#localCourseDiscountValueLabel').text(discount.type === 'percentage' ? 'Percentage' : 'Amount');
-                    
-                    // Change add button to update button
-                    $('#addLocalCourseDiscount').text('Update Discount').attr('data-edit-id', discountId);
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error loading discount for edit:', error);
-        });
-    });
-
-    // Edit Registration Fee discount
-    $(document).on('click', '.edit-registration-discount', function() {
-        const discountId = parseInt($(this).data('id'));
-        
-        // Load discount details for editing
-        fetch(`/payment-discount/get-discounts`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const discount = data.discounts.find(d => d.id === discountId);
-                if (discount) {
-                    $('#registrationDiscountName').val(discount.name);
-                    $('#registrationDiscountType').val(discount.type);
-                    $('#registrationDiscountValue').val(discount.value);
-                    $('#registrationDiscountValueLabel').text(discount.type === 'percentage' ? 'Percentage' : 'Amount');
-                    
-                    // Change add button to update button
-                    $('#addRegistrationDiscount').text('Update Discount').attr('data-edit-id', discountId);
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error loading discount for edit:', error);
-        });
-    });
-
-    // Delete Local Course Fee discount
-    $(document).on('click', '.delete-local-course-discount', function() {
-        const discountId = parseInt($(this).data('id'));
-        
-        if (confirm('Are you sure you want to delete this discount?')) {
-            fetch('/payment-discount/delete-discount', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                body: JSON.stringify({
-                    id: discountId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showSuccessMessage('Discount deleted successfully! 🗑️');
-                    loadLocalCourseDiscountsFromDatabase();
-                } else {
-                    showErrorMessage('Error deleting discount: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error deleting discount:', error);
-                showErrorMessage('Error deleting discount. Please try again.');
-            });
-        }
-    });
-
-    // Delete Registration Fee discount
-    $(document).on('click', '.delete-registration-discount', function() {
-        const discountId = parseInt($(this).data('id'));
-        
-        if (confirm('Are you sure you want to delete this discount?')) {
-            fetch('/payment-discount/delete-discount', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                body: JSON.stringify({
-                    id: discountId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showSuccessMessage('Discount deleted successfully! 🗑️');
-                    loadRegistrationDiscountsFromDatabase();
-                } else {
-                    showErrorMessage('Error deleting discount: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error deleting discount:', error);
-                showErrorMessage('Error deleting discount. Please try again.');
-            });
-        }
-    });
-
-    // Toast Notification Functions
-    function showSuccessMessage(message) {
-        showToast('Success', message, 'success');
-    }
-
-    function showErrorMessage(message) {
-        showToast('Error', message, 'error');
-    }
-
-    function showWarningMessage(message) {
-        showToast('Warning', message, 'warning');
-    }
-
-    function showInfoMessage(message) {
-        showToast('Info', message, 'info');
-    }
-
-    function showToast(title, message, type = 'info') {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        const toastId = 'toast-' + Date.now();
-        
-        const icons = {
-            success: '✓',
-            error: '✕',
-            warning: '⚠',
-            info: 'ℹ'
-        };
-
-        toast.className = `toast ${type}`;
-        toast.id = toastId;
-        toast.innerHTML = `
-            <div class="toast-icon">
-                ${icons[type]}
-            </div>
-            <div class="toast-content">
-                <div class="toast-title">${title}</div>
-                <div class="toast-message">${message}</div>
-            </div>
-            <button class="toast-close" data-toast-id="${toastId}">
-                ×
-            </button>
-        `;
-
-        container.appendChild(toast);
-
-        // Trigger animation
-        setTimeout(() => {
-            toast.classList.add('show');
-        }, 10);
-
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            removeToast(toastId);
-        }, 5000);
-    }
-
-    // Make removeToast globally accessible
-    // Event delegation for toast close buttons
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.toast-close')) {
-            const closeBtn = e.target.closest('.toast-close');
-            const toastId = closeBtn.dataset.toastId;
-            if (toastId) {
-                removeToast(toastId);
-            }
-        }
-    });
-
-    window.removeToast = function(toastId) {
-        const toast = document.getElementById(toastId);
-        if (toast) {
-            toast.classList.add('slide-out');
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
-                }
-            }, 300);
-        }
+    const addItem = (label, targetPage, options = {}) => {
+      const li = document.createElement('li');
+      li.className = 'page-item';
+      if (options.disabled) li.classList.add('disabled');
+      if (options.active) li.classList.add('active');
+      const el = document.createElement(options.disabled || options.active ? 'span' : 'button');
+      el.className = 'page-link';
+      el.textContent = label;
+      if (el.tagName === 'BUTTON') {
+        el.type = 'button';
+        el.addEventListener('click', () => loadDiscounts(category, targetPage));
+      }
+      li.appendChild(el);
+      pagesEl.appendChild(li);
     };
 
-    // Tab coloring logic (like all clearance page)
-    $('#discountTabs .nav-link').on('shown.bs.tab', function (e) {
-        $('#discountTabs .nav-link').removeClass('bg-primary text-white');
-        $(e.target).addClass('bg-primary text-white');
+    addItem('Previous', page - 1, { disabled: page <= 1 });
+    const start = Math.max(1, page - 2);
+    const end = Math.min(lastPage, page + 2);
+    if (start > 1) {
+      addItem('1', 1);
+      if (start > 2) addItem('...', page, { disabled: true });
+    }
+    for (let i = start; i <= end; i++) {
+      addItem(String(i), i, { active: i === page });
+    }
+    if (end < lastPage) {
+      if (end < lastPage - 1) addItem('...', page, { disabled: true });
+      addItem(String(lastPage), lastPage);
+    }
+    addItem('Next', page + 1, { disabled: page >= lastPage });
+  }
+
+  function renderTable(category, discounts, meta) {
+    const tbody = tables[category];
+    if (!tbody) return;
+    const from = Number(meta.from || 1);
+
+    if (!discounts.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No discounts found</td></tr>';
+      renderPagination(category, meta);
+      return;
+    }
+
+    tbody.innerHTML = discounts.map((discount, index) => {
+      const status = String(discount.status || 'active');
+      const statusClass = status.toLowerCase() === 'active' ? 'success' : 'secondary';
+      return `<tr>
+        <td>${from + index}</td>
+        <td>${escapeHtml(discount.name)}</td>
+        <td><span class="badge bg-${discount.type === 'percentage' ? 'info' : 'primary'}">${escapeHtml(typeLabel(discount.type))}</span></td>
+        <td>${escapeHtml(valueDisplay(discount))}</td>
+        <td>${discount.created_at ? escapeHtml(new Date(discount.created_at).toLocaleDateString()) : '-'}</td>
+        <td><span class="badge bg-${statusClass}">${escapeHtml(status.charAt(0).toUpperCase() + status.slice(1))}</span></td>
+        <td>
+          <div class="payment-discount-actions">
+            <button type="button" class="btn btn-sm btn-warning edit-discount"
+              data-id="${escapeHtml(discount.id)}"
+              data-name="${escapeHtml(discount.name)}"
+              data-type="${escapeHtml(discount.type)}"
+              data-value="${escapeHtml(discount.value)}"
+              data-category="${escapeHtml(category)}">
+              <i class="ti ti-edit"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-danger delete-discount"
+              data-id="${escapeHtml(discount.id)}"
+              data-category="${escapeHtml(category)}">
+              <i class="ti ti-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    renderPagination(category, meta);
+  }
+
+  async function loadDiscounts(category, page) {
+    const current = state[category];
+    current.page = page || current.page;
+    try {
+      const response = await fetch('{{ route('payment.discount.get.discounts.by.category') }}', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({
+          category,
+          page: current.page,
+          per_page: current.perPage,
+        }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        showToast('Error', data.message || 'Failed to load discounts.', 'bg-danger');
+        return;
+      }
+      if (Array.isArray(data.discounts) && data.discounts.length === 0 && Number(data.current_page) > 1) {
+        return loadDiscounts(category, Number(data.current_page) - 1);
+      }
+      current.page = Number(data.current_page || 1);
+      renderTable(category, data.discounts || [], data);
+    } catch (error) {
+      showToast('Error', 'Error loading discounts. Please try again.', 'bg-danger');
+    }
+  }
+
+  async function saveDiscount(payload, isUpdate = false) {
+    const url = isUpdate
+      ? '{{ route('payment.discount.update.discount') }}'
+      : '{{ route('payment.discount.save.discount') }}';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify(payload),
     });
+    const data = await response.json().catch(() => ({ success: false, message: 'Request failed.' }));
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Request failed.');
+    }
+    return data;
+  }
+
+  function bindTypeSync(typeSelect, valueInput, labelEl) {
+    typeSelect.addEventListener('change', () => syncValueField(typeSelect, valueInput, labelEl));
+    syncValueField(typeSelect, valueInput, labelEl);
+  }
+
+  function bindCreateForm(form, category) {
+    const typeSelect = form.querySelector('[name="discount_type"]');
+    const valueInput = form.querySelector('[name="discount_value"]');
+    const labelEl = form.querySelector('label[id$="DiscountValueLabel"]');
+    bindTypeSync(typeSelect, valueInput, labelEl);
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      const values = readForm(form);
+      const error = validateDiscount(values);
+      if (error) {
+        showToast('Error', error, 'bg-danger');
+        return;
+      }
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      try {
+        await saveDiscount({
+          name: values.name,
+          type: values.type,
+          discount_category: category,
+          value: values.value,
+        });
+        showToast('Success', 'Discount saved successfully.', 'bg-success');
+        form.reset();
+        typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        syncValueField(typeSelect, valueInput, labelEl);
+        state[category].page = 1;
+        loadDiscounts(category, 1);
+      } catch (err) {
+        showToast('Error', err.message, 'bg-danger');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  bindCreateForm(document.getElementById('local-course-discount-form'), 'local_course_fee');
+  bindCreateForm(document.getElementById('registration-discount-form'), 'registration_fee');
+  bindTypeSync(
+    document.getElementById('editDiscountType'),
+    document.getElementById('editDiscountValue'),
+    document.getElementById('editDiscountValueLabel')
+  );
+
+  document.getElementById('edit-discount-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    const values = {
+      name: document.getElementById('editDiscountName').value.trim(),
+      type: document.getElementById('editDiscountType').value,
+      value: parseFloat(document.getElementById('editDiscountValue').value),
+    };
+    const error = validateDiscount(values);
+    if (error) {
+      showToast('Error', error, 'bg-danger');
+      return;
+    }
+    const submitBtn = document.getElementById('saveEditDiscount');
+    submitBtn.disabled = true;
+    try {
+      await saveDiscount({
+        id: document.getElementById('editDiscountId').value,
+        name: values.name,
+        type: values.type,
+        discount_category: document.getElementById('editDiscountCategory').value,
+        value: values.value,
+      }, true);
+      showToast('Success', 'Discount updated successfully.', 'bg-success');
+      editModal?.hide();
+      loadDiscounts(document.getElementById('editDiscountCategory').value);
+    } catch (err) {
+      showToast('Error', err.message, 'bg-danger');
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  document.addEventListener('click', async (event) => {
+    const editBtn = event.target.closest('.edit-discount');
+    if (editBtn) {
+      document.getElementById('editDiscountId').value = editBtn.dataset.id || '';
+      document.getElementById('editDiscountCategory').value = editBtn.dataset.category || '';
+      document.getElementById('editDiscountName').value = editBtn.dataset.name || '';
+      const typeSelect = document.getElementById('editDiscountType');
+      typeSelect.value = editBtn.dataset.type || '';
+      typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('editDiscountValue').value = editBtn.dataset.value || '';
+      syncValueField(typeSelect, document.getElementById('editDiscountValue'), document.getElementById('editDiscountValueLabel'));
+      editModal?.show();
+      return;
+    }
+
+    const deleteBtn = event.target.closest('.delete-discount');
+    if (!deleteBtn) return;
+    const confirmed = await confirmDelete();
+    if (!confirmed) return;
+    try {
+      const response = await fetch('{{ route('payment.discount.delete.discount') }}', {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ id: Number(deleteBtn.dataset.id) }),
+      });
+      const data = await response.json().catch(() => ({ success: false, message: 'Request failed.' }));
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Error deleting discount.');
+      }
+      showToast('Success', 'Discount deleted successfully.', 'bg-success');
+      loadDiscounts(deleteBtn.dataset.category);
+    } catch (err) {
+      showToast('Error', err.message, 'bg-danger');
+    }
+  });
+
+  document.querySelectorAll('.page-size-select[data-category]').forEach(select => {
+    select.addEventListener('change', () => {
+      const category = select.dataset.category;
+      state[category].perPage = Number(select.value || 10);
+      loadDiscounts(category, 1);
+    });
+  });
+
+  document.querySelectorAll('#discountTabs .nav-link').forEach(tab => {
+    tab.addEventListener('shown.bs.tab', (event) => {
+      document.querySelectorAll('#discountTabs .nav-link').forEach(link => link.classList.remove('bg-primary', 'text-white'));
+      event.target.classList.add('bg-primary', 'text-white');
+    });
+  });
+
+  loadDiscounts('local_course_fee', 1);
+  loadDiscounts('registration_fee', 1);
 });
 </script>
-@endsection 
+@endpush
