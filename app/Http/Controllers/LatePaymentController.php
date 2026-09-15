@@ -2,28 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Student;
-use App\Models\Course;
 use App\Models\CourseRegistration;
 use App\Models\PaymentDetail;
+use App\Models\PaymentPlan;
+use App\Models\Student;
 use App\Models\StudentPaymentPlan;
-use App\Models\PaymentInstallment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 
 class LatePaymentController extends Controller
 {
-    /**
-     * Display the late payment page.
-     */
     public function index()
     {
         return view('payments.late_payment');
     }
 
-    /**
-     * Get payment plan for local course fee.
-     */
     public function getPaymentPlan(Request $request)
     {
         try {
@@ -32,14 +26,12 @@ class LatePaymentController extends Controller
                 'course_id' => 'required|integer|exists:courses,course_id',
             ]);
 
-            // Find student by NIC
-            $student = Student::where('id_value', $request->student_nic)->first();
-            
+            $student = $this->findStudent($request->student_nic);
+
             if (!$student) {
-                return response()->json(['success' => false, 'message' => 'Student not found with the provided NIC.'], Response::HTTP_NOT_FOUND);
+                return response()->json(['success' => false, 'message' => 'Student not found with the provided NIC or Student ID.'], Response::HTTP_NOT_FOUND);
             }
 
-            // Get course registration for this student and course
             $registration = CourseRegistration::where('student_id', $student->student_id)
                 ->where('course_id', $request->course_id)
                 ->with(['student', 'course', 'intake'])
@@ -49,7 +41,6 @@ class LatePaymentController extends Controller
                 return response()->json(['success' => false, 'message' => 'Student is not registered for this course.'], Response::HTTP_NOT_FOUND);
             }
 
-            // Get student-specific payment plan first, then fallback to general payment plan
             $studentPaymentPlan = StudentPaymentPlan::where('student_id', $student->student_id)
                 ->where('course_id', $request->course_id)
                 ->with(['installments'])
@@ -59,12 +50,12 @@ class LatePaymentController extends Controller
             $installments = collect();
 
             if ($studentPaymentPlan) {
-                // Use student-specific payment plan
                 $paymentPlan = $studentPaymentPlan;
-                $installments = $studentPaymentPlan->installments;
+                $installments = $studentPaymentPlan->installments
+                    ->sortBy('installment_number')
+                    ->values();
             } else {
-                // Fallback to general payment plan
-                $generalPaymentPlan = \App\Models\PaymentPlan::where('course_id', $registration->course_id)
+                $generalPaymentPlan = PaymentPlan::where('course_id', $registration->course_id)
                     ->where('intake_id', $registration->intake_id)
                     ->first();
 
@@ -75,13 +66,15 @@ class LatePaymentController extends Controller
                     }
 
                     if (is_array($installmentsData)) {
-                        // Convert general payment plan installments to the format expected
                         $installments = collect($installmentsData)->map(function ($installment, $index) {
                             return (object) [
                                 'installment_number' => $installment['installment_number'] ?? ($index + 1),
                                 'due_date' => $installment['due_date'] ?? now()->addDays(30 * ($index + 1))->toDateString(),
                                 'amount' => $installment['local_amount'] ?? 0,
-                                'status' => 'pending'
+                                'final_amount' => $installment['final_amount'] ?? ($installment['local_amount'] ?? 0),
+                                'status' => 'pending',
+                                'approved_late_fee' => 0,
+                                'approval_note' => null,
                             ];
                         });
                     }
@@ -92,11 +85,11 @@ class LatePaymentController extends Controller
                 return response()->json(['success' => false, 'message' => 'No payment plan found for this student and course.'], Response::HTTP_NOT_FOUND);
             }
 
-            // Calculate course fee (local course fee)
-            $courseFee = $registration->intake->registration_fee ?? 0;
-            if ($installments->isNotEmpty()) {
-                $courseFee += $installments->sum('amount');
-            }
+            $courseFee = $paymentPlan
+                ? (float) ($paymentPlan->final_amount ?? $paymentPlan->total_amount ?? 0)
+                : (float) $installments->sum(function ($installment) {
+                    return $installment->final_amount ?? $installment->amount ?? 0;
+                });
 
             $studentData = [
                 'student_id' => $registration->student->student_id,
@@ -107,44 +100,33 @@ class LatePaymentController extends Controller
                 'intake_name' => $registration->intake->batch ?? 'N/A',
                 'course_fee' => $courseFee,
                 'total_amount' => $courseFee,
-                'registration_date' => $registration->registration_date,
+                'registration_date' => optional($registration->registration_date)->format('Y-m-d'),
                 'status' => $registration->status,
             ];
 
-           // Get installments with late payment status
             $processedInstallments = $installments->map(function ($installment) {
-    $dueDate = \Carbon\Carbon::parse($installment->due_date);
-    $isLate  = $dueDate->isPast() && $installment->status !== 'paid';
-    $daysLate = $isLate ? $dueDate->diffInDays(now()) : 0;
+                $dueDate = \Carbon\Carbon::parse($installment->due_date)->startOfDay();
+                $isLate = $dueDate->lt(now()->startOfDay()) && $installment->status !== 'paid';
+                $daysLate = $isLate ? $this->wholeDaysLate($dueDate, now()) : 0;
+                $finalAmount = $installment->final_amount ?? $installment->amount;
+                $calculatedLateFee = $isLate ? $this->calculateLateFee($finalAmount, $daysLate) : 0;
+                $approvedReduction = $installment->approved_late_fee ?? 0;
+                $effectiveLateFee = max(0, $calculatedLateFee - $approvedReduction);
 
-    $finalAmount = $installment->final_amount ?? $installment->amount;
-
-    // Calculate normal late fee
-    $calculatedLateFee = $isLate ? $this->calculateLateFee($finalAmount, $daysLate) : 0;
-
-    // ✅ If approved_late_fee exists, reduce it from calculated late fee
-    $approvedReduction = $installment->approved_late_fee ?? 0;
-    $effectiveLateFee  = max(0, $calculatedLateFee - $approvedReduction);
-
-    // Total due = base + effective late fee
-    $totalDue = $finalAmount + $effectiveLateFee;
-
-    return [
-        'installment_number'   => $installment->installment_number,
-        'due_date'             => $installment->due_date,
-        'amount'               => $finalAmount,
-        'status'               => $installment->status,
-        'is_late'              => $isLate,
-        'days_late'            => $daysLate,
-        'late_fee'             => $calculatedLateFee,
-        'approved_late_fee'    => $approvedReduction,
-        'effective_late_fee'   => $effectiveLateFee, // 👈 what’s actually applied
-        'approval_note'        => $installment->approval_note,
-        'total_due'            => $totalDue,
-    ];
-});
-
-
+                return [
+                    'installment_number' => $installment->installment_number,
+                    'due_date' => $installment->due_date,
+                    'amount' => $finalAmount,
+                    'status' => $installment->status,
+                    'is_late' => $isLate,
+                    'days_late' => $daysLate,
+                    'late_fee' => $calculatedLateFee,
+                    'approved_late_fee' => $approvedReduction,
+                    'effective_late_fee' => $effectiveLateFee,
+                    'approval_note' => $installment->approval_note ?? null,
+                    'total_due' => $finalAmount + $effectiveLateFee,
+                ];
+            });
 
             return response()->json([
                 'success' => true,
@@ -155,17 +137,18 @@ class LatePaymentController extends Controller
                     'total_amount' => $paymentPlan ? $paymentPlan->total_amount : $courseFee,
                     'final_amount' => $paymentPlan ? $paymentPlan->final_amount : $courseFee,
                     'installments' => $processedInstallments,
-                ]
+                ],
             ]);
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
-    /**
-     * Get paid local course fee payment details.
-     */
     public function getPaidPaymentDetails(Request $request)
     {
         try {
@@ -174,14 +157,12 @@ class LatePaymentController extends Controller
                 'course_id' => 'required|integer|exists:courses,course_id',
             ]);
 
-            // Find student by NIC
-            $student = Student::where('id_value', $request->student_nic)->first();
-            
+            $student = $this->findStudent($request->student_nic);
+
             if (!$student) {
-                return response()->json(['success' => false, 'message' => 'Student not found with the provided NIC.'], Response::HTTP_NOT_FOUND);
+                return response()->json(['success' => false, 'message' => 'Student not found with the provided NIC or Student ID.'], Response::HTTP_NOT_FOUND);
             }
 
-            // Get course registration
             $registration = CourseRegistration::where('student_id', $student->student_id)
                 ->where('course_id', $request->course_id)
                 ->first();
@@ -190,15 +171,17 @@ class LatePaymentController extends Controller
                 return response()->json(['success' => false, 'message' => 'Student is not registered for this course.'], Response::HTTP_NOT_FOUND);
             }
 
-            // Get paid payment details for course fee
             $paidPayments = PaymentDetail::where('student_id', $student->student_id)
                 ->where('course_registration_id', $registration->id)
-                ->where('status', 'paid') // Only paid payments
+                ->where('status', 'paid')
+                ->whereNull('misc_category')
+                ->where(function ($query) {
+                    $query->whereNull('installment_type')
+                        ->orWhere('installment_type', 'course_fee');
+                })
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($payment) {
-                    // Use payment_effective_date when available (the actual date the student
-                    // paid), falling back to payment_date, then created_at as a last resort.
                     $effectiveDateRef = $payment->payment_effective_date
                         ?? $payment->payment_date
                         ?? $payment->created_at;
@@ -220,17 +203,18 @@ class LatePaymentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'paid_payments' => $paidPayments
+                'paid_payments' => $paidPayments,
             ]);
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
-    /**
-     * Get student courses by NIC.
-     */
     public function getStudentCourses(Request $request)
     {
         try {
@@ -238,93 +222,93 @@ class LatePaymentController extends Controller
                 'student_nic' => 'required|string',
             ]);
 
-            // Find student by NIC
-            $student = Student::where('id_value', $request->student_nic)->first();
-            
+            $student = $this->findStudent($request->student_nic);
+
             if (!$student) {
-                return response()->json(['success' => false, 'message' => 'Student not found with the provided NIC.'], Response::HTTP_NOT_FOUND);
+                return response()->json(['success' => false, 'message' => 'Student not found with the provided NIC or Student ID.'], Response::HTTP_NOT_FOUND);
             }
 
-            // Get courses that the student is registered for
             $courses = CourseRegistration::where('student_id', $student->student_id)
                 ->with(['course'])
                 ->get()
+                ->filter(fn ($registration) => $registration->course)
                 ->map(function ($registration) {
                     return [
                         'course_id' => $registration->course->course_id,
                         'course_name' => $registration->course->course_name,
-                        'registration_date' => $registration->registration_date->format('Y-m-d'),
+                        'registration_date' => optional($registration->registration_date)->format('Y-m-d') ?? 'N/A',
                         'status' => $registration->status,
                     ];
-                });
+                })
+                ->values();
 
             return response()->json([
                 'success' => true,
-                'courses' => $courses
+                'courses' => $courses,
             ]);
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
-    /**
-     * Calculate late fee based on amount and days late.
-     */
+    private function findStudent($input): ?Student
+    {
+        $value = trim((string) $input);
+        if ($value === '') {
+            return null;
+        }
+
+        return Student::query()
+            ->where(function ($query) use ($value) {
+                $query->where('id_value', $value)
+                    ->orWhere('student_id', $value);
+            })
+            ->first();
+    }
+
+    private function wholeDaysLate($from, $to): int
+    {
+        if (!$from || !$to) {
+            return 0;
+        }
+
+        $start = \Carbon\Carbon::parse($from)->startOfDay();
+        $end = \Carbon\Carbon::parse($to)->startOfDay();
+
+        if ($end->lte($start)) {
+            return 0;
+        }
+
+        return (int) round($start->diffInDays($end));
+    }
+
     private function calculateLateFee($amount, $daysLate)
     {
-        // 5% monthly rate
         $monthlyRate = 0.05;
-
-        // Convert to daily rate (5% / 30 days)
         $dailyRate = $monthlyRate / 30;
-
-        // Apply formula: Installment Fee * 5/100/30 * Number of Late Days
         $lateFee = $amount * $dailyRate * $daysLate;
-
-        // Cap late fee at 25% of original amount
         $maxLateFee = $amount * 0.25;
 
-        // Return late fee rounded to 2 decimals
         return round(min($lateFee, $maxLateFee), 2);
     }
 
-    /**
-     * Calculate days late for a payment.
-     */
     private function calculateDaysLate($dueDate, $paymentDate)
     {
-        if (!$dueDate || !$paymentDate) {
-            return 0;
-        }
-
-        $due = \Carbon\Carbon::parse($dueDate);
-        $paid = \Carbon\Carbon::parse($paymentDate);
-        
-        if ($paid->isAfter($due)) {
-            return $due->diffInDays($paid);
-        }
-        
-        return 0;
+        return $this->wholeDaysLate($dueDate, $paymentDate);
     }
 
-    /**
-     * Calculate late fee paid for a payment.
-     */
     private function calculateLateFeePaid($amount, $dueDate, $paymentDate)
     {
-        if (!$dueDate || !$paymentDate) {
+        $daysLate = $this->wholeDaysLate($dueDate, $paymentDate);
+        if ($daysLate <= 0) {
             return 0;
         }
 
-        $dueDate = \Carbon\Carbon::parse($dueDate);
-        $paymentDate = \Carbon\Carbon::parse($paymentDate);
-
-        if ($paymentDate->lte($dueDate)) {
-            return 0; // Payment was on time
-        }
-
-        $daysLate = $dueDate->diffInDays($paymentDate);
         return $this->calculateLateFee($amount, $daysLate);
     }
-} 
+}

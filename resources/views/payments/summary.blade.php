@@ -3,6 +3,7 @@
 @section('title', 'Payment Dashboard - Advanced Analytics')
 
 @section('content')
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <div id="payment-summary" class="container-fluid px-2 px-md-3 mt-4 mb-5">
     {{-- Header with Actions --}}
     <div class="card shadow-sm border-0 mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -343,9 +344,9 @@
                                     </div>
                                 </div>
                                 <div class="mt-3 text-end">
-                                    <a href="#" class="btn btn-sm btn-outline-success kpi-pdf-btn" data-status="paid" style="font-size: 0.75rem;">
+                                    <button type="button" class="btn btn-sm btn-outline-success kpi-pdf-btn" data-status="paid" style="font-size: 0.75rem;">
                                         <i class="bi bi-file-earmark-pdf me-1"></i> Export PDF
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -366,9 +367,9 @@
                                     </div>
                                 </div>
                                 <div class="mt-3 text-end">
-                                    <a href="#" class="btn btn-sm btn-outline-danger kpi-pdf-btn" data-status="pending" style="font-size: 0.75rem;">
+                                    <button type="button" class="btn btn-sm btn-outline-danger kpi-pdf-btn" data-status="pending" style="font-size: 0.75rem;">
                                         <i class="bi bi-file-earmark-pdf me-1"></i> Export PDF
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -389,9 +390,9 @@
                                     </div>
                                 </div>
                                 <div class="mt-3 text-end">
-                                    <a href="#" class="btn btn-sm btn-outline-primary kpi-pdf-btn" data-status="all" style="font-size: 0.75rem;">
+                                    <button type="button" class="btn btn-sm btn-outline-primary kpi-pdf-btn" data-status="all" style="font-size: 0.75rem;">
                                         <i class="bi bi-file-earmark-pdf me-1"></i> Export PDF
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -401,6 +402,11 @@
 
                 {{-- Active filter badges --}}
                 <div class="mt-3 d-flex flex-wrap gap-2" id="kpiFilterBadges"></div>
+                <div id="kpiPdfWait" class="alert alert-info mt-3 mb-0 py-2 d-none" role="status">
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Preparing your PDF. Please wait — the download will start shortly.
+                </div>
+                <div id="kpiPdfError" class="alert alert-danger mt-3 mb-0 py-2 d-none" role="alert"></div>
             </div>
 
         </div>
@@ -1400,6 +1406,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
 // ============================================================
 //  Installment KPI Card Logic
@@ -1443,6 +1450,152 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const fmt = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtLKR = v => `LKR ${fmt.format(Number(v || 0))}`;
+    const pdfUrlBase = "{{ route('payment.summary.installment.pdf') }}";
+
+    function currentKpiParams() {
+        const params = new URLSearchParams();
+        const loc      = elLoc.value;
+        const courseId = elCourse.value;
+        const intakeId = elIntake.value;
+        const ptype    = elType.value;
+        const instNo   = elInstNo.value;
+        if (loc)      params.append('location',       loc);
+        if (courseId) params.append('course_id',      courseId);
+        if (intakeId) params.append('intake_id',      intakeId);
+        if (ptype)    params.append('payment_type',   ptype);
+        if (instNo)   params.append('installment_no', instNo);
+        appendDashboardPeriodParams(params);
+        return params;
+    }
+
+    function kpiPdfUrl(status) {
+        const pdfParams = currentKpiParams();
+        pdfParams.set('status', status || 'all');
+        return `${pdfUrlBase}?${pdfParams.toString()}`;
+    }
+
+    function hideKpiPdfError() {
+        const el = document.getElementById('kpiPdfError');
+        if (!el) return;
+        el.classList.add('d-none');
+        el.textContent = '';
+    }
+
+    function showKpiPdfError(message) {
+        const el = document.getElementById('kpiPdfError');
+        if (!el) return;
+        el.textContent = message || 'Unable to export PDF. Please try again.';
+        el.classList.remove('d-none');
+    }
+
+    function setKpiPdfWaitVisible(visible) {
+        const el = document.getElementById('kpiPdfWait');
+        if (!el) return;
+        el.classList.toggle('d-none', !visible);
+    }
+
+    function setPdfButtonsBusy(busy, triggerBtn) {
+        document.querySelectorAll('.kpi-pdf-btn').forEach(btn => {
+            btn.disabled = busy;
+            if (busy) {
+                if (!btn.dataset.originalHtml) {
+                    btn.dataset.originalHtml = btn.innerHTML;
+                }
+                if (btn === triggerBtn) {
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Preparing…';
+                }
+            } else if (btn.dataset.originalHtml) {
+                btn.innerHTML = btn.dataset.originalHtml;
+            }
+        });
+    }
+
+    function showPdfWaitDialog() {
+        if (typeof Swal === 'undefined') return;
+        Swal.fire({
+            title: 'Preparing your PDF',
+            html: 'Please wait. The download will start shortly.',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            },
+        });
+    }
+
+    function closePdfWaitDialog() {
+        if (typeof Swal !== 'undefined' && Swal.isVisible()) {
+            Swal.close();
+        }
+    }
+
+    async function notifyPdfResult(icon, title, text) {
+        if (typeof Swal === 'undefined') return;
+        if (icon === 'success') {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title,
+                text,
+                showConfirmButton: false,
+                timer: 2500,
+                timerProgressBar: true,
+            });
+            return;
+        }
+        await Swal.fire({
+            icon,
+            title,
+            text,
+            confirmButtonColor: '#0d6efd',
+        });
+    }
+
+    function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function downloadKpiPdf(status, triggerBtn) {
+        hideKpiPdfError();
+        setKpiPdfWaitVisible(true);
+        setPdfButtonsBusy(true, triggerBtn);
+        showPdfWaitDialog();
+        try {
+            const res = await fetch(kpiPdfUrl(status), {
+                headers: { 'Accept': 'application/pdf', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const blob = await res.blob();
+            if (!res.ok || !blob || blob.size === 0 || (blob.type && blob.type.includes('text/html'))) {
+                throw new Error('PDF export failed. Try narrower filters, then export again.');
+            }
+            const cd = res.headers.get('Content-Disposition') || '';
+            const match = cd.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i);
+            const filename = match
+                ? decodeURIComponent(match[1].replace(/["']/g, ''))
+                : `installment_report_${status}.pdf`;
+            downloadBlob(blob, filename);
+            closePdfWaitDialog();
+            await notifyPdfResult('success', 'Download started', 'Your PDF is ready. Check the downloads folder if it does not appear immediately.');
+        } catch (err) {
+            closePdfWaitDialog();
+            const message = err.message || 'Unable to export PDF. Please try again.';
+            showKpiPdfError(message);
+            await notifyPdfResult('error', 'Download failed', message);
+        } finally {
+            setKpiPdfWaitVisible(false);
+            setPdfButtonsBusy(false, triggerBtn);
+        }
+    }
 
     function showState(state) {
         elHolder.classList.add('d-none');
@@ -1621,20 +1774,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 elBadges.appendChild(span);
             });
 
-            // Update PDF export links
-            const pdfUrlBase = "{{ route('payment.summary.installment.pdf') }}";
-            document.querySelectorAll('.kpi-pdf-btn').forEach(btn => {
-                const status = btn.getAttribute('data-status');
-                const pdfParams = new URLSearchParams(params);
-                pdfParams.set('status', status);
-                btn.href = `${pdfUrlBase}?${pdfParams.toString()}`;
-            });
-
+            hideKpiPdfError();
+            setKpiPdfWaitVisible(false);
             showState('result');
         } catch (err) {
             elErrMsg.textContent = err.message || 'Failed to fetch data. Please try again.';
             showState('error');
         }
+    });
+
+    document.getElementById('kpiResultArea')?.addEventListener('click', function (e) {
+        const btn = e.target.closest('.kpi-pdf-btn');
+        if (!btn) return;
+        e.preventDefault();
+        downloadKpiPdf(btn.getAttribute('data-status') || 'all', btn);
     });
 
     // Initialise state

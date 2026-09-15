@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\PaymentDetail;
 use App\Models\Student;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 
 class MiscPaymentController extends Controller
@@ -15,73 +16,99 @@ class MiscPaymentController extends Controller
     }
 
     public function store(Request $request)
-{
-    // 🔹 Validate base fields
-    $validator = Validator::make($request->all(), [
-        'student_id'      => 'required|string', // can be NIC or ID
-        'misc_category'   => 'required|string|max:255',
-        'amount'          => 'required|numeric|min:1',
-        'payment_method'  => 'required|string|max:100',
-        'transaction_id'  => 'nullable|string|max:255',
-        'remarks'         => 'nullable|string|max:500',
-    ]);
+    {
+        $validator = Validator::make($request->all(), [
+            'student_id' => 'required|string',
+            'misc_category' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|string|max:100',
+            'transaction_id' => 'nullable|string|max:255',
+            'remarks' => 'nullable|string|max:500',
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json(['success' => false, 'errors' => $validator->errors()]);
-    }
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
-    // 🔍 Try to find student by NIC or by student_id
-    $student = \App\Models\Student::where('id_value', $request->student_id) // NIC check
-        ->orWhere('student_id', $request->student_id)                       // direct ID check
-        ->first();
+        $student = $this->findStudent($request->student_id);
 
-    if (!$student) {
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No student found for the provided NIC or Student ID.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $remarks = $request->remarks ?: null;
+
+        $payment = PaymentDetail::create([
+            'student_id' => $student->student_id,
+            'misc_category' => $request->misc_category,
+            'misc_reference' => $request->misc_reference ?? null,
+            'description' => $remarks,
+            'remarks' => $remarks,
+            'amount' => $request->amount,
+            'payment_method' => $request->payment_method,
+            'transaction_id' => $request->transaction_id ?: null,
+            'payment_date' => now()->toDateString(),
+            'status' => 'paid',
+            'late_fee' => 0,
+            'approved_late_fee' => 0,
+            'total_fee' => $request->amount,
+            'remaining_amount' => 0,
+        ]);
+
         return response()->json([
-            'success' => false,
-            'message' => 'No student found for the provided NIC or Student ID.'
+            'success' => true,
+            'message' => 'Miscellaneous payment recorded successfully.',
+            'data' => $payment,
         ]);
     }
 
-    // ✅ Create payment
-    $payment = PaymentDetail::create([
-        'student_id'        => $student->student_id,
-        'misc_category'     => $request->misc_category,
-        'misc_reference'    => $request->misc_reference ?? null,
-        'description'       => $request->remarks ?? null,
-        'amount'            => $request->amount,
-        'payment_method'    => $request->payment_method,
-        'transaction_id'    => $request->transaction_id ?? null,
-        'status'            => 'paid',
-        'late_fee'          => 0,
-        'approved_late_fee' => 0,
-        'total_fee'         => $request->amount,
-    ]);
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Miscellaneous payment recorded successfully.',
-        'data'    => $payment,
-    ]);
-}
-
-
     public function fetchByStudent($input)
-{
-    // Try to resolve to actual student_id
-    $student = \App\Models\Student::where('id_value', $input)
-        ->orWhere('student_id', $input)
-        ->first();
+    {
+        $student = $this->findStudent($input);
 
-    if (!$student) {
-        return response()->json(['success' => false, 'message' => 'Student not found.']);
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $payments = PaymentDetail::miscellaneous()
+            ->where('student_id', $student->student_id)
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'student' => [
+                'student_id' => $student->student_id,
+                'full_name' => $student->full_name,
+                'id_value' => $student->id_value,
+            ],
+            'payments' => $payments,
+        ]);
     }
 
-    $payments = PaymentDetail::where('student_id', $student->student_id)
-        ->whereNull('course_registration_id')
-        ->latest()
-        ->get();
+    private function findStudent($input): ?Student
+    {
+        $value = trim((string) $input);
 
-    return response()->json(['success' => true, 'payments' => $payments]);
-}
+        if ($value === '') {
+            return null;
+        }
 
+        return Student::query()
+            ->where(function ($query) use ($value) {
+                $query->where('id_value', $value)
+                    ->orWhere('student_id', $value);
+            })
+            ->first();
+    }
 }
