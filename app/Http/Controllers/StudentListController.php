@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Schema;
 use App\Models\Course;
 use App\Models\Intake;
 use App\Exports\StudentListExport;
-use App\Support\SpecializationStudentScope;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -38,69 +37,65 @@ class StudentListController extends Controller
         return is_array($specializations) && count(array_filter($specializations)) > 0;
     }
 
-    private function applySpecializationScope($query, ?string $specialization, int $courseId, int $intakeId, string $location)
+    private function specializationAssignments(int $courseId, int $intakeId, string $location)
+    {
+        if (!Schema::hasTable('specialization_registrations')) {
+            return collect();
+        }
+
+        $rows = DB::table('specialization_registrations')
+            ->where('course_id', $courseId)
+            ->where('intake_id', $intakeId)
+            ->where('status', 'registered')
+            ->whereNotNull('specialization')
+            ->where('specialization', '<>', '')
+            ->orderByDesc('id')
+            ->get(['student_id', 'location', 'specialization']);
+
+        if ($rows->isEmpty()) {
+            return collect();
+        }
+
+        $located = $rows->filter(function ($row) use ($location) {
+            return strcasecmp(trim((string) $row->location), trim($location)) === 0;
+        });
+
+        return ($located->isNotEmpty() ? $located : $rows)
+            ->unique('student_id')
+            ->mapWithKeys(function ($row) {
+                return [$row->student_id => trim((string) $row->specialization)];
+            });
+    }
+
+    private function applySpecializationScope($query, ?string $specialization, $assignments)
     {
         if ($specialization === null) {
             return $query;
         }
 
-        $course = Course::find($courseId);
-        $courseSpecializations = [];
+        $isCommon = strcasecmp($specialization, 'Common') === 0;
 
-        if ($course && !empty($course->specializations)) {
-            $decoded = is_array($course->specializations)
-                ? $course->specializations
-                : json_decode($course->specializations, true);
+        if ($isCommon) {
+            $assignedIds = $assignments->keys()->all();
+            if (empty($assignedIds)) {
+                return $query;
+            }
 
-            $courseSpecializations = is_array($decoded)
-                ? array_values(array_filter(array_map(function ($value) {
-                    if (!is_string($value)) {
-                        return null;
-                    }
-                    $trimmed = trim($value);
-                    return $trimmed === '' ? null : $trimmed;
-                }, $decoded)))
-                : [];
+            return $query->whereNotIn('cr.student_id', $assignedIds);
         }
 
-        $commonSpecializations = SpecializationStudentScope::resolveCourseCommonSpecializations(
-            $courseId,
-            $intakeId,
-            $courseSpecializations
-        );
+        $matchingIds = $assignments
+            ->filter(function ($assigned) use ($specialization) {
+                return strcasecmp((string) $assigned, $specialization) === 0;
+            })
+            ->keys()
+            ->all();
 
-        $effectiveCourseSpecializations = strtolower($specialization ?? '') === 'common'
-            ? $commonSpecializations
-            : $courseSpecializations;
-
-        $studentIds = SpecializationStudentScope::resolveStudentIds(
-            $courseId,
-            $intakeId,
-            $location,
-            $specialization,
-            null,
-            null,
-            $effectiveCourseSpecializations
-        );
-
-        if (!empty($studentIds)) {
-            return $query->whereIn('cr.student_id', $studentIds);
-        }
-
-        $hasSpecializationRegistrations = Schema::hasTable('specialization_registrations')
-            && DB::table('specialization_registrations')
-                ->where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->where('location', $location)
-                ->exists();
-
-        if ($hasSpecializationRegistrations) {
+        if (empty($matchingIds)) {
             return $query->whereRaw('1 = 0');
         }
 
-        // Older batches were never copied into specialization_registrations.
-        // Keep showing the course-registration list for those cohorts.
-        return $query;
+        return $query->whereIn('cr.student_id', $matchingIds);
     }
 
     private function statusSelectSql(): string
@@ -135,13 +130,15 @@ class StudentListController extends Controller
 
     private function fetchStudentsForFilters(string $location, int $courseId, int $intakeId, ?string $specialization, string $status = 'all')
     {
+        $assignments = $this->specializationAssignments($courseId, $intakeId, $location);
+
         $query = DB::table('course_registration as cr')
             ->join('students as s', 's.student_id', '=', 'cr.student_id')
             ->where('cr.location', $location)
             ->where('cr.course_id', $courseId)
             ->where('cr.intake_id', $intakeId);
 
-        $this->applySpecializationScope($query, $specialization, $courseId, $intakeId, $location);
+        $this->applySpecializationScope($query, $specialization, $assignments);
         $this->applyStatusFilter($query, $status);
 
         $students = $query->select([
@@ -155,32 +152,8 @@ class StudentListController extends Controller
             ->orderBy('s.name_with_initials')
             ->get();
 
-        return $this->fillDisplayedSpecializations($students, $courseId, $intakeId, $location);
-    }
-
-    private function fillDisplayedSpecializations($students, int $courseId, int $intakeId, string $location)
-    {
-        if ($students->isEmpty() || !Schema::hasTable('specialization_registrations')) {
-            return $students;
-        }
-
-        $specializations = DB::table('specialization_registrations')
-            ->where('course_id', $courseId)
-            ->where('intake_id', $intakeId)
-            ->where('location', $location)
-            ->whereIn('student_id', $students->pluck('student_id'))
-            ->whereNotNull('specialization')
-            ->where('specialization', '<>', '')
-            ->where('status', 'registered')
-            ->orderByDesc('id')
-            ->get(['student_id', 'specialization'])
-            ->unique('student_id')
-            ->pluck('specialization', 'student_id');
-
-        return $students->map(function ($student) use ($specializations) {
-            if ($specializations->has($student->student_id)) {
-                $student->specialization = $specializations->get($student->student_id);
-            }
+        return $students->map(function ($student) use ($assignments) {
+            $student->specialization = $assignments->get($student->student_id, '');
 
             return $student;
         });
