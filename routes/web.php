@@ -599,12 +599,14 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         // Repeat Student Payment Routes
         Route::get('/repeat-student-payment', [RepeatStudentPaymentController::class, 'index'])
             ->name('repeat.payment.index');
-
-        Route::get('/api/repeat-payment-plan/{student_id}/{course_id}', [RepeatStudentPaymentController::class, 'getArchivedPaymentPlan']);
-
-        Route::post('/repeat-student-payment/save', [RepeatStudentPaymentController::class, 'saveNewPaymentPlan']);
-
-        Route::get('/api/repeat-created-plans/{student_id}/{course_id}', [RepeatStudentPaymentController::class, 'getCreatedPaymentPlans']);
+        Route::post('/repeat-student-payment/search', [RepeatStudentPaymentController::class, 'searchStudent'])
+            ->name('repeat.payment.search');
+        Route::get('/api/repeat-payment-plan/{student_id}/{course_id}', [RepeatStudentPaymentController::class, 'getArchivedPaymentPlan'])
+            ->name('repeat.payment.plan');
+        Route::post('/repeat-student-payment/save', [RepeatStudentPaymentController::class, 'saveNewPaymentPlan'])
+            ->name('repeat.payment.save');
+        Route::get('/api/repeat-created-plans/{student_id}/{course_id}', [RepeatStudentPaymentController::class, 'getCreatedPaymentPlans'])
+            ->name('repeat.payment.created');
     });
 
     // ========================================================================
