@@ -158,7 +158,7 @@
         <div class="col-12 col-md-6 col-lg-4" id="specializationFilterWrap" style="display:none;">
           <label class="form-label" for="specializationSelect">Specialization</label>
           <select id="specializationSelect" name="specialization" class="form-select">
-            <option value="all">All Specializations</option>
+            <option value="all">All</option>
           </select>
         </div>
 
@@ -278,6 +278,9 @@ let currentPage = 1;
 let lastPage = 1;
 let totalCount = 0;
 let hasSearched = false;
+let lastSearchCourseId = '';
+let lastSearchSpecialization = 'all';
+let lastSearchHasNamedSpecs = false;
 
 const specializationWrap = document.getElementById('specializationFilterWrap');
 const specializationSelect = document.getElementById('specializationSelect');
@@ -305,8 +308,28 @@ function resetIntakeFilter() {
 
 function resetSpecializationFilter() {
   specializationSelect.innerHTML = '';
-  specializationSelect.add(new Option('All Specializations', 'all'));
+  specializationSelect.add(new Option('All', 'all'));
   specializationWrap.style.display = 'none';
+}
+
+function namedSpecializationOptions() {
+  return [...specializationSelect.options]
+    .map(option => String(option.value || '').trim())
+    .filter(value => value !== '' && value !== 'all' && value.toLowerCase() !== 'common');
+}
+
+function showsSpecializationColumn() {
+  if (!hasSearched) {
+    return true;
+  }
+  const value = String(lastSearchSpecialization || '').trim().toLowerCase();
+  if (value === 'common') {
+    return false;
+  }
+  if (lastSearchCourseId && !lastSearchHasNamedSpecs) {
+    return false;
+  }
+  return true;
 }
 
 function fillCourseSelect(courses, emptyLabel = 'All Courses') {
@@ -320,13 +343,24 @@ function fillCourseSelect(courses, emptyLabel = 'All Courses') {
 }
 
 function visibleColumns() {
-  return [...document.querySelectorAll('.colToggle:checked')].map(c => c.value);
+  return [...document.querySelectorAll('.colToggle:checked')]
+    .map(c => c.value)
+    .filter(value => value !== 'specialization' || showsSpecializationColumn());
 }
 
 function applyColumnVisibility() {
+  const showSpec = showsSpecializationColumn();
+  const specToggleWrap = document.getElementById('col-specialization')?.closest('.form-check');
+  if (specToggleWrap) {
+    specToggleWrap.style.display = showSpec ? '' : 'none';
+  }
+
   document.querySelectorAll('.colToggle').forEach(checkbox => {
+    const show = checkbox.value === 'specialization'
+      ? (showSpec && checkbox.checked)
+      : checkbox.checked;
     document.querySelectorAll(`.col-${checkbox.value}`).forEach(cell => {
-      cell.style.display = checkbox.checked ? '' : 'none';
+      cell.style.display = show ? '' : 'none';
     });
   });
 }
@@ -337,7 +371,7 @@ function currentFilters(page = currentPage) {
     course_id: courseSelect.value,
     intake_id: intakeSelect.value,
     status: document.getElementById('statusSelect').value,
-    specialization: specializationSelect.value,
+    specialization: specializationWrap.style.display === 'none' ? 'all' : specializationSelect.value,
     columns: visibleColumns(),
     page,
     per_page: Number(document.getElementById('perPageSelect')?.value || 10)
@@ -382,18 +416,26 @@ function loadSpecializations(courseId) {
   fetch(`/api/course/${encodeURIComponent(courseId)}/specializations`)
     .then(response => response.json())
     .then(data => {
-      if (!data.success || !Array.isArray(data.specializations) || !data.specializations.length) {
+      const named = [];
+      if (data.success && Array.isArray(data.specializations)) {
+        data.specializations.forEach(spec => {
+          const value = typeof spec === 'object' ? (spec.name || spec.value || spec.specialization || '') : spec;
+          const label = String(value || '').trim();
+          if (label && label.toLowerCase() !== 'common' && !named.includes(label)) {
+            named.push(label);
+          }
+        });
+      }
+
+      if (!named.length) {
+        resetSpecializationFilter();
         return;
       }
 
       specializationSelect.innerHTML = '';
-      specializationSelect.add(new Option('All Specializations', 'all'));
-      data.specializations.forEach(spec => {
-        const value = typeof spec === 'object' ? (spec.name || spec.value || spec.specialization || '') : spec;
-        if (value) {
-          specializationSelect.add(new Option(value, value));
-        }
-      });
+      specializationSelect.add(new Option('All', 'all'));
+      specializationSelect.add(new Option('Common', 'Common'));
+      named.forEach(label => specializationSelect.add(new Option(label, label)));
       specializationWrap.style.display = '';
     })
     .catch(() => resetSpecializationFilter());
@@ -523,6 +565,9 @@ async function searchStudents(page = 1) {
 
     const data = await res.json();
     hasSearched = true;
+    lastSearchCourseId = courseSelect.value;
+    lastSearchSpecialization = specializationWrap.style.display === 'none' ? 'all' : specializationSelect.value;
+    lastSearchHasNamedSpecs = namedSpecializationOptions().length > 0;
     tableData = data.data || [];
     renderResults(tableData, data);
   } catch (error) {
@@ -606,6 +651,9 @@ document.getElementById('clearFilters').addEventListener('click', () => {
   resetSpecializationFilter();
   tableData = [];
   hasSearched = false;
+  lastSearchCourseId = '';
+  lastSearchSpecialization = 'all';
+  lastSearchHasNamedSpecs = false;
   currentPage = 1;
   lastPage = 1;
   totalCount = 0;
@@ -615,6 +663,7 @@ document.getElementById('clearFilters').addEventListener('click', () => {
   document.getElementById('paginationBar').style.display = 'none';
   document.getElementById('studentPagination').innerHTML = '';
   document.getElementById('resultRange').textContent = '';
+  applyColumnVisibility();
 });
 
 document.getElementById('perPageSelect').addEventListener('change', () => {

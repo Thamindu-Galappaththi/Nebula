@@ -68,14 +68,16 @@ class StudentViewExport implements FromArray, WithHeadings, WithStyles, WithColu
         ]);
 
         $sheet->mergeCells('A2:' . $lastColumn . '2');
-        $sheet->setCellValue('A2', sprintf(
-            'Student: %s | Course: %s | Intake: %s | Specialization: %s | Status: %s',
-            $this->meta['studentId'] ?? 'All',
-            $this->meta['courseText'] ?? 'All Courses',
-            $this->meta['intakeText'] ?? 'All Intakes',
-            $this->meta['specializationText'] ?? 'All',
-            $this->meta['statusText'] ?? 'All'
-        ));
+        $metaParts = [
+            'Student: ' . ($this->meta['studentId'] ?? 'All'),
+            'Course: ' . ($this->meta['courseText'] ?? 'All Courses'),
+            'Intake: ' . ($this->meta['intakeText'] ?? 'All Intakes'),
+        ];
+        if (!empty($this->meta['specializationText'])) {
+            $metaParts[] = 'Specialization: ' . $this->meta['specializationText'];
+        }
+        $metaParts[] = 'Status: ' . ($this->meta['statusText'] ?? 'All');
+        $sheet->setCellValue('A2', implode(' | ', $metaParts));
         $sheet->getStyle('A2')->applyFromArray([
             'font' => [
                 'bold' => true,

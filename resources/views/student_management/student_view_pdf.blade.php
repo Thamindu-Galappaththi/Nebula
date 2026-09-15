@@ -25,7 +25,9 @@
         <strong>Student ID / NIC:</strong> {{ $meta['studentId'] ?? 'All' }}<br>
         <strong>Course:</strong> {{ $meta['courseText'] ?? 'All Courses' }}<br>
         <strong>Intake:</strong> {{ $meta['intakeText'] ?? 'All Intakes' }}<br>
-        <strong>Specialization:</strong> {{ $meta['specializationText'] ?? 'All' }}<br>
+        @if(!empty($meta['specializationText']))
+            <strong>Specialization:</strong> {{ $meta['specializationText'] }}<br>
+        @endif
         <strong>Status:</strong> {{ $meta['statusText'] ?? 'All' }}
     </div>
 
