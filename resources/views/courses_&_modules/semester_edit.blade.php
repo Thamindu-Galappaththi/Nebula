@@ -1,17 +1,23 @@
 @extends('inc.app')
 
 @php
-function semester_label($name) {
-    if(is_numeric($name)) {
+function semester_label($name, $format = 'numerical') {
+    // Extract the numeric part from the name (e.g. "Semester 3" -> 3, "3" -> 3)
+    $num = null;
+    if (is_numeric($name)) {
         $num = (int)$name;
-        if($num >= 1 && $num <= 26) {
-            return chr(64 + $num);
-        }
-    }
-    if(preg_match('/(\d+)/', $name, $m)) {
+    } elseif (preg_match('/(\d+)/', $name, $m)) {
         $num = (int)$m[1];
-        if($num >= 1 && $num <= 26) {
-            return chr(64 + $num);
+    } elseif (preg_match('/^([A-Za-z])$/', trim($name), $m)) {
+        // Already a letter like "A" - convert to number first
+        $num = ord(strtoupper($m[1])) - 64;
+    }
+
+    if ($num !== null && $num >= 1 && $num <= 26) {
+        if ($format === 'alphabetical') {
+            return chr(64 + $num); // A, B, C ...
+        } else {
+            return (string)$num;   // 1, 2, 3 ...
         }
     }
     return $name;
@@ -81,7 +87,7 @@ function semester_label($name) {
                     <div class="col-sm-10">
                         <select name="semester" id="semester" class="form-select" required>
                             <option selected disabled value="">Select Semester</option>
-                            <option value="{{ $semester->id }}" selected>{{ semester_label($semester->name) }}</option>
+                            <option value="{{ $semester->id }}" selected>Semester {{ semester_label($semester->name, $semester->course->semester_format ?? 'numerical') }}</option>
                         </select>
                     </div>
                 </div>
@@ -209,6 +215,34 @@ let allModules = [];
 const existingModules = @json($semesterModules);
 const semesterModules = @json($semester->modules);
 
+// Semester format from course (set server-side)
+const courseSemesterFormat = '{{ $semester->course->semester_format ?? "numerical" }}';
+
+// Compute the display label for this semester based on course format
+function computeSemesterLabel(name) {
+    const m = String(name).match(/(\d+)/);
+    if (m) {
+        const num = parseInt(m[1], 10);
+        if (num >= 1 && num <= 26) {
+            return courseSemesterFormat === 'alphabetical'
+                ? String.fromCharCode(64 + num)
+                : String(num);
+        }
+    }
+    // If it's already a letter
+    const lm = String(name).match(/^([A-Za-z])$/);
+    if (lm) {
+        const num = lm[1].toUpperCase().charCodeAt(0) - 64;
+        return courseSemesterFormat === 'alphabetical'
+            ? lm[1].toUpperCase()
+            : String(num);
+    }
+    return name;
+}
+
+// Precompute the label for this semester
+const semesterLabelDisplay = computeSemesterLabel('{{ $semester->name }}');
+
 document.addEventListener('DOMContentLoaded', function() {
     const locationSelect = document.getElementById('location');
     const courseSelect = document.getElementById('course_id');
@@ -326,7 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 addedModules.push(moduleData);
                 
                 const row = document.createElement('tr');
-                let rowHtml = `<td>{{ $semester->name }}</td>`;
+                let rowHtml = `<td>Semester ${semesterLabelDisplay}</td>`;
                 if (courseSpecializations.length > 0) {
                     rowHtml += `<td>${formatSpecializationsLabel(specializations)}</td>`;
                 }
@@ -491,7 +525,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         addedModules.push({moduleId, moduleName, moduleType, moduleCredits, semester, specializations});
         const row = document.createElement('tr');
-        let rowHtml = `<td>{{ semester_label($semester->name) }}</td>`;
+        let rowHtml = `<td>Semester ${semesterLabelDisplay}</td>`;
         if (courseSpecializations.length > 0) {
             rowHtml += `<td>${formatSpecializationsLabel(specializations)}</td>`;
         }
