@@ -1623,12 +1623,15 @@ class PaymentSummaryController extends Controller
         $installmentNo   = $request->input('installment_no') !== null && $request->input('installment_no') !== ''
                             ? (int) $request->input('installment_no')
                             : null;
-        $statusFilter    = $request->input('status', 'all');
+        $statusFilter = strtolower((string) $request->input('status', 'all'));
+        if (!in_array($statusFilter, ['paid', 'pending', 'all'], true)) {
+            $statusFilter = 'all';
+        }
 
         $table = $this->getPaymentDetailsTable();
 
         $query = PaymentDetail::query()
-            ->with(['student', 'registration.course', 'registration.intake'])
+            ->with('student')
             ->join('course_registration', 'payment_details.course_registration_id', '=', 'course_registration.id')
             ->select('payment_details.*')
             ->when($location, fn ($q) => $q->where('course_registration.location', $location))
@@ -1671,16 +1674,52 @@ class PaymentSummaryController extends Controller
             $query->where("{$table}.status", $statusFilter);
         }
 
-        $query->orderBy("{$table}.created_at", 'desc');
+        $collectedAmountExpr = $this->getCollectedAmountSqlExpression($table);
+        $paidTotal = (float) (clone $query)->where("{$table}.status", 'paid')->sum(DB::raw($collectedAmountExpr));
+        $pendingTotal = (float) (clone $query)->where("{$table}.status", 'pending')->sum(DB::raw($collectedAmountExpr));
+        $grandTotal = $paidTotal + $pendingTotal;
 
-        $transactions = $query->get();
+        // DomPDF keeps the full HTML tree in memory. Paid / grand-total exports
+        // are much larger than pending and were exhausting PHP on this page.
+        $maxExportRows = 500;
+        $totalRecords = (int) (clone $query)->count();
+        $transactions = (clone $query)
+            ->orderBy("{$table}.id", 'desc')
+            ->limit($maxExportRows)
+            ->get()
+            ->map(function ($payment) {
+                $student = $payment->student;
+                $date = $payment->payment_effective_date
+                    ?? $payment->payment_date
+                    ?? $payment->created_at;
 
-        $paidTotal    = $transactions->where('status', 'paid')->sum(fn ($row) => $this->collectedAmountForPayment($row));
-        $pendingTotal = $transactions->where('status', 'pending')->sum(fn ($row) => $this->collectedAmountForPayment($row));
-        $grandTotal   = $transactions->sum(fn ($row) => $this->collectedAmountForPayment($row));
+                return (object) [
+                    'student_id' => $student->student_id ?? 'N/A',
+                    'student_name' => $this->pdfSafeText(
+                        $student
+                            ? ($student->name_with_initials ?: $student->full_name ?: 'Unknown')
+                            : 'Unknown'
+                    ),
+                    'installment_number' => $payment->installment_number,
+                    'payment_type' => $payment->installment_type ?? $payment->payment_type ?? 'N/A',
+                    'status' => strtolower((string) ($payment->status ?? 'pending')),
+                    'date' => $this->formatPdfDate($date),
+                    'amount' => $this->collectedAmountForPayment($payment),
+                ];
+            })
+            ->values();
 
-        $courseName = $courseId ? \App\Models\Course::find($courseId)?->course_name : 'All Courses';
-        $intakeName = $intakeId ? \App\Models\Intake::find($intakeId)?->batch : 'All Intakes';
+        $courseName = $courseId ? Course::find($courseId)?->course_name : 'All Courses';
+        $intakeName = $intakeId ? Intake::find($intakeId)?->batch : 'All Intakes';
+
+        $statusLabel = match ($statusFilter) {
+            'paid' => 'Paid',
+            'pending' => 'Pending',
+            default => 'Paid + Pending',
+        };
+
+        @ini_set('memory_limit', '256M');
+        @set_time_limit(120);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('payments.pdf.installment_report', [
             'transactions' => $transactions,
@@ -1690,14 +1729,49 @@ class PaymentSummaryController extends Controller
                 'intake'         => $intakeName,
                 'payment_type'   => $paymentType ?: 'All Types',
                 'installment_no' => $installmentNo !== null ? $installmentNo : 'All',
-                'status'         => ucfirst($statusFilter)
+                'status'         => $statusLabel,
             ],
             'paidTotal'    => $paidTotal,
             'pendingTotal' => $pendingTotal,
             'grandTotal'   => $grandTotal,
-        ]);
+            'totalRecords' => $totalRecords,
+            'isTruncated'  => $totalRecords > $transactions->count(),
+        ])->setPaper('A4', 'portrait');
 
-        return $pdf->download('installment_report_' . strtolower($statusFilter) . '_' . date('Ymd_His') . '.pdf');
+        $pdf->setOption('defaultFont', 'DejaVu Sans');
+
+        return $pdf->download('installment_report_' . $statusFilter . '_' . date('Ymd_His') . '.pdf');
+    }
+
+    private function formatPdfDate($value): string
+    {
+        if (!$value) {
+            return '-';
+        }
+
+        try {
+            return Carbon::parse($value)
+                ->timezone(config('app.timezone', 'Asia/Colombo'))
+                ->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return '-';
+        }
+    }
+
+    private function pdfSafeText($value): string
+    {
+        $text = trim(strip_tags((string) $value));
+        if ($text === '') {
+            return 'Unknown';
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        }
+
+        $text = preg_replace('/[^\P{C}\n]+/u', '', $text) ?? $text;
+
+        return $text !== '' ? $text : 'Unknown';
     }
 
     /**

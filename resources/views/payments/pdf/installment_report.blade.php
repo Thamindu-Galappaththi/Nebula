@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>Installment Report</title>
     <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; color: #333; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #333; }
         .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
         .title { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
         .subtitle { font-size: 14px; color: #666; }
@@ -44,10 +44,13 @@
         <tr>
             <th>Summary</th>
             <td>
-                <strong>Total Paid:</strong> LKR {{ number_format($paidTotal, 2) }} <br>
-                <strong>Total Pending:</strong> LKR {{ number_format($pendingTotal, 2) }} <br>
-                <strong>Grand Total:</strong> LKR {{ number_format($grandTotal, 2) }} <br>
-                <strong>Total Records:</strong> {{ count($transactions) }}
+                <strong>Total Paid:</strong> LKR {{ number_format((float) $paidTotal, 2) }} <br>
+                <strong>Total Pending:</strong> LKR {{ number_format((float) $pendingTotal, 2) }} <br>
+                <strong>Grand Total:</strong> LKR {{ number_format((float) $grandTotal, 2) }} <br>
+                <strong>Total Records:</strong> {{ number_format((int) ($totalRecords ?? count($transactions))) }}
+                @if(!empty($isTruncated))
+                    <br><em>Showing {{ count($transactions) }} of {{ number_format((int) $totalRecords) }} matching rows. Narrow the filters to export the rest.</em>
+                @endif
             </td>
         </tr>
     </table>
@@ -69,19 +72,19 @@
             @forelse($transactions as $index => $tx)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td>{{ $tx->student ? $tx->student->student_id : 'N/A' }}</td>
-                    <td>{{ $tx->student ? ($tx->student->name_with_initials ?: $tx->student->full_name) : 'Unknown' }}</td>
+                    <td>{{ $tx->student_id ?? 'N/A' }}</td>
+                    <td>{{ $tx->student_name ?? 'Unknown' }}</td>
                     <td>No. {{ $tx->installment_number ?? '-' }}</td>
-                    <td>{{ $tx->payment_type ?? $tx->installment_type ?? 'N/A' }}</td>
+                    <td>{{ $tx->payment_type ?? 'N/A' }}</td>
                     <td class="text-center">
-                        @if($tx->status === 'paid')
+                        @if(($tx->status ?? '') === 'paid')
                             <span class="badge bg-success">PAID</span>
                         @else
                             <span class="badge bg-danger">PENDING</span>
                         @endif
                     </td>
-                    <td>{{ $tx->created_at ? $tx->created_at->format('Y-m-d') : '-' }}</td>
-                    <td class="text-right">{{ number_format($tx->total_fee, 2) }}</td>
+                    <td>{{ $tx->date ?? '-' }}</td>
+                    <td class="text-right">{{ number_format((float) ($tx->amount ?? 0), 2) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -91,7 +94,7 @@
             @if(count($transactions) > 0)
                 <tr class="total-row">
                     <td colspan="7" class="text-right">Total:</td>
-                    <td class="text-right">{{ number_format($transactions->sum('total_fee'), 2) }}</td>
+                    <td class="text-right">{{ number_format((float) collect($transactions)->sum('amount'), 2) }}</td>
                 </tr>
             @endif
         </tbody>

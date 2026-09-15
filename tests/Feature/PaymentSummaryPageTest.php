@@ -185,6 +185,55 @@ class PaymentSummaryPageTest extends TestCase
             ->assertJsonPath('paid_count', 1);
     }
 
+    public function test_installment_pdf_exports_paid_pending_and_grand_total(): void
+    {
+        $setup = $this->makePaymentStudent();
+
+        PaymentDetail::forceCreate([
+            'student_id'             => $setup['student']->student_id,
+            'course_registration_id' => $setup['registration']->id,
+            'amount'                 => 15000,
+            'total_fee'              => 15000,
+            'remaining_amount'       => 0,
+            'installment_type'       => 'course_fee',
+            'installment_number'     => 1,
+            'status'                 => 'paid',
+            'payment_method'         => 'cash',
+            'payment_effective_date' => '2026-09-10',
+        ]);
+
+        PaymentDetail::forceCreate([
+            'student_id'             => $setup['student']->student_id,
+            'course_registration_id' => $setup['registration']->id,
+            'amount'                 => 20000,
+            'total_fee'              => 20000,
+            'remaining_amount'       => 20000,
+            'installment_type'       => 'course_fee',
+            'installment_number'     => 2,
+            'status'                 => 'pending',
+            'due_date'               => '2026-10-01',
+        ]);
+
+        foreach (['paid', 'pending', 'all'] as $status) {
+            $response = $this->actingAs($this->actor)
+                ->get(route('payment.summary.installment.pdf', [
+                    'status' => $status,
+                    'range' => '10y',
+                ]));
+
+            $response->assertOk()->assertHeader('content-type', 'application/pdf');
+            $this->assertStringStartsWith('%PDF', $response->getContent());
+        }
+
+        $source = file_get_contents(resource_path('views/payments/summary.blade.php'));
+        $this->assertStringContainsString('data-status="paid"', $source);
+        $this->assertStringContainsString('data-status="pending"', $source);
+        $this->assertStringContainsString('data-status="all"', $source);
+        $this->assertStringContainsString('downloadKpiPdf(', $source);
+        $this->assertStringContainsString('Preparing your PDF', $source);
+        $this->assertStringContainsString('Swal.showLoading()', $source);
+    }
+
     private function makePaymentStudent(): array
     {
         $student = Student::forceCreate([
