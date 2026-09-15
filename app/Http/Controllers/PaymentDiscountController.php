@@ -14,6 +14,7 @@ use App\Models\SltLoanReceivableRecord;
 use App\Models\StudentPaymentPlan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class PaymentDiscountController extends Controller
 {
@@ -232,46 +233,68 @@ class PaymentDiscountController extends Controller
         return $allocations;
     }
 
+    private function discountRules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'type' => 'required|in:percentage,amount',
+            'discount_category' => 'required|in:local_course_fee,registration_fee',
+            'value' => [
+                'required',
+                'numeric',
+                'min:0.01',
+                function ($attribute, $value, $fail) {
+                    if ($this->requestTypeIsPercentage() && (float) $value > 100) {
+                        $fail('Percentage cannot be greater than 100.');
+                    }
+                },
+            ],
+            'description' => 'nullable|string',
+        ];
+    }
+
+    private function requestTypeIsPercentage(): bool
+    {
+        return strcasecmp((string) request('type'), 'percentage') === 0;
+    }
+
+    private function perPage(Request $request): int
+    {
+        $perPage = (int) $request->input('per_page', 10);
+
+        return in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+    }
+
     // Save discount data (AJAX)
     public function saveDiscount(Request $request)
     {
         try {
-            Log::info('Saving discount request:', $request->all());
-            Log::info('Request headers:', $request->headers->all());
-
-            $request->validate([
-                'name' => 'required|string|max:255',
-                'type' => 'required|in:percentage,amount',
-                'discount_category' => 'required|in:local_course_fee,registration_fee',
-                'value' => 'required|numeric|min:0',
-                'description' => 'nullable|string'
-            ]);
-
-            Log::info('Validation passed, creating discount...');
+            $validated = $request->validate($this->discountRules());
 
             $discount = Discount::create([
-                'name' => $request->name,
-                'type' => $request->type,
-                'discount_category' => $request->discount_category,
-                'value' => $request->value,
+                'name' => $validated['name'],
+                'type' => $validated['type'],
+                'discount_category' => $validated['discount_category'],
+                'value' => $validated['value'],
                 'status' => 'active',
-                'description' => $request->description ?? null
+                'description' => $validated['description'] ?? null,
             ]);
-
-            Log::info('Discount saved successfully:', $discount->toArray());
 
             return response()->json([
                 'success' => true,
                 'message' => 'Discount saved successfully.',
-                'discount' => $discount
+                'discount' => $discount,
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error saving discount: ' . $e->getMessage());
-            Log::error('Error trace: ' . $e->getTraceAsString());
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error saving discount: ' . $e->getMessage()
+                'message' => collect($e->errors())->flatten()->first(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error saving discount: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error saving discount. Please try again.',
             ], 500);
         }
     }
@@ -302,73 +325,85 @@ class PaymentDiscountController extends Controller
     public function getDiscountsByCategory(Request $request)
     {
         try {
-            $category = $request->input('category');
-            Log::info('Fetching discounts by category:', ['category' => $category]);
+            $validated = $request->validate([
+                'category' => 'required|in:local_course_fee,registration_fee',
+                'page' => 'nullable|integer|min:1',
+                'per_page' => 'nullable|integer|in:10,25,50,100',
+            ]);
 
-            $discounts = Discount::where('status', 'active')
-                ->where('discount_category', $category)
+            $perPage = $this->perPage($request);
+            $page = max(1, (int) ($validated['page'] ?? 1));
+
+            $paginator = Discount::where('status', 'active')
+                ->where('discount_category', $validated['category'])
                 ->orderBy('created_at', 'desc')
-                ->get();
-
-            Log::info('Found discounts:', ['count' => $discounts->count(), 'discounts' => $discounts->toArray()]);
+                ->paginate($perPage, ['*'], 'page', $page);
 
             return response()->json([
                 'success' => true,
-                'discounts' => $discounts
+                'discounts' => $paginator->items(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
             ]);
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Error fetching discounts by category: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching discounts: ' . $e->getMessage()
+                'message' => 'Error fetching discounts. Please try again.',
             ], 500);
         }
     }
 
-    // Update discount (AJAX)
     public function updateDiscount(Request $request)
     {
         try {
-            $request->validate([
-                'id' => 'required|exists:discounts,id',
-                'name' => 'required|string|max:255',
-                'type' => 'required|in:percentage,amount',
-                'discount_category' => 'required|in:local_course_fee,registration_fee',
-                'value' => 'required|numeric|min:0',
-                'description' => 'nullable|string'
-            ]);
+            $validated = $request->validate(array_merge(
+                ['id' => 'required|exists:discounts,id'],
+                $this->discountRules()
+            ));
 
-            $discount = Discount::findOrFail($request->id);
+            $discount = Discount::findOrFail($validated['id']);
             $discount->update([
-                'name' => $request->name,
-                'type' => $request->type,
-                'discount_category' => $request->discount_category,
-                'value' => $request->value,
-                'description' => $request->description
+                'name' => $validated['name'],
+                'type' => $validated['type'],
+                'discount_category' => $validated['discount_category'],
+                'value' => $validated['value'],
+                'description' => $validated['description'] ?? $discount->description,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Discount updated successfully.',
-                'discount' => $discount
+                'discount' => $discount,
             ]);
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Error updating discount: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error updating discount: ' . $e->getMessage()
+                'message' => 'Error updating discount. Please try again.',
             ], 500);
         }
     }
 
-    // Delete discount (AJAX)
     public function deleteDiscount(Request $request)
     {
         try {
             $request->validate([
-                'id' => 'required|exists:discounts,id'
+                'id' => 'required|exists:discounts,id',
             ]);
 
             $discount = Discount::findOrFail($request->id);
@@ -376,14 +411,18 @@ class PaymentDiscountController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Discount deleted successfully.'
+                'message' => 'Discount deleted successfully.',
             ]);
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Error deleting discount: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error deleting discount: ' . $e->getMessage()
+                'message' => 'Error deleting discount. Please try again.',
             ], 500);
         }
     }
