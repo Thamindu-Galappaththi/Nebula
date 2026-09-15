@@ -732,7 +732,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::middleware(['auth', 'role:DGM,Bursar,Marketing Manager,Developer,Student Counselor,Program Administrator (level 01),Program Administrator (level 02)'])->group(function () {
         Route::get('/misc-payment', [MiscPaymentController::class, 'index'])->name('misc.payment.index');
         Route::post('/misc-payment/store', [MiscPaymentController::class, 'store'])->name('misc.payment.store');
-        Route::get('/misc-payment/fetch/{studentId}', [MiscPaymentController::class, 'fetchByStudent']);
+        Route::get('/misc-payment/fetch/{studentId}', [MiscPaymentController::class, 'fetchByStudent'])->name('misc.payment.fetch');
     });
 
     // ========================================================================
