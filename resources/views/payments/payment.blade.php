@@ -4,6 +4,7 @@
 
 @section('content')
 
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
 /* Toast Notification Styles */
 .toast-container {
@@ -338,10 +339,186 @@
 #paymentTabContent .tab-pane.fade:not(.show) {
     opacity: 1;
 }
+
+.payment-page [class*="col-"] {
+    min-width: 0;
+}
+.payment-page .form-select,
+.payment-page .form-control,
+.payment-page .nebula-select,
+.payment-page .input-group {
+    max-width: 100%;
+}
+.payment-page .input-group {
+    flex-wrap: nowrap;
+    align-items: stretch;
+}
+.payment-page .input-group-text {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+.payment-page .input-group > .form-control {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+}
+.payment-page .input-group > .nebula-select {
+    flex: 0 0 6rem;
+    width: 6rem;
+    max-width: 6rem;
+    min-width: 5.25rem;
+}
+.payment-page .payment-rate-group > .nebula-select,
+.payment-page .payment-rate-group > .nebula-select-sm {
+    flex: 0 0 5.75rem;
+    width: 5.75rem;
+    max-width: 5.75rem;
+    min-width: 5.25rem;
+}
+.payment-page .payment-rate-group > .nebula-select .nebula-select-toggle,
+.payment-page .payment-rate-group > .form-control,
+.payment-page .payment-rate-group > .input-group-text {
+    min-height: 38px;
+}
+.payment-page .input-group > .nebula-select .nebula-select-toggle {
+    height: 100%;
+    border-radius: 0;
+}
+.payment-page .combo-control {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
+}
+.payment-page .combo-control > .nebula-select,
+.payment-page .combo-control > .form-select {
+    flex: 0 0 8.5rem;
+    width: 8.5rem;
+    max-width: 8.5rem;
+    min-width: 7.5rem;
+}
+.payment-page .combo-control > .form-control {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+}
+.payment-page .discount-item {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+.payment-page .discount-item > .nebula-select,
+.payment-page .discount-item > .form-select {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+}
+.payment-page .discount-item > .btn {
+    flex: 0 0 auto;
+}
+.payment-page-tabs {
+    flex-wrap: wrap;
+    overflow: visible;
+}
+.payment-page-tabs .nav-link {
+    white-space: nowrap;
+}
+.payment-page-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.payment-page-table-scroll table {
+    min-width: 720px;
+    margin-bottom: 0;
+}
+#paymentRecordsTable {
+    min-width: 1100px;
+}
+.payment-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+.payment-page-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.payment-page-page-size {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.payment-page-page-size select {
+    width: auto;
+    min-width: 4.5rem;
+}
+.payment-page-pagination {
+    max-width: 100%;
+    overflow-x: auto;
+}
+.payment-page-pagination .pagination {
+    flex-wrap: wrap;
+    margin-bottom: 0;
+}
+.payment-page-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+@media (max-width: 767.98px) {
+    .payment-page .card-body {
+        padding: 1rem 0.75rem;
+    }
+    .payment-page-btn-row,
+    .payment-page-btn-row .btn,
+    .payment-page .text-center > .btn {
+        width: 100%;
+    }
+    .payment-page .input-group {
+        overflow-x: auto;
+    }
+    .payment-page .payment-split-group {
+        flex-wrap: wrap;
+    }
+    .payment-page .payment-split-group > .form-control,
+    .payment-page .payment-split-group > .btn {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+    .payment-page-tabs .nav-link {
+        font-size: 0.9rem;
+    }
+    .pay-modal-footer,
+    .edit-discount-footer {
+        flex-direction: column;
+    }
+    .pay-modal-footer .btn {
+        width: 100%;
+    }
+    .toast-container,
+    #toastContainer {
+        left: 12px;
+        right: 12px;
+        max-width: calc(100vw - 24px);
+    }
+    .toast {
+        min-width: 0;
+        max-width: 100%;
+    }
+}
 </style>
 
 
-<div class="container-fluid">
+<div class="container-fluid px-2 px-md-3 payment-page">
     <div class="card" id="payment-page-card">
         <div class="card-body">
             <h2 class="text-center mb-4">Student Payment Plan</h2>
@@ -352,7 +529,7 @@
             <div id="toastContainer" aria-live="polite" aria-atomic="true" style="position: fixed; top: 10px; right: 10px; z-index: 1000;"></div>
 
             <!-- Navigation Tabs -->
-            <ul class="nav nav-tabs" id="paymentTabs" role="tablist">
+            <ul class="nav nav-tabs payment-page-tabs" id="paymentTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active bg-primary text-white" id="payment-plans-tab" data-bs-toggle="tab" data-bs-target="#payment-plans" type="button" role="tab" aria-controls="payment-plans" aria-selected="true">
                         <i class="ti ti-calendar me-2"></i>Payment Plans
@@ -388,14 +565,14 @@
                         <!-- Filters -->
                         <div class="mb-4">
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Student NIC <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Student NIC <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <input type="text" class="form-control" id="plan-student-nic" placeholder="Enter Student NIC" required>
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <select class="form-select filter-param" id="plan-course" name="course_id" required>
                                         <option selected disabled value="">Select a Course</option>
                                         @foreach($courses as $course)
@@ -422,7 +599,7 @@
                                         </div>
 
                                         <div class="row mb-3">
-                                            <div class="col-md-6">
+                                            <div class="col-12 col-md-6">
                                                 <label class="form-label fw-bold">Student Information</label>
                                                 <div class="mb-2">
                                                     <strong>Name:</strong> <span id="student-name-display">-</span>
@@ -437,7 +614,7 @@
                                                     <strong>Intake:</strong> <span id="intake-name-display">-</span>
                                                 </div>
                                             </div>
-                                            <div class="col-md-6">
+                                            <div class="col-12 col-md-6">
                                                 <label class="form-label fw-bold">Fee Structure</label>
                                                 <div class="mb-2">
                                                     <strong>Local Course Fee:</strong> <span id="course-fee-display">-</span>
@@ -458,7 +635,7 @@
                                         <hr>
 
                                         <div class="row mb-3">
-                                            <div class="col-md-4">
+                                            <div class="col-12 col-lg-4 mb-3 mb-lg-0">
                                                 <label class="form-label fw-bold">Payment Plan Type <span class="text-danger">*</span></label>
                                                 <select class="form-select" id="payment-plan-type" name="payment_plan_type" required>
                                                     <option value="">Select Payment Plan</option>
@@ -466,7 +643,7 @@
                                                     <option value="full">Full Payment</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-12 col-lg-4 mb-3 mb-lg-0">
                                                 <label class="form-label fw-bold">Local Fee Discounts</label>
                                                 <div id="discounts-container">
                                                     <div class="discount-item mb-2">
@@ -480,7 +657,7 @@
                                                     <i class="ti ti-plus"></i> Add Another Discount
                                                 </button>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-12 col-lg-4">
                                                 <label class="form-label fw-bold">Registration Fee Discount</label>
                                                 <select class="form-select" id="registration-fee-discount" name="registration_fee_discount">
                                                     <option value="">No Registration Fee Discount</option>
@@ -489,32 +666,32 @@
                                             </div>
                                         </div>
 
-                                        <div class="row mb-3">
-                                            <div class="col-md-3">
+                                        <div class="row mb-3 g-3">
+                                            <div class="col-12 col-sm-6 col-lg-3">
                                                 <label class="form-label fw-bold">SLT Loan Applied <span class="text-danger">*</span></label>
                                                 <select class="form-select" id="slt-loan-applied" name="slt_loan_applied">
                                                     <option value="no">No SLT Loan</option>
                                                     <option value="yes">Yes - SLT Loan Applied</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-12 col-sm-6 col-lg-3">
                                                 <label class="form-label fw-bold">SLT Loan Amount</label>
                                                 <input type="number" class="form-control" id="slt-loan-amount" name="slt_loan_amount" min="0" step="0.01" placeholder="Enter SLT loan amount" disabled>
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-12 col-sm-6 col-lg-3">
                                                 <label class="form-label fw-bold">Loan Starts From Installment</label>
                                                 <input type="number" class="form-control" id="slt-loan-start-installment" name="slt_loan_start_installment" min="1" step="1" placeholder="e.g. 3" disabled>
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-12 col-sm-6 col-lg-3">
                                                 <label class="form-label fw-bold">Loan Taken Years</label>
                                                 <input type="number" class="form-control" id="slt-loan-years" name="slt_loan_years" min="1" max="50" step="1" placeholder="e.g. 4" disabled>
                                             </div>
                                         </div>
 
                                         <div class="row mb-3">
-                                            <div class="col-md-4">
+                                            <div class="col-12 col-lg-6">
     <label class="form-label fw-bold">Final Amount After Discount & Loan</label>
-    <div class="input-group">
+    <div class="input-group payment-split-group">
         <input type="text" class="form-control" id="final-amount" name="final_amount" readonly>
         <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#finalAmountBreakdownModal">
             View Breakdown
@@ -545,7 +722,7 @@
                                         <div class="row mb-3">
                                             <div class="col-12">
                                                 <label class="form-label fw-bold">Installment Details</label>
-                                                <div class="table-responsive">
+                                                <div class="table-responsive payment-page-table-scroll">
                                                     <table class="table table-bordered" id="installmentTable">
                                                         <thead class="table-light">
                                                             <tr>
@@ -580,13 +757,15 @@
                                         </div>
 
                                         <div class="row">
-                                            <div class="col-12 text-center">
+                                            <div class="col-12">
+                                                <div class="payment-page-btn-row">
                                                 <button type="button" class="btn btn-primary btn-create-payment-plan">
                                                     <i class="ti ti-check me-2"></i>Submit
                                                 </button>
                                                 <button type="button" class="btn btn-secondary btn-reset-payment-plan">
                                                     <i class="ti ti-refresh me-2"></i>Reset
                                                 </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </form>
@@ -598,7 +777,7 @@
                         <!-- Existing Payment Plans Table -->
                         <div class="mt-4" id="existingPaymentPlansSection" style="display:none;">
                         <h4 class="text-center mb-3">Existing Payment Plans</h4>
-                        <div class="table-responsive">
+                        <div class="table-responsive payment-page-table-scroll">
                             <table class="table table-bordered">
                             <thead class="table-light">
                                 <tr>
@@ -627,14 +806,14 @@
                         <!-- Filters -->
                         <div class="mb-4">
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Student ID <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Student ID <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <input type="text" class="form-control" id="slip-student-id" placeholder="Enter Student ID / NIC" required>
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <select class="form-select" id="slip-course" required>
                                         <option value="" selected disabled>Select Course</option>
                                         @if(isset($courses))
@@ -646,8 +825,8 @@
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Payment Type <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Payment Type <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <select class="form-select" id="slip-payment-type" required disabled>
     <option value="" selected disabled>Select Payment Type</option>
     <option value="course_fee">Course Fee</option>
@@ -658,8 +837,8 @@
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Payment Effective Date</label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Payment Effective Date</label>
+                                <div class="col-12 col-md-9">
                                     <input type="date" class="form-control" id="payment-effective-date"
                                         value="{{ date('Y-m-d') }}" max="{{ date('Y-m-d') }}">
                                     <small class="form-text text-muted">
@@ -669,11 +848,11 @@
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center" id="currencyConversionRow" style="display: none;">
-                                <label class="col-sm-2 col-form-label fw-bold">Currency Conversion Rate <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
-                                    <div class="input-group">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Currency Conversion Rate <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
+                                    <div class="input-group payment-rate-group">
                                         <span class="input-group-text">1</span>
-                                        <select class="form-select" id="currency-from" style="max-width: 80px;" disabled>
+                                        <select class="form-select form-select-sm" id="currency-from" disabled>
                                            <!-- Removed the Dropdown by Savindu -->
                                         </select>
                                         <span class="input-group-text">=</span>
@@ -688,9 +867,9 @@
 
                                 <!-- SSCL Tax -->
                                 <div class="row mb-3 align-items-center">
-                                    <label class="col-sm-2 col-form-label fw-bold">SSCL Tax</label>
-                                    <div class="col-sm-10 d-flex">
-                                        <select class="form-select me-2" id="sscl-type" style="max-width: 120px;">
+                                    <label class="col-12 col-md-3 col-form-label fw-bold">SSCL Tax</label>
+                                    <div class="col-12 col-md-9 combo-control">
+                                        <select class="form-select" id="sscl-type">
                                             <option value="amount" selected>Amount</option>
                                             <option value="percentage">%</option>
                                         </select>
@@ -702,16 +881,16 @@
 
                                 <!-- Calculated SSCL in LKR -->
                                 <div class="row mb-3 align-items-center">
-                                    <label class="col-sm-2 col-form-label fw-bold">SSCL Tax (LKR)</label>
-                                    <div class="col-sm-10">
+                                    <label class="col-12 col-md-3 col-form-label fw-bold">SSCL Tax (LKR)</label>
+                                    <div class="col-12 col-md-9">
                                         <input type="text" class="form-control" id="sscl-tax-amount" value="0" readonly>
                                     </div>
                                 </div>
 
                                 <!-- Bank Charges (still fixed for now) -->
                                 <div class="row mb-3 align-items-center">
-                                    <label class="col-sm-2 col-form-label fw-bold">Bank Charges (LKR)</label>
-                                    <div class="col-sm-10">
+                                    <label class="col-12 col-md-3 col-form-label fw-bold">Bank Charges (LKR)</label>
+                                    <div class="col-12 col-md-9">
                                         <input type="number" class="form-control" id="bank-charges"
                                             placeholder="Enter Bank Charges" step="0.01" min="0" value="0">
                                     </div>
@@ -731,7 +910,7 @@
                                 <strong>Conversion Rate:</strong> <span id="currentConversionRate">320</span> LKR per <span id="currentCurrency">USD</span>
                             </div>
 
-                            <div class="table-responsive">
+                            <div class="table-responsive payment-page-table-scroll">
                                 <table class="table table-bordered table-hover" id="paymentDetailsTable">
                                     <thead class="table-light">
                                         <tr>
@@ -753,7 +932,7 @@
 
 
                             </div>
-                            <div class="text-center mt-3">
+                            <div class="text-center mt-3 payment-page-btn-row">
                                 <button type="button" class="btn btn-primary" id="generateSlipBtn" disabled>
                                     <i class="ti ti-receipt me-2"></i>Generate Payment Slip
                                 </button>
@@ -765,15 +944,15 @@
                             <h4 class="text-center mb-3">Payment Slip Preview</h4>
                             <div class="card">
                                 <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6">
                                             <h5>Student Information</h5>
                                             <p><strong>Student ID:</strong> <span id="slip-student-id-display"></span></p>
                                             <p><strong>Student Name:</strong> <span id="slip-student-name-display"></span></p>
                                             <p><strong>Course:</strong> <span id="slip-course-display"></span></p>
                                             <p><strong>Intake:</strong> <span id="slip-intake-display"></span></p>
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-12 col-md-6">
                                             <h5>Payment Information</h5>
                                             <p><strong>Payment Type:</strong> <span id="slip-payment-type-display"></span></p>
                                             <p><strong>Installment Amount:</strong> <span id="slip-amount-display"></span></p>
@@ -791,15 +970,14 @@
                                             <p><strong>Receipt No:</strong> <span id="slip-receipt-no-display"></span></p>
                                         </div>
                                     </div>
-                                    <div class="text-center mt-3">
-                                        <button type="button" class="btn btn-success me-2" id="printPaymentSlipBtn">
+                                    <div class="text-center mt-3 payment-page-btn-row">
+                                        <button type="button" class="btn btn-success" id="printPaymentSlipBtn">
                                             <i class="ti ti-printer me-2"></i>Print Slip
                                         </button>
-                                        <button type="button" class="btn btn-info me-2" id="downloadPaymentSlipBtn">
+                                        <button type="button" class="btn btn-info" id="downloadPaymentSlipBtn">
                                             <i class="ti ti-download me-2"></i>Download PDF
                                         </button>
-
-                                        <button type="button" class="btn btn-danger btn-sm" id="delete-slip-btn" style="display:none;">
+                                        <button type="button" class="btn btn-danger" id="delete-slip-btn" style="display:none;">
                                             <i class="ti ti-trash me-2"></i>Delete Slip
                                         </button>
                                     </div>
@@ -911,24 +1089,26 @@
         <!-- Filters -->
         <div class="mb-4">
             <div class="row mb-3 align-items-center">
-                <label class="col-sm-2 col-form-label fw-bold">Student NIC <span class="text-danger">*</span></label>
-                <div class="col-sm-10">
+                <label class="col-12 col-md-3 col-form-label fw-bold">Student NIC <span class="text-danger">*</span></label>
+                <div class="col-12 col-md-9">
                     <input type="text" class="form-control" id="update-student-nic" placeholder="Enter Student NIC" required>
                 </div>
             </div>
             <div class="row mb-3 align-items-center">
-                <label class="col-sm-2 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
-                <div class="col-sm-10">
+                <label class="col-12 col-md-3 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
+                <div class="col-12 col-md-9">
                     <select class="form-select" id="update-course" required>
                         <option value="" selected disabled>Select a Course</option>
                     </select>
                 </div>
             </div>
             <div class="row">
-                <div class="col-12 text-center">
+                <div class="col-12">
+                    <div class="payment-page-btn-row">
                     <button type="button" class="btn btn-primary" id="loadPaymentRecordsBtn">
                         <i class="ti ti-search me-2"></i>Load Payment Records
                     </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -936,8 +1116,8 @@
         <!-- Payment Records Table -->
         <div class="mt-4" id="paymentRecordsSection" style="display:none;">
             <h4 class="text-center mb-3">Payment Records</h4>
-            <div class="table-responsive">
-                <table class="table table-bordered">
+            <div class="table-responsive payment-page-table-scroll">
+                <table class="table table-bordered" id="paymentRecordsTable">
                     <thead class="table-light">
                         <tr>
                             <th>Student ID</th>
@@ -962,7 +1142,22 @@
                     </tbody>
                 </table>
             </div>
-            <div class="text-center mt-3" id="updateSaveBtnSection" style="display:none;">
+            <div class="payment-page-footer mt-3" id="paymentRecordsPaginationBar" style="display:none;">
+                <div class="payment-page-page-size">
+                    <label class="form-label mb-0 small text-muted" for="paymentRecordsPerPage">Per page</label>
+                    <select id="paymentRecordsPerPage" class="form-select form-select-sm page-size-select">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div class="text-muted small" id="paymentRecordsRange"></div>
+                <nav class="payment-page-pagination" aria-label="Payment records pages">
+                    <ul class="pagination pagination-sm mb-0" id="paymentRecordsPagination"></ul>
+                </nav>
+            </div>
+            <div class="text-center mt-3 payment-page-btn-row" id="updateSaveBtnSection" style="display:none;">
                 <button type="button" class="btn btn-success" id="updatePaymentRecordsBtn">
                     <i class="ti ti-device-floppy me-2"></i>Update Records
                 </button>
@@ -976,41 +1171,41 @@
                     <div class="mt-4">
                         <form id="slt-loan-receivable-form">
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Student NIC <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Student NIC <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <input type="text" class="form-control" id="slt-loan-student-nic" placeholder="Enter Student NIC" required>
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <select class="form-select" id="slt-loan-course" required disabled>
                                         <option value="" selected disabled>Select a Course</option>
                                     </select>
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Loan Taken Years</label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Loan Taken Years</label>
+                                <div class="col-12 col-md-9">
                                     <input type="number" class="form-control" id="sltLoanYears" readonly>
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">No of Loan Installments</label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">No of Loan Installments</label>
+                                <div class="col-12 col-md-9">
                                     <input type="number" class="form-control" id="sltLoanInstallmentCount" readonly>
                                     <small class="form-text text-muted">Calculated as loan taken years × 12 months.</small>
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Apply From Installment</label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Apply From Installment</label>
+                                <div class="col-12 col-md-9">
                                     <input type="number" class="form-control" id="sltLoanStartInstallment" readonly>
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">SLT Loan Amount</label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">SLT Loan Amount</label>
+                                <div class="col-12 col-md-9">
                                     <div class="input-group">
                                         <span class="input-group-text">LKR</span>
                                         <input type="number" class="form-control" id="sltPlanLoanAmount" readonly>
@@ -1019,8 +1214,8 @@
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">SLT Loan Receivable Amount (Monthly)</label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">SLT Loan Receivable Amount (Monthly)</label>
+                                <div class="col-12 col-md-9">
                                     <div class="input-group">
                                         <span class="input-group-text">LKR</span>
                                         <input type="number" class="form-control" id="sltLoanAmount" min="0" step="0.01" readonly>
@@ -1029,14 +1224,14 @@
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Payment Effective Date <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Payment Effective Date <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <input type="date" class="form-control" id="sltLoanEffectiveDate" value="{{ date('Y-m-d') }}" max="{{ date('Y-m-d') }}" required>
                                     <small class="form-text text-muted">Enter the actual date the SLT receivable payment is effective.</small>
                                 </div>
                             </div>
                             <div class="alert alert-info" id="sltLoanSummary" style="display:none;"></div>
-                            <div class="text-center">
+                            <div class="text-center payment-page-btn-row">
                                 <button type="submit" class="btn btn-success">
                                     <i class="ti ti-device-floppy me-2"></i>Update SLT Receivable
                                 </button>
@@ -1088,7 +1283,7 @@
         </div>
 
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer pay-modal-footer">
         <button type="button" class="btn btn-success" id="submitPaymentBtn">Confirm Payment</button>
       </div>
     </div>
@@ -1102,24 +1297,26 @@
                         <!-- Filters -->
                         <div class="mb-4">
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Student NIC <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Student NIC <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <input type="text" class="form-control" id="summary-student-nic" placeholder="Enter Student NIC" required>
                                 </div>
                             </div>
                             <div class="row mb-3 align-items-center">
-                                <label class="col-sm-2 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                                <label class="col-12 col-md-3 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9">
                                     <select class="form-select" id="summary-course" required>
                                         <option value="" selected disabled>Select a Course</option>
                                     </select>
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-12 text-center">
+                                <div class="col-12">
+                                    <div class="payment-page-btn-row">
                                     <button type="button" class="btn btn-primary" id="generatePaymentSummaryBtn">
                                         <i class="ti ti-chart-pie me-2"></i>Generate Summary
                                     </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1136,13 +1333,13 @@
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6">
                                             <p><strong>Student ID:</strong> <span id="summary-student-id"></span></p>
                                             <p><strong>Student Name:</strong> <span id="summary-student-name"></span></p>
                                             <p><strong>Course:</strong> <span id="summary-course-name"></span></p>
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-12 col-md-6">
                                             <p><strong>Registration Date:</strong> <span id="summary-registration-date"></span></p>
                                             <p><strong>Total Course Fee:</strong> <span id="summary-total-course-fee"></span></p>
                                             <p><strong>Total Paid:</strong> <span id="summary-total-paid"></span></p>
@@ -1152,8 +1349,8 @@
                             </div>
 
                             <!-- Summary Cards -->
-                            <div class="row mb-4">
-                                <div class="col-md-3">
+                            <div class="row mb-4 g-3">
+                                <div class="col-12 col-sm-6 col-lg-3">
                                     <div class="card bg-primary text-white">
                                         <div class="card-body text-center">
                                             <h5>Total Amount</h5>
@@ -1161,7 +1358,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-6 col-lg-3">
                                     <div class="card bg-success text-white">
                                         <div class="card-body text-center">
                                             <h5>Total Paid</h5>
@@ -1169,7 +1366,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-6 col-lg-3">
                                     <div class="card bg-warning text-white">
                                         <div class="card-body text-center">
                                             <h5>Outstanding</h5>
@@ -1177,7 +1374,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-6 col-lg-3">
                                     <div class="card bg-info text-white">
                                         <div class="card-body text-center">
                                             <h5>Payment Rate</h5>
@@ -1200,7 +1397,7 @@
                                         <h6 class="text-primary mb-3">
                                             <i class="ti ti-book me-2"></i>Local Course Fee
                                         </h6>
-                                        <div class="table-responsive">
+                                        <div class="table-responsive payment-page-table-scroll">
                                             <table class="table table-bordered table-sm">
                                                 <thead class="table-light">
                                                     <tr>
@@ -1226,7 +1423,7 @@
                                         <h6 class="text-success mb-3">
                                             <i class="ti ti-building me-2"></i>Franchise Payments
                                         </h6>
-                                        <div class="table-responsive">
+                                        <div class="table-responsive payment-page-table-scroll">
                                             <table class="table table-bordered table-sm">
                                                 <thead class="table-light">
                                                     <tr>
@@ -1252,7 +1449,7 @@
                                         <h6 class="text-info mb-3">
                                             <i class="ti ti-file-text me-2"></i>Registration Fee
                                         </h6>
-                                        <div class="table-responsive">
+                                        <div class="table-responsive payment-page-table-scroll">
                                             <table class="table table-bordered table-sm">
                                                 <thead class="table-light">
                                                     <tr>
@@ -1278,7 +1475,7 @@
                                         <h6 class="text-warning mb-3">
                                             <i class="ti ti-home me-2"></i>Hostel Fee
                                         </h6>
-                                        <div class="table-responsive">
+                                        <div class="table-responsive payment-page-table-scroll">
                                             <table class="table table-bordered table-sm">
                                                 <thead class="table-light">
                                                     <tr>
@@ -1304,7 +1501,7 @@
                                         <h6 class="text-secondary mb-3">
                                             <i class="ti ti-library me-2"></i>Library Fee
                                         </h6>
-                                        <div class="table-responsive">
+                                        <div class="table-responsive payment-page-table-scroll">
                                             <table class="table table-bordered table-sm">
                                                 <thead class="table-light">
                                                     <tr>
@@ -1330,7 +1527,7 @@
                                         <h6 class="text-dark mb-3">
                                             <i class="ti ti-plus me-2"></i>Other
                                         </h6>
-                                        <div class="table-responsive">
+                                        <div class="table-responsive payment-page-table-scroll">
                                             <table class="table table-bordered table-sm">
                                                 <thead class="table-light">
                                                     <tr>
@@ -1360,10 +1557,80 @@
     </div>
 </div>
 
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
 let paymentPlans = [];
 let paymentRecords = [];
 let paymentSummary = {};
+window.paymentRecordsPage = 1;
+
+function confirmDelete(title, text) {
+    if (typeof Swal === 'undefined') {
+        return Promise.resolve(false);
+    }
+    return Swal.fire({
+        title: title,
+        text: text,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, delete it',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true,
+        focusCancel: true,
+    }).then(result => result.isConfirmed);
+}
+
+function syncCustomSelect(select) {
+    if (!select) return;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function getPaymentRecordsPerPage() {
+    const select = document.getElementById('paymentRecordsPerPage');
+    const n = parseInt(select?.value || '10', 10);
+    return Number.isFinite(n) && n > 0 ? n : 10;
+}
+
+function goToPaymentRecordsPage(page) {
+    const records = Array.isArray(window.paymentRecords) ? window.paymentRecords : [];
+    const perPage = getPaymentRecordsPerPage();
+    const lastPage = Math.max(1, Math.ceil(records.length / perPage) || 1);
+    window.paymentRecordsPage = Math.min(Math.max(1, parseInt(page, 10) || 1), lastPage);
+    renderPaymentRecords();
+}
+
+function renderPaymentRecordsPagination(total, page, perPage) {
+    const bar = document.getElementById('paymentRecordsPaginationBar');
+    const rangeEl = document.getElementById('paymentRecordsRange');
+    const pagesEl = document.getElementById('paymentRecordsPagination');
+    if (!bar || !rangeEl || !pagesEl) return;
+
+    if (!total) {
+        bar.style.display = 'none';
+        rangeEl.textContent = '';
+        pagesEl.innerHTML = '';
+        return;
+    }
+
+    const lastPage = Math.max(1, Math.ceil(total / perPage));
+    const from = ((page - 1) * perPage) + 1;
+    const to = Math.min(total, page * perPage);
+    rangeEl.textContent = `Showing ${from}–${to} of ${total}`;
+    bar.style.display = 'flex';
+
+    let html = `<li class="page-item ${page <= 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-records-page="${page - 1}">Prev</a></li>`;
+    const windowSize = 5;
+    let start = Math.max(1, page - 2);
+    let end = Math.min(lastPage, start + windowSize - 1);
+    start = Math.max(1, end - windowSize + 1);
+    for (let p = start; p <= end; p++) {
+        html += `<li class="page-item ${p === page ? 'active' : ''}"><a class="page-link" href="#" data-records-page="${p}">${p}</a></li>`;
+    }
+    html += `<li class="page-item ${page >= lastPage ? 'disabled' : ''}"><a class="page-link" href="#" data-records-page="${page + 1}">Next</a></li>`;
+    pagesEl.innerHTML = html;
+}
 
 // Event delegation for payment buttons
 document.addEventListener('click', function(e) {
@@ -1415,6 +1682,11 @@ document.addEventListener('click', function(e) {
         openPayModal(paymentId, remainingAmount);
     } else if (e.target.closest('.btn-confirm-save-payment-record')) {
         confirmSavePaymentRecord();
+    } else if (e.target.closest('[data-records-page]')) {
+        e.preventDefault();
+        const link = e.target.closest('[data-records-page]');
+        if (link.closest('.disabled')) return;
+        goToPaymentRecordsPage(link.dataset.recordsPage);
     }
 });
 
@@ -1426,6 +1698,9 @@ document.addEventListener('change', function(e) {
         updatePaymentPlan(index, value);
     } else if (e.target.classList.contains('payment-checkbox')) {
         enableGenerateButton();
+    } else if (e.target.id === 'paymentRecordsPerPage') {
+        window.paymentRecordsPage = 1;
+        renderPaymentRecords();
     }
 });
 
@@ -2397,15 +2672,17 @@ function loadExistingPaymentPlans(studentNic, courseId) {
               data-bs-toggle="collapse" data-bs-target="#plan-${p.payment_plan_id}-inst">View</button>
     </td>
     <td>${badge(p.status)}</td>
-    <td class="text-nowrap">
+    <td>
+      <div class="payment-page-actions">
       <button class="btn btn-sm btn-outline-primary"
               data-bs-toggle="collapse" data-bs-target="#plan-${p.payment_plan_id}-inst">Details</button>
-      <button class="btn btn-sm btn-primary ms-1 btn-load-plan" data-plan-id="${p.payment_plan_id}">
+      <button class="btn btn-sm btn-primary btn-load-plan" data-plan-id="${p.payment_plan_id}">
         <i class="ti ti-edit me-1"></i>Load to Editor
       </button>
-      <button class="btn btn-sm btn-danger ms-1 btn-delete-plan" data-plan-id="${p.payment_plan_id}">
+      <button class="btn btn-sm btn-danger btn-delete-plan" data-plan-id="${p.payment_plan_id}">
         <i class="ti ti-trash me-1"></i>Delete
       </button>
+      </div>
     </td>
   </tr>
   <tr class="collapse" id="plan-${p.payment_plan_id}-inst">
@@ -2554,34 +2831,48 @@ function attachDeletePlanHandler() {
   if (tbody._deleteHandlerAttached) return;
   tbody._deleteHandlerAttached = true;
 
-  tbody.addEventListener('click', (ev) => {
+  tbody.addEventListener('click', async (ev) => {
     const btn = ev.target.closest('.btn-delete-plan');
     if (!btn) return;
 
     const planId = btn.dataset.planId;
-    if (!confirm("Are you sure you want to delete this payment plan?")) return;
+    const confirmed = await confirmDelete(
+      'Delete payment plan?',
+      'This payment plan will be removed and cannot be undone.'
+    );
+    if (!confirmed) return;
 
     fetch(`/payment/delete-plan/${planId}`, {
-  method: "DELETE",
-  headers: {
-    "Content-Type": "application/json",
-    "X-CSRF-TOKEN": "{{ csrf_token() }}"
-  }
-})
-.then(r => {
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
-})
-.then(data => {
-  if (!data.success) throw new Error(data.message || "Delete failed");
-  document.getElementById(`plan-row-${planId}`)?.remove();
-  alert("Payment plan deleted successfully");
-})
-.catch(err => {
-  console.error("Delete failed:", err);
-  alert("Error deleting plan: " + err.message);
-});
-
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": "{{ csrf_token() }}"
+      }
+    })
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(data => {
+      if (!data.success) throw new Error(data.message || "Delete failed");
+      document.getElementById(`plan-row-${planId}`)?.remove();
+      document.getElementById(`plan-${planId}-inst`)?.remove();
+      if (window.existingPlansCache) {
+        delete window.existingPlansCache[planId];
+      }
+      if (window.existingPlanMetaCache) {
+        delete window.existingPlanMetaCache[planId];
+      }
+      const remaining = tbody.querySelector('.btn-delete-plan');
+      if (!remaining) {
+        document.getElementById('existingPaymentPlansSection').style.display = 'none';
+      }
+      showSuccessMessage(data.message || "Payment plan deleted successfully");
+    })
+    .catch(err => {
+      console.error("Delete failed:", err);
+      showErrorMessage("Error deleting plan: " + err.message);
+    });
   });
 }
 
@@ -3712,6 +4003,7 @@ function loadPaymentRecords() {
     .then(data => {
         if (data.success) {
             window.paymentRecords = data.records;
+            window.paymentRecordsPage = 1;
             renderPaymentRecords();
             document.getElementById('paymentRecordsSection').style.display = 'block';
             showSuccessMessage('Payment records loaded successfully!');
@@ -3920,13 +4212,22 @@ function renderPaymentRecords() {
     modalContainer.innerHTML = '';
 
     const records = Array.isArray(window.paymentRecords) ? window.paymentRecords : [];
+    const perPage = getPaymentRecordsPerPage();
+    const lastPage = Math.max(1, Math.ceil(records.length / perPage) || 1);
+    const page = Math.min(Math.max(1, window.paymentRecordsPage || 1), lastPage);
+    window.paymentRecordsPage = page;
 
     if (!records.length) {
         tbody.innerHTML = '<tr><td colspan="14" class="text-center text-muted">No payment records found.</td></tr>';
+        renderPaymentRecordsPagination(0, 1, perPage);
         return;
     }
 
-    records.forEach((r) => {
+    const start = (page - 1) * perPage;
+    const pageRecords = records.slice(start, start + perPage);
+
+    pageRecords.forEach((r, offset) => {
+    const idx = start + offset;
     const modalId = `historyModal-${r.payment_id}`; // ✅ Use payment_id instead of id
 
     // ✅ Map payment_type to display name
@@ -3957,6 +4258,7 @@ function renderPaymentRecords() {
         <td>${r.receipt_no ?? '-'}</td>
         <td>${r.status ?? '-'}</td>
         <td>
+          <div class="payment-page-actions">
           <button class="btn btn-sm btn-success btn-open-pay-modal"
                   data-payment-id="${r.payment_id}"
                   data-remaining-amount="${remaining}"
@@ -3966,6 +4268,7 @@ function renderPaymentRecords() {
           <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#${modalId}">
             <i class="ti ti-history me-1"></i>History
           </button>
+          </div>
         </td>
             </tr>
     `;
@@ -3991,6 +4294,8 @@ function renderPaymentRecords() {
         `;
         modalContainer.insertAdjacentHTML('beforeend', modalMarkup);
   });
+
+  renderPaymentRecordsPagination(records.length, page, perPage);
 }
 
 function renderHistoryList(payments) {
@@ -4293,11 +4598,12 @@ function editPaymentPlan(index) {
 }
 
 function deletePaymentPlan(index) {
-    if (confirm('Are you sure you want to delete this payment plan?')) {
+    confirmDelete('Delete payment plan?', 'This payment plan will be removed from the list.').then((confirmed) => {
+        if (!confirmed) return;
         paymentPlans.splice(index, 1);
         renderPaymentPlans();
         showToast('Success', 'Payment plan deleted successfully.', 'bg-success');
-    }
+    });
 }
 
 function viewPaymentHistory(index) {
@@ -4311,11 +4617,12 @@ function editPaymentRecord(index) {
 }
 
 function deletePaymentRecord(index) {
-    if (confirm('Are you sure you want to delete this payment record?')) {
+    confirmDelete('Delete payment record?', 'This payment record will be removed from the list.').then((confirmed) => {
+        if (!confirmed) return;
         paymentRecords.splice(index, 1);
         renderPaymentRecords();
         showToast('Success', 'Payment record deleted successfully.', 'bg-success');
-    }
+    });
 }
 
 function viewPaymentDetails(index) {
@@ -4709,12 +5016,12 @@ async function loadPaymentDetails() {
 
   // Show/hide conversion row & extra charges only for franchise_fee
   if (paymentType === 'franchise_fee') {
-      conversionRow.style.display = 'flex';
-      franchiseRow.style.display  = 'block'; // 👈 show our new inputs
+      conversionRow.style.display = '';
+      franchiseRow.style.display  = 'block';
       currencySelect.disabled     = false;
   } else {
       conversionRow.style.display = 'none';
-      franchiseRow.style.display  = 'none'; // 👈 hide if not franchise
+      franchiseRow.style.display  = 'none';
       currencySelect.disabled     = true;
   }
 
@@ -4753,11 +5060,9 @@ async function loadPaymentDetails() {
     }
 
     // --- Set the currency from backend for franchise_fee ---
-    if (paymentType === 'franchise_fee' && data.payment_details?.length > 0) {
-        // Use currency from the first installment
-        const planCurrency = data.payment_details[0].currency || 'USD';
+    if (paymentType === 'franchise_fee') {
+        const planCurrency = data.payment_details?.[0]?.currency || 'USD';
 
-        // Add to dropdown if it doesn't exist
         if (![...currencySelect.options].some(opt => opt.value === planCurrency)) {
             const newOpt = document.createElement('option');
             newOpt.value = planCurrency;
@@ -4766,6 +5071,7 @@ async function loadPaymentDetails() {
         }
 
         currencySelect.value = planCurrency;
+        syncCustomSelect(currencySelect);
     }
 
     // Map backend rows to table format
@@ -5609,8 +5915,12 @@ $('#paymentTabs .nav-link').on('shown.bs.tab', function (e) {
     }
 });
 
-function deleteSlip(id) {
-  if (!confirm("Are you sure you want to delete this slip?")) return;
+async function deleteSlip(id) {
+  const confirmed = await confirmDelete(
+    'Delete payment slip?',
+    'This slip will be removed and cannot be undone.'
+  );
+  if (!confirmed) return;
 
   fetch(`/payment/delete-slip/${id}`, {
     method: 'DELETE',
@@ -5621,15 +5931,19 @@ function deleteSlip(id) {
   })
     .then(res => res.json())
     .then(data => {
-      alert(data.message);
       if (data.success) {
-        // Hide preview & reset button
+        showSuccessMessage(data.message || 'Payment slip deleted successfully.');
         document.getElementById('slipPreviewSection').style.display = 'none';
         document.getElementById('delete-slip-btn').style.display = 'none';
         window.currentSlipData = null;
+      } else {
+        showErrorMessage(data.message || 'Failed to delete payment slip.');
       }
     })
-    .catch(err => console.error("Delete failed", err));
+    .catch(err => {
+      console.error("Delete failed", err);
+      showErrorMessage('An error occurred while deleting the payment slip.');
+    });
 }
 
 
