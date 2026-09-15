@@ -33,7 +33,7 @@
                     <strong>Location:</strong> {{ $locationText }}<br>
                     <strong>Course:</strong> {{ $courseText }}<br>
                     <strong>Batch:</strong> {{ $intakeText }}<br>
-                    @if(!empty($specializationText) && $specializationText !== 'All')
+                    @if(!empty($showSpecializationColumn) && !empty($specializationText) && $specializationText !== 'All')
                         <strong>Specialization:</strong> {{ $specializationText }}<br>
                     @endif
                         <strong>View:</strong>
@@ -51,7 +51,9 @@
                                 <th>Course Registration ID</th>
                                 <th>Student ID</th>
                                 <th>Student Name</th>
-                                <th>Specialization</th>
+                                @if(!empty($showSpecializationColumn))
+                                    <th>Specialization</th>
+                                @endif
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -62,7 +64,9 @@
                                     <td style="text-align:center;">{{ $st->course_registration_id }}</td>
                                     <td style="text-align:center;">{{ $st->student_id }}</td>
                                     <td>{{ $st->name }}</td>
-                                    <td style="text-align:center;">{{ $st->specialization ?: '-' }}</td>
+                                    @if(!empty($showSpecializationColumn))
+                                        <td style="text-align:center;">{{ $st->specialization }}</td>
+                                    @endif
                                     <td style="text-align:center;">
                                         <span class="status-chip">
                                             @if(($st->status ?? '') === 'terminated') Not Eligible
@@ -73,7 +77,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" style="text-align:center;">No students found</td>
+                                    <td colspan="{{ !empty($showSpecializationColumn) ? 6 : 5 }}" style="text-align:center;">No students found</td>
                                 </tr>
                             @endforelse
                         </tbody>

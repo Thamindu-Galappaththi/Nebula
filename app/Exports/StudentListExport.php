@@ -17,14 +17,16 @@ class StudentListExport implements FromArray, WithHeadings, WithStyles, WithColu
     protected $location;
     protected $intake;
     protected $status;
+    protected bool $includeSpecialization;
 
-    public function __construct($data, $courseName, $location, $intake, $status)
+    public function __construct($data, $courseName, $location, $intake, $status, bool $includeSpecialization = true)
     {
         $this->data = $data;
         $this->courseName = $courseName;
         $this->location = $location;
         $this->intake = $intake;
         $this->status = $status;
+        $this->includeSpecialization = $includeSpecialization;
     }
 
     public function array(): array
@@ -34,20 +36,28 @@ class StudentListExport implements FromArray, WithHeadings, WithStyles, WithColu
 
     public function headings(): array
     {
-        return [
+        $headings = [
             'No.',
             'Course Registration ID',
             'Student ID',
             'Student Name',
-            'Specialization',
-            'Status'
         ];
+
+        if ($this->includeSpecialization) {
+            $headings[] = 'Specialization';
+        }
+
+        $headings[] = 'Status';
+
+        return $headings;
     }
 
     public function styles(Worksheet $sheet)
     {
+        $lastColumn = $this->lastColumn();
+
         // Style the header row
-        $sheet->getStyle('A1:F1')->applyFromArray([
+        $sheet->getStyle('A1:' . $lastColumn . '1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -64,7 +74,7 @@ class StudentListExport implements FromArray, WithHeadings, WithStyles, WithColu
 
         // Add title row
         $sheet->insertNewRowBefore(1, 3);
-        $sheet->mergeCells('A1:F1');
+        $sheet->mergeCells('A1:' . $lastColumn . '1');
         $sheet->setCellValue('A1', 'STUDENT LIST');
         $sheet->getStyle('A1')->applyFromArray([
             'font' => [
@@ -76,7 +86,7 @@ class StudentListExport implements FromArray, WithHeadings, WithStyles, WithColu
             ],
         ]);
 
-        $sheet->mergeCells('A2:F2');
+        $sheet->mergeCells('A2:' . $lastColumn . '2');
         $sheet->setCellValue('A2', 'Course: ' . $this->courseName . ' | Location: ' . $this->location . ' | Intake: ' . $this->intake . ' | Status: ' . ucfirst($this->status));
         $sheet->getStyle('A2')->applyFromArray([
             'font' => [
@@ -89,7 +99,7 @@ class StudentListExport implements FromArray, WithHeadings, WithStyles, WithColu
         ]);
 
         // Style all cells
-        $sheet->getStyle('A4:F' . (count($this->data) + 4))->applyFromArray([
+        $sheet->getStyle('A4:' . $lastColumn . (count($this->data) + 4))->applyFromArray([
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
                 'vertical' => Alignment::VERTICAL_CENTER,
@@ -106,13 +116,28 @@ class StudentListExport implements FromArray, WithHeadings, WithStyles, WithColu
 
     public function columnWidths(): array
     {
+        if ($this->includeSpecialization) {
+            return [
+                'A' => 8,
+                'B' => 25,
+                'C' => 15,
+                'D' => 30,
+                'E' => 40,
+                'F' => 15,
+            ];
+        }
+
         return [
             'A' => 8,
             'B' => 25,
             'C' => 15,
             'D' => 30,
-            'E' => 40,
-            'F' => 15,
+            'E' => 15,
         ];
+    }
+
+    private function lastColumn(): string
+    {
+        return $this->includeSpecialization ? 'F' : 'E';
     }
 }
