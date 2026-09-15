@@ -149,7 +149,7 @@
                 <th>Course Registration ID</th>
                 <th>Student ID</th>
                 <th>Student Name</th>
-                <th>Specialization</th>
+                <th id="specializationColumnHeader">Specialization</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -181,6 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let allStudents = [];
   let currentStatus = 'all';
+  let specLoadToken = 0;
 
   function reset(select, placeholder){
     select.innerHTML = `<option selected disabled value="">${placeholder}</option>`;
@@ -188,33 +189,57 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function resetSpecialization(){
+    delete specializationRow.dataset.loading;
     specializationRow.style.display = 'none';
     reset(specializationSelect, 'Select Specialization');
   }
 
   function loadSpecializations(courseId){
+    const token = ++specLoadToken;
     resetSpecialization();
     if(!courseId) return;
+
+    specializationRow.dataset.loading = '1';
 
     fetch(`/api/course/${encodeURIComponent(courseId)}/specializations`)
       .then(r => r.json())
       .then(data => {
-        if(data.success && Array.isArray(data.specializations) && data.specializations.length){
-          specializationSelect.innerHTML = '';
-          const placeholder = new Option('Select Specialization', '', true, true);
-          placeholder.disabled = true;
-          specializationSelect.add(placeholder);
+        if(token !== specLoadToken) return;
+
+        const named = [];
+        if(data.success && Array.isArray(data.specializations)){
           data.specializations.forEach(spec => {
             const value = typeof spec === 'object' ? (spec.name || spec.value || spec.specialization || '') : spec;
-            if(value){
-              specializationSelect.add(new Option(value, value));
+            const label = String(value || '').trim();
+            if(label && label.toLowerCase() !== 'common' && !named.includes(label)){
+              named.push(label);
             }
           });
-          specializationSelect.disabled = false;
-          specializationRow.style.display = '';
         }
+
+        delete specializationRow.dataset.loading;
+
+        if(!named.length){
+          resetSpecialization();
+          if(intakeSelect.value) fetchStudents();
+          return;
+        }
+
+        specializationSelect.innerHTML = '';
+        const placeholder = new Option('Select Specialization', '', true, true);
+        placeholder.disabled = true;
+        specializationSelect.add(placeholder);
+        specializationSelect.add(new Option('Common', 'Common'));
+        named.forEach(label => specializationSelect.add(new Option(label, label)));
+        specializationSelect.disabled = false;
+        specializationRow.style.display = '';
+        section.style.display = 'none';
       })
-      .catch(() => resetSpecialization());
+      .catch(() => {
+        if(token !== specLoadToken) return;
+        resetSpecialization();
+        if(intakeSelect.value) fetchStudents();
+      });
   }
 
   function showSpinner(show){
@@ -292,6 +317,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   intakeSelect.addEventListener('change', () => {
+    if (specializationRow.dataset.loading === '1') {
+      section.style.display = 'none';
+      return;
+    }
     if (specializationRow.style.display === 'none' || specializationSelect.value) {
       fetchStudents();
     } else {
@@ -330,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const locText = locationSelect.options[locationSelect.selectedIndex].text;
         const crsText = courseSelect.options[courseSelect.selectedIndex].text;
         const inText  = intakeSelect.options[intakeSelect.selectedIndex].text;
-        const specText = specializationSelect.value ? ` - ${specializationSelect.value}` : '';
+        const specText = showsSpecializationColumn() ? ` - ${specializationSelect.value}` : '';
         headerEl.innerHTML = `Student list - ${locText}<br>${crsText} - ${inText}${specText}`;
 
         renderTable();
@@ -356,6 +385,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return status.charAt(0).toUpperCase() + status.slice(1);
   }
 
+  function showsSpecializationColumn(){
+    const value = String(specializationSelect.value || '').trim();
+    return value !== '' && value.toLowerCase() !== 'common';
+  }
+
   function renderTable(){
     const list = (currentStatus==='all')
       ? allStudents
@@ -364,6 +398,10 @@ document.addEventListener('DOMContentLoaded', () => {
     list.sort((a, b) => (a.course_registration_id || '').localeCompare(b.course_registration_id || '', undefined, { numeric: true, sensitivity: 'base' }));
     tbody.innerHTML = '';
 
+    const showSpec = showsSpecializationColumn();
+    const specHeader = document.getElementById('specializationColumnHeader');
+    if (specHeader) specHeader.style.display = showSpec ? '' : 'none';
+
     list.forEach((s, idx) => {
       let trClass = '';
       if (s.status === 'pending') trClass = 'table-warning';
@@ -371,14 +409,16 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (s.status === 'terminated') trClass = 'table-danger';
       else if (s.status === 'completed') trClass = 'table-info';
 
-      const specialization = s.specialization || s.course_registration_specialization || s.course_registration?.specialization || '-';
+      const specializationCell = showSpec
+        ? `<td>${escapeHtml(String(s.specialization || s.course_registration_specialization || s.course_registration?.specialization || '').trim())}</td>`
+        : '';
       tbody.insertAdjacentHTML('beforeend', `
         <tr class="${trClass}">
           <td>${idx+1}</td>
           <td>${escapeHtml(s.course_registration_id)}</td>
           <td>${escapeHtml(s.student_id)}</td>
           <td>${escapeHtml(s.name)}</td>
-          <td>${escapeHtml(specialization)}</td>
+          ${specializationCell}
           <td>${escapeHtml(statusLabel(s.status))}</td>
         </tr>
       `);

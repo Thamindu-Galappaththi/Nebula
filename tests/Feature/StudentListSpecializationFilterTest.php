@@ -121,6 +121,20 @@ class StudentListSpecializationFilterTest extends TestCase
         ]);
     }
 
+    public function test_unfiltered_list_labels_unassigned_students_as_common(): void
+    {
+        $response = $this->listStudents(null);
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $students = collect($response->json('students'))->keyBy('student_id');
+
+        $this->assertSame('Common', $students[$this->commonStudent->student_id]['specialization']);
+        $this->assertSame(
+            'Electrical & Electronic Engineering',
+            $students[$this->eeeStudent->student_id]['specialization']
+        );
+    }
+
     public function test_common_filter_returns_unassigned_students_only(): void
     {
         $response = $this->listStudents('Common');
@@ -130,7 +144,7 @@ class StudentListSpecializationFilterTest extends TestCase
 
         $this->assertContains($this->commonStudent->student_id, $ids);
         $this->assertNotContains($this->eeeStudent->student_id, $ids);
-        $this->assertSame('', $response->json('students.0.specialization'));
+        $this->assertSame('Common', $response->json('students.0.specialization'));
     }
 
     public function test_named_specialization_filter_does_not_return_common_students(): void
@@ -145,5 +159,88 @@ class StudentListSpecializationFilterTest extends TestCase
             $students->pluck('student_id')->all()
         );
         $this->assertSame('Electrical & Electronic Engineering', $students->first()['specialization']);
+    }
+
+    public function test_pdf_omits_specialization_column_for_common(): void
+    {
+        $html = view('student_management.student_list_pdf', [
+            'cspNonce' => 'test',
+            'students' => collect([(object) [
+                'course_registration_id' => 'CR-COMMON',
+                'student_id' => $this->commonStudent->student_id,
+                'name' => 'Common Student',
+                'specialization' => 'Common',
+                'status' => 'registered',
+            ]]),
+            'locationText' => 'Nebula Institute of Technology - Welisara',
+            'courseText' => $this->course->course_name,
+            'intakeText' => $this->intake->batch,
+            'total_count' => 1,
+            'status' => 'all',
+            'specializationText' => 'Common',
+            'showSpecializationColumn' => false,
+        ])->render();
+
+        $this->assertStringNotContainsString('<th>Specialization</th>', $html);
+        $this->assertStringNotContainsString('<strong>Specialization:</strong>', $html);
+    }
+
+    public function test_pdf_keeps_specialization_column_for_named_track(): void
+    {
+        $html = view('student_management.student_list_pdf', [
+            'cspNonce' => 'test',
+            'students' => collect([(object) [
+                'course_registration_id' => 'CR-EEE',
+                'student_id' => $this->eeeStudent->student_id,
+                'name' => 'EEE Student',
+                'specialization' => 'Electrical & Electronic Engineering',
+                'status' => 'registered',
+            ]]),
+            'locationText' => 'Nebula Institute of Technology - Welisara',
+            'courseText' => $this->course->course_name,
+            'intakeText' => $this->intake->batch,
+            'total_count' => 1,
+            'status' => 'all',
+            'specializationText' => 'Electrical & Electronic Engineering',
+            'showSpecializationColumn' => true,
+        ])->render();
+
+        $this->assertStringContainsString('<th>Specialization</th>', $html);
+        $this->assertStringContainsString('<strong>Specialization:</strong> Electrical &amp; Electronic Engineering', $html);
+        $this->assertStringContainsString('Electrical &amp; Electronic Engineering', $html);
+    }
+
+    public function test_excel_omits_specialization_heading_for_common(): void
+    {
+        $export = new \App\Exports\StudentListExport(
+            [[1, 'CR-COMMON', $this->commonStudent->student_id, 'Common Student', 'Registered']],
+            $this->course->course_name,
+            'Welisara',
+            $this->intake->batch,
+            'all',
+            false
+        );
+
+        $this->assertSame(
+            ['No.', 'Course Registration ID', 'Student ID', 'Student Name', 'Status'],
+            $export->headings()
+        );
+    }
+
+    public function test_excel_keeps_specialization_heading_for_named_track(): void
+    {
+        $export = new \App\Exports\StudentListExport(
+            [[1, 'CR-EEE', $this->eeeStudent->student_id, 'EEE Student', 'Electrical & Electronic Engineering', 'Registered']],
+            $this->course->course_name,
+            'Welisara',
+            $this->intake->batch,
+            'all',
+            true
+        );
+
+        $this->assertSame(
+            ['No.', 'Course Registration ID', 'Student ID', 'Student Name', 'Specialization', 'Status'],
+            $export->headings()
+        );
     }
 }

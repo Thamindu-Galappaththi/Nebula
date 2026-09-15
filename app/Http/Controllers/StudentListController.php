@@ -24,6 +24,15 @@ class StudentListController extends Controller
         return $value === '' ? null : $value;
     }
 
+    private function showsSpecializationColumn(?string $specialization): bool
+    {
+        if ($specialization === null || $specialization === '') {
+            return false;
+        }
+
+        return strcasecmp($specialization, 'Common') !== 0;
+    }
+
     private function courseHasSpecializations(?Course $course): bool
     {
         if (!$course || empty($course->specializations)) {
@@ -153,7 +162,8 @@ class StudentListController extends Controller
             ->get();
 
         return $students->map(function ($student) use ($assignments) {
-            $student->specialization = $assignments->get($student->student_id, '');
+            $assigned = trim((string) $assignments->get($student->student_id, ''));
+            $student->specialization = $assigned === '' ? 'Common' : $assigned;
 
             return $student;
         });
@@ -214,6 +224,8 @@ class StudentListController extends Controller
         $course = Course::find($course_id);
         $intake = Intake::find($intake_id);
 
+        $showSpecializationColumn = $this->showsSpecializationColumn($specialization);
+
         $data = [
             'students'     => $students,
             'locationText' => 'Nebula Institute of Technology - ' . $location,
@@ -222,6 +234,7 @@ class StudentListController extends Controller
             'total_count'  => $students->count(),
             'status'       => $status,
             'specializationText' => $specialization ?? 'All',
+            'showSpecializationColumn' => $showSpecializationColumn,
         ];
 
         $pdf = Pdf::loadView('student_management.student_list_pdf', $data);
@@ -251,25 +264,29 @@ class StudentListController extends Controller
 
         $course = Course::find($course_id);
         $intake = Intake::find($intake_id);
+        $showSpecializationColumn = $this->showsSpecializationColumn($specialization);
 
         // Excel
         $excelData = [];
         $counter = 1;
         foreach ($students as $s) {
-            $excelData[] = [
+            $row = [
                 $counter++,
                 $s->course_registration_id,
                 $s->student_id,
                 $s->name,
-                $s->specialization ?: '-',
-                ($s->status === 'terminated') ? 'Not Eligible' : ucfirst($s->status)
             ];
+            if ($showSpecializationColumn) {
+                $row[] = $s->specialization;
+            }
+            $row[] = ($s->status === 'terminated') ? 'Not Eligible' : ucfirst($s->status);
+            $excelData[] = $row;
         }
 
         $filename = 'student_list_' . strtolower($status) . '_' . date('Y-m-d_H-i-s') . '.xlsx';
 
         return Excel::download(
-            new StudentListExport($excelData, $course?->course_name ?? 'N/A', $location, $intake?->batch ?? 'N/A', $status),
+            new StudentListExport($excelData, $course?->course_name ?? 'N/A', $location, $intake?->batch ?? 'N/A', $status, $showSpecializationColumn),
             $filename
         );
     }
