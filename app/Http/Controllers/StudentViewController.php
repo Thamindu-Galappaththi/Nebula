@@ -9,7 +9,6 @@ use App\Models\Student;
 use App\Models\Course;
 use App\Models\Intake;
 use App\Exports\StudentViewExport;
-use App\Support\SpecializationStudentScope;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -44,8 +43,79 @@ class StudentViewController extends Controller
         }
 
         $columns = array_values(array_intersect(array_keys(self::EXPORT_COLUMNS), (array) $requested));
+        if ($columns === []) {
+            $columns = array_keys(self::EXPORT_COLUMNS);
+        }
 
-        return $columns ?: array_keys(self::EXPORT_COLUMNS);
+        $specialization = $this->normalizeSpecializationValue($request->input('specialization'));
+        $course = $request->filled('course_id') ? Course::find($request->course_id) : null;
+        if (!$this->showsSpecializationColumn($specialization, $course)) {
+            $columns = array_values(array_filter($columns, fn ($column) => $column !== 'specialization'));
+        }
+
+        return $columns;
+    }
+
+    private function courseHasNamedSpecializations(?Course $course): bool
+    {
+        if (!$course || empty($course->specializations)) {
+            return false;
+        }
+
+        $specializations = is_array($course->specializations)
+            ? $course->specializations
+            : json_decode($course->specializations, true);
+
+        if (!is_array($specializations)) {
+            return false;
+        }
+
+        foreach ($specializations as $item) {
+            $label = is_array($item)
+                ? ($item['name'] ?? $item['specialization'] ?? $item['title'] ?? reset($item))
+                : $item;
+            $label = trim((string) $label);
+            if ($label !== '' && strcasecmp($label, 'Common') !== 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function showsSpecializationColumn(?string $specialization, ?Course $course): bool
+    {
+        if ($specialization !== null && strcasecmp($specialization, 'Common') === 0) {
+            return false;
+        }
+
+        if ($course && !$this->courseHasNamedSpecializations($course)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function specializationAssignments(int $courseId, ?int $intakeId)
+    {
+        if (!Schema::hasTable('specialization_registrations')) {
+            return collect();
+        }
+
+        $rows = DB::table('specialization_registrations')
+            ->where('course_id', $courseId)
+            ->when($intakeId, fn ($query) => $query->where('intake_id', $intakeId))
+            ->where('status', 'registered')
+            ->whereNotNull('specialization')
+            ->where('specialization', '<>', '')
+            ->orderByDesc('id')
+            ->get(['student_id', 'specialization']);
+
+        return $rows
+            ->unique('student_id')
+            ->mapWithKeys(function ($row) {
+                return [$row->student_id => trim((string) $row->specialization)];
+            });
     }
 
     private function applySpecializationScope($query, ?string $specialization, $selectedCourseId, $selectedIntakeId): void
@@ -54,30 +124,32 @@ class StudentViewController extends Controller
             return;
         }
 
-        $courseId = (int) $selectedCourseId;
-        $intakeId = $selectedIntakeId ? (int) $selectedIntakeId : null;
-
-        $studentIds = SpecializationStudentScope::resolveStudentIds(
-            $courseId,
-            $intakeId,
-            null,
-            $specialization
+        $assignments = $this->specializationAssignments(
+            (int) $selectedCourseId,
+            $selectedIntakeId ? (int) $selectedIntakeId : null
         );
 
-        if (!empty($studentIds)) {
-            $query->whereIn('student_id', $studentIds);
+        if (strcasecmp($specialization, 'Common') === 0) {
+            $assignedIds = $assignments->keys()->all();
+            if (!empty($assignedIds)) {
+                $query->whereNotIn('student_id', $assignedIds);
+            }
             return;
         }
 
-        $hasSpecializationRegistrations = Schema::hasTable('specialization_registrations')
-            && DB::table('specialization_registrations')
-                ->where('course_id', $courseId)
-                ->when($intakeId, fn ($q) => $q->where('intake_id', $intakeId))
-                ->exists();
+        $matchingIds = $assignments
+            ->filter(function ($assigned) use ($specialization) {
+                return strcasecmp((string) $assigned, $specialization) === 0;
+            })
+            ->keys()
+            ->all();
 
-        if ($hasSpecializationRegistrations) {
+        if (empty($matchingIds)) {
             $query->whereRaw('1 = 0');
+            return;
         }
+
+        $query->whereIn('student_id', $matchingIds);
     }
 
     private function attachSpecializations($students): void
@@ -93,24 +165,20 @@ class StudentViewController extends Controller
             ->get(['student_id', 'course_id', 'intake_id', 'specialization']);
 
         $byCohort = [];
-        $byStudent = [];
         foreach ($rows as $row) {
             $key = $row->student_id . ':' . $row->course_id . ':' . $row->intake_id;
             if (!isset($byCohort[$key])) {
                 $byCohort[$key] = $row->specialization;
             }
-            if (!isset($byStudent[$row->student_id])) {
-                $byStudent[$row->student_id] = $row->specialization;
-            }
         }
 
         foreach ($students as $student) {
             $reg = $student->courseRegistrations->first();
-            $spec = null;
-            if ($reg) {
-                $spec = $byCohort[$student->student_id . ':' . $reg->course_id . ':' . $reg->intake_id] ?? null;
+            if (!$reg) {
+                continue;
             }
-            $spec = $spec ?: ($byStudent[$student->student_id] ?? null);
+
+            $spec = $byCohort[$student->student_id . ':' . $reg->course_id . ':' . $reg->intake_id] ?? null;
             if ($spec) {
                 $student->setAttribute('specialization', $spec);
             }
@@ -201,16 +269,7 @@ class StudentViewController extends Controller
 
     private function decorateStudents($students, Request $request): void
     {
-        $specialization = $this->normalizeSpecializationValue($request->input('specialization'));
         $this->attachSpecializations($students);
-
-        if ($specialization) {
-            $students->each(function ($student) use ($specialization) {
-                if (trim((string) ($student->getAttribute('specialization') ?? '')) === '') {
-                    $student->setAttribute('specialization', $specialization);
-                }
-            });
-        }
     }
 
     private function fetchStudents(Request $request)
@@ -252,12 +311,13 @@ class StudentViewController extends Controller
         $course = $request->filled('course_id') ? Course::find($request->course_id) : null;
         $intake = $request->filled('intake_id') ? Intake::find($request->intake_id) : null;
         $specialization = $this->normalizeSpecializationValue($request->input('specialization'));
+        $showSpecialization = $this->showsSpecializationColumn($specialization, $course);
 
         return [
             'studentId' => $request->input('student_id') ?: 'All',
             'courseText' => $course?->course_name ?? 'All Courses',
             'intakeText' => $intake?->batch ?? 'All Intakes',
-            'specializationText' => $specialization ?? 'All',
+            'specializationText' => $showSpecialization ? ($specialization ?? 'All') : null,
             'statusText' => $request->filled('status') ? ucfirst((string) $request->status) : 'All',
         ];
     }
