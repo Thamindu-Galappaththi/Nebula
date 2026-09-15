@@ -173,22 +173,45 @@ class StudentViewController extends Controller
         }
 
         foreach ($students as $student) {
-            $reg = $student->courseRegistrations->first();
-            if (!$reg) {
-                continue;
+            $map = [];
+            foreach ($student->courseRegistrations as $reg) {
+                $key = $student->student_id . ':' . $reg->course_id . ':' . $reg->intake_id;
+                if (isset($byCohort[$key])) {
+                    $map[$key] = $byCohort[$key];
+                }
             }
-
-            $spec = $byCohort[$student->student_id . ':' . $reg->course_id . ':' . $reg->intake_id] ?? null;
-            if ($spec) {
-                $student->setAttribute('specialization', $spec);
-            }
+            $student->setAttribute('specialization_by_cohort', $map);
         }
     }
 
-    private function mapStudentRow(Student $student): array
+    private function mapStudentRows(Student $student): array
     {
-        $reg = $student->courseRegistrations->first();
-        $specialization = $student->getAttribute('specialization') ?: '-';
+        $registrations = $student->courseRegistrations;
+        if ($registrations->isEmpty()) {
+            return [$this->mapRegistrationRow($student, null)];
+        }
+
+        return $registrations
+            ->map(fn ($reg) => $this->mapRegistrationRow($student, $reg))
+            ->values()
+            ->all();
+    }
+
+    private function mappedRows($students)
+    {
+        return $students->flatMap(fn (Student $student) => $this->mapStudentRows($student))->values();
+    }
+
+    private function mapRegistrationRow(Student $student, $reg): array
+    {
+        $specialization = '-';
+        if ($reg) {
+            $byCohort = $student->getAttribute('specialization_by_cohort') ?? [];
+            $key = $student->student_id . ':' . $reg->course_id . ':' . $reg->intake_id;
+            $assigned = trim((string) ($byCohort[$key] ?? ''));
+            $specialization = $assigned !== '' ? $assigned : '-';
+        }
+
         $courseName = $reg?->course?->course_name ?? '-';
         $intakeBatch = $reg?->intake?->batch ?? '-';
 
@@ -285,8 +308,7 @@ class StudentViewController extends Controller
         $rows = [];
         $counter = 1;
 
-        foreach ($students as $student) {
-            $mapped = $this->mapStudentRow($student);
+        foreach ($this->mappedRows($students) as $mapped) {
             $row = [$counter++];
             foreach ($columns as $column) {
                 $row[] = match ($column) {
@@ -339,7 +361,7 @@ class StudentViewController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $students->map(fn (Student $student) => $this->mapStudentRow($student))->values(),
+            'data' => $this->mappedRows($students),
             'current_page' => $paginator->currentPage(),
             'last_page' => $paginator->lastPage(),
             'per_page' => $paginator->perPage(),
@@ -367,7 +389,7 @@ class StudentViewController extends Controller
     {
         $columns = $this->selectedExportColumns($request);
         $students = $this->fetchStudents($request);
-        $mapped = $students->map(fn (Student $student) => $this->mapStudentRow($student))->values();
+        $mapped = $this->mappedRows($students);
         $meta = $this->exportMeta($request);
 
         $pdf = Pdf::loadView('student_management.student_view_pdf', [
