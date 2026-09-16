@@ -1021,7 +1021,8 @@ class ExamResultController extends Controller
             ->with(['student.courseRegistrations', 'course', 'module', 'intake'])
             ->get()
             ->map(function($result) {
-                $registration = $result->student->courseRegistrations
+                $student = $result->student;
+                $registration = $student?->courseRegistrations
                     ->where('course_id', $result->course_id)
                     ->where('intake_id', $result->intake_id)
                     ->first();
@@ -1029,13 +1030,13 @@ class ExamResultController extends Controller
                 return [
                     'id' => $result->id,
                     'student_id' => $result->student_id,
-                    'registration_id' => $registration ? $registration->course_registration_id : '',
-                    'student_name' => $result->student->full_name,
+                    'registration_id' => $registration?->course_registration_id ?: '',
+                    'student_name' => $student?->full_name ?? '',
                     'marks' => $result->marks,
                     'grade' => $result->grade,
                     'remarks' => $result->remarks,
-                    'created_at' => $result->created_at->format('Y-m-d H:i:s'),
-                    'updated_at' => $result->updated_at->format('Y-m-d H:i:s'),
+                    'created_at' => optional($result->created_at)->timezone('Asia/Colombo')?->format('Y-m-d H:i:s'),
+                    'updated_at' => optional($result->updated_at)->timezone('Asia/Colombo')?->format('Y-m-d H:i:s'),
                 ];
             })
             ->sortBy('registration_id')

@@ -297,4 +297,31 @@ class ExamResultsPageTest extends TestCase
         $this->assertStringContainsString('text/csv', (string) $response->headers->get('content-type'));
         $this->assertStringContainsString('Student Name,Course Name,Module Name', $response->getContent());
     }
+
+    public function test_view_edit_exam_results_page_is_mobile_safe(): void
+    {
+        $this->actingAs($this->actor)
+            ->get(route('exam.results.view.edit'))
+            ->assertOk()
+            ->assertSee('exam-results-page', false)
+            ->assertSee('col-12 col-md-3', false)
+            ->assertSee('exam-results-table-scroll', false)
+            ->assertSee('sweetalert2@11.22.0', false);
+
+        $source = file_get_contents(resource_path('views/exam_&_results/exam_results_view_edit.blade.php'));
+
+        $this->assertStringContainsString('exam-results-tabs', $source);
+        $this->assertStringContainsString('Swal.fire', $source);
+        $this->assertStringContainsString('No intakes are included for this course and location.', $source);
+        $this->assertStringContainsString('No semesters are included for this course and intake.', $source);
+        $this->assertStringContainsString('No modules are included for this', $source);
+        $this->assertStringContainsString("new Option('All', '')", $source);
+        $this->assertStringContainsString('Asia/Colombo', $source);
+        $this->assertStringContainsString('col-12 col-sm-6 col-lg-3', $source);
+        $this->assertStringNotContainsString('col-sm-2 col-form-label', $source);
+        $this->assertStringNotContainsString("getElementById('certResultsTableSection').style.display = 'none'", $source);
+        $this->assertStringNotContainsString('degree_intake_hint', $source);
+        $this->assertStringNotContainsString('exam-results-empty-hint', $source);
+        $this->assertStringNotContainsString('alert-info', $source);
+    }
 }
