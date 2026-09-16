@@ -69,21 +69,88 @@ class ExamResultController extends Controller
     }
 
     /**
-     * Get student name by ID.
+     * Get student name by ID, NIC, or course registration number.
      */
     public function getStudentName(Request $request)
     {
         try {
-            $student = Student::where('student_id', $request->input('student_id'))->first();
-
-            if ($student) {
-                return response()->json(['success' => true, 'name' => $student->full_name]);
+            $lookup = trim((string) $request->input('student_id'));
+            if ($lookup === '') {
+                return response()->json(['success' => false, 'message' => 'Student ID or NIC is required.']);
             }
-            return response()->json(['success' => false, 'message' => 'Student not found.']);
+
+            $student = Student::query()
+                ->where(function ($query) use ($lookup) {
+                    $query->where('student_id', $lookup)
+                        ->orWhere('id_value', $lookup);
+                })
+                ->first();
+
+            $typedRegistration = null;
+            if (!$student) {
+                $typedRegistration = CourseRegistration::query()
+                    ->where('course_registration_id', $lookup)
+                    ->with('student')
+                    ->first();
+                $student = $typedRegistration?->student;
+            }
+
+            if (!$student) {
+                return response()->json(['success' => false, 'message' => 'Student not found.']);
+            }
+
+            $registration = $this->resolveExamResultRegistration(
+                (int) $student->student_id,
+                $request->input('course_id'),
+                $request->input('intake_id'),
+                $request->input('location'),
+                $typedRegistration
+            );
+
+            return response()->json([
+                'success' => true,
+                'name' => $student->full_name,
+                'student_id' => $student->student_id,
+                'registration_id' => $registration?->course_registration_id ?: '',
+            ]);
 
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'An error occurred.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private function resolveExamResultRegistration(
+        int $studentId,
+        $courseId,
+        $intakeId,
+        $location,
+        ?CourseRegistration $typedRegistration = null
+    ): ?CourseRegistration {
+        $scoped = CourseRegistration::query()->where('student_id', $studentId);
+
+        if ($courseId !== null && $courseId !== '') {
+            $scoped->where('course_id', $courseId);
+        }
+        if ($intakeId !== null && $intakeId !== '') {
+            $scoped->where('intake_id', $intakeId);
+        }
+        if ($location !== null && $location !== '') {
+            $scoped->where('location', $location);
+        }
+
+        $registration = $scoped->orderByDesc('id')->first();
+        if ($registration && filled($registration->course_registration_id)) {
+            return $registration;
+        }
+
+        $withNumber = CourseRegistration::query()
+            ->where('student_id', $studentId)
+            ->whereNotNull('course_registration_id')
+            ->where('course_registration_id', '!=', '')
+            ->orderByDesc('id')
+            ->first();
+
+        return $withNumber ?: $typedRegistration ?: $registration;
     }
 
     /**
@@ -161,17 +228,6 @@ class ExamResultController extends Controller
                     'success' => false,
                     'message' => 'Course not found.'
                 ], 404);
-            }
-
-            $specialization = null;
-            if (!$isCertificate) {
-                $specialization = $this->normalizeSpecializationValue($request->input('specialization'));
-                if ($this->courseHasSpecializations($course) && !$specialization) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Specialization is required for this course.'
-                    ], 422);
-                }
             }
 
             $semesterName = null;
@@ -533,16 +589,15 @@ class ExamResultController extends Controller
         }));
     }
 
-    private function courseHasSpecializations(Course $course): bool
-    {
-        return count($this->getCourseSpecializations($course)) > 0;
-    }
-
     private function normalizeSpecializationValue(?string $specialization): ?string
     {
         $specialization = trim((string) $specialization);
 
-        return $specialization !== '' ? $specialization : null;
+        if ($specialization === '' || strcasecmp($specialization, 'all') === 0) {
+            return null;
+        }
+
+        return $specialization;
     }
 
     private function getSemesterSequenceNumber(int $courseId, int $intakeId, int $semesterId): int
@@ -674,13 +729,6 @@ class ExamResultController extends Controller
 
         if (!$course) {
             return response()->json(['error' => 'Course not found.'], 404);
-        }
-
-        if (!$isCertificate && $this->courseHasSpecializations($course) && !$specialization) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Specialization is required for this course.'
-            ], 422);
         }
 
         // For certificate courses, get all enrolled students
@@ -941,14 +989,6 @@ class ExamResultController extends Controller
             ], 404);
         }
 
-        $specialization = $this->normalizeSpecializationValue($request->input('specialization'));
-        if ($this->courseHasSpecializations($course) && !$specialization) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Specialization is required for this course.'
-            ], 422);
-        }
-
         $resultsQuery = ExamResult::where('course_id', $validatedBase['course_id'])
             ->where('intake_id', $validatedBase['intake_id'])
             ->where('location', $validatedBase['location']);
@@ -1159,195 +1199,217 @@ class ExamResultController extends Controller
      */
     public function downloadTemplate(Request $request)
     {
-        try {
-            $request->validate([
+        $isCertificate = $request->input('course_type') === 'certificate';
+
+        if ($isCertificate) {
+            $validated = $request->validate([
+                'course_id' => 'required|integer|exists:courses,course_id',
+                'intake_id' => 'required|integer|exists:intakes,intake_id',
+                'location' => 'required|string',
+            ]);
+        } else {
+            $validated = $request->validate([
                 'course_id' => 'required|integer|exists:courses,course_id',
                 'intake_id' => 'required|integer|exists:intakes,intake_id',
                 'location' => 'required|string',
                 'semester' => 'required',
                 'module_id' => 'required|integer|exists:modules,module_id',
             ]);
+        }
 
-            $courseId = $request->course_id;
-            $intakeId = $request->intake_id;
-            $location = $request->location;
-            $semesterId = $request->semester;
-            $moduleId = $request->module_id;
-
-            // Get course, intake, semester, and module names
+        try {
+            $courseId = (int) $validated['course_id'];
+            $intakeId = (int) $validated['intake_id'];
+            $location = $validated['location'];
             $course = Course::find($courseId);
             $intake = Intake::find($intakeId);
-            $semester = \App\Models\Semester::find($semesterId);
-            $module = Module::find($moduleId);
 
-            if (!$course || !$intake || !$semester || !$module) {
-                return response()->json(['error' => 'Invalid course, intake, semester, or module.'], 404);
+            if (!$course || !$intake) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid course or intake.',
+                ], 404);
             }
 
-            $semesterSequence = \App\Models\Semester::where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->orderBy('start_date')
-                ->orderBy('id')
-                ->pluck('id')
-                ->values();
-            $semesterIndex = $semesterSequence->search($semester->id);
-            $semesterDisplayValue = $this->formatSemesterDisplayValue(
+            $module = null;
+            $semesterDisplayValue = '1';
+
+            if ($isCertificate) {
+                $certificateModuleId = $this->resolveCertificateModuleId($courseId, $intakeId);
+                if ($certificateModuleId !== null) {
+                    $module = Module::find($certificateModuleId);
+                }
+                $semesterDisplayValue = $this->getCertificateSemesterStorageValue();
+            } else {
+                $semester = \App\Models\Semester::find($validated['semester']);
+                $module = Module::find($validated['module_id']);
+
+                if (!$semester || !$module) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid semester or module.',
+                    ], 404);
+                }
+
+                $semesterSequence = \App\Models\Semester::where('course_id', $courseId)
+                    ->where('intake_id', $intakeId)
+                    ->orderBy('start_date')
+                    ->orderBy('id')
+                    ->pluck('id')
+                    ->values();
+                $semesterIndex = $semesterSequence->search($semester->id);
+                $semesterDisplayValue = $this->formatSemesterDisplayValue(
+                    $course,
+                    $semester->name,
+                    $semesterIndex === false ? null : ($semesterIndex + 1)
+                );
+            }
+
+            $students = $this->templateStudents(
+                $isCertificate,
                 $course,
-                $semester->name,
-                $semesterIndex === false ? null : ($semesterIndex + 1)
+                $intake,
+                $location,
+                $module,
+                $semesterDisplayValue,
+                $isCertificate ? null : (int) $validated['semester'],
+                $isCertificate ? null : (int) $validated['module_id']
             );
 
-            Log::info('Download template called with:', [
-                'course_id' => $courseId,
-                'intake_id' => $intakeId,
-                'location' => $location,
-                'semester_id' => $semesterId,
-                'module_id' => $moduleId,
-                'course_name' => $course->course_name,
-                'intake_no' => $intake->intake_no,
-                'semester_name' => $semester->name,
-                'semester_display' => $semesterDisplayValue,
-                'module_name' => $module->module_name
+            $headers = ['Student Name', 'Course Name', 'Module Name', 'Intake', 'Location', 'Semester', 'Marks', 'Grade', 'Remarks'];
+            $csvRows = [implode(',', $headers)];
+
+            foreach ($students as $student) {
+                $csvRows[] = implode(',', array_map(
+                    fn ($header) => $this->escapeCsvValue($student[$header] ?? ''),
+                    $headers
+                ));
+            }
+
+            $intakeLabel = $intake->batch ?? $intake->intake_no ?? $intakeId;
+            $moduleLabel = $module->module_name ?? ($isCertificate ? 'Certificate' : 'Module');
+            $filename = $this->safeDownloadFilename(
+                'exam_results_template_' . $course->course_name . '_' . $moduleLabel . '_' . $intakeLabel . '.csv'
+            );
+
+            return response(implode("\n", $csvRows), 200, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Error downloading template: ' . $e->getMessage(), [
+                'exception' => $e,
             ]);
 
-            $students = collect();
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to download the template. Please try again.',
+            ], 500);
+        }
+    }
 
-            $isElectiveModule = strtolower((string) $module->module_type) === 'elective';
+    private function templateStudents(
+        bool $isCertificate,
+        Course $course,
+        Intake $intake,
+        string $location,
+        $module,
+        string $semesterDisplayValue,
+        ?int $semesterId,
+        ?int $moduleId
+    ) {
+        $mapRegistration = function ($reg) use ($course, $module, $intake, $location, $semesterDisplayValue, $isCertificate) {
+            $student = $reg->student ?? null;
+            if (!$student) {
+                return null;
+            }
 
-            // Core and special-unit modules apply to semester-registered students.
-            // Elective modules use only the registrations recorded in module_management.
-            $semesterRegistrations = $isElectiveModule ? collect() : \App\Models\SemesterRegistration::where('semester_id', $semesterId)
-                ->where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
+            return [
+                'Student Name' => $student->full_name ?: $student->name_with_initials,
+                'Course Name' => $course->course_name,
+                'Module Name' => $module?->module_name ?? ($isCertificate ? 'Certificate' : ''),
+                'Intake' => $intake->batch ?? $intake->intake_no ?? '',
+                'Location' => $location,
+                'Semester' => $semesterDisplayValue,
+                'Marks' => '',
+                'Grade' => '',
+                'Remarks' => '',
+            ];
+        };
+
+        if ($isCertificate) {
+            return \App\Models\CourseRegistration::where('course_id', $course->course_id)
+                ->where('intake_id', $intake->intake_id)
+                ->where('location', $location)
+                ->where('status', 'Registered')
+                ->with('student')
+                ->get()
+                ->map($mapRegistration)
+                ->filter()
+                ->values();
+        }
+
+        $isElectiveModule = $module && strtolower((string) $module->module_type) === 'elective';
+        $semesterRegistrations = $isElectiveModule
+            ? collect()
+            : \App\Models\SemesterRegistration::where('semester_id', $semesterId)
+                ->where('course_id', $course->course_id)
+                ->where('intake_id', $intake->intake_id)
                 ->where('location', $location)
                 ->where('status', 'registered')
                 ->with('student')
                 ->get();
 
-            Log::info('SemesterRegistration query result:', [
-                'count' => $semesterRegistrations->count(),
-                'student_ids' => $semesterRegistrations->pluck('student_id')->toArray()
-            ]);
-
-            if ($semesterRegistrations->count() > 0) {
-                $students = $semesterRegistrations->map(function($reg) use ($course, $module, $intake, $location, $semesterDisplayValue) {
-                    return [
-                        'Student Name' => $reg->student->full_name,
-                        'Course Name' => $course->course_name,
-                        'Module Name' => $module->module_name,
-                        'Intake' => $intake->intake_no ?? $intake->batch ?? '2025-August',
-                        'Location' => $location,
-                        'Semester' => $semesterDisplayValue,
-                        'Marks' => '',
-                        'Grade' => '',
-                        'Remarks' => ''
-                    ];
-                });
-            } else {
-                // Fallback: Try module management for elective modules
-                $moduleRegistrations = \App\Models\ModuleManagement::where('module_id', $moduleId)
-                    ->where('course_id', $courseId)
-                    ->where('intake_id', $intakeId)
-                    ->where('location', $location)
-                    ->with('student')
-                    ->get();
-
-                Log::info('ModuleManagement query result:', [
-                    'count' => $moduleRegistrations->count(),
-                    'student_ids' => $moduleRegistrations->pluck('student_id')->toArray()
-                ]);
-
-                if ($moduleRegistrations->count() > 0) {
-                    $students = $moduleRegistrations->map(function($reg) use ($course, $module, $intake, $location, $semesterDisplayValue) {
-                        return [
-                            'Student Name' => $reg->student->full_name,
-                            'Course Name' => $course->course_name,
-                            'Module Name' => $module->module_name,
-                            'Intake' => $intake->intake_no ?? $intake->batch ?? '2025-August',
-                            'Location' => $location,
-                            'Semester' => $semesterDisplayValue,
-                            'Marks' => '',
-                            'Grade' => '',
-                            'Remarks' => ''
-                        ];
-                    });
-                } elseif (!$isElectiveModule) {
-                    // Final fallback: Get all students registered for this course and intake
-                    $courseRegistrations = \App\Models\CourseRegistration::where('course_id', $courseId)
-                        ->where('intake_id', $intakeId)
-                        ->where('location', $location)
-                        ->whereIn('approval_status', ['approved', 'registered'])
-                        ->with('student')
-                        ->get();
-
-                    Log::info('CourseRegistration fallback query result:', [
-                        'count' => $courseRegistrations->count(),
-                        'student_ids' => $courseRegistrations->pluck('student_id')->toArray()
-                    ]);
-
-                    $students = $courseRegistrations->map(function($reg) use ($course, $module, $intake, $location, $semesterDisplayValue) {
-                        return [
-                            'Student Name' => $reg->student->full_name,
-                            'Course Name' => $course->course_name,
-                            'Module Name' => $module->module_name,
-                            'Intake' => $intake->intake_no ?? $intake->batch ?? '2025-August',
-                            'Location' => $location,
-                            'Semester' => $semesterDisplayValue,
-                            'Marks' => '',
-                            'Grade' => '',
-                            'Remarks' => ''
-                        ];
-                    });
-                }
-            }
-
-            Log::info('Final student count for template:', ['count' => $students->count()]);
-
-            // Create CSV content
-            $csvContent = [];
-
-            // Add headers
-            if ($students->count() > 0) {
-                $csvContent[] = implode(',', array_keys($students->first()));
-
-                // Add student data rows
-                foreach ($students as $student) {
-                    $row = [];
-                    foreach ($student as $value) {
-                        // Properly escape values that contain commas, quotes, or newlines
-                        if (strpos($value, ',') !== false || strpos($value, '"') !== false || strpos($value, "\n") !== false) {
-                            $row[] = '"' . str_replace('"', '""', $value) . '"';
-                        } else {
-                            $row[] = $value;
-                        }
-                    }
-                    $csvContent[] = implode(',', $row);
-                }
-            } else {
-                // If no students found, create template with headers only
-                $csvContent[] = 'Student Name,Course Name,Module Name,Intake,Location,Semester,Marks,Grade,Remarks';
-                Log::warning('No students found for template generation');
-            }
-
-            $csv = implode("\n", $csvContent);
-
-            // Create response with CSV content
-            $filename = 'exam_results_template_' .
-                       str_replace(' ', '_', $course->course_name) . '_' .
-                       str_replace(' ', '_', $module->module_name) . '_' .
-                       $intake->intake_no . '.csv';
-
-            return response($csv, 200, [
-                'Content-Type' => 'text/csv',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error downloading template: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred while downloading template.'
-            ], 500);
+        if ($semesterRegistrations->count() > 0) {
+            return $semesterRegistrations->map($mapRegistration)->filter()->values();
         }
+
+        $moduleRegistrations = \App\Models\ModuleManagement::where('module_id', $moduleId)
+            ->where('course_id', $course->course_id)
+            ->where('intake_id', $intake->intake_id)
+            ->where('location', $location)
+            ->with('student')
+            ->get();
+
+        if ($moduleRegistrations->count() > 0) {
+            return $moduleRegistrations->map($mapRegistration)->filter()->values();
+        }
+
+        if ($isElectiveModule) {
+            return collect();
+        }
+
+        return \App\Models\CourseRegistration::where('course_id', $course->course_id)
+            ->where('intake_id', $intake->intake_id)
+            ->where('location', $location)
+            ->where(function ($query) {
+                $query->whereIn('approval_status', ['approved', 'registered', 'Approved by manager'])
+                    ->orWhere('status', 'Registered');
+            })
+            ->with('student')
+            ->get()
+            ->map($mapRegistration)
+            ->filter()
+            ->values();
+    }
+
+    private function escapeCsvValue($value): string
+    {
+        $value = (string) ($value ?? '');
+        if (str_contains($value, ',') || str_contains($value, '"') || str_contains($value, "\n")) {
+            return '"' . str_replace('"', '""', $value) . '"';
+        }
+
+        return $value;
+    }
+
+    private function safeDownloadFilename(string $filename): string
+    {
+        $filename = preg_replace('/[^\w.\-]+/', '_', $filename) ?? 'exam_results_template.csv';
+        $filename = trim($filename, '_');
+
+        return $filename !== '' ? $filename : 'exam_results_template.csv';
     }
 }
