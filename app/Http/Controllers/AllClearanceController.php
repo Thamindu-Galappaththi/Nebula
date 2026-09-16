@@ -9,6 +9,8 @@ use App\Models\Student;
 use App\Models\StudentClearance;
 use App\Support\SpecializationStudentScope;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class AllClearanceController extends Controller
 {
@@ -22,7 +24,7 @@ class AllClearanceController extends Controller
             ->get();
 
         $filteredRequests = $allClearanceRequests->filter(function ($item) {
-            return $item->intake_id && $item->course_id && $item->location;
+            return $item->intake_id && $item->course_id && $item->location && !$item->is_individual_request;
         });
 
         $groupedRequests = $filteredRequests->groupBy(function ($item) {
@@ -31,7 +33,11 @@ class AllClearanceController extends Controller
 
         $intakeRequests = collect();
         foreach ($groupedRequests as $group) {
-            $firstRequest  = $group->first();
+            $firstRequest = $group->first();
+            if (!$firstRequest || !$firstRequest->intake || !$firstRequest->course) {
+                continue;
+            }
+
             $totalStudents = $group->count();
             $approvedCount = $group->where('status', ClearanceRequest::STATUS_APPROVED)->count();
             $rejectedCount = $group->where('status', ClearanceRequest::STATUS_REJECTED)->count();
@@ -54,17 +60,44 @@ class AllClearanceController extends Controller
             ]);
         }
 
-        $individualRequests = $allClearanceRequests->filter(function ($item) {
-            return $item->is_individual_request;
-        });
+        $intakeRequests = $intakeRequests->sortByDesc(function ($item) {
+            return $item->requested_at;
+        })->values();
+
+        $individualRequests = $allClearanceRequests
+            ->filter(function ($item) {
+                return $item->is_individual_request;
+            })
+            ->sortByDesc(function ($item) {
+                return $item->requested_at;
+            })
+            ->values();
 
         $pendingRequests  = $allClearanceRequests->where('status', ClearanceRequest::STATUS_PENDING);
         $approvedRequests = $allClearanceRequests->where('status', ClearanceRequest::STATUS_APPROVED);
         $rejectedRequests = $allClearanceRequests->where('status', ClearanceRequest::STATUS_REJECTED);
+        $pendingCount     = $pendingRequests->count();
+        $approvedCount    = $approvedRequests->count();
+        $rejectedCount    = $rejectedRequests->count();
+        $totalCount       = $allClearanceRequests->count();
 
-        if ($request->has('student_id')) {
+        $intakeRequests = $this->paginateCollection($intakeRequests, $request, 'intake_page', 'intake-clearance-requests');
+        $individualRequests = $this->paginateCollection($individualRequests, $request, 'individual_page', 'individual-clearance-requests');
+
+        if ($request->ajax()) {
+            return response()->json([
+                'intake_html' => view('clearance.partials.intake_requests_body', compact('intakeRequests'))->render(),
+                'individual_html' => view('clearance.partials.individual_requests_body', compact('individualRequests'))->render(),
+                'pendingCount' => $pendingCount,
+                'approvedCount' => $approvedCount,
+                'rejectedCount' => $rejectedCount,
+                'totalCount' => $totalCount,
+            ]);
+        }
+
+        if ($request->filled('student_id')) {
             $student = Student::where('student_id', $request->student_id)
-                ->orWhere('nic', $request->student_id)
+                ->orWhere('id_value', $request->student_id)
                 ->first();
         }
 
@@ -75,9 +108,34 @@ class AllClearanceController extends Controller
             'pendingRequests',
             'approvedRequests',
             'rejectedRequests',
+            'pendingCount',
+            'approvedCount',
+            'rejectedCount',
+            'totalCount',
             'intakeRequests',
             'individualRequests'
         ));
+    }
+
+    private function paginateCollection(Collection $items, Request $request, string $pageName, string $fragment): LengthAwarePaginator
+    {
+        $perPage = 10;
+        $page = max(1, (int) $request->input($pageName, 1));
+
+        $paginator = new LengthAwarePaginator(
+            $items->forPage($page, $perPage)->values(),
+            $items->count(),
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'pageName' => $pageName,
+            ]
+        );
+
+        return $paginator
+            ->appends(array_merge($request->except($pageName), ['tab' => 'status']))
+            ->fragment($fragment);
     }
 
     public function librarysearch(Request $request)
@@ -320,7 +378,9 @@ class AllClearanceController extends Controller
                     'status_text'    => $item->status_text,
                     'status_color'   => $item->status_color,
                     'processed_by'   => $item->approvedBy->name ?? null,
-                    'processed_date' => $item->approved_at ? $item->approved_at->format('d/m/Y H:i') : null,
+                    'processed_date' => $item->approved_at
+                        ? $item->approved_at->timezone('Asia/Colombo')->format('d/m/Y H:i')
+                        : null,
                     'remarks'        => $item->remarks,
                 ];
             });
