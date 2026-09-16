@@ -421,12 +421,19 @@ document.addEventListener('DOMContentLoaded', function() {
         autoWidth: false,
         language: {
             search: "Search users:",
+            searchPlaceholder: "Search by name, email, employee ID or role",
             lengthMenu: "Show _MENU_ users per page",
             info: "Showing _START_ to _END_ of _TOTAL_ users"
         },
         dom: '<"row align-items-center"<"col-12 col-md-6"l><"col-12 col-md-6"f>>' +
              '<"row"<"col-12 user-mgmt-table-scroll"tr>>' +
              '<"row align-items-center"<"col-12 col-md-5"i><"col-12 col-md-7"p>>',
+        initComplete: function () {
+            const input = this.api().table().container().querySelector('.dataTables_filter input');
+            if (input && !input.placeholder) {
+                input.placeholder = 'Search by name, email, employee ID or role';
+            }
+        },
         lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
         columnDefs: [
             { orderable: false, targets: '_all' }
