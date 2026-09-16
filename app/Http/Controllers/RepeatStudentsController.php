@@ -324,8 +324,17 @@ class RepeatStudentsController extends Controller
 
     public function getRepeatStudentByNic(Request $request)
     {
-        $nic = $request->input('nic');
-        $student = \App\Models\Student::where('id_value', $nic)->first();
+        $nic = trim((string) $request->input('nic'));
+        if ($nic === '') {
+            return response()->json(['success' => false, 'message' => 'NIC or Student ID is required.']);
+        }
+
+        $student = \App\Models\Student::query()
+            ->where(function ($query) use ($nic) {
+                $query->where('id_value', $nic)
+                    ->orWhere('student_id', $nic);
+            })
+            ->first();
 
         if (!$student) {
             return response()->json(['success' => false, 'message' => 'Student not found.']);
