@@ -471,6 +471,9 @@ $(function () {
             select.selectedIndex = 0;
         } else {
             select.value = String(value);
+            if (select.value !== String(value)) {
+                select.selectedIndex = 0;
+            }
         }
         const selected = select.options[select.selectedIndex];
         const wrap = select.closest('.nebula-select');
@@ -480,6 +483,27 @@ $(function () {
             toggle.title = toggle.textContent;
         }
         select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function normalizeModuleType(raw) {
+        const value = String(raw || '').trim().toLowerCase();
+        if (['elective', 'e'].includes(value)) {
+            return 'elective';
+        }
+        if ([
+            'special_unit_compulsory',
+            's/u',
+            'su',
+            'special unit compulsory',
+            'special unit compulsory (s/u)',
+            'special_unit'
+        ].includes(value)) {
+            return 'special_unit_compulsory';
+        }
+        if (['core', 'c'].includes(value)) {
+            return 'core';
+        }
+        return value || 'core';
     }
 
     $('#clearFiltersBtn').on('click', function () {
@@ -592,12 +616,15 @@ $(function () {
             $('#editCategoryBadge').removeClass('bg-secondary').addClass('bg-success').text('Certificate');
             $('#editDegreeFields').hide();
             $('#edit_credits').prop('required', false).val('');
-            $('#edit_module_type').prop('required', false).val('core');
+            $('#edit_module_type').prop('required', false);
+            resetFilterSelect(document.getElementById('edit_module_type'), 'core');
         } else {
             $('#editCategoryBadge').removeClass('bg-success').addClass('bg-secondary').text('Degree/Diploma');
             $('#editDegreeFields').show();
-            $('#edit_credits').prop('required', true).val(row.data('credits'));
-            $('#edit_module_type').prop('required', true).val(row.data('type') || 'core').trigger('change');
+            $('#edit_credits').prop('required', true).val(row.attr('data-credits'));
+            $('#edit_module_type').prop('required', true);
+            const storedType = row.attr('data-module-type') || row.attr('data-type') || '';
+            resetFilterSelect(document.getElementById('edit_module_type'), normalizeModuleType(storedType));
         }
 
         if (editModalInstance) {

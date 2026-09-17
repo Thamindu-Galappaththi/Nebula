@@ -39,8 +39,11 @@ class SemesterCreationPageTest extends TestCase
             ->assertSee('creating: true', false)
             ->assertSee('semester-create-header', false)
             ->assertSee('semester-module-picker', false)
+            ->assertSee('Modules', false)
+            ->assertSee('All types')
+            ->assertSee('col-12 col-md-3 col-lg-2 col-form-label', false)
             ->assertSee('data-label="Semester"', false)
-            ->assertSee('@media (max-width: 767.98px)', false)
+            ->assertSee('@media (max-width: 991.98px)', false)
             ->assertSee('Status is set automatically from the start and end dates', false)
             ->getContent();
 

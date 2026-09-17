@@ -1285,6 +1285,19 @@ setupPhoneValidator('emergencyContactNo', 'emergencyContactNoError');
                 // 422 Unprocessable Entity from Laravel validation
                 if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
                     showServerErrors(xhr.responseJSON.errors);
+                    const existing = xhr.responseJSON.existing_student;
+                    if (existing && existing.profile_url) {
+                        const summary = document.getElementById('formErrorSummary');
+                        const actions = document.createElement('div');
+                        actions.className = 'mt-2';
+                        const profileLink = document.createElement('a');
+                        profileLink.href = existing.profile_url;
+                        profileLink.className = 'btn btn-primary btn-sm';
+                        profileLink.textContent = 'Open existing Student Profile';
+                        actions.appendChild(profileLink);
+                        summary.appendChild(actions);
+                        summary.classList.remove('d-none');
+                    }
                     return;
                 }
                 let errorMessage = 'Validation failed';

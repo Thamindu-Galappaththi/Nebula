@@ -69,8 +69,12 @@
                                     @endif
                                     <td style="text-align:center;">
                                         <span class="status-chip">
-                                            @if(($st->status ?? '') === 'terminated') Not Eligible
-                                            @else {{ ucfirst($st->status) }}
+                                            @if(!empty($st->status_label))
+                                                {{ $st->status_label }}
+                                            @elseif(($st->status ?? '') === 'terminated')
+                                                Not Eligible - Termination
+                                            @else
+                                                {{ ucfirst($st->status) }}
                                             @endif
                                         </span>
                                     </td>

@@ -1681,6 +1681,14 @@ class StudentProfileController extends Controller
 
         $student = \App\Models\Student::where('student_id', $request->student_id)->firstOrFail();
 
+        if ($student->isTerminated()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This student is already terminated. Use Re-Register on the Student Profile to restore them, or process clearance from All Clearance / Termination Tracking. Do not create a new student record.',
+                'profile_url' => route('student_management.profile', ['studentId' => $student->student_id]),
+            ], 422);
+        }
+
         // optional: store doc
         $path = $request->file('document')?->store('termination_docs', 'public');
 

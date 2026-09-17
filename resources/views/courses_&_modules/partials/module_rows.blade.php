@@ -1,6 +1,6 @@
 @if($modules->total() > 0)
     @foreach($modules as $module)
-        <tr id="module-row-{{ $module->module_id }}" data-module-id="{{ $module->module_id }}" data-category="{{ $module->module_category ?? 'degree' }}" data-type="{{ $module->module_type }}" data-credits="{{ $module->credits }}">
+        <tr id="module-row-{{ $module->module_id }}" data-module-id="{{ $module->module_id }}" data-category="{{ $module->module_category ?? 'degree' }}" data-type="{{ $module->module_type }}" data-module-type="{{ $module->module_type }}" data-credits="{{ $module->credits }}">
             <td class="module-select-cell" data-label="">
                 <input type="checkbox" class="form-check-input module-checkbox" data-module-id="{{ $module->module_id }}" aria-label="Select {{ $module->module_name }}">
             </td>

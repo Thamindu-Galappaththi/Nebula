@@ -43,7 +43,8 @@ class StudentOtherInformationController extends Controller
                     'data' => [
                         'student_id'       => $student->student_id,
                         'student_name'     => $student->full_name,
-                        'academic_status'  => $student->academic_status
+                        'academic_status'  => $student->academic_status,
+                        'profile_url'      => route('student_management.profile', ['studentId' => $student->student_id]),
                     ],
                 ]);
             }
@@ -123,6 +124,14 @@ class StudentOtherInformationController extends Controller
 
             if (!$student) {
                 return response()->json(['success' => false, 'message' => 'Student information does not exist'], Response::HTTP_BAD_REQUEST);
+            }
+
+            if ($request->input('terminateStudent') === 'true' && $student->isTerminated()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This student is already terminated. Open the Student Profile to re-register them, or process clearance from All Clearance / Termination Tracking.',
+                    'profile_url' => route('student_management.profile', ['studentId' => $student->student_id]),
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             // file uploads
