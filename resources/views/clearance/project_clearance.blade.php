@@ -109,7 +109,7 @@
                                                             <span class="badge bg-danger">Rejected</span>
                                                         @endif
                                                     </td>
-                                                    <td>{{ $request->processedAtSriLanka()?->format('d/m/Y H:i') ?? 'N/A' }}</td>
+                                                    <td>{{ $request->approved_at ? $request->processedAtSriLanka()?->format('d/m/Y H:i') : 'N/A' }}</td>
                                                     <td>{{ $request->remarks ?: 'No remarks' }}</td>
                                                 </tr>
                                             @endforeach
