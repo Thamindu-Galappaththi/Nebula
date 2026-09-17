@@ -101,5 +101,12 @@ return [
                 ['label' => 'Late Fee Approval', 'route' => 'latefee.approval.index', 'icon' => 'ti ti-currency-dollar', 'permission' => 'latefee.approval.index'],
             ],
         ],
+
+        [
+            'title' => 'AUDIT',
+            'items' => [
+                ['label' => 'Audit Log', 'route' => 'audit.log', 'icon' => 'ti ti-clipboard-list', 'permission' => 'audit.log', 'roles' => ['Developer']],
+            ],
+        ],
     ],
 ];

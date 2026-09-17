@@ -454,6 +454,9 @@ class RoleHelper
             'reporting.dashboard',       
             'data.export.import',
 
+            // AUDIT
+            'audit.log',
+
             // PROJECT TUTOR
             'project.tutor.dashboard',
 
