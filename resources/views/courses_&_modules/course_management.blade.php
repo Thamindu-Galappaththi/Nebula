@@ -46,19 +46,92 @@
         min-width: 0;
         flex: 1 1 6rem;
     }
-    .swal2-container { z-index: 20000; }
-    #editCourseModal .modal-body .row {
-        display: block;
+    .specialization-inputs .input-group {
+        flex-wrap: nowrap;
+        align-items: stretch;
     }
-    #editCourseModal .modal-body .row > [class*="col-"] {
+    .specialization-inputs .specialization-input {
+        min-width: 0;
+    }
+    .remove-specialization {
+        flex: 0 0 auto !important;
+        width: auto;
+        min-width: 2rem;
+        padding: 0.15rem 0.45rem;
+        font-size: 0.75rem;
+        line-height: 1;
+        white-space: nowrap;
+    }
+    .record-edit-modal .remove-specialization {
+        min-height: 31px;
+        height: 31px;
+    }
+    .swal2-container { z-index: 20000; }
+    .record-edit-modal .modal-dialog {
+        max-width: min(1080px, calc(100vw - 1.25rem));
+        margin: 0.5rem auto;
+    }
+    .record-edit-modal .modal-content {
+        max-height: calc(100vh - 1rem);
+        overflow: hidden;
+    }
+    .record-edit-modal .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        max-height: calc(100vh - 1rem);
+        overflow: hidden;
+    }
+    .record-edit-modal .modal-header,
+    .record-edit-modal .modal-footer {
+        flex: 0 0 auto;
+    }
+    .record-edit-modal .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0.65rem 1rem 0.35rem;
+    }
+    .record-edit-modal .form-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+    }
+    .record-edit-modal .form-control,
+    .record-edit-modal .form-select,
+    .record-edit-modal .nebula-select-toggle {
+        min-height: 31px;
+        height: 31px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.8125rem;
+    }
+    .record-edit-modal textarea.form-control {
+        height: auto;
+        min-height: 2.6rem;
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+    }
+    .record-edit-modal .nebula-select {
         width: 100%;
         max-width: 100%;
-        flex: none;
-        padding-left: 0;
-        padding-right: 0;
     }
-    #editCourseModal .col-form-label {
-        margin-bottom: 0.35rem;
+    .record-edit-modal .duration-fields {
+        gap: 0.35rem;
+    }
+    .record-edit-modal .duration-fields .form-control {
+        flex: 1 1 0;
+        min-width: 3.75rem;
+    }
+    .record-edit-modal .btn-sm {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    @media (max-width: 575.98px) {
+        .record-edit-modal .modal-content,
+        .record-edit-modal .modal-content > form {
+            max-height: 100%;
+            height: 100%;
+        }
     }
     @media (max-width: 991.98px) {
         .course-list-header {
@@ -250,41 +323,45 @@
     </div>
 </div>
 
-<div class="modal fade" id="editCourseModal" tabindex="-1" aria-labelledby="editCourseModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered modal-fullscreen-sm-down">
+<div class="modal fade record-edit-modal" id="editCourseModal" tabindex="-1" aria-labelledby="editCourseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
             <form id="editCourseForm">
                 @csrf
                 <input type="hidden" id="edit_course_id">
-                <div class="modal-header">
+                <div class="modal-header py-2">
                     <h5 class="modal-title" id="editCourseModalLabel">Edit Course</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="edit_location" class="form-label">Location <span class="text-danger">*</span></label>
-                        <select class="form-select" id="edit_location" name="location" required>
-                            <option value="Welisara">Nebula Institute of Technology - Welisara</option>
-                            <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
-                            <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_course_type" class="form-label">Course Type <span class="text-danger">*</span></label>
-                        <select class="form-select" id="edit_course_type" name="course_type" required>
-                            <option value="degree">Degree Program</option>
-                            <option value="diploma">Diploma Program</option>
-                            <option value="certificate">Certificate Program</option>
-                        </select>
-                    </div>
-                    <div id="edit_degree_program_fields" hidden>
-                        @include('courses_&_modules.partials.course_degree_fields', ['prefix' => 'edit_', 'required' => true])
-                    </div>
-                    <div id="edit_certificate_program_fields" hidden>
-                        @include('courses_&_modules.partials.course_certificate_fields', ['prefix' => 'edit_cert_', 'required' => true])
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <label for="edit_location" class="form-label">Location <span class="text-danger">*</span></label>
+                            <select class="form-select" id="edit_location" name="location" required>
+                                <option value="Welisara">Nebula Institute of Technology - Welisara</option>
+                                <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
+                                <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="edit_course_type" class="form-label">Course Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="edit_course_type" name="course_type" required>
+                                <option value="degree">Degree Program</option>
+                                <option value="diploma">Diploma Program</option>
+                                <option value="certificate">Certificate Program</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div id="edit_degree_program_fields" class="row g-2" hidden>
+                                @include('courses_&_modules.partials.course_degree_fields', ['prefix' => 'edit_', 'required' => true, 'layout' => 'modal'])
+                            </div>
+                            <div id="edit_certificate_program_fields" class="row g-2" hidden>
+                                @include('courses_&_modules.partials.course_certificate_fields', ['prefix' => 'edit_cert_', 'required' => true, 'layout' => 'modal'])
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer py-2">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
@@ -419,7 +496,7 @@ $(function () {
         wrap.append(
             '<div class="input-group mb-2">' +
             '<input type="text" class="form-control specialization-input" name="specializations[]" placeholder="Enter specialization name">' +
-            '<button type="button" class="btn btn-outline-secondary remove-specialization">Remove</button>' +
+            '<button type="button" class="btn btn-outline-danger btn-sm remove-specialization" title="Remove" aria-label="Remove"><i class="ti ti-x"></i></button>' +
             '</div>'
         );
         updateRemoveButtons(wrap);
@@ -617,7 +694,7 @@ $(function () {
     function fillSpecializationInputs($wrap, specs) {
         if (!$wrap.length) return;
         if (!specs.length) {
-            $wrap.html('<div class="input-group mb-2"><input type="text" class="form-control specialization-input" name="specializations[]" placeholder="Enter specialization name"><button type="button" class="btn btn-outline-secondary remove-specialization" hidden>Remove</button></div>');
+            $wrap.html('<div class="input-group mb-2"><input type="text" class="form-control specialization-input" name="specializations[]" placeholder="Enter specialization name"><button type="button" class="btn btn-outline-danger btn-sm remove-specialization" title="Remove" aria-label="Remove" hidden><i class="ti ti-x"></i></button></div>');
             return;
         }
         $wrap.html(specs.map(function (spec) {
@@ -625,7 +702,7 @@ $(function () {
                 .replace(/&/g, '&amp;')
                 .replace(/"/g, '&quot;')
                 .replace(/</g, '&lt;');
-            return '<div class="input-group mb-2"><input type="text" class="form-control specialization-input" name="specializations[]" value="' + safe + '" placeholder="Enter specialization name"><button type="button" class="btn btn-outline-secondary remove-specialization">Remove</button></div>';
+            return '<div class="input-group mb-2"><input type="text" class="form-control specialization-input" name="specializations[]" value="' + safe + '" placeholder="Enter specialization name"><button type="button" class="btn btn-outline-danger btn-sm remove-specialization" title="Remove" aria-label="Remove"><i class="ti ti-x"></i></button></div>';
         }).join(''));
         updateRemoveButtons($wrap);
     }
@@ -697,7 +774,10 @@ $(function () {
                     }
                     fillSpecializationInputs($('#edit_specializationInputs'), specs);
                 }
-                if (editModal) editModal.show();
+                if (editModal) {
+                    editModal.show();
+                    setTimeout(function () { syncNebulaSelects('#editCourseForm'); }, 50);
+                }
             },
             error: function () {
                 showAlert('Error', 'Error fetching course details.', 'error');

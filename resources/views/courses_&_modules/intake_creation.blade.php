@@ -48,15 +48,104 @@
         cursor: not-allowed;
     }
     .swal2-container { z-index: 20000; }
-    #editIntakeModal .modal-body .row {
-        display: block;
+    .record-edit-modal .modal-dialog {
+        max-width: min(1080px, calc(100vw - 1.25rem));
+        margin: 0.5rem auto;
     }
-    #editIntakeModal .modal-body .row > [class*="col-"] {
+    .record-edit-modal .modal-content {
+        max-height: calc(100vh - 1rem);
+        overflow: hidden;
+    }
+    .record-edit-modal .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        max-height: calc(100vh - 1rem);
+        overflow: hidden;
+    }
+    .record-edit-modal .modal-header,
+    .record-edit-modal .modal-footer {
+        flex: 0 0 auto;
+    }
+    .record-edit-modal .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0.65rem 1rem 0.35rem;
+    }
+    .record-edit-modal .form-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+    }
+    .record-edit-modal .form-control,
+    .record-edit-modal .form-select,
+    .record-edit-modal .nebula-select-toggle {
+        min-height: 31px;
+        height: 31px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.8125rem;
+    }
+    .record-edit-modal textarea.form-control {
+        height: auto;
+        min-height: 2.6rem;
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+    }
+    .record-edit-modal .nebula-select {
         width: 100%;
         max-width: 100%;
-        flex: none;
-        padding-left: 0;
-        padding-right: 0;
+    }
+    .record-edit-modal .input-group .nebula-select {
+        flex: 0 0 5.25rem;
+        max-width: 5.25rem;
+    }
+    .record-edit-modal .input-group .form-control,
+    .record-edit-modal .input-group .form-select,
+    .record-edit-modal .input-group .nebula-select-toggle {
+        min-height: 31px;
+        height: 31px;
+    }
+    .selected-modules-box {
+        max-width: 100%;
+        overflow: hidden;
+    }
+    .selected-modules-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        max-width: 100%;
+    }
+    .badge.module-chip {
+        display: inline-flex;
+        align-items: flex-start;
+        gap: 0.35rem;
+        max-width: 100%;
+        white-space: normal;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1.35;
+        padding: 0.3rem 0.45rem;
+    }
+    .badge.module-chip span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .badge.module-chip .btn-close {
+        flex: 0 0 auto;
+        width: 0.55rem;
+        height: 0.55rem;
+        margin-top: 0.15rem;
+        opacity: 0.85;
+    }
+    @media (max-width: 575.98px) {
+        .record-edit-modal .modal-content,
+        .record-edit-modal .modal-content > form {
+            max-height: 100%;
+            height: 100%;
+        }
     }
     @media (max-width: 991.98px) {
         .intake-list-header {
@@ -252,8 +341,8 @@
                         <div class="row g-2 g-md-3 align-items-md-start mb-3">
                             <label class="col-12 col-md-3 col-lg-2 col-form-label">Selected Modules</label>
                             <div class="col-12 col-md-9 col-lg-10">
-                                <div id="selected_modules_container" class="border rounded p-3" style="min-height: 100px; background-color: #f8f9fa;">
-                                    <div id="selected_modules_list"></div>
+                                <div id="selected_modules_container" class="border rounded p-3 selected-modules-box" style="min-height: 100px; background-color: #f8f9fa;">
+                                    <div id="selected_modules_list" class="selected-modules-list"></div>
                                     <div id="no_modules_message" class="text-muted text-center">No modules selected yet</div>
                                 </div>
                             </div>
@@ -403,126 +492,132 @@
     </div>
 </div>
 
-<div class="modal fade" id="editIntakeModal" tabindex="-1" aria-labelledby="editIntakeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered modal-fullscreen-sm-down">
+<div class="modal fade record-edit-modal" id="editIntakeModal" tabindex="-1" aria-labelledby="editIntakeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
             <form id="editIntakeForm">
                 @csrf
                 <input type="hidden" id="edit_intake_id" name="intake_id">
-                <div class="modal-header">
+                <div class="modal-header py-2">
                     <h5 class="modal-title" id="editIntakeModalLabel">Edit Intake</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="edit_location" class="form-label">Location <span class="text-danger">*</span></label>
-                        <select class="form-select" id="edit_location" name="location" required>
-                            <option value="Welisara">Nebula Institute of Technology - Welisara</option>
-                            <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
-                            <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_course_id" class="form-label">Course <span class="text-danger">*</span></label>
-                        <select class="form-select" id="edit_course_id" name="course_id" required>
-                            <option value="">Choose a course...</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_batch" class="form-label">Batch Name / Code <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="edit_batch" name="batch" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_batch_size" class="form-label">Batch Size <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="edit_batch_size" name="batch_size" min="1" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_intake_mode" class="form-label">Intake Mode <span class="text-danger">*</span></label>
-                        <select class="form-select" id="edit_intake_mode" name="intake_mode" required>
-                            <option value="Physical">Physical</option>
-                            <option value="Online">Online</option>
-                            <option value="Hybrid">Hybrid</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_intake_type" class="form-label">Intake Type <span class="text-danger">*</span></label>
-                        <select class="form-select" id="edit_intake_type" name="intake_type" required>
-                            <option value="Fulltime">Full Time</option>
-                            <option value="Parttime">Part Time</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_registration_fee" class="form-label">Registration Fee (LKR) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="edit_registration_fee" name="registration_fee" step="0.01" min="0" required>
-                    </div>
-                    <div id="edit_degree_diploma_fields">
-                        <div class="mb-3">
-                            <label for="edit_franchise_payment" class="form-label">Franchise Payment <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <select class="form-select currency-highlight" id="edit_franchise_payment_currency" name="franchise_payment_currency" style="max-width:90px;">
-                                    <option value="LKR">LKR</option>
-                                    <option value="USD">USD</option>
-                                    <option value="GBP">GBP</option>
-                                    <option value="EUR">EUR</option>
-                                </select>
-                                <input type="number" class="form-control" id="edit_franchise_payment" name="franchise_payment" step="0.01" min="0">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit_sscl_tax" class="form-label">SSCL Tax Percentage <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="edit_sscl_tax" name="sscl_tax" step="0.01" min="0" max="100">
-                                <span class="input-group-text">%</span>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit_bank_charges" class="form-label">Bank Charges (LKR)</label>
-                            <input type="number" class="form-control" id="edit_bank_charges" name="bank_charges" step="0.01" min="0">
-                        </div>
-                    </div>
-                    <div id="edit_certificate_fields" hidden>
-                        <div class="mb-3">
-                            <label for="edit_modules_select" class="form-label">Select Modules <span class="text-danger">*</span></label>
-                            <select class="form-select" id="edit_modules_select">
-                                <option value="">Choose modules to add...</option>
-                                @foreach($modules as $module)
-                                    <option value="{{ $module->module_id }}" data-name="{{ $module->module_name }}" data-code="{{ $module->module_code }}">
-                                        {{ $module->module_code }} - {{ $module->module_name }}
-                                    </option>
-                                @endforeach
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <label for="edit_location" class="form-label">Location <span class="text-danger">*</span></label>
+                            <select class="form-select" id="edit_location" name="location" required>
+                                <option value="Welisara">Nebula Institute of Technology - Welisara</option>
+                                <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
+                                <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Selected Modules</label>
-                            <div id="edit_selected_modules_container" class="border rounded p-3" style="min-height: 100px; background-color: #f8f9fa;">
-                                <div id="edit_selected_modules_list"></div>
-                                <div id="edit_no_modules_message" class="text-muted text-center">No modules selected yet</div>
+                        <div class="col-12 col-md-6">
+                            <label for="edit_course_id" class="form-label">Course <span class="text-danger">*</span></label>
+                            <select class="form-select" id="edit_course_id" name="course_id" required>
+                                <option value="">Choose a course...</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="edit_batch" class="form-label">Batch Name / Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_batch" name="batch" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="edit_batch_size" class="form-label">Batch Size <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="edit_batch_size" name="batch_size" min="1" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="edit_intake_mode" class="form-label">Intake Mode <span class="text-danger">*</span></label>
+                            <select class="form-select" id="edit_intake_mode" name="intake_mode" required>
+                                <option value="Physical">Physical</option>
+                                <option value="Online">Online</option>
+                                <option value="Hybrid">Hybrid</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="edit_intake_type" class="form-label">Intake Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="edit_intake_type" name="intake_type" required>
+                                <option value="Fulltime">Full Time</option>
+                                <option value="Parttime">Part Time</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="edit_registration_fee" class="form-label">Registration Fee (LKR) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="edit_registration_fee" name="registration_fee" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="edit_course_fee" class="form-label">Course Fee (LKR) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="edit_course_fee" name="course_fee" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-12" id="edit_degree_diploma_fields">
+                            <div class="row g-2">
+                                <div class="col-12 col-md-6">
+                                    <label for="edit_franchise_payment" class="form-label">Franchise Payment <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <select class="form-select currency-highlight" id="edit_franchise_payment_currency" name="franchise_payment_currency">
+                                            <option value="LKR">LKR</option>
+                                            <option value="USD">USD</option>
+                                            <option value="GBP">GBP</option>
+                                            <option value="EUR">EUR</option>
+                                        </select>
+                                        <input type="number" class="form-control" id="edit_franchise_payment" name="franchise_payment" step="0.01" min="0">
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="edit_sscl_tax" class="form-label">SSCL Tax Percentage <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="edit_sscl_tax" name="sscl_tax" step="0.01" min="0" max="100">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="edit_bank_charges" class="form-label">Bank Charges (LKR)</label>
+                                    <input type="number" class="form-control" id="edit_bank_charges" name="bank_charges" step="0.01" min="0">
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_course_fee" class="form-label">Course Fee (LKR) <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="edit_course_fee" name="course_fee" step="0.01" min="0" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="edit_start_date" name="start_date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_end_date" class="form-label">End Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="edit_end_date" name="end_date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_enrollment_end_date" class="form-label">Enrollment End Date</label>
-                        <input type="date" class="form-control" id="edit_enrollment_end_date" name="enrollment_end_date">
-                        <small class="form-text text-muted">Last date for students to enroll in this intake (optional)</small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_course_registration_id_pattern" class="form-label">Course Registration ID pattern</label>
-                        <input type="text" class="form-control" id="edit_course_registration_id_pattern" name="course_registration_id_pattern" required>
+                        <div class="col-12" id="edit_certificate_fields" hidden>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <label for="edit_modules_select" class="form-label">Select Modules <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="edit_modules_select">
+                                        <option value="">Choose modules to add...</option>
+                                        @foreach($modules as $module)
+                                            <option value="{{ $module->module_id }}" data-name="{{ $module->module_name }}" data-code="{{ $module->module_code }}">
+                                                {{ $module->module_code }} - {{ $module->module_name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Selected Modules</label>
+                                    <div id="edit_selected_modules_container" class="border rounded p-2 selected-modules-box" style="min-height: 42px; background-color: #f8f9fa;">
+                                        <div id="edit_selected_modules_list" class="selected-modules-list"></div>
+                                        <div id="edit_no_modules_message" class="text-muted small">No modules selected yet</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label for="edit_start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="edit_start_date" name="start_date" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label for="edit_end_date" class="form-label">End Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="edit_end_date" name="end_date" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label for="edit_enrollment_end_date" class="form-label">Enrollment End Date</label>
+                            <input type="date" class="form-control" id="edit_enrollment_end_date" name="enrollment_end_date">
+                        </div>
+                        <div class="col-12">
+                            <label for="edit_course_registration_id_pattern" class="form-label">Course Registration ID pattern</label>
+                            <input type="text" class="form-control" id="edit_course_registration_id_pattern" name="course_registration_id_pattern" required>
+                            <small class="form-text text-muted">Must end with a number, e.g. REG-2023-001</small>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer py-2">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
@@ -736,9 +831,9 @@ $(function () {
     function moduleChip(moduleId, code, name, removeClass) {
         const safeCode = $('<div>').text(code || '').html();
         const safeName = $('<div>').text(name || '').html();
-        return '<div class="badge bg-primary me-2 mb-2 p-2 d-inline-flex align-items-center" style="font-size: 0.9rem;">' +
+        return '<div class="badge bg-primary module-chip">' +
             '<span>' + safeCode + ' - ' + safeName + '</span>' +
-            '<button type="button" class="btn-close btn-close-white ms-2 ' + removeClass + '" data-module-id="' + moduleId + '" aria-label="Remove" style="font-size: 0.6rem;"></button>' +
+            '<button type="button" class="btn-close btn-close-white ' + removeClass + '" data-module-id="' + moduleId + '" aria-label="Remove"></button>' +
             '</div>';
     }
 
@@ -982,7 +1077,10 @@ $(function () {
                     });
                 }
                 updateEditSelectedModulesList();
-                if (editModal) editModal.show();
+                if (editModal) {
+                    editModal.show();
+                    setTimeout(function () { syncNebulaSelects('#editIntakeForm'); }, 50);
+                }
             },
             error: function () {
                 showAlert('Error', 'Error loading intake data.', 'error');
