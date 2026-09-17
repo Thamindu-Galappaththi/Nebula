@@ -1184,15 +1184,16 @@ $(function () {
     });
 
     $('#exportIntakeBtn').on('click', function () {
-        const params = new URLSearchParams();
-        const search = $.trim($('#searchIntakeInput').val() || '');
-        const location = $('#filterIntakeLocation').val() || '';
-        const mode = $('#filterIntakeMode').val() || '';
-        const status = $('#filterIntakeStatus').val() || '';
-        if (search) params.set('search', search);
-        if (location) params.set('location', location);
-        if (mode) params.set('intake_mode', mode);
-        if (status) params.set('status', status);
+        const params = new URLSearchParams($('#intakeFilterForm').serialize());
+        params.delete('per_page');
+        ['search', 'location', 'intake_mode', 'status'].forEach(function (key) {
+            const value = $.trim(params.get(key) || '');
+            if (value) {
+                params.set(key, value);
+            } else {
+                params.delete(key);
+            }
+        });
         window.location.assign(params.toString() ? (exportUrl + '?' + params.toString()) : exportUrl);
     });
 

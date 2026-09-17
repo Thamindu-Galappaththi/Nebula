@@ -130,7 +130,12 @@ class IntakeCreationPageTest extends TestCase
         for ($i = 1; $i <= 11; $i++) {
             $this->makeIntake($welisara, sprintf('Welisara Intake %02d', $i), 'Welisara');
         }
-        $this->makeIntake($moratuwa, 'Moratuwa Intake', 'Moratuwa');
+        $this->makeIntake($moratuwa, 'Moratuwa Intake', 'Moratuwa', [
+            'start_date'           => '2024-02-01',
+            'end_date'             => '2024-11-30',
+            'enrollment_end_date'  => '2024-01-15',
+            'batch_size'           => 12,
+        ]);
 
         $csv = $this->actingAs($this->actor)
             ->get(route('intake.export', ['location' => 'Welisara']))
@@ -142,6 +147,54 @@ class IntakeCreationPageTest extends TestCase
         $this->assertStringContainsString('Welisara Intake 11', $csv);
         $this->assertStringNotContainsString('Moratuwa Intake', $csv);
         $this->assertStringContainsString('Course Name', $csv);
+        $this->assertStringContainsString('Start Date', $csv);
+        $this->assertStringContainsString('End Date', $csv);
+        $this->assertStringContainsString('Enrollment End', $csv);
+        $this->assertStringContainsString('Capacity', $csv);
+        $this->assertStringContainsString('2026-01-01', $csv);
+        $this->assertStringContainsString('2026-12-31', $csv);
+        $this->assertStringContainsString('2025-12-15', $csv);
+        $this->assertStringContainsString('0 / 30', $csv);
+        $this->assertStringNotContainsString('2024-02-01', $csv);
+        $this->assertStringNotContainsString('0 / 12', $csv);
+    }
+
+    public function test_export_csv_includes_date_and_capacity_matches_from_search(): void
+    {
+        $course = $this->makeCourse('Searchable Program');
+        $this->makeIntake($course, 'Date Match Batch', 'Welisara', [
+            'start_date'          => '2026-03-15',
+            'end_date'            => '2026-09-20',
+            'enrollment_end_date' => '2026-03-01',
+            'batch_size'          => 45,
+        ]);
+        $this->makeIntake($course, 'Other Batch', 'Welisara', [
+            'start_date'          => '2025-01-10',
+            'end_date'            => '2025-06-10',
+            'enrollment_end_date' => '2025-01-01',
+            'batch_size'          => 8,
+        ]);
+
+        $byDate = $this->actingAs($this->actor)
+            ->get(route('intake.export', ['search' => '2026-03-15']))
+            ->assertOk()
+            ->streamedContent();
+
+        $this->assertStringContainsString('Date Match Batch', $byDate);
+        $this->assertStringContainsString('2026-03-15', $byDate);
+        $this->assertStringContainsString('2026-09-20', $byDate);
+        $this->assertStringContainsString('2026-03-01', $byDate);
+        $this->assertStringContainsString('0 / 45', $byDate);
+        $this->assertStringNotContainsString('Other Batch', $byDate);
+
+        $byCapacity = $this->actingAs($this->actor)
+            ->get(route('intake.export', ['search' => '45']))
+            ->assertOk()
+            ->streamedContent();
+
+        $this->assertStringContainsString('Date Match Batch', $byCapacity);
+        $this->assertStringContainsString('0 / 45', $byCapacity);
+        $this->assertStringNotContainsString('Other Batch', $byCapacity);
     }
 
     private function makeCourse(string $name, string $type = 'degree', string $location = 'Welisara'): Course
@@ -160,9 +213,9 @@ class IntakeCreationPageTest extends TestCase
         ]);
     }
 
-    private function makeIntake(Course $course, string $batch, string $location = 'Welisara'): Intake
+    private function makeIntake(Course $course, string $batch, string $location = 'Welisara', array $overrides = []): Intake
     {
-        return Intake::forceCreate([
+        return Intake::forceCreate(array_merge([
             'location'                       => $location,
             'course_id'                      => $course->course_id,
             'course_name'                    => $course->course_name,
@@ -180,6 +233,6 @@ class IntakeCreationPageTest extends TestCase
             'end_date'                       => '2026-12-31',
             'enrollment_end_date'            => '2025-12-15',
             'course_registration_id_pattern' => 'REG-2026-001',
-        ]);
+        ], $overrides));
     }
 }
