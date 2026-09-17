@@ -575,7 +575,14 @@ class SemesterCreationController extends Controller
             return $this->queryIntakeModules((int) $intake->intake_id);
         }
 
-        return $this->queryCourseModules((int) $course->course_id, $semesterNumber);
+        $fromCourse = $this->queryCourseModules((int) $course->course_id, $semesterNumber);
+        if ($fromCourse->isNotEmpty()) {
+            return $fromCourse;
+        }
+
+        // Course Management never writes course_modules, so fall back to the
+        // degree/diploma catalog the user can actually pick from.
+        return $this->queryAvailableCatalogModules($course);
     }
 
     private function queryIntakeModules(int $intakeId)
@@ -627,6 +634,30 @@ class SemesterCreationController extends Controller
             )
             ->orderBy('modules.module_name')
             ->distinct()
+            ->get();
+    }
+
+    private function queryAvailableCatalogModules(Course $course)
+    {
+        $query = DB::table('modules')
+            ->select(
+                'modules.module_id',
+                'modules.module_name',
+                'modules.module_code',
+                'modules.module_type',
+                'modules.credits'
+            )
+            ->orderBy('modules.module_name');
+
+        if ($course->course_type === 'certificate') {
+            return $query->where('modules.module_category', 'certificate')->get();
+        }
+
+        return $query
+            ->where(function ($builder) {
+                $builder->whereNull('modules.module_category')
+                    ->orWhere('modules.module_category', '!=', 'certificate');
+            })
             ->get();
     }
 

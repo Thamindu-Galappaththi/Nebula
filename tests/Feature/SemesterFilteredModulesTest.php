@@ -287,4 +287,29 @@ class SemesterFilteredModulesTest extends TestCase
         $response->assertStatus(422);
         $this->assertEmpty($response->json('modules'));
     }
+
+    public function test_create_mode_falls_back_to_degree_catalog_when_course_modules_empty(): void
+    {
+        $certificateModuleId = DB::table('modules')->insertGetId([
+            'module_name'      => 'Certificate Unit',
+            'module_code'      => 'CERT001',
+            'module_category'  => 'certificate',
+            'module_type'      => 'core',
+            'credits'          => 0,
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
+
+        $response = $this->postFiltered([
+            'semester' => 1,
+            'creating' => true,
+        ]);
+
+        $response->assertOk();
+        $moduleIds = collect($response->json('modules'))->pluck('module_id');
+
+        $this->assertContains($this->moduleId, $moduleIds);
+        $this->assertContains($this->otherModuleId, $moduleIds);
+        $this->assertNotContains($certificateModuleId, $moduleIds);
+    }
 }
