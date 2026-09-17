@@ -369,8 +369,10 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
 
         // Module Creation
         Route::get('/module-creation', [ModuleCreationController::class, 'create'])->name('module.creation');
+        Route::get('/module-creation/export', [ModuleCreationController::class, 'export'])->name('module.export');
         Route::post('/module-store', [ModuleCreationController::class, 'store'])->name('module.store');
-        Route::patch('/modules/{id}', [ModuleCreationController::class, 'update']);
+        Route::post('/modules/bulk-delete', [ModuleCreationController::class, 'bulkDestroy'])->name('module.bulkDestroy');
+        Route::patch('/modules/{id}', [ModuleCreationController::class, 'update'])->name('module.update');
         Route::delete('/modules/{id}', [ModuleCreationController::class, 'destroy'])->name('module.destroy');
     });
 
