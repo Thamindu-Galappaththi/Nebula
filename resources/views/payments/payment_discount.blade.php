@@ -75,71 +75,71 @@
 </style>
 
 <div class="container-fluid px-2 px-md-3 payment-discount-page">
-  <div class="card">
-    <div class="card-body">
-      <h2 class="text-center mb-4">Payment Discount</h2>
-      <hr>
+    <div class="card">
+        <div class="card-body">
+            <h2 class="text-center mb-4">Payment Discount</h2>
+            <hr>
       <ul class="nav nav-tabs mb-4 payment-discount-tabs" id="discountTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active bg-primary text-white" id="local-course-discounts-tab" data-bs-toggle="tab" data-bs-target="#local-course-discounts" type="button" role="tab" aria-controls="local-course-discounts" aria-selected="true">Discounts for Local Course Fee</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="registration-discounts-tab" data-bs-toggle="tab" data-bs-target="#registration-discounts" type="button" role="tab" aria-controls="registration-discounts" aria-selected="false">Discounts for Registration Fee</button>
-        </li>
-      </ul>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active bg-primary text-white" id="local-course-discounts-tab" data-bs-toggle="tab" data-bs-target="#local-course-discounts" type="button" role="tab" aria-controls="local-course-discounts" aria-selected="true">Discounts for Local Course Fee</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="registration-discounts-tab" data-bs-toggle="tab" data-bs-target="#registration-discounts" type="button" role="tab" aria-controls="registration-discounts" aria-selected="false">Discounts for Registration Fee</button>
+                </li>
+            </ul>
 
-      <div class="tab-content" id="discountTabsContent">
-        <div class="tab-pane fade show active" id="local-course-discounts" role="tabpanel" aria-labelledby="local-course-discounts-tab">
+            <div class="tab-content" id="discountTabsContent">
+                <div class="tab-pane fade show active" id="local-course-discounts" role="tabpanel" aria-labelledby="local-course-discounts-tab">
           <form id="local-course-discount-form" novalidate>
-            <input type="hidden" id="localCourseDiscountCategory" value="local_course_fee">
+                        <input type="hidden" id="localCourseDiscountCategory" value="local_course_fee">
             <div class="row g-2 mb-3 align-items-center">
               <label class="col-md-3 col-form-label fw-bold" for="localCourseDiscountName">Name of Discount <span class="text-danger">*</span></label>
               <div class="col-md-9">
                 <input type="text" class="form-control" id="localCourseDiscountName" name="discount_name" required maxlength="255" autocomplete="off">
-              </div>
-            </div>
+                            </div>
+                        </div>
             <div class="row g-2 mb-3 align-items-center">
               <label class="col-md-3 col-form-label fw-bold" for="localCourseDiscountType">Discount Type <span class="text-danger">*</span></label>
               <div class="col-md-9">
-                <select class="form-select" id="localCourseDiscountType" name="discount_type" required>
+                                <select class="form-select" id="localCourseDiscountType" name="discount_type" required>
                   <option value="" selected disabled>Select Type</option>
-                  <option value="amount">Amount</option>
-                  <option value="percentage">Percentage</option>
-                </select>
-              </div>
-            </div>
+                                    <option value="amount">Amount</option>
+                                    <option value="percentage">Percentage</option>
+                                </select>
+                            </div>
+                        </div>
             <div class="row g-2 mb-3 align-items-center">
               <label class="col-md-3 col-form-label fw-bold" id="localCourseDiscountValueLabel" for="localCourseDiscountValue">Amount <span class="text-danger">*</span></label>
               <div class="col-md-9">
                 <input type="number" class="form-control" id="localCourseDiscountValue" name="discount_value" min="0.01" step="0.01" required>
-              </div>
-            </div>
+                            </div>
+                        </div>
             <div class="row mb-4">
               <div class="col-12 col-md-9 offset-md-3">
                 <button type="submit" class="btn btn-success payment-discount-add-btn" id="addLocalCourseDiscount">
-                  <i class="ti ti-plus"></i> Add Discount
-                </button>
-              </div>
-            </div>
-          </form>
-
+                                    <i class="ti ti-plus"></i> Add Discount
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
           <h5 class="mb-3">Created Discounts for Local Course Fee</h5>
           <div class="payment-discount-table-scroll">
             <table class="table table-bordered table-hover align-middle" id="localCourseDiscountsTable">
-              <thead class="table-light">
-                <tr>
-                  <th>#</th>
-                  <th>Discount Name</th>
-                  <th>Type</th>
-                  <th>Value</th>
-                  <th>Created Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Discount Name</th>
+                                            <th>Type</th>
+                                            <th>Value</th>
+                                            <th>Created Date</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
               <tbody></tbody>
-            </table>
-          </div>
+                                </table>
+                            </div>
           <div class="payment-discount-footer mt-3" data-pagination="local_course_fee">
             <div class="payment-discount-page-size">
               <label class="form-label mb-0 small text-muted" for="localPerPage">Per page</label>
@@ -149,65 +149,65 @@
                 <option value="50">50</option>
                 <option value="100">100</option>
               </select>
-            </div>
+                        </div>
             <div class="text-muted small" data-range="local_course_fee"></div>
             <nav class="payment-discount-pagination" aria-label="Local course discounts pages">
               <ul class="pagination pagination-sm mb-0" data-pages="local_course_fee"></ul>
             </nav>
-          </div>
-        </div>
-
-        <div class="tab-pane fade" id="registration-discounts" role="tabpanel" aria-labelledby="registration-discounts-tab">
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="registration-discounts" role="tabpanel" aria-labelledby="registration-discounts-tab">
           <form id="registration-discount-form" novalidate>
-            <input type="hidden" id="registrationDiscountCategory" value="registration_fee">
+                        <input type="hidden" id="registrationDiscountCategory" value="registration_fee">
             <div class="row g-2 mb-3 align-items-center">
               <label class="col-md-3 col-form-label fw-bold" for="registrationDiscountName">Name of Discount <span class="text-danger">*</span></label>
               <div class="col-md-9">
                 <input type="text" class="form-control" id="registrationDiscountName" name="discount_name" required maxlength="255" autocomplete="off">
-              </div>
-            </div>
+                            </div>
+                        </div>
             <div class="row g-2 mb-3 align-items-center">
               <label class="col-md-3 col-form-label fw-bold" for="registrationDiscountType">Discount Type <span class="text-danger">*</span></label>
               <div class="col-md-9">
-                <select class="form-select" id="registrationDiscountType" name="discount_type" required>
+                                <select class="form-select" id="registrationDiscountType" name="discount_type" required>
                   <option value="" selected disabled>Select Type</option>
-                  <option value="amount">Amount</option>
-                  <option value="percentage">Percentage</option>
-                </select>
-              </div>
-            </div>
+                                    <option value="amount">Amount</option>
+                                    <option value="percentage">Percentage</option>
+                                </select>
+                            </div>
+                        </div>
             <div class="row g-2 mb-3 align-items-center">
               <label class="col-md-3 col-form-label fw-bold" id="registrationDiscountValueLabel" for="registrationDiscountValue">Amount <span class="text-danger">*</span></label>
               <div class="col-md-9">
                 <input type="number" class="form-control" id="registrationDiscountValue" name="discount_value" min="0.01" step="0.01" required>
-              </div>
-            </div>
+                            </div>
+                        </div>
             <div class="row mb-4">
               <div class="col-12 col-md-9 offset-md-3">
                 <button type="submit" class="btn btn-success payment-discount-add-btn" id="addRegistrationDiscount">
-                  <i class="ti ti-plus"></i> Add Discount
-                </button>
-              </div>
-            </div>
-          </form>
-
+                                    <i class="ti ti-plus"></i> Add Discount
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
           <h5 class="mb-3">Created Discounts for Registration Fee</h5>
           <div class="payment-discount-table-scroll">
             <table class="table table-bordered table-hover align-middle" id="registrationDiscountsTable">
-              <thead class="table-light">
-                <tr>
-                  <th>#</th>
-                  <th>Discount Name</th>
-                  <th>Type</th>
-                  <th>Value</th>
-                  <th>Created Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Discount Name</th>
+                                            <th>Type</th>
+                                            <th>Value</th>
+                                            <th>Created Date</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
               <tbody></tbody>
-            </table>
-          </div>
+                                </table>
+                            </div>
           <div class="payment-discount-footer mt-3" data-pagination="registration_fee">
             <div class="payment-discount-page-size">
               <label class="form-label mb-0 small text-muted" for="registrationPerPage">Per page</label>
@@ -217,16 +217,16 @@
                 <option value="50">50</option>
                 <option value="100">100</option>
               </select>
-            </div>
+                        </div>
             <div class="text-muted small" data-range="registration_fee"></div>
             <nav class="payment-discount-pagination" aria-label="Registration discounts pages">
               <ul class="pagination pagination-sm mb-0" data-pages="registration_fee"></ul>
             </nav>
-          </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
 </div>
 
 <div class="modal fade" id="editDiscountModal" tabindex="-1" aria-labelledby="editDiscountModalLabel" aria-hidden="true">
@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
     valueInput.min = '0.01';
     if (isPercentage) {
       valueInput.max = '100';
-    } else {
+            } else {
       valueInput.removeAttribute('max');
     }
   }
@@ -394,8 +394,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!total) {
       rangeEl.textContent = '';
-      return;
-    }
+            return;
+        }
 
     rangeEl.textContent = `Showing ${meta.from} to ${meta.to} of ${total}`;
 
@@ -461,16 +461,16 @@ document.addEventListener('DOMContentLoaded', () => {
               data-type="${escapeHtml(discount.type)}"
               data-value="${escapeHtml(discount.value)}"
               data-category="${escapeHtml(category)}">
-              <i class="ti ti-edit"></i>
-            </button>
+                            <i class="ti ti-edit"></i>
+                        </button>
             <button type="button" class="btn btn-sm btn-danger delete-discount"
               data-id="${escapeHtml(discount.id)}"
               data-category="${escapeHtml(category)}">
-              <i class="ti ti-trash"></i>
-            </button>
+                            <i class="ti ti-trash"></i>
+                        </button>
           </div>
-        </td>
-      </tr>`;
+                    </td>
+                </tr>`;
     }).join('');
     renderPagination(category, meta);
   }
