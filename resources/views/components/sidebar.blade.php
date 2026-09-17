@@ -537,6 +537,19 @@
             </li>
             @endif
 
+            {{-- AUDIT --}}
+            @if(RoleHelper::hasPermission($role, 'audit.log') || RoleHelper::hasAnyRole($role, ['Developer']))
+            <li class="nav-small-cap">
+                <span class="nav-small-cap-text">AUDIT</span>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link {{ request()->routeIs('audit.log') ? 'active' : '' }}" href="{{ route('audit.log') }}">
+                    <span><i class="ti ti-clipboard-list"></i></span>
+                    <span class="hide-menu">Audit Log</span>
+                </a>
+            </li>
+            @endif
+
             {{-- Footer --}}
             <hr>
             <div class="px-3 pb-3">

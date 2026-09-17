@@ -59,6 +59,7 @@ use App\Http\Controllers\{
     BursarDashboardController,
     LibrarianDashboardController,
     DeveloperDashboardController,
+    AuditLogController,
     PaymentClearanceController,
     RepeatStudentPaymentController,
     AcademicDetailsController,
@@ -1001,6 +1002,13 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // Developer Dashboard
     Route::middleware(['role:Developer', 'restrict.debug'])->group(function () {
         Route::get('/developer-dashboard', [DeveloperDashboardController::class, 'index'])->name('developer.dashboard');
+    });
+
+    // Audit Log (Developer only)
+    Route::middleware(['role:Developer'])->group(function () {
+        Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit.log');
+        Route::post('/audit-log/bulk-delete', [AuditLogController::class, 'bulkDestroy'])->name('audit.bulkDestroy');
+        Route::delete('/audit-log/{id}', [AuditLogController::class, 'destroy'])->name('audit.destroy');
     });
 
     // System Diagnostics (Admin & Developer only)
