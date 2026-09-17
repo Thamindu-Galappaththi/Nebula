@@ -243,4 +243,46 @@ class StudentListSpecializationFilterTest extends TestCase
             $export->headings()
         );
     }
+
+    public function test_named_specialization_with_no_assignments_still_returns_the_intake(): void
+    {
+        DB::table('specialization_registrations')->delete();
+
+        $response = $this->listStudents('Electrical & Electronic Engineering');
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $ids = collect($response->json('students'))->pluck('student_id');
+
+        $this->assertContains($this->commonStudent->student_id, $ids);
+        $this->assertContains($this->eeeStudent->student_id, $ids);
+    }
+
+    public function test_terminated_profile_status_is_listed_as_not_eligible(): void
+    {
+        $this->commonStudent->academic_status = 'terminated';
+        $this->commonStudent->save();
+
+        $response = $this->listStudents(null);
+        $students = collect($response->json('students'))->keyBy('student_id');
+
+        $this->assertSame('terminated', $students[$this->commonStudent->student_id]['status']);
+        $this->assertSame('Not Eligible - Termination', $students[$this->commonStudent->student_id]['status_label']);
+        $this->assertSame('registered', $students[$this->eeeStudent->student_id]['status']);
+    }
+
+    public function test_terminated_status_includes_the_termination_reason(): void
+    {
+        $this->commonStudent->academic_status = 'terminated';
+        $this->commonStudent->academic_status_reason = 'Non-payment of fees';
+        $this->commonStudent->save();
+
+        $response = $this->listStudents(null);
+        $students = collect($response->json('students'))->keyBy('student_id');
+
+        $this->assertSame(
+            'Not Eligible - Termination: Non-payment of fees',
+            $students[$this->commonStudent->student_id]['status_label']
+        );
+        $this->assertSame('Non-payment of fees', $students[$this->commonStudent->student_id]['status_reason']);
+    }
 }

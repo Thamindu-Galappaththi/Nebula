@@ -301,7 +301,11 @@ class AllClearanceController extends Controller
             $location = $request->input('location');
             $query    = CourseRegistration::where('intake_id', $intakeId)
                 ->whereHas('student', function ($q) {
-                    $q->where('academic_status', 'active');
+                    $q->whereIn('academic_status', [
+                        Student::ACADEMIC_ACTIVE,
+                        Student::ACADEMIC_TERMINATED,
+                        Student::ACADEMIC_SUSPENDED,
+                    ]);
                 })
                 ->when($courseId, fn ($q) => $q->where('course_id', $courseId))
                 ->when($location, fn ($q) => $q->where('location', $location))

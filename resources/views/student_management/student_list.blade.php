@@ -379,8 +379,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function statusLabel(status){
-    if (status === 'terminated') return 'Not Eligible';
+  function statusLabel(status, reason){
+    if (status === 'terminated') {
+      const text = String(reason || '').trim();
+      return text ? ('Not Eligible - Termination: ' + text) : 'Not Eligible - Termination';
+    }
     if (!status) return '';
     return status.charAt(0).toUpperCase() + status.slice(1);
   }
@@ -419,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${escapeHtml(s.student_id)}</td>
           <td>${escapeHtml(s.name)}</td>
           ${specializationCell}
-          <td>${escapeHtml(statusLabel(s.status))}</td>
+          <td>${escapeHtml(s.status_label || statusLabel(s.status, s.status_reason))}</td>
         </tr>
       `);
     });

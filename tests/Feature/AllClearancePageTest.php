@@ -179,4 +179,56 @@ class AllClearancePageTest extends TestCase
         $this->assertStringContainsString('INDIVIDUAL STUDENT 11', $individualPageTwo->json('individual_html'));
         $this->assertStringNotContainsString('INDIVIDUAL STUDENT 01', $individualPageTwo->json('individual_html'));
     }
+
+    public function test_intake_student_picker_includes_terminated_students(): void
+    {
+        $intake = Intake::forceCreate([
+            'location'          => 'Welisara',
+            'course_id'         => $this->course->course_id,
+            'course_name'       => $this->course->course_name,
+            'batch'             => '2022-Jan-B06-EEE',
+            'batch_size'        => 30,
+            'intake_mode'       => 'Physical',
+            'intake_type'       => 'Fulltime',
+            'registration_fee'  => '5000',
+            'franchise_payment' => '0',
+            'course_fee'        => '50000',
+            'start_date'        => now()->subYears(3)->toDateString(),
+            'end_date'          => now()->addYear()->toDateString(),
+        ]);
+
+        $terminated = Student::forceCreate([
+            'title'              => 'Mr',
+            'name_with_initials' => 'Terminated Student',
+            'full_name'          => 'Terminated Student Full',
+            'id_type'            => 'NIC',
+            'id_value'           => '200224103657',
+            'gender'             => 'Male',
+            'email'              => 'terminated-clearance@test.lk',
+            'status'             => 'Registered',
+            'academic_status'    => Student::ACADEMIC_TERMINATED,
+            'institute_location' => 'Welisara',
+        ]);
+
+        \App\Models\CourseRegistration::forceCreate([
+            'student_id'             => $terminated->student_id,
+            'course_id'              => $this->course->course_id,
+            'intake_id'              => $intake->intake_id,
+            'course_registration_id' => 'EEE-2022-007',
+            'status'                 => 'Registered',
+            'approval_status'        => 'Approved by manager',
+            'location'               => 'Welisara',
+            'registration_date'      => now()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($this->actor)->postJson(route('clearance.getStudentsForIntake'), [
+            'intake_id' => $intake->intake_id,
+            'course_id' => $this->course->course_id,
+            'location'  => 'Welisara',
+        ]);
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $ids = collect($response->json('data'))->pluck('student_id');
+        $this->assertContains($terminated->student_id, $ids);
+    }
 }

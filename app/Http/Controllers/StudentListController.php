@@ -101,6 +101,12 @@ class StudentListController extends Controller
             ->all();
 
         if (empty($matchingIds)) {
+            // Course definition can list a track before anyone is assigned.
+            // Hiding the whole intake makes UH Batch 06 look empty.
+            if ($assignments->isEmpty()) {
+                return $query;
+            }
+
             return $query->whereRaw('1 = 0');
         }
 
@@ -109,12 +115,13 @@ class StudentListController extends Controller
 
     private function statusSelectSql(): string
     {
-        return 'CASE
-            WHEN LOWER(cr.status) = "registered" THEN "registered"
-            WHEN LOWER(cr.status) IN ("not eligible", "terminated") THEN "terminated"
-            WHEN LOWER(cr.status) = "completed" THEN "completed"
-            ELSE "pending"
-        END';
+        return "CASE
+            WHEN LOWER(COALESCE(s.academic_status, '')) = 'terminated' THEN 'terminated'
+            WHEN LOWER(cr.status) = 'registered' THEN 'registered'
+            WHEN LOWER(cr.status) IN ('not eligible', 'terminated') THEN 'terminated'
+            WHEN LOWER(cr.status) = 'completed' THEN 'completed'
+            ELSE 'pending'
+        END";
     }
 
     private function applyStatusFilter($query, string $status)
@@ -130,11 +137,61 @@ class StudentListController extends Controller
             'pending' => ['Pending', 'pending', 'Special approval required'],
         ];
 
+        if ($status === 'terminated') {
+            $query->where(function ($inner) use ($statusMap) {
+                $inner->whereIn('cr.status', $statusMap['terminated'])
+                    ->orWhereRaw('LOWER(COALESCE(s.academic_status, "")) = ?', ['terminated']);
+            });
+
+            return $query;
+        }
+
+        if ($status === 'registered') {
+            $query->whereIn('cr.status', $statusMap['registered'])
+                ->whereRaw('LOWER(COALESCE(s.academic_status, "")) <> ?', ['terminated']);
+
+            return $query;
+        }
+
         if (isset($statusMap[$status])) {
             $query->whereIn('cr.status', $statusMap[$status]);
         }
 
         return $query;
+    }
+
+    private function statusDisplayLabel(string $status, ?string $reason = null): string
+    {
+        if ($status !== 'terminated') {
+            return $status === '' ? '' : ucfirst($status);
+        }
+
+        $reason = trim((string) $reason);
+        if ($reason === '') {
+            return 'Not Eligible - Termination';
+        }
+
+        return 'Not Eligible - Termination: ' . $reason;
+    }
+
+    private function terminationReasonsByStudent(array $studentIds): array
+    {
+        if ($studentIds === [] || !Schema::hasTable('student_status_histories')) {
+            return [];
+        }
+
+        return DB::table('student_status_histories')
+            ->whereIn('student_id', $studentIds)
+            ->where('to_status', 'terminated')
+            ->whereNotNull('reason')
+            ->where('reason', '<>', '')
+            ->orderByDesc('id')
+            ->get(['student_id', 'reason'])
+            ->unique('student_id')
+            ->mapWithKeys(function ($row) {
+                return [$row->student_id => trim((string) $row->reason)];
+            })
+            ->all();
     }
 
     private function fetchStudentsForFilters(string $location, int $courseId, int $intakeId, ?string $specialization, string $status = 'all')
@@ -156,14 +213,25 @@ class StudentListController extends Controller
                 DB::raw('COALESCE(s.name_with_initials, s.full_name) as name'),
                 DB::raw('"" as specialization'),
                 DB::raw($this->statusSelectSql() . ' as status'),
+                's.academic_status_reason',
             ])
             ->orderBy('cr.course_registration_id')
             ->orderBy('s.name_with_initials')
             ->get();
 
-        return $students->map(function ($student) use ($assignments) {
+        $historyReasons = $this->terminationReasonsByStudent(
+            $students->where('status', 'terminated')->pluck('student_id')->all()
+        );
+
+        return $students->map(function ($student) use ($assignments, $historyReasons) {
             $assigned = trim((string) $assignments->get($student->student_id, ''));
             $student->specialization = $assigned === '' ? 'Common' : $assigned;
+            $reason = trim((string) ($student->academic_status_reason ?? ''));
+            if ($reason === '' && ($student->status ?? '') === 'terminated') {
+                $reason = $historyReasons[$student->student_id] ?? '';
+            }
+            $student->status_reason = $reason;
+            $student->status_label = $this->statusDisplayLabel((string) ($student->status ?? ''), $reason);
 
             return $student;
         });
@@ -279,7 +347,7 @@ class StudentListController extends Controller
             if ($showSpecializationColumn) {
                 $row[] = $s->specialization;
             }
-            $row[] = ($s->status === 'terminated') ? 'Not Eligible' : ucfirst($s->status);
+            $row[] = $s->status_label ?? (($s->status === 'terminated') ? 'Not Eligible - Termination' : ucfirst($s->status));
             $excelData[] = $row;
         }
 
