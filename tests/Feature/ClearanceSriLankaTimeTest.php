@@ -25,19 +25,30 @@ class ClearanceSriLankaTimeTest extends TestCase
 
     public function test_clearance_management_pages_render_sri_lanka_times(): void
     {
-        $files = [
+        $partials = [
+            resource_path('views/clearance/partials/pending_requests_body.blade.php'),
+            resource_path('views/clearance/partials/processed_requests_body.blade.php'),
+        ];
+
+        $pending = file_get_contents($partials[0]);
+        $processed = file_get_contents($partials[1]);
+
+        $this->assertStringContainsString('requestedAtSriLanka()', $pending);
+        $this->assertStringContainsString('processedAtSriLanka()', $processed);
+        $this->assertStringNotContainsString('requested_at->format(', $pending);
+        $this->assertStringNotContainsString('approved_at->format(', $processed);
+
+        $pages = [
             resource_path('views/clearance/library_clearance.blade.php'),
             resource_path('views/clearance/hostel_clearance.blade.php'),
             resource_path('views/clearance/project_clearance.blade.php'),
             resource_path('views/clearance/payment_clearance.blade.php'),
         ];
 
-        foreach ($files as $file) {
+        foreach ($pages as $file) {
             $source = file_get_contents($file);
-            $this->assertStringContainsString('requestedAtSriLanka()', $source, $file);
-            $this->assertStringContainsString('processedAtSriLanka()', $source, $file);
-            $this->assertStringNotContainsString('requested_at->format(', $source, $file);
-            $this->assertStringNotContainsString('approved_at->format(', $source, $file);
+            $this->assertStringContainsString("partials.pending_requests_body", $source, $file);
+            $this->assertStringContainsString("partials.processed_requests_body", $source, $file);
         }
     }
 }

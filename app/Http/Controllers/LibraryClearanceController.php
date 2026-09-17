@@ -15,7 +15,7 @@ class LibraryClearanceController extends Controller
 
     public function index(Request $request)
     {
-        return view('clearance.library_clearance', $this->clearancePageData($request, ClearanceRequest::TYPE_LIBRARY));
+        return $this->clearancePageResponse($request, ClearanceRequest::TYPE_LIBRARY, 'clearance.library_clearance');
     }
 
     public function details($id)

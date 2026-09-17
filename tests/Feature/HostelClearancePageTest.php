@@ -92,7 +92,9 @@ class HostelClearancePageTest extends TestCase
             ->assertSee('HOSTEL PENDING 10')
             ->assertDontSee('HOSTEL PENDING 11')
             ->assertSee('Showing 1–10 of 11')
-            ->assertSee('pending_page=2');
+            ->assertSee('pending_page=2')
+            ->assertSee('pendingRequestsBody')
+            ->assertSee('clearance-management-page');
 
         $this->actingAs($this->actor)
             ->get(route('hostel.clearance.form.management', ['pending_page' => 2]))
@@ -100,5 +102,37 @@ class HostelClearancePageTest extends TestCase
             ->assertSee('HOSTEL PENDING 11')
             ->assertDontSee('HOSTEL PENDING 01')
             ->assertSee('Showing 11–11 of 11');
+
+        $pageTwo = $this->actingAs($this->actor)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('hostel.clearance.form.management', ['pending_page' => 2]))
+            ->assertOk()
+            ->assertJsonStructure(['pending_html', 'processed_html']);
+
+        $this->assertStringContainsString('HOSTEL PENDING 11', $pageTwo->json('pending_html'));
+        $this->assertStringNotContainsString('HOSTEL PENDING 01', $pageTwo->json('pending_html'));
+        $this->assertStringContainsString('Showing 11–11 of 11', $pageTwo->json('pending_html'));
+    }
+
+    public function test_location_change_does_not_live_filter_tables(): void
+    {
+        $files = [
+            resource_path('views/clearance/library_clearance.blade.php'),
+            resource_path('views/clearance/hostel_clearance.blade.php'),
+            resource_path('views/clearance/project_clearance.blade.php'),
+            resource_path('views/clearance/payment_clearance.blade.php'),
+        ];
+
+        foreach ($files as $file) {
+            $source = file_get_contents($file);
+            $this->assertStringNotContainsString('#pendingTable tbody tr', $source, $file);
+            $this->assertStringNotContainsString('#processedTable tbody tr', $source, $file);
+            $this->assertStringContainsString("partials.management_scripts", $source, $file);
+        }
+
+        $scripts = file_get_contents(resource_path('views/clearance/partials/management_scripts.blade.php'));
+        $this->assertStringContainsString('updateIntakeOptions', $scripts);
+        $this->assertStringContainsString('data-course-id', $scripts);
+        $this->assertStringNotContainsString('#pendingTable tbody tr', $scripts);
     }
 }

@@ -172,6 +172,9 @@
 
       let visibleCount = 0;
       Array.from(select.options).forEach(function (opt, index) {
+        if (opt.hidden) {
+          return;
+        }
         if (query && String(opt.text || '').toLowerCase().indexOf(query) === -1) {
           return;
         }
