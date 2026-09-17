@@ -14,7 +14,7 @@ class PaymentClearanceController extends Controller
 
     public function index(Request $request)
     {
-        return view('clearance.payment_clearance', $this->clearancePageData($request, ClearanceRequest::TYPE_PAYMENT));
+        return $this->clearancePageResponse($request, ClearanceRequest::TYPE_PAYMENT, 'clearance.payment_clearance');
     }
 
     /**

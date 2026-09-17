@@ -210,10 +210,9 @@ class ClearanceRequest extends Model
         }
 
         $carbon = $value instanceof Carbon
-            ? $value
-            : Carbon::parse($value);
+            ? $value->copy()
+            : Carbon::parse($value, config('app.timezone'));
 
-        // TIMESTAMP columns are stored in UTC; show Asia/Colombo (Sri Lanka) time.
-        return Carbon::parse($carbon->format('Y-m-d H:i:s'), 'UTC')->timezone('Asia/Colombo');
+        return $carbon->timezone('Asia/Colombo');
     }
 }

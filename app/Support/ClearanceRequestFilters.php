@@ -51,6 +51,38 @@ trait ClearanceRequestFilters
             'courses' => Course::whereIn('course_id', $courseIds)->orderBy('course_name')->get(['course_id', 'course_name', 'location']),
             'intakes' => Intake::whereIn('intake_id', $intakeIds)->orderBy('batch')->get(['intake_id', 'course_id', 'batch', 'location']),
             'filters' => $filters,
+            'pendingEmptyMessage' => $this->pendingEmptyMessage($clearanceType),
+            'processedEmptyMessage' => $this->processedEmptyMessage($clearanceType),
         ];
+    }
+
+    protected function clearancePageResponse(Request $request, string $clearanceType, string $view)
+    {
+        $data = $this->clearancePageData($request, $clearanceType);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'pending_html' => view('clearance.partials.pending_requests_body', $data)->render(),
+                'processed_html' => view('clearance.partials.processed_requests_body', $data)->render(),
+            ]);
+        }
+
+        return view($view, $data);
+    }
+
+    private function pendingEmptyMessage(string $clearanceType): string
+    {
+        return match ($clearanceType) {
+            ClearanceRequest::TYPE_LIBRARY => 'All library clearance requests have been processed.',
+            ClearanceRequest::TYPE_HOSTEL => 'All hostel clearance requests have been processed.',
+            ClearanceRequest::TYPE_PAYMENT => 'All payment clearance requests have been processed.',
+            ClearanceRequest::TYPE_PROJECT => 'All project clearance requests have been processed.',
+            default => 'All clearance requests have been processed.',
+        };
+    }
+
+    private function processedEmptyMessage(string $clearanceType): string
+    {
+        return 'No clearance requests have been processed yet.';
     }
 }
