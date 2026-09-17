@@ -126,6 +126,33 @@
     gap: 0.5rem;
     align-items: center;
 }
+.reinstate-highlight {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    border: 2px dashed #198754;
+    border-radius: 12px;
+    background: #e9f9ef;
+}
+.reinstate-highlight-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #146c43;
+    max-width: 10.5rem;
+    line-height: 1.2;
+}
+.reinstate-highlight-btn {
+    font-weight: 700;
+    box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.65);
+    animation: reinstatePulse 1.8s ease-out infinite;
+}
+@keyframes reinstatePulse {
+    0% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.55); }
+    70% { box-shadow: 0 0 0 12px rgba(25, 135, 84, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); }
+}
 .student-profile-page .payment-kpi-card h5 {
     font-size: 0.95rem;
     word-break: break-word;
@@ -206,10 +233,14 @@
     }
     .student-profile-status-bar .btn,
     .student-profile-actions .btn,
+    .reinstate-highlight-btn,
     .student-profile-generate-btn,
     .student-profile-modal .modal-footer .btn {
         width: 100%;
         margin-left: 0 !important;
+    }
+    .reinstate-highlight-label {
+        max-width: none;
     }
     .student-profile-modal .modal-footer {
         flex-direction: column;
@@ -327,9 +358,12 @@
                   <button type="button" id="terminateBtn" class="btn btn-outline-danger" style="{{ strtolower($status)==='terminated' ? 'display:none;' : '' }}">
                     <i class="ti ti-user-x me-1"></i> Terminate
                   </button>
-                  <button type="button" id="reinstateBtn" class="btn btn-success" style="{{ strtolower($status)==='terminated' ? '' : 'display:none;' }}">
-                    <i class="ti ti-user-check me-1"></i> Re‑Register
-                  </button>
+                  <div class="reinstate-highlight" id="reinstateHighlight" @if(strtolower($status)!=='terminated') hidden @endif>
+                    <span class="reinstate-highlight-label">Use this button to restore the student</span>
+                    <button type="button" id="reinstateBtn" class="btn btn-success reinstate-highlight-btn">
+                      <i class="ti ti-user-check me-1"></i> Re-Register
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1627,7 +1661,7 @@ function setStatusUI(status){
   badge.text((status||'active').toUpperCase());
   badge.toggleClass('bg-danger',isTerminated).toggleClass('bg-success',!isTerminated);
   $('#terminateBtn').toggle(!isTerminated);
-  $('#reinstateBtn').toggle(isTerminated);
+  $('#reinstateHighlight').prop('hidden', !isTerminated);
 
   // lock personal edit if terminated
   $('#showEditPersonalInfoBtn').prop('disabled', isTerminated);

@@ -204,11 +204,20 @@ class AllClearanceController extends Controller
         try {
             $regQuery = CourseRegistration::where('course_id', $request->course_id)
                 ->where('intake_id', $request->intake_id)
-                ->where('location', $request->location)
-                ->eligible();
+                ->where('location', $request->location);
 
             if ($request->filled('student_id')) {
                 $regQuery->where('student_id', $request->student_id);
+            } else {
+                $regQuery->where(function ($query) {
+                    $query->eligible()
+                        ->orWhereHas('student', function ($studentQuery) {
+                            $studentQuery->whereIn('academic_status', [
+                                Student::ACADEMIC_TERMINATED,
+                                Student::ACADEMIC_SUSPENDED,
+                            ]);
+                        });
+                });
             }
 
             $students = $regQuery->with('student')->get();

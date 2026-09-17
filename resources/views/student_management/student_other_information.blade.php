@@ -279,7 +279,8 @@
                     banner.className='alert d-none mt-2 mb-0';
                     document.getElementById('otherInformationForm').classList.remove('bg-terminated');
                     if(status==='terminated'){
-                        banner.textContent='STUDENT TERMINATED';
+                        banner.innerHTML='STUDENT TERMINATED. Do not create a new record. Use Student Profile to Re-Register, or process clearance from All Clearance / Termination Tracking.'
+                            + (res.data.profile_url ? ' <a class="alert-link" href="'+res.data.profile_url+'">Open Student Profile</a>' : '');
                         banner.classList.add('alert-terminated');
                         document.getElementById('otherInformationForm').classList.add('bg-terminated');
                     }
