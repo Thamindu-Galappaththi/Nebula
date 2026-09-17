@@ -155,4 +155,28 @@ class ModuleCreationPageTest extends TestCase
         $this->assertStringNotContainsString('Elective Module', $csv);
         $this->assertStringContainsString('Degree/Diploma', $csv);
     }
+
+    public function test_special_unit_type_is_exposed_for_edit_modal(): void
+    {
+        Module::forceCreate([
+            'module_name'     => 'Advanced Programming For Data Analysis',
+            'module_code'     => 'BTECCOM_ADPROGRAMDA_4024',
+            'module_category' => 'degree',
+            'module_type'     => 'special_unit_compulsory',
+            'credits'         => 15,
+        ]);
+
+        $html = $this->actingAs($this->actor)
+            ->get(route('module.creation'))
+            ->assertOk()
+            ->assertSee('Advanced Programming For Data Analysis')
+            ->assertSee('>S/U</span>', false)
+            ->assertSee('data-type="special_unit_compulsory"', false)
+            ->assertSee('data-module-type="special_unit_compulsory"', false)
+            ->assertSee('normalizeModuleType', false)
+            ->getContent();
+
+        $this->assertStringContainsString("resetFilterSelect(document.getElementById('edit_module_type')", $html);
+        $this->assertStringContainsString("row.attr('data-module-type')", $html);
+    }
 }
