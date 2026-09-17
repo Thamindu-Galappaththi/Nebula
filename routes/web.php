@@ -235,8 +235,12 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Developer'])->group(function () {
         Route::get('/course-management', [CourseManagementController::class, 'showCourseManagement'])->name('course.management');
+        Route::get('/course-management/export', [CourseManagementController::class, 'export'])->name('course.export');
         Route::post('/store-course-data', [CourseManagementController::class, 'storeCourseData'])->name('course.store');
-        Route::get('/api/courses/{courseId}', [CourseManagementController::class, 'getCourseById']);
+        Route::get('/api/courses/{courseId}', [CourseManagementController::class, 'getCourseById'])->name('course.show');
+        Route::post('/courses/bulk-delete', [CourseManagementController::class, 'bulkDestroy'])->name('course.bulkDestroy');
+        Route::post('/courses/{id}/update', [CourseManagementController::class, 'updateCourseData'])->name('course.update');
+        Route::delete('/courses/{id}', [CourseManagementController::class, 'deleteCourse'])->name('course.destroy');
     });
 
     // ========================================================================

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Course;
-use App\Models\Module;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -15,11 +14,18 @@ class CourseManagementController extends Controller
     /**
      * Display the course management page with all courses and modules.
      */
-    public function showCourseManagement()
+    public function showCourseManagement(Request $request)
     {
-        $courses = Course::with('modules')->orderBy('course_name', 'asc')->get();
-        $modules = Module::orderBy('module_name', 'asc')->get();
-        return view('courses_&_modules.course_management', compact('courses', 'modules'));
+        $data = $this->coursePageData($request);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('courses_&_modules.partials.course_rows', $data)->render(),
+                'pagination' => view('courses_&_modules.partials.course_pagination', $data)->render(),
+            ]);
+        }
+
+        return view('courses_&_modules.course_management', $data);
     }
 
     /**
@@ -64,7 +70,7 @@ class CourseManagementController extends Controller
 
         DB::beginTransaction();
         try {
-            $courseData = $request->except('modules');
+            $courseData = $request->except(['modules', 'has_specialization', 'other_conducted_by']);
 
             // Normalize duration fields into a single stored string.
             $courseData['duration'] = $request->duration_years . '-' . $request->duration_months . '-' . $request->duration_days;
@@ -79,18 +85,16 @@ class CourseManagementController extends Controller
             }
             unset($courseData['training_years'], $courseData['training_months'], $courseData['training_days']);
 
-            // Nullify fields for certificate
             if ($request->course_type === 'certificate') {
                 $courseData['no_of_semesters'] = null;
                 $courseData['min_credits'] = null;
+                $courseData['semester_format'] = $courseData['semester_format'] ?? 'numerical';
             }
 
             // Handle specializations for degree and diploma courses
             if (in_array($request->course_type, ['degree', 'diploma'], true)) {
-                $specializations = $request->input('specializations', []);
-                $courseData['specializations'] = !empty($specializations)
-                    ? json_encode(array_filter($specializations))
-                    : null;
+                $specializations = array_values(array_filter($request->input('specializations', []), fn ($spec) => filled($spec)));
+                $courseData['specializations'] = $specializations ?: null;
             } else {
                 $courseData['specializations'] = null;
             }
@@ -173,6 +177,69 @@ class CourseManagementController extends Controller
         return response()->json(['success' => false, 'message' => 'Course not found'], 404);
     }
 
+    public function bulkDestroy(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $deleted = 0;
+        $failed = 0;
+
+        foreach ($data['ids'] as $id) {
+            try {
+                $course = Course::find($id);
+                if (!$course) {
+                    $failed++;
+                    continue;
+                }
+                $course->modules()->detach();
+                $course->delete();
+                $deleted++;
+            } catch (\Exception $e) {
+                Log::error('Error deleting course ' . $id . ': ' . $e->getMessage());
+                $failed++;
+            }
+        }
+
+        return response()->json([
+            'success' => $deleted > 0,
+            'message' => $failed === 0
+                ? "Successfully deleted {$deleted} course(s)."
+                : "Deleted {$deleted} course(s). {$failed} could not be deleted.",
+            'deleted' => $deleted,
+            'failed' => $failed,
+        ]);
+    }
+
+    public function export(Request $request)
+    {
+        $filters = $this->courseFilters($request);
+        $courses = $this->filteredCoursesQuery($filters)->orderBy('course_name')->get();
+        $filename = 'courses_export_' . now()->timezone('Asia/Colombo')->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($courses) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, ['Course Name', 'Course Type', 'Location', 'Duration', 'Medium']);
+
+            foreach ($courses as $course) {
+                fputcsv($handle, [
+                    $course->course_name,
+                    $this->courseTypeLabel($course->course_type),
+                    $course->location,
+                    $course->duration_formatted,
+                    $course->course_medium,
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     /**
      * Update an existing course and keep related intake names in sync.
      */
@@ -217,7 +284,7 @@ class CourseManagementController extends Controller
 
         DB::beginTransaction();
         try {
-            $courseData = $request->except('modules');
+            $courseData = $request->except(['modules', 'has_specialization', 'other_conducted_by']);
 
             $courseData['duration'] = $request->duration_years . '-' . $request->duration_months . '-' . $request->duration_days;
             unset($courseData['duration_years'], $courseData['duration_months'], $courseData['duration_days']);
@@ -236,10 +303,8 @@ class CourseManagementController extends Controller
             }
 
             if (in_array($request->course_type, ['degree', 'diploma'], true)) {
-                $specializations = $request->input('specializations', []);
-                $courseData['specializations'] = !empty($specializations)
-                    ? json_encode(array_filter($specializations))
-                    : null;
+                $specializations = array_values(array_filter($request->input('specializations', []), fn ($spec) => filled($spec)));
+                $courseData['specializations'] = $specializations ?: null;
             } else {
                 $courseData['specializations'] = null;
             }
@@ -280,5 +345,56 @@ class CourseManagementController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    private function coursePageData(Request $request): array
+    {
+        $filters = $this->courseFilters($request);
+        $perPage = (int) ($filters['per_page'] ?? 10);
+
+        $courses = $this->filteredCoursesQuery($filters)
+            ->orderBy('course_name')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return [
+            'courses' => $courses,
+            'filters' => $filters,
+            'perPage' => $perPage,
+        ];
+    }
+
+    private function courseFilters(Request $request): array
+    {
+        return $request->validate([
+            'search' => 'nullable|string|max:255',
+            'course_type' => 'nullable|in:degree,diploma,certificate',
+            'location' => 'nullable|in:Welisara,Moratuwa,Peradeniya',
+            'per_page' => 'nullable|integer|in:10,25,50',
+        ]);
+    }
+
+    private function filteredCoursesQuery(array $filters)
+    {
+        return Course::query()
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('course_name', 'like', '%' . $search . '%')
+                        ->orWhere('location', 'like', '%' . $search . '%')
+                        ->orWhere('course_medium', 'like', '%' . $search . '%');
+                });
+            })
+            ->when($filters['course_type'] ?? null, fn ($query, $type) => $query->where('course_type', $type))
+            ->when($filters['location'] ?? null, fn ($query, $location) => $query->where('location', $location));
+    }
+
+    private function courseTypeLabel(?string $type): string
+    {
+        return match ($type) {
+            'degree' => 'Degree Program',
+            'diploma' => 'Diploma Program',
+            'certificate' => 'Certificate Program',
+            default => 'N/A',
+        };
     }
 }
