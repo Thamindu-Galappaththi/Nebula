@@ -375,6 +375,7 @@ $(function () {
     const storeUrl = '{{ route("module.store") }}';
     const updateUrlTemplate = '{{ url("/modules") }}';
     const listUrl = '{{ route("module.creation") }}';
+    const exportUrl = '{{ route("module.export") }}';
     const codePattern = /^[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+$/;
     const editModal = document.getElementById('editModuleModal');
     const editModalInstance = editModal && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(editModal) : null;
@@ -692,25 +693,21 @@ $(function () {
     });
 
     $('#exportBtn').on('click', function () {
-        const rows = [['Module Name', 'Module Code', 'Category', 'Credits', 'Type']];
-        $('#moduleTableBody tr[data-module-id]').each(function () {
-            const row = $(this);
-            rows.push([
-                '"' + row.find('.module-name').text().trim().replace(/"/g, '""') + '"',
-                '"' + row.find('.module-code').text().trim().replace(/"/g, '""') + '"',
-                '"' + row.find('.module-category').text().trim().replace(/"/g, '""') + '"',
-                '"' + row.find('.module-credits').text().trim().replace(/"/g, '""') + '"',
-                '"' + row.find('.module-type').text().trim().replace(/"/g, '""') + '"'
-            ]);
-        });
-        const blob = new Blob([rows.map(function (line) { return line.join(','); }).join('\n')], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'modules_export_' + new Date().toISOString().split('T')[0] + '.csv';
-        a.click();
-        window.URL.revokeObjectURL(url);
-        showAlert('Exported', 'The current page of modules was exported.', 'success');
+        const params = new URLSearchParams();
+        const search = $.trim($('#searchInput').val() || '');
+        const category = $('#filterCategory').val() || '';
+        const type = $('#filterType').val() || '';
+        if (search) {
+            params.set('search', search);
+        }
+        if (category) {
+            params.set('category', category);
+        }
+        if (type) {
+            params.set('type', type);
+        }
+        const url = params.toString() ? (exportUrl + '?' + params.toString()) : exportUrl;
+        window.location.assign(url);
     });
 });
 </script>

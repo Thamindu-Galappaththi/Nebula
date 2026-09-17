@@ -53,6 +53,7 @@ class ModuleCreationPageTest extends TestCase
             ->assertSee('@media (max-width: 991.98px)', false)
             ->assertSee('data-label="Module Name"', false)
             ->assertSee('resetFilterSelect', false)
+            ->assertSee(route('module.export'), false)
             ->getContent();
 
         $this->assertStringContainsString('value="10"', $html);
@@ -119,5 +120,39 @@ class ModuleCreationPageTest extends TestCase
             'module_type' => 'elective',
             'credits'     => 20,
         ]);
+    }
+
+    public function test_export_csv_includes_all_filtered_modules(): void
+    {
+        for ($i = 1; $i <= 11; $i++) {
+            Module::forceCreate([
+                'module_name'     => sprintf('Core Module %02d', $i),
+                'module_code'     => sprintf('CS101_CORE_%03d', $i),
+                'module_category' => 'degree',
+                'module_type'     => 'core',
+                'credits'         => 15,
+            ]);
+        }
+
+        Module::forceCreate([
+            'module_name'     => 'Elective Module',
+            'module_code'     => 'CS101_ELEC_001',
+            'module_category' => 'degree',
+            'module_type'     => 'elective',
+            'credits'         => 10,
+        ]);
+
+        $csv = $this->actingAs($this->actor)
+            ->get(route('module.export', ['type' => 'core']))
+            ->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+            ->streamedContent();
+
+        $this->assertStringContainsString('Module Name', $csv);
+        $this->assertStringContainsString('Module Code', $csv);
+        $this->assertStringContainsString('Core Module 01', $csv);
+        $this->assertStringContainsString('Core Module 11', $csv);
+        $this->assertStringNotContainsString('Elective Module', $csv);
+        $this->assertStringContainsString('Degree/Diploma', $csv);
     }
 }

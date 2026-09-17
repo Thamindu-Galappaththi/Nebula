@@ -23,6 +23,35 @@ class ModuleCreationController extends Controller
         return view('courses_&_modules.module_creation', $data);
     }
 
+    public function export(Request $request)
+    {
+        $filters = $this->moduleFilters($request);
+        $modules = $this->filteredModulesQuery($filters)->orderBy('module_name')->get();
+
+        $filename = 'modules_export_' . now()->timezone('Asia/Colombo')->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($modules) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, ['Module Name', 'Module Code', 'Category', 'Credits', 'Type']);
+
+            foreach ($modules as $module) {
+                $isCertificate = ($module->module_category ?? 'degree') === 'certificate';
+                fputcsv($handle, [
+                    $module->module_name,
+                    $module->module_code,
+                    $isCertificate ? 'Certificate' : 'Degree/Diploma',
+                    $isCertificate ? 'N/A' : (string) ($module->credits ?? 'N/A'),
+                    $isCertificate ? '-' : $this->moduleTypeLabel($module->module_type),
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     public function store(Request $request)
     {
         try {
@@ -179,24 +208,10 @@ class ModuleCreationController extends Controller
 
     private function modulePageData(Request $request): array
     {
-        $filters = $request->validate([
-            'search' => 'nullable|string|max:255',
-            'category' => 'nullable|in:degree,certificate',
-            'type' => 'nullable|in:core,elective,special_unit_compulsory',
-            'per_page' => 'nullable|integer|in:10,25,50',
-        ]);
-
+        $filters = $this->moduleFilters($request);
         $perPage = (int) ($filters['per_page'] ?? 10);
 
-        $modules = Module::query()
-            ->when($filters['search'] ?? null, function ($query, $search) {
-                $query->where(function ($inner) use ($search) {
-                    $inner->where('module_name', 'like', '%' . $search . '%')
-                        ->orWhere('module_code', 'like', '%' . $search . '%');
-                });
-            })
-            ->when($filters['category'] ?? null, fn ($query, $category) => $query->where('module_category', $category))
-            ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('module_type', $type))
+        $modules = $this->filteredModulesQuery($filters)
             ->orderBy('module_name')
             ->paginate($perPage)
             ->withQueryString();
@@ -206,5 +221,38 @@ class ModuleCreationController extends Controller
             'filters' => $filters,
             'perPage' => $perPage,
         ];
+    }
+
+    private function moduleFilters(Request $request): array
+    {
+        return $request->validate([
+            'search' => 'nullable|string|max:255',
+            'category' => 'nullable|in:degree,certificate',
+            'type' => 'nullable|in:core,elective,special_unit_compulsory',
+            'per_page' => 'nullable|integer|in:10,25,50',
+        ]);
+    }
+
+    private function filteredModulesQuery(array $filters)
+    {
+        return Module::query()
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('module_name', 'like', '%' . $search . '%')
+                        ->orWhere('module_code', 'like', '%' . $search . '%');
+                });
+            })
+            ->when($filters['category'] ?? null, fn ($query, $category) => $query->where('module_category', $category))
+            ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('module_type', $type));
+    }
+
+    private function moduleTypeLabel(?string $type): string
+    {
+        return match ($type) {
+            'core' => 'Core',
+            'elective' => 'Elective',
+            'special_unit_compulsory' => 'S/U',
+            default => '-',
+        };
     }
 }
