@@ -9,6 +9,9 @@
         max-width: 100%;
         min-width: 0;
     }
+    .semester-create-page .row > [class*="col-"] {
+        min-width: 0;
+    }
     .semester-create-header,
     .semester-create-actions {
         gap: 0.75rem;
@@ -22,9 +25,16 @@
     }
     .semester-module-picker {
         display: grid;
-        grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) auto;
         gap: 0.5rem;
         align-items: end;
+    }
+    .semester-module-picker .nebula-select,
+    .semester-module-type,
+    .semester-module-choice {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
     }
     .semester-module-add .btn {
         white-space: nowrap;
@@ -35,11 +45,21 @@
     }
     #modules_table {
         min-width: 640px;
+        margin-bottom: 0;
+    }
+    .remove-module {
+        flex: 0 0 auto !important;
+        width: auto;
+        min-width: 2rem;
+        padding: 0.15rem 0.45rem;
+        font-size: 0.75rem;
+        line-height: 1;
+        white-space: nowrap;
     }
     .semester-toast-wrap {
         z-index: 9999;
     }
-    @media (max-width: 767.98px) {
+    @media (max-width: 991.98px) {
         .semester-create-header {
             flex-direction: column;
             align-items: stretch !important;
@@ -97,6 +117,9 @@
             justify-content: flex-end;
             align-items: center;
         }
+        #modules_table td[data-label="Action"]::before {
+            content: none;
+        }
         .semester-toast-wrap {
             top: auto !important;
             bottom: 0;
@@ -120,9 +143,9 @@
             <hr>
             <form action="{{ route('semesters.store') }}" method="POST" id="semesterCreateForm">
                 @csrf
-                <div class="row mb-3 g-2 align-items-md-center">
-                    <label for="location" class="col-md-3 col-lg-2 col-form-label">Location <span class="text-danger">*</span></label>
-                    <div class="col-md-9 col-lg-10">
+                <div class="row mb-3 g-2 g-md-3 align-items-md-center">
+                    <label for="location" class="col-12 col-md-3 col-lg-2 col-form-label">Location <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-9 col-lg-10">
                         <select name="location" id="location" class="form-select" required>
                             <option selected disabled value="">Select a Location</option>
                             <option value="Welisara">Nebula Institute of Technology - Welisara</option>
@@ -131,51 +154,51 @@
                         </select>
                     </div>
                 </div>
-                <div class="row mb-3 g-2 align-items-md-center">
-                    <label for="course_id" class="col-md-3 col-lg-2 col-form-label">Course <span class="text-danger">*</span></label>
-                    <div class="col-md-9 col-lg-10">
+                <div class="row mb-3 g-2 g-md-3 align-items-md-center">
+                    <label for="course_id" class="col-12 col-md-3 col-lg-2 col-form-label">Course <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-9 col-lg-10">
                         <select name="course_id" id="course_id" class="form-select" required disabled>
                             <option selected disabled value="">Select Course</option>
                         </select>
                     </div>
                 </div>
-                <div class="row mb-3 g-2 align-items-md-center">
-                    <label for="intake_id" class="col-md-3 col-lg-2 col-form-label">Intake <span class="text-danger">*</span></label>
-                    <div class="col-md-9 col-lg-10">
+                <div class="row mb-3 g-2 g-md-3 align-items-md-center">
+                    <label for="intake_id" class="col-12 col-md-3 col-lg-2 col-form-label">Intake <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-9 col-lg-10">
                         <select name="intake_id" id="intake_id" class="form-select" required disabled>
                             <option selected disabled value="">Select Intake</option>
                         </select>
                     </div>
                 </div>
-                <div class="row mb-3 g-2 align-items-md-center">
-                    <label for="semester" class="col-md-3 col-lg-2 col-form-label">Semester <span class="text-danger">*</span></label>
-                    <div class="col-md-9 col-lg-10">
+                <div class="row mb-3 g-2 g-md-3 align-items-md-center">
+                    <label for="semester" class="col-12 col-md-3 col-lg-2 col-form-label">Semester <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-9 col-lg-10">
                         <select name="semester" id="semester" class="form-select" required disabled>
                             <option selected disabled value="">Select Semester</option>
                         </select>
                     </div>
                 </div>
-                <div class="row mb-3 g-2 align-items-md-center">
-                    <label for="start_date" class="col-md-3 col-lg-2 col-form-label">Start Date <span class="text-danger">*</span></label>
-                    <div class="col-md-9 col-lg-10">
+                <div class="row mb-3 g-2 g-md-3 align-items-md-center">
+                    <label for="start_date" class="col-12 col-md-3 col-lg-2 col-form-label">Start Date <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-9 col-lg-10">
                         <input type="date" name="start_date" id="start_date" class="form-control" required>
                     </div>
                 </div>
-                <div class="row mb-3 g-2 align-items-md-center">
-                    <label for="end_date" class="col-md-3 col-lg-2 col-form-label">End Date <span class="text-danger">*</span></label>
-                    <div class="col-md-9 col-lg-10">
+                <div class="row mb-3 g-2 g-md-3 align-items-md-center">
+                    <label for="end_date" class="col-12 col-md-3 col-lg-2 col-form-label">End Date <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-9 col-lg-10">
                         <input type="date" name="end_date" id="end_date" class="form-control" required>
                     </div>
                 </div>
-                <div class="row mb-3 g-2">
-                    <div class="col-md-3 col-lg-2 col-form-label">Status</div>
-                    <div class="col-md-9 col-lg-10">
+                <div class="row mb-3 g-2 g-md-3">
+                    <div class="col-12 col-md-3 col-lg-2 col-form-label">Status</div>
+                    <div class="col-12 col-md-9 col-lg-10">
                         <p class="form-text mb-0 pt-md-2">Status is set automatically from the start and end dates (upcoming, active, or completed).</p>
                     </div>
                 </div>
-                <div class="row mb-3 g-2" id="specializationScopeRow" style="display:none;">
-                    <label class="col-md-3 col-lg-2 col-form-label">Module Applicability</label>
-                    <div class="col-md-9 col-lg-10">
+                <div class="row mb-3 g-2 g-md-3" id="specializationScopeRow" hidden>
+                    <label class="col-12 col-md-3 col-lg-2 col-form-label">Module Applicability</label>
+                    <div class="col-12 col-md-9 col-lg-10">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="spec_scope" id="spec_scope_all" value="all" checked>
                             <label class="form-check-label" for="spec_scope_all">All specializations (common)</label>
@@ -188,25 +211,27 @@
                         <small class="form-text text-muted">Use selected specializations when a module is common to only some tracks.</small>
                     </div>
                 </div>
-                <div class="row mb-3 g-2">
-                    <label class="col-md-3 col-lg-2 col-form-label">Modules <span class="text-danger">*</span></label>
-                    <div class="col-md-9 col-lg-10">
+                <div class="row mb-3 g-2 g-md-3 align-items-md-start" id="modulesFieldRow">
+                    <label class="col-12 col-md-3 col-lg-2 col-form-label" for="module_select">Modules <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-9 col-lg-10">
                         <div class="semester-module-picker">
                             <div class="semester-module-type">
-                                <label class="form-label small text-muted d-md-none" for="module_type">Type</label>
+                                <label class="form-label small text-muted" for="module_type">Type</label>
                                 <select id="module_type" class="form-select">
+                                    <option value="">All types</option>
                                     <option value="Core">Core</option>
                                     <option value="Elective">Elective</option>
                                     <option value="Special Unit Compulsory (S/U)">Special Unit Compulsory (S/U)</option>
                                 </select>
                             </div>
                             <div class="semester-module-choice">
-                                <label class="form-label small text-muted d-md-none" for="module_select">Module</label>
+                                <label class="form-label small text-muted" for="module_select">Module</label>
                                 <select id="module_select" class="form-select" disabled>
                                     <option selected disabled value="">Select a module...</option>
                                 </select>
                             </div>
                             <div class="semester-module-add">
+                                <label class="form-label small text-muted d-none d-lg-block">&nbsp;</label>
                                 <button type="button" id="add_module_btn" class="btn btn-primary">Add</button>
                             </div>
                         </div>
@@ -227,7 +252,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="d-grid">
+                <div class="d-grid d-md-flex justify-content-md-end">
                     <button type="submit" class="btn btn-success" id="submitBtn">
                         <span id="submitText">Create Semester</span>
                         <span id="submitSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
@@ -278,6 +303,15 @@ document.addEventListener('DOMContentLoaded', function() {
     function setSelectOptions(select, html, disabled) {
         select.innerHTML = html;
         select.disabled = !!disabled;
+        const wrap = select.closest('.nebula-select');
+        const toggle = wrap ? wrap.querySelector('.nebula-select-toggle') : null;
+        if (toggle) {
+            const selected = select.options[select.selectedIndex];
+            toggle.textContent = selected ? selected.text : '';
+            toggle.title = toggle.textContent;
+            toggle.disabled = select.disabled;
+            wrap.classList.toggle('is-disabled', select.disabled);
+        }
     }
 
     function resetAndDisable(select, placeholder) {
@@ -436,12 +470,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (specializations.length > 0) {
             courseSpecializations = specializations;
             populateSpecializationCheckboxes();
-            document.getElementById('specializationScopeRow').style.display = '';
+            document.getElementById('specializationScopeRow').hidden = false;
             document.getElementById('spec_scope_all').checked = true;
             document.getElementById('specializationCheckboxes').style.display = 'none';
         } else {
             courseSpecializations = [];
-            document.getElementById('specializationScopeRow').style.display = 'none';
+            document.getElementById('specializationScopeRow').hidden = true;
         }
         updateModulesTableHeader();
     }
@@ -453,7 +487,7 @@ document.addEventListener('DOMContentLoaded', function() {
         clearAddedModules();
         if (!courseSelect.value) {
             courseSpecializations = [];
-            document.getElementById('specializationScopeRow').style.display = 'none';
+            document.getElementById('specializationScopeRow').hidden = true;
             updateModulesTableHeader();
             return;
         }
@@ -464,14 +498,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     applyCourseDetails(data.course);
                 } else {
                     courseSpecializations = [];
-                    document.getElementById('specializationScopeRow').style.display = 'none';
+                    document.getElementById('specializationScopeRow').hidden = true;
                     updateModulesTableHeader();
                 }
                 fetchIntakesForSemesterCreation();
             })
             .catch(() => {
                 courseSpecializations = [];
-                document.getElementById('specializationScopeRow').style.display = 'none';
+                document.getElementById('specializationScopeRow').hidden = true;
                 updateModulesTableHeader();
                 fetchIntakesForSemesterCreation();
             });
@@ -546,15 +580,27 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    function formatModuleType(type) {
+        const labels = {
+            core: 'Core',
+            elective: 'Elective',
+            special_unit_compulsory: 'Special Unit Compulsory (S/U)'
+        };
+        const key = String(type || '').toLowerCase();
+        return labels[key] || type || '—';
+    }
+
     function filterAndPopulateModules() {
         const typeMap = {
             'Core': 'core',
             'Elective': 'elective',
             'Special Unit Compulsory (S/U)': 'special_unit_compulsory'
         };
-        const selectedType = typeMap[moduleTypeSelect.value];
+        const selectedType = typeMap[moduleTypeSelect.value] || '';
         let options = '<option value="" selected disabled>Select a module...</option>';
-        const filtered = allModules.filter(m => String(m.module_type || '').toLowerCase() === selectedType);
+        const filtered = selectedType
+            ? allModules.filter(m => String(m.module_type || '').toLowerCase() === selectedType)
+            : allModules;
         if (filtered.length > 0) {
             filtered.forEach(module => {
                 const moduleCode = module.module_code ? ` (${escapeHtml(String(module.module_code))})` : '';
@@ -585,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const moduleId = moduleSelect.value;
         const moduleOption = moduleSelect.options[moduleSelect.selectedIndex];
         const moduleName = moduleOption ? moduleOption.text : '';
-        const moduleType = moduleTypeSelect.value;
+        const moduleType = moduleOption ? moduleOption.getAttribute('data-type') : '';
         const moduleCredits = moduleOption ? moduleOption.getAttribute('data-credits') : '';
         const semester = semesterSelect.value;
         const specializations = getSelectedSpecializationsForModule();
@@ -594,7 +640,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (!moduleId || !moduleName || !semester) {
-            window.showToast('Please select semester, module, and type.', 'danger');
+            window.showToast('Please select a semester and a module.', 'danger');
             return;
         }
 
@@ -619,9 +665,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         rowHtml += `
             <td data-label="Module Name">${escapeHtml(moduleName)}</td>
-            <td data-label="Type">${escapeHtml(moduleType)}</td>
+            <td data-label="Type">${escapeHtml(formatModuleType(moduleType))}</td>
             <td data-label="Credits">${escapeHtml(moduleCredits)}</td>
-            <td data-label="Action"><button type="button" class="btn btn-danger btn-sm remove-module">Remove</button></td>
+            <td data-label="Action"><button type="button" class="btn btn-outline-danger btn-sm remove-module" title="Remove" aria-label="Remove"><i class="ti ti-x"></i></button></td>
         `;
         row.innerHTML = rowHtml;
         row.dataset.moduleId = moduleId;
