@@ -48,10 +48,10 @@ class IntakeCreationController extends Controller
                     $intake->location,
                     $intake->intake_mode,
                     $intake->intake_type === 'Fulltime' ? 'Full Time' : ($intake->intake_type === 'Parttime' ? 'Part Time' : $intake->intake_type),
-                    $this->formatDate($intake->start_date),
-                    $this->formatDate($intake->end_date),
-                    $this->formatDate($intake->enrollment_end_date) ?: '-',
-                    ($intake->registrations_count ?? 0) . ' / ' . $intake->batch_size,
+                    $this->excelText($this->intakeDateForCsv($intake, 'start_date')),
+                    $this->excelText($this->intakeDateForCsv($intake, 'end_date')),
+                    $this->excelText($this->intakeDateForCsv($intake, 'enrollment_end_date') ?: '-'),
+                    $this->excelText($this->intakeCapacityForCsv($intake)),
                     $this->intakeStatusLabel($intake),
                 ]);
             }
@@ -424,7 +424,11 @@ class IntakeCreationController extends Controller
                         ->orWhere('batch', 'like', '%' . $search . '%')
                         ->orWhere('location', 'like', '%' . $search . '%')
                         ->orWhere('intake_mode', 'like', '%' . $search . '%')
-                        ->orWhere('intake_type', 'like', '%' . $search . '%');
+                        ->orWhere('intake_type', 'like', '%' . $search . '%')
+                        ->orWhere('start_date', 'like', '%' . $search . '%')
+                        ->orWhere('end_date', 'like', '%' . $search . '%')
+                        ->orWhere('enrollment_end_date', 'like', '%' . $search . '%')
+                        ->orWhere('batch_size', 'like', '%' . $search . '%');
                 });
             })
             ->when($filters['location'] ?? null, fn ($query, $location) => $query->where('location', $location))
@@ -447,9 +451,41 @@ class IntakeCreationController extends Controller
         return 'Upcoming';
     }
 
+    private function intakeDateForCsv(Intake $intake, string $column): string
+    {
+        $formatted = $this->formatDate($intake->getAttribute($column));
+        if ($formatted !== '') {
+            return $formatted;
+        }
+
+        return $this->formatDate($intake->getRawOriginal($column));
+    }
+
+    private function intakeCapacityForCsv(Intake $intake): string
+    {
+        $enrolled = (int) ($intake->registrations_count ?? 0);
+        $batchSize = $intake->batch_size;
+        $batchSize = $batchSize === null || $batchSize === '' ? '' : (int) $batchSize;
+
+        return $enrolled . ' / ' . $batchSize;
+    }
+
+    /**
+     * Keep Y-m-d dates and "n / n" capacity as visible text in Excel.
+     * Excel otherwise coerces them into serial dates or blank/invalid cells.
+     */
+    private function excelText(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        return '="' . str_replace('"', '""', $value) . '"';
+    }
+
     private function formatDate($value): string
     {
-        if (!$value) {
+        if ($value === null || $value === '' || $value === false) {
             return '';
         }
         if ($value instanceof \DateTimeInterface) {
@@ -459,7 +495,11 @@ class IntakeCreationController extends Controller
         try {
             return \Carbon\Carbon::parse($value)->format('Y-m-d');
         } catch (\Exception $e) {
-            return (string) $value;
+            $asString = trim((string) $value);
+            if ($asString === '') {
+                return '';
+            }
+            return strlen($asString) >= 10 ? substr($asString, 0, 10) : $asString;
         }
     }
 }
