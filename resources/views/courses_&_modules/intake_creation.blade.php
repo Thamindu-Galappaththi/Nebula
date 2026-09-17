@@ -3,29 +3,140 @@
 @section('title', 'NEBULA | Intake Creation')
 
 @section('content')
-<div class="container-fluid">
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
+<style nonce="{{ $cspNonce }}">
+    .intake-creation-page .nebula-select {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+    .intake-list-header { gap: 0.75rem; }
+    .intake-table-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    #intakesTable {
+        min-width: 1100px;
+        margin-bottom: 0;
+    }
+    .intake-actions {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        gap: 0.35rem;
+    }
+    .intake-pagination-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+    .intake-pagination-bar .pagination {
+        margin-bottom: 0;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    .currency-highlight {
+        background: linear-gradient(135deg, #fff3cd 0%, #fffacd 100%) !important;
+        border: 2px solid #ffc107 !important;
+        color: #856404 !important;
+        font-weight: 600 !important;
+    }
+    .locked-field {
+        background-color: #f1f3f5 !important;
+        cursor: not-allowed;
+    }
+    .swal2-container { z-index: 20000; }
+    #editIntakeModal .modal-body .row {
+        display: block;
+    }
+    #editIntakeModal .modal-body .row > [class*="col-"] {
+        width: 100%;
+        max-width: 100%;
+        flex: none;
+        padding-left: 0;
+        padding-right: 0;
+    }
+    @media (max-width: 991.98px) {
+        .intake-list-header {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+        .intake-list-header .btn { width: 100%; }
+        #intakesTable { min-width: 0; }
+        #intakesTable thead { display: none; }
+        #intakesTable,
+        #intakesTable tbody,
+        #intakesTable tr,
+        #intakesTable td {
+            display: block;
+            width: 100%;
+        }
+        #intakesTable tr[data-intake-id] {
+            margin-bottom: 0.85rem;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+            background: #fff;
+        }
+        #intakesTable td {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+            border: 0;
+            border-bottom: 1px solid #f1f3f5;
+            padding: 0.45rem 0;
+        }
+        #intakesTable td:last-child { border-bottom: 0; }
+        #intakesTable td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #6c757d;
+            flex: 0 0 38%;
+            max-width: 38%;
+        }
+        #intakesTable td[data-label=""]::before,
+        #intakesTable td.intake-select-cell::before { display: none; }
+        #intakesTable td.intake-select-cell,
+        #intakesTable td.intake-actions-cell {
+            justify-content: flex-end;
+            align-items: center;
+        }
+        #intakesTable .empty-row td {
+            display: block;
+            text-align: center;
+            border: 0;
+        }
+        #intakesTable .empty-row td::before { display: none; }
+        .intake-pagination-bar { flex-direction: column; align-items: stretch; }
+        .intake-pagination-bar .pagination { justify-content: center; }
+    }
+</style>
+
+<div class="container-fluid px-2 px-md-3 intake-creation-page">
     <div class="card">
         <div class="card-body">
             <h2 class="text-center mb-4">Create New Intake</h2>
             <hr>
             <form id="intakeForm">
                 @csrf
-                <div class="mb-3 row mx-3">
-                    <label for="location" class="col-sm-2 col-form-label">Location <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select" id="location" name="location">
-                            <option value="">Choose a location...</option>
-                            <option value="Welisara" {{ $selectedLocation == 'Welisara' ? 'selected' : '' }}>Nebula Institute of Technology - Welisara</option>
-                            <option value="Moratuwa" {{ $selectedLocation == 'Moratuwa' ? 'selected' : '' }}>Nebula Institute of Technology - Moratuwa</option>
-                            <option value="Peradeniya" {{ $selectedLocation == 'Peradeniya' ? 'selected' : '' }}>Nebula Institute of Technology - Peradeniya</option>
+                <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                    <label for="location" class="col-12 col-md-3 col-lg-2 col-form-label">Location <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-9 col-lg-10">
+                        <select class="form-select" id="location" name="location" required>
+                            <option selected disabled value="">Choose a location...</option>
+                            <option value="Welisara">Nebula Institute of Technology - Welisara</option>
+                            <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
+                            <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
                         </select>
-
                     </div>
                 </div>
-                <div class="mb-3 row mx-3">
-                    <label for="course_type" class="col-sm-2 col-form-label">Course Type <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select" id="course_type" name="course_type" required>
+                <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                    <label for="course_type" class="col-12 col-md-3 col-lg-2 col-form-label">Course Type <span class="text-danger">*</span></label>
+                    <div class="col-12 col-md-9 col-lg-10">
+                        <select class="form-select locked-field" id="course_type" name="course_type" required disabled>
                             <option selected disabled value="">Choose course type...</option>
                             <option value="degree">Degree Program</option>
                             <option value="diploma">Diploma Program</option>
@@ -34,76 +145,66 @@
                     </div>
                 </div>
 
-                <!-- All fields container (hidden until course type selected) -->
-                <div id="intake_fields_container" style="display: none;">
-                    <div class="mb-3 row mx-3">
-                        <label for="course_name" class="col-sm-2 col-form-label">Course <span class="text-danger">*</span></label>
-                        <div class="col-sm-10">
+                <div id="intake_fields_container" hidden>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="course_id" class="col-12 col-md-3 col-lg-2 col-form-label">Course <span class="text-danger">*</span></label>
+                        <div class="col-12 col-md-9 col-lg-10">
                             <select class="form-select" id="course_id" name="course_id" required>
                                 <option selected disabled value="">Choose a course...</option>
-                                @foreach($courses as $course)
-                                    <option value="{{ $course->course_id }}" data-type="{{ $course->course_type }}">
-                                        {{ $course->course_name }}
-                                    </option>
-                                @endforeach
                             </select>
-
+                        </div>
                     </div>
-                </div>
-                <div id="courseDetailsBox" class="mb-3 row mx-3" style="display:none;">
-                    <div class="col-sm-12">
-                        <div style="background:#ededed; border-radius:10px; padding:18px;">
+                    <div id="courseDetailsBox" class="mb-3" hidden>
+                        <div class="p-3 rounded" style="background:#ededed;">
                             <div><b>Conducted By</b> <span id="cd_conducted_by"></span></div>
                             <div><b>Minimum credits</b> <span id="cd_min_credits"></span></div>
                             <div><b>Medium</b> <span id="cd_medium"></span></div>
                         </div>
                     </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="batch" class="col-sm-2 col-form-label">Batch Name / Code <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <input type="text" class="form-control" id="batch" name="batch" placeholder="e.g., 2024-Sep-CS" required>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="batch" class="col-12 col-md-3 col-lg-2 col-form-label">Batch Name / Code <span class="text-danger">*</span></label>
+                        <div class="col-12 col-md-9 col-lg-10">
+                            <input type="text" class="form-control" id="batch" name="batch" placeholder="e.g., 2024-Sep-CS" required>
+                        </div>
                     </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="batch_size" class="col-sm-2 col-form-label">Batch Size <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <input type="number" class="form-control" id="batch_size" name="batch_size" placeholder="Enter number of students" min="1" required>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="batch_size" class="col-12 col-md-3 col-lg-2 col-form-label">Batch Size <span class="text-danger">*</span></label>
+                        <div class="col-12 col-md-9 col-lg-10">
+                            <input type="number" class="form-control" id="batch_size" name="batch_size" placeholder="Enter number of students" min="1" required>
+                        </div>
                     </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="intake_mode" class="col-sm-2 col-form-label">Intake Mode <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select" id="intake_mode" name="intake_mode" required>
-                            <option selected disabled value="">Choose a mode...</option>
-                            <option value="Physical">Physical</option>
-                            <option value="Online">Online</option>
-                            <option value="Hybrid">Hybrid</option>
-                        </select>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="intake_mode" class="col-12 col-md-3 col-lg-2 col-form-label">Intake Mode <span class="text-danger">*</span></label>
+                        <div class="col-12 col-md-9 col-lg-10">
+                            <select class="form-select" id="intake_mode" name="intake_mode" required>
+                                <option selected disabled value="">Choose a mode...</option>
+                                <option value="Physical">Physical</option>
+                                <option value="Online">Online</option>
+                                <option value="Hybrid">Hybrid</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="intake_type" class="col-sm-2 col-form-label">Intake Type <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select" id="intake_type" name="intake_type" required>
-                            <option selected disabled value="">Choose a type...</option>
-                            <option value="Fulltime">Full Time</option>
-                            <option value="Parttime">Part Time</option>
-                        </select>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="intake_type" class="col-12 col-md-3 col-lg-2 col-form-label">Intake Type <span class="text-danger">*</span></label>
+                        <div class="col-12 col-md-9 col-lg-10">
+                            <select class="form-select" id="intake_type" name="intake_type" required>
+                                <option selected disabled value="">Choose a type...</option>
+                                <option value="Fulltime">Full Time</option>
+                                <option value="Parttime">Part Time</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="registration_fee" class="col-sm-2 col-form-label">Registration Fee (LKR) <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <input type="number" class="form-control" id="registration_fee" name="registration_fee" placeholder="e.g., 5000.00" step="0.01" min="0" required>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="registration_fee" class="col-12 col-md-3 col-lg-2 col-form-label">Registration Fee (LKR) <span class="text-danger">*</span></label>
+                        <div class="col-12 col-md-9 col-lg-10">
+                            <input type="number" class="form-control" id="registration_fee" name="registration_fee" placeholder="e.g., 5000.00" step="0.01" min="0" required>
+                        </div>
                     </div>
-                </div>
 
-                    <!-- Degree/Diploma Only Fields -->
-                    <div id="degree_diploma_fields" style="display: none;">
-                        <div class="row mb-3 align-items-center mx-3">
-                            <label for="franchise_payment" class="col-sm-3 col-form-label fw-bold">Franchise Payment <span class="text-danger">*</span></label>
-                            <div class="col-sm-9">
+                    <div id="degree_diploma_fields" hidden>
+                        <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                            <label for="franchise_payment" class="col-12 col-md-3 col-lg-2 col-form-label">Franchise Payment <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-9 col-lg-10">
                                 <div class="input-group">
                                     <select class="form-select currency-highlight" id="franchise_payment_currency" name="franchise_payment_currency" style="max-width:90px; flex-shrink:0;">
                                         <option value="LKR">LKR</option>
@@ -116,28 +217,27 @@
                                 <small class="form-text text-muted d-block mt-1"><em>(Please select the currency type first)</em></small>
                             </div>
                         </div>
-                        <div class="mb-3 row mx-3">
-                            <label for="sscl_tax" class="col-sm-2 col-form-label">SSCL Tax Percentage <span class="text-danger">*</span></label>
-                            <div class="col-sm-10">
+                        <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                            <label for="sscl_tax" class="col-12 col-md-3 col-lg-2 col-form-label">SSCL Tax Percentage <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-9 col-lg-10">
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="sscl_tax" name="sscl_tax" placeholder="e.g., 15.00" step="0.01" min="0" max="100">
                                     <span class="input-group-text">%</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="mb-3 row mx-3">
-                            <label for="bank_charges" class="col-sm-2 col-form-label">Bank Charges (LKR)<span class="text-danger">*</span></label>
-                            <div class="col-sm-10">
+                        <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                            <label for="bank_charges" class="col-12 col-md-3 col-lg-2 col-form-label">Bank Charges (LKR) <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-9 col-lg-10">
                                 <input type="number" class="form-control" id="bank_charges" name="bank_charges" placeholder="e.g., 500.00" step="0.01" min="0">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Certificate Only Fields -->
-                    <div id="certificate_fields" style="display: none;">
-                        <div class="mb-3 row mx-3">
-                            <label for="modules_select" class="col-sm-2 col-form-label">Select Modules <span class="text-danger">*</span></label>
-                            <div class="col-sm-10">
+                    <div id="certificate_fields" hidden>
+                        <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                            <label for="modules_select" class="col-12 col-md-3 col-lg-2 col-form-label">Select Modules <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-9 col-lg-10">
                                 <select class="form-select" id="modules_select">
                                     <option value="">Choose modules to add...</option>
                                     @foreach($modules as $module)
@@ -149,9 +249,9 @@
                                 <small class="form-text text-muted">Select modules one at a time to add them to the intake</small>
                             </div>
                         </div>
-                        <div class="mb-3 row mx-3">
-                            <label class="col-sm-2 col-form-label">Selected Modules</label>
-                            <div class="col-sm-10">
+                        <div class="row g-2 g-md-3 align-items-md-start mb-3">
+                            <label class="col-12 col-md-3 col-lg-2 col-form-label">Selected Modules</label>
+                            <div class="col-12 col-md-9 col-lg-10">
                                 <div id="selected_modules_container" class="border rounded p-3" style="min-height: 100px; background-color: #f8f9fa;">
                                     <div id="selected_modules_list"></div>
                                     <div id="no_modules_message" class="text-muted text-center">No modules selected yet</div>
@@ -160,40 +260,40 @@
                         </div>
                     </div>
 
-                    <div class="mb-3 row mx-3">
-                        <label for="course_fee" class="col-sm-2 col-form-label">Course Fee (LKR) <span class="text-danger">*</span></label>
-                        <div class="col-sm-10">
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="course_fee" class="col-12 col-md-3 col-lg-2 col-form-label">Course Fee (LKR) <span class="text-danger">*</span></label>
+                        <div class="col-12 col-md-9 col-lg-10">
                             <input type="number" class="form-control" id="course_fee" name="course_fee" placeholder="e.g., 250000.00" step="0.01" min="0" required>
                         </div>
                     </div>
-                <div class="mb-3 row mx-3">
-                    <label for="start_date" class="col-sm-2 col-form-label">Start Date <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <input type="date" class="form-control" id="start_date" name="start_date" required>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="start_date" class="col-12 col-md-3 col-lg-2 col-form-label">Start Date <span class="text-danger">*</span></label>
+                        <div class="col-12 col-md-9 col-lg-10">
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                        </div>
+                    </div>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="end_date" class="col-12 col-md-3 col-lg-2 col-form-label">End Date <span class="text-danger">*</span></label>
+                        <div class="col-12 col-md-9 col-lg-10">
+                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+                        </div>
+                    </div>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="enrollment_end_date" class="col-12 col-md-3 col-lg-2 col-form-label">Enrollment End Date</label>
+                        <div class="col-12 col-md-9 col-lg-10">
+                            <input type="date" class="form-control" id="enrollment_end_date" name="enrollment_end_date">
+                            <small class="form-text text-muted">Last date for students to enroll in this intake (optional)</small>
+                        </div>
+                    </div>
+                    <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                        <label for="course_registration_id_pattern" class="col-12 col-md-3 col-lg-2 col-form-label">Course Registration ID pattern</label>
+                        <div class="col-12 col-md-9 col-lg-10">
+                            <input type="text" class="form-control" id="course_registration_id_pattern" name="course_registration_id_pattern" placeholder="e.g., REG-2023-001" required>
+                        </div>
                     </div>
                 </div>
-                <div class="mb-3 row mx-3">
-                    <label for="end_date" class="col-sm-2 col-form-label">End Date <span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <input type="date" class="form-control" id="end_date" name="end_date" required>
-                    </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="enrollment_end_date" class="col-sm-2 col-form-label">Enrollment End Date</label>
-                    <div class="col-sm-10">
-                        <input type="date" class="form-control" id="enrollment_end_date" name="enrollment_end_date">
-                        <small class="form-text text-muted">Last date for students to enroll in this intake (optional)</small>
-                    </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="course_registration_id_pattern" class="col-sm-2 col-form-label">Course Registration ID pattern</label>
-                    <div class="col-sm-10">
-                        <input type="text" class="form-control" id="course_registration_id_pattern" name="course_registration_id_pattern" placeholder="e.g., REG-2023-001" required>
-                    </div>
-                </div>
-                </div><!-- End intake_fields_container -->
 
-                <div class="d-grid mt-3">
+                <div class="d-grid d-md-flex justify-content-md-end">
                     <button type="submit" class="btn btn-primary" id="submitIntakeBtn" disabled>Create Intake</button>
                 </div>
             </form>
@@ -202,245 +302,162 @@
 
     <div class="card mt-4">
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 intake-list-header">
                 <h2 class="mb-0">Existing Intakes</h2>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-danger" id="bulkDeleteIntakeBtn" style="display:none;">
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="bulkDeleteIntakeBtn" hidden>
                         <i class="ti ti-trash"></i> Delete Selected
                     </button>
-                    <button class="btn btn-sm btn-outline-success" id="exportIntakeBtn">
+                    <button type="button" class="btn btn-sm btn-outline-success" id="exportIntakeBtn">
                         <i class="ti ti-download"></i> Export CSV
                     </button>
                 </div>
             </div>
             <hr>
-            
-            <!-- Table Controls -->
-            <div class="row mb-3">
-                <div class="col-md-3">
+
+            <form id="intakeFilterForm" method="GET" action="{{ route('intake.create') }}" class="row g-2 g-md-3 align-items-end mb-3">
+                <div class="col-12 col-md-3">
+                    <label class="form-label small text-muted" for="searchIntakeInput">Search</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="ti ti-search"></i></span>
-                        <input type="text" class="form-control" id="searchIntakeInput" placeholder="Search intakes...">
+                        <input type="text" class="form-control" id="searchIntakeInput" name="search" placeholder="Search intakes..." value="{{ $filters['search'] ?? '' }}">
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <select class="form-select" id="filterIntakeLocation">
+                <div class="col-12 col-sm-6 col-md-2">
+                    <label class="form-label small text-muted" for="filterIntakeLocation">Location</label>
+                    <select class="form-select" id="filterIntakeLocation" name="location">
                         <option value="">All Locations</option>
-                        <option value="Welisara">Welisara</option>
-                        <option value="Moratuwa">Moratuwa</option>
-                        <option value="Peradeniya">Peradeniya</option>
+                        <option value="Welisara" @selected(($filters['location'] ?? '') === 'Welisara')>Welisara</option>
+                        <option value="Moratuwa" @selected(($filters['location'] ?? '') === 'Moratuwa')>Moratuwa</option>
+                        <option value="Peradeniya" @selected(($filters['location'] ?? '') === 'Peradeniya')>Peradeniya</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <select class="form-select" id="filterIntakeMode">
+                <div class="col-12 col-sm-6 col-md-2">
+                    <label class="form-label small text-muted" for="filterIntakeMode">Mode</label>
+                    <select class="form-select" id="filterIntakeMode" name="intake_mode">
                         <option value="">All Modes</option>
-                        <option value="Physical">Physical</option>
-                        <option value="Online">Online</option>
-                        <option value="Hybrid">Hybrid</option>
+                        <option value="Physical" @selected(($filters['intake_mode'] ?? '') === 'Physical')>Physical</option>
+                        <option value="Online" @selected(($filters['intake_mode'] ?? '') === 'Online')>Online</option>
+                        <option value="Hybrid" @selected(($filters['intake_mode'] ?? '') === 'Hybrid')>Hybrid</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <select class="form-select" id="filterIntakeStatus">
+                <div class="col-12 col-sm-6 col-md-2">
+                    <label class="form-label small text-muted" for="filterIntakeStatus">Status</label>
+                    <select class="form-select" id="filterIntakeStatus" name="status">
                         <option value="">All Status</option>
-                        <option value="upcoming">Upcoming</option>
-                        <option value="ongoing">Ongoing</option>
-                        <option value="finished">Finished</option>
+                        <option value="upcoming" @selected(($filters['status'] ?? '') === 'upcoming')>Upcoming</option>
+                        <option value="ongoing" @selected(($filters['status'] ?? '') === 'ongoing')>Ongoing</option>
+                        <option value="finished" @selected(($filters['status'] ?? '') === 'finished')>Finished</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <select class="form-select" id="perPageIntakeSelect">
-                        <option value="10">10 per page</option>
-                        <option value="25" selected>25 per page</option>
-                        <option value="50">50 per page</option>
-                        <option value="all">Show All</option>
+                <div class="col-12 col-sm-6 col-md-2">
+                    <label class="form-label small text-muted" for="perPageIntakeSelect">Per page</label>
+                    <select class="form-select" id="perPageIntakeSelect" name="per_page">
+                        <option value="10" @selected((int) $perPage === 10)>10 per page</option>
+                        <option value="25" @selected((int) $perPage === 25)>25 per page</option>
+                        <option value="50" @selected((int) $perPage === 50)>50 per page</option>
                     </select>
                 </div>
-                <div class="col-md-1">
-                    <button class="btn btn-outline-secondary w-100" id="clearIntakeFiltersBtn" title="Clear Filters">
-                        <i class="ti ti-filter-off"></i>
-                    </button>
+                <div class="col-12 col-sm-6 col-md-2 d-grid gap-2">
+                    <button class="btn btn-primary" type="submit">Filter</button>
+                    <button class="btn btn-outline-secondary" type="button" id="clearIntakeFiltersBtn">Clear</button>
                 </div>
-            </div>
+            </form>
 
-            <!-- Results Info -->
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <small class="text-muted" id="intakeResultsInfo">Showing 0 intakes</small>
+            <div class="d-flex justify-content-end align-items-center mb-2">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="selectAllIntakes">
-                    <label class="form-check-label" for="selectAllIntakes">
-                        <small>Select All</small>
-                    </label>
+                    <label class="form-check-label" for="selectAllIntakes"><small>Select All</small></label>
                 </div>
             </div>
 
-            <!-- Table -->
-            <div class="table-responsive" style="max-height: 500px; overflow-y: auto; overflow-x: auto; width: 100%;">
-                <table class="table table-striped table-bordered table-hover" style="table-layout: fixed; width: max-content; min-width: 1200px;">
-                    <thead style="position: sticky; top: 0; background: #fff; z-index: 2;">
+            <div class="intake-table-scroll">
+                <table class="table table-striped table-bordered table-hover" id="intakesTable">
+                    <thead class="table-light">
                         <tr>
-                            <th style="position: sticky; top: 0; background: #fff; width: 40px;">
-                                <input type="checkbox" id="selectAllIntakesHeader" class="form-check-input">
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="selectAllIntakesHeader" class="form-check-input" aria-label="Select all intakes">
                             </th>
-                            <th class="sortable-intake" data-column="course_name" style="position: sticky; top: 0; background: #fff; width: 180px; cursor: pointer;">
-                                Course Name <i class="ti ti-selector"></i>
-                            </th>
-                            <th class="sortable-intake" data-column="batch" style="position: sticky; top: 0; background: #fff; cursor: pointer;">
-                                Batch <i class="ti ti-selector"></i>
-                            </th>
-                            <th class="sortable-intake" data-column="location" style="position: sticky; top: 0; background: #fff; cursor: pointer;">
-                                Location <i class="ti ti-selector"></i>
-                            </th>
-                            <th class="sortable-intake" data-column="intake_mode" style="position: sticky; top: 0; background: #fff; cursor: pointer;">
-                                Mode <i class="ti ti-selector"></i>
-                            </th>
-                            <th class="sortable-intake" data-column="intake_type" style="position: sticky; top: 0; background: #fff; cursor: pointer;">
-                                Type <i class="ti ti-selector"></i>
-                            </th>
-                            <th class="sortable-intake" data-column="start_date" style="position: sticky; top: 0; background: #fff; cursor: pointer;">
-                                Start Date <i class="ti ti-selector"></i>
-                            </th>
-                            <th class="sortable-intake" data-column="end_date" style="position: sticky; top: 0; background: #fff; cursor: pointer;">
-                                End Date <i class="ti ti-selector"></i>
-                            </th>
-                            <th style="position: sticky; top: 0; background: #fff;">Enrollment End</th>
-                            <th style="position: sticky; top: 0; background: #fff;">Capacity</th>
-                            <th class="sortable-intake" data-column="status" style="position: sticky; top: 0; background: #fff; cursor: pointer;">
-                                Status <i class="ti ti-selector"></i>
-                            </th>
-                            <th style="position: sticky; top: 0; background: #fff; width: 120px;">Actions</th>
+                            <th>Course Name</th>
+                            <th>Batch</th>
+                            <th>Location</th>
+                            <th>Mode</th>
+                            <th>Type</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Enrollment End</th>
+                            <th>Capacity</th>
+                            <th>Status</th>
+                            <th style="width: 140px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="intake-table-body">
-                        @forelse($intakes as $intake)
-                        <tr id="intake-row-{{$intake->intake_id}}" data-intake-id="{{$intake->intake_id}}">
-                            <td>
-                                <input type="checkbox" class="form-check-input intake-checkbox" data-intake-id="{{$intake->intake_id}}">
-                            </td>
-                            <td class="intake-course-name" style="word-break: break-word;">{{ $intake->course_name }}</td>
-                            <td class="intake-batch">{{ $intake->batch }}</td>
-                            <td class="intake-location">{{ $intake->location }}</td>
-                            <td class="intake-mode">{{ $intake->intake_mode }}</td>
-                            <td class="intake-type">{{ $intake->intake_type }}</td>
-                            <td class="intake-start-date">{{ $intake->start_date ? (is_string($intake->start_date) ? \Carbon\Carbon::parse($intake->start_date)->format('Y-m-d') : $intake->start_date->format('Y-m-d')) : '' }}</td>
-                            <td class="intake-end-date">{{ $intake->end_date ? (is_string($intake->end_date) ? \Carbon\Carbon::parse($intake->end_date)->format('Y-m-d') : $intake->end_date->format('Y-m-d')) : '' }}</td>
-                            <td class="intake-enrollment-end">{{ $intake->enrollment_end_date ? (is_string($intake->enrollment_end_date) ? \Carbon\Carbon::parse($intake->enrollment_end_date)->format('Y-m-d') : $intake->enrollment_end_date->format('Y-m-d')) : '-' }}</td>
-                            <td class="intake-capacity">{{ $intake->registrations->count() }} / {{ $intake->batch_size }}</td>
-                            <td class="intake-status" data-status="{{ $intake->isPast() ? 'finished' : ($intake->isCurrent() ? 'ongoing' : 'upcoming') }}">
-                                @if($intake->isPast())
-                                    <span class="badge bg-danger">Finished</span>
-                                @elseif($intake->isCurrent())
-                                    <span class="badge bg-success">Ongoing</span>
-                                @else
-                                    <span class="badge bg-warning">Upcoming</span>
-                                @endif
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-primary edit-intake-btn" data-intake-id="{{ $intake->intake_id }}" title="Edit">
-                                        <i class="ti ti-edit"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr id="no-intakes-row">
-                            <td colspan="12" class="text-center">No intakes found.</td>
-                        </tr>
-                        @endforelse
+                        @include('courses_&_modules.partials.intake_rows')
                     </tbody>
                 </table>
             </div>
-
-            <!-- Pagination -->
-            <nav aria-label="Intake pagination" class="mt-3">
-                <ul class="pagination pagination-sm justify-content-center" id="intakePagination">
-                </ul>
-            </nav>
+            <div id="intakePagination">
+                @include('courses_&_modules.partials.intake_pagination')
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Edit Intake Modal -->
 <div class="modal fade" id="editIntakeModal" tabindex="-1" aria-labelledby="editIntakeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editIntakeModalLabel">Edit Intake</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editIntakeForm">
-                    @csrf
-                    <input type="hidden" id="edit_intake_id" name="intake_id">
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_location" class="col-sm-3 col-form-label">Location <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <select class="form-select" id="edit_location" name="location" required>
-                                <option value="">Choose a location...</option>
-                                <option value="Welisara">Nebula Institute of Technology - Welisara</option>
-                                <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
-                                <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
-                            </select>
-                        </div>
+            <form id="editIntakeForm">
+                @csrf
+                <input type="hidden" id="edit_intake_id" name="intake_id">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editIntakeModalLabel">Edit Intake</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_location" class="form-label">Location <span class="text-danger">*</span></label>
+                        <select class="form-select" id="edit_location" name="location" required>
+                            <option value="Welisara">Nebula Institute of Technology - Welisara</option>
+                            <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
+                            <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
+                        </select>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_course_name" class="col-sm-3 col-form-label">Course <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <select class="form-select" id="edit_course_id" name="course_id" required>
-                                <option value="">Choose a course...</option>
-                            </select>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_course_id" class="form-label">Course <span class="text-danger">*</span></label>
+                        <select class="form-select" id="edit_course_id" name="course_id" required>
+                            <option value="">Choose a course...</option>
+                        </select>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_batch" class="col-sm-3 col-form-label">Batch Name / Code <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <input type="text" class="form-control" id="edit_batch" name="batch" required>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_batch" class="form-label">Batch Name / Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_batch" name="batch" required>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_batch_size" class="col-sm-3 col-form-label">Batch Size <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <input type="number" class="form-control" id="edit_batch_size" name="batch_size" min="1" required>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_batch_size" class="form-label">Batch Size <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="edit_batch_size" name="batch_size" min="1" required>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_intake_mode" class="col-sm-3 col-form-label">Intake Mode <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <select class="form-select" id="edit_intake_mode" name="intake_mode" required>
-                                <option value="">Choose a mode...</option>
-                                <option value="Physical">Physical</option>
-                                <option value="Online">Online</option>
-                                <option value="Hybrid">Hybrid</option>
-                            </select>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_intake_mode" class="form-label">Intake Mode <span class="text-danger">*</span></label>
+                        <select class="form-select" id="edit_intake_mode" name="intake_mode" required>
+                            <option value="Physical">Physical</option>
+                            <option value="Online">Online</option>
+                            <option value="Hybrid">Hybrid</option>
+                        </select>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_intake_type" class="col-sm-3 col-form-label">Intake Type <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <select class="form-select" id="edit_intake_type" name="intake_type" required>
-                                <option value="">Choose a type...</option>
-                                <option value="Fulltime">Full Time</option>
-                                <option value="Parttime">Part Time</option>
-                            </select>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_intake_type" class="form-label">Intake Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="edit_intake_type" name="intake_type" required>
+                            <option value="Fulltime">Full Time</option>
+                            <option value="Parttime">Part Time</option>
+                        </select>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_registration_fee" class="col-sm-3 col-form-label">Registration Fee (LKR) <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <input type="number" class="form-control" id="edit_registration_fee" name="registration_fee" step="0.01" min="0" required>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_registration_fee" class="form-label">Registration Fee (LKR) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="edit_registration_fee" name="registration_fee" step="0.01" min="0" required>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_franchise_payment" class="col-sm-3 col-form-label">Franchise Payment <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
+                    <div id="edit_degree_diploma_fields">
+                        <div class="mb-3">
+                            <label for="edit_franchise_payment" class="form-label">Franchise Payment <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <select class="form-select currency-highlight" id="edit_franchise_payment_currency" name="franchise_payment_currency" style="max-width:90px;">
                                     <option value="LKR">LKR</option>
@@ -448,39 +465,24 @@
                                     <option value="GBP">GBP</option>
                                     <option value="EUR">EUR</option>
                                 </select>
-                                <input type="number" class="form-control" id="edit_franchise_payment" name="franchise_payment" step="0.01" min="0" required>
+                                <input type="number" class="form-control" id="edit_franchise_payment" name="franchise_payment" step="0.01" min="0">
                             </div>
-                            <small class="form-text text-muted d-block mt-1"><em>(Please select the currency type first)</em></small>
                         </div>
-                    </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_course_fee" class="col-sm-3 col-form-label">Course Fee (LKR) <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <input type="number" class="form-control" id="edit_course_fee" name="course_fee" step="0.01" min="0" required>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_sscl_tax" class="col-sm-3 col-form-label">SSCL Tax Percentage <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
+                        <div class="mb-3">
+                            <label for="edit_sscl_tax" class="form-label">SSCL Tax Percentage <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <input type="number" class="form-control" id="edit_sscl_tax" name="sscl_tax" step="0.01" min="0" max="100" required>
+                                <input type="number" class="form-control" id="edit_sscl_tax" name="sscl_tax" step="0.01" min="0" max="100">
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_bank_charges" class="col-sm-3 col-form-label">Bank Charges (LKR)</label>
-                        <div class="col-sm-9">
+                        <div class="mb-3">
+                            <label for="edit_bank_charges" class="form-label">Bank Charges (LKR)</label>
                             <input type="number" class="form-control" id="edit_bank_charges" name="bank_charges" step="0.01" min="0">
                         </div>
                     </div>
-                    
-                    <div class="mb-3 row" id="edit_certificate_fields" style="display: none;">
-                        <label for="edit_modules_select" class="col-sm-3 col-form-label">Select Modules <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
+                    <div id="edit_certificate_fields" hidden>
+                        <div class="mb-3">
+                            <label for="edit_modules_select" class="form-label">Select Modules <span class="text-danger">*</span></label>
                             <select class="form-select" id="edit_modules_select">
                                 <option value="">Choose modules to add...</option>
                                 @foreach($modules as $module)
@@ -490,1000 +492,690 @@
                                 @endforeach
                             </select>
                         </div>
-                    </div>
-                    
-                    <div class="mb-3 row" id="edit_selected_modules_row" style="display: none;">
-                        <label class="col-sm-3 col-form-label">Selected Modules</label>
-                        <div class="col-sm-9">
+                        <div class="mb-3">
+                            <label class="form-label">Selected Modules</label>
                             <div id="edit_selected_modules_container" class="border rounded p-3" style="min-height: 100px; background-color: #f8f9fa;">
                                 <div id="edit_selected_modules_list"></div>
                                 <div id="edit_no_modules_message" class="text-muted text-center">No modules selected yet</div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_start_date" class="col-sm-3 col-form-label">Start Date <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <input type="date" class="form-control" id="edit_start_date" name="start_date" required>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_course_fee" class="form-label">Course Fee (LKR) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="edit_course_fee" name="course_fee" step="0.01" min="0" required>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_end_date" class="col-sm-3 col-form-label">End Date <span class="text-danger">*</span></label>
-                        <div class="col-sm-9">
-                            <input type="date" class="form-control" id="edit_end_date" name="end_date" required>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="edit_start_date" name="start_date" required>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_enrollment_end_date" class="col-sm-3 col-form-label">Enrollment End Date</label>
-                        <div class="col-sm-9">
-                            <input type="date" class="form-control" id="edit_enrollment_end_date" name="enrollment_end_date">
-                            <small class="form-text text-muted">Last date for students to enroll in this intake (optional)</small>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_end_date" class="form-label">End Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="edit_end_date" name="end_date" required>
                     </div>
-                    
-                    <div class="mb-3 row">
-                        <label for="edit_course_registration_id_pattern" class="col-sm-3 col-form-label">Course Registration ID pattern</label>
-                        <div class="col-sm-9">
-                            <input type="text" class="form-control" id="edit_course_registration_id_pattern" name="course_registration_id_pattern" required>
-                        </div>
+                    <div class="mb-3">
+                        <label for="edit_enrollment_end_date" class="form-label">Enrollment End Date</label>
+                        <input type="date" class="form-control" id="edit_enrollment_end_date" name="enrollment_end_date">
+                        <small class="form-text text-muted">Last date for students to enroll in this intake (optional)</small>
                     </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="updateIntakeBtn">Update Intake</button>
-            </div>
+                    <div class="mb-3">
+                        <label for="edit_course_registration_id_pattern" class="form-label">Course Registration ID pattern</label>
+                        <input type="text" class="form-control" id="edit_course_registration_id_pattern" name="course_registration_id_pattern" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-
-<div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 @endsection
 
 @push('scripts')
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
-$(document).ready(function() {
-    let allIntakes = [];
-    let filteredIntakes = [];
-    let currentIntakePage = 1;
-    let perIntakePage = 25;
-    let sortIntakeColumn = 'start_date';
-    let sortIntakeDirection = 'desc';
+$(function () {
+    const csrfToken = '{{ csrf_token() }}';
+    const listUrl = '{{ route("intake.create") }}';
+    const storeUrl = '{{ route("intake.store") }}';
+    const exportUrl = '{{ route("intake.export") }}';
+    const updateUrlTemplate = '{{ url("/intake-creation") }}';
     const allCourses = @json($allCoursesForJson);
-    let selectedCourseType = '';
-    let selectedModules = []; // Track selected module IDs
+    const editModalEl = document.getElementById('editIntakeModal');
+    const editModal = editModalEl && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(editModalEl) : null;
+    let selectedModules = [];
+    let editSelectedModules = [];
 
-    // Handle course type change
-    $('#course_type').on('change', function() {
-        selectedCourseType = $(this).val();
-        const location = $('#location').val();
-        
-        if (!selectedCourseType) {
-            $('#intake_fields_container').hide();
-            $('#submitIntakeBtn').prop('disabled', true);
-            return;
+    function showAlert(title, text, icon) {
+        if (window.Swal) {
+            return Swal.fire({ title: title, text: text, icon: icon, confirmButtonText: 'OK' });
         }
-        
-        if (!location) {
-            showToast('Please select a location first', 'warning');
-            $(this).val('');
-            return;
+        window.alert(text);
+        return Promise.resolve();
+    }
+
+    function confirmDelete(title, text) {
+        if (!window.Swal) {
+            return Promise.resolve(window.confirm(text));
         }
-        
-        // Show/hide conditional fields
-        if (selectedCourseType === 'degree' || selectedCourseType === 'diploma') {
-            $('#degree_diploma_fields').show();
-            $('#certificate_fields').hide();
-            $('#franchise_payment, #sscl_tax, #bank_charges').prop('required', true);
-        } else if (selectedCourseType === 'certificate') {
-            $('#degree_diploma_fields').hide();
-            $('#certificate_fields').show();
-            $('#franchise_payment, #sscl_tax, #bank_charges').prop('required', false).val('');
-            selectedModules = []; // Reset selected modules
-            updateSelectedModulesList();
+        return Swal.fire({
+            title: title,
+            text: text,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            focusCancel: true
+        }).then(function (result) { return result.isConfirmed; });
+    }
+
+    function validationMessage(xhr) {
+        if (xhr.responseJSON && xhr.responseJSON.errors) {
+            return Object.values(xhr.responseJSON.errors).flat().join(' ');
         }
-        
-        // Filter and populate course dropdown
-        filterCoursesByType(location, selectedCourseType);
-        
-        // Show fields container
-        $('#intake_fields_container').show();
-        $('#submitIntakeBtn').prop('disabled', false);
-    });
-    
-    function filterCoursesByType(location, courseType) {
-        const $courseSelect = $('#course_id');
-        $courseSelect.empty().append('<option selected disabled value="">Choose a course...</option>');
-        
-        const filteredCourses = allCourses.filter(course => 
-            course.location === location && course.course_type === courseType
-        );
-        
-        if (filteredCourses.length === 0) {
-            $courseSelect.append('<option disabled>No courses available for this type</option>');
-            showToast(`No ${courseType} courses available at ${location}`, 'warning');
-        } else {
-            filteredCourses.forEach(course => {
-                $courseSelect.append(new Option(course.course_name, course.course_id));
-            });
+        return (xhr.responseJSON && xhr.responseJSON.message) || 'An error occurred.';
+    }
+
+    function setSectionEnabled($section, enabled) {
+        $section.prop('hidden', !enabled);
+        $section.find('input, select, textarea').prop('disabled', !enabled);
+    }
+
+    function syncNebulaSelect(select) {
+        if (!select) return;
+        const selected = select.options[select.selectedIndex];
+        const wrap = select.closest('.nebula-select');
+        const toggle = wrap ? wrap.querySelector('.nebula-select-toggle') : null;
+        if (toggle) {
+            toggle.textContent = selected ? selected.text : '';
+            toggle.title = toggle.textContent;
         }
     }
 
-    // Module selection handling
-    $('#modules_select').on('change', function() {
-        const moduleId = parseInt($(this).val());
-        if (!moduleId) return;
-        
-        const option = $(this).find('option:selected');
-        const moduleName = option.data('name');
-        const moduleCode = option.data('code');
-        
-        // Check if module already selected
-        if (selectedModules.includes(moduleId)) {
-            showToast('This module has already been added', 'warning');
-            $(this).val('');
-            return;
-        }
-        
-        // Add module to selected list
-        selectedModules.push(moduleId);
-        updateSelectedModulesList();
-        
-        // Reset dropdown
-        $(this).val('');
-        showToast(`Module "${moduleCode}" added successfully`, 'success');
-    });
-
-    function updateSelectedModulesList() {
-        const container = $('#selected_modules_list');
-        container.empty();
-        
-        if (selectedModules.length === 0) {
-            $('#no_modules_message').show();
-        } else {
-            $('#no_modules_message').hide();
-            
-            selectedModules.forEach(moduleId => {
-                const option = $(`#modules_select option[value="${moduleId}"]`);
-                const moduleName = option.data('name');
-                const moduleCode = option.data('code');
-                
-                const moduleTag = `
-                    <div class="badge bg-primary me-2 mb-2 p-2 d-inline-flex align-items-center" style="font-size: 0.9rem;" data-module-id="${moduleId}">
-                        <span>${moduleCode} - ${moduleName}</span>
-                        <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.6rem;" onclick="removeModule(${moduleId})" aria-label="Remove"></button>
-                    </div>
-                `;
-                container.append(moduleTag);
-            });
-        }
+    function setSelectValue(select, value) {
+        if (!select) return;
+        select.value = value == null ? '' : String(value);
+        syncNebulaSelect(select);
+        select.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    // Global function to remove module
-    window.removeModule = function(moduleId) {
-        selectedModules = selectedModules.filter(id => id !== moduleId);
-        updateSelectedModulesList();
-        showToast('Module removed', 'info');
-    };
+    function resetFilterSelect(select, value) {
+        if (!select) return;
+        if (value === undefined || value === '') {
+            select.value = '';
+            select.selectedIndex = 0;
+        } else {
+            select.value = String(value);
+        }
+        syncNebulaSelect(select);
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function syncNebulaSelects(root) {
+        $(root).find('select').each(function () { syncNebulaSelect(this); });
+    }
 
     function formatCourseType(type) {
-        if (!type) {
-            return '';
-        }
+        if (!type) return '';
         return type.charAt(0).toUpperCase() + type.slice(1);
-    }
-
-    function populateEditCourseOptions(location, selectedId) {
-        const $select = $('#edit_course_id');
-        $select.empty().append('<option value="">Choose a course...</option>');
-
-        if (!location) {
-            return;
-        }
-
-        const coursesForLocation = allCourses.filter(course => course.location === location);
-        coursesForLocation.forEach(course => {
-            const label = `${formatCourseType(course.course_type)} - ${course.course_name}`;
-            $select.append(new Option(label, course.course_id));
-        });
-
-        if (selectedId) {
-            $select.val(String(selectedId));
-        }
-    }
-
-    // Initialize intakes array from table
-    function initializeIntakes() {
-        allIntakes = [];
-        $('#intake-table-body tr[data-intake-id]').each(function() {
-            const row = $(this);
-            const intake = {
-                intake_id: row.data('intake-id'),
-                course_name: row.find('.intake-course-name').text().trim(),
-                batch: row.find('.intake-batch').text().trim(),
-                location: row.find('.intake-location').text().trim(),
-                intake_mode: row.find('.intake-mode').text().trim(),
-                intake_type: row.find('.intake-type').text().trim(),
-                start_date: row.find('.intake-start-date').text().trim(),
-                end_date: row.find('.intake-end-date').text().trim(),
-                enrollment_end: row.find('.intake-enrollment-end').text().trim(),
-                capacity: row.find('.intake-capacity').text().trim(),
-                status: row.find('.intake-status').data('status')
-            };
-            allIntakes.push(intake);
-        });
-        filteredIntakes = [...allIntakes];
-        renderIntakeTable();
-    }
-
-    initializeIntakes();
-
-    // Apply all filters function
-    function applyIntakeFilters() {
-        const searchTerm = $('#searchIntakeInput').val().toLowerCase();
-        const filterLoc = $('#filterIntakeLocation').val();
-        const filterMode = $('#filterIntakeMode').val();
-        const filterStatus = $('#filterIntakeStatus').val();
-        
-        filteredIntakes = allIntakes.filter(intake => {
-            const matchesSearch = !searchTerm || 
-                intake.course_name.toLowerCase().includes(searchTerm) ||
-                intake.batch.toLowerCase().includes(searchTerm) ||
-                intake.location.toLowerCase().includes(searchTerm) ||
-                intake.intake_mode.toLowerCase().includes(searchTerm) ||
-                intake.intake_type.toLowerCase().includes(searchTerm);
-            
-            const matchesLocation = !filterLoc || intake.location === filterLoc;
-            const matchesMode = !filterMode || intake.intake_mode === filterMode;
-            const matchesStatus = !filterStatus || intake.status === filterStatus;
-            
-            return matchesSearch && matchesLocation && matchesMode && matchesStatus;
-        });
-        
-        currentIntakePage = 1;
-        renderIntakeTable();
-    }
-
-    // Auto-filter when location changes in form
-    $('#location').on('change', function() {
-        const selectedLocation = $(this).val();
-        if (selectedLocation) {
-            $('#filterIntakeLocation').val(selectedLocation);
-            applyIntakeFilters();
-            showToast(`Table filtered to show ${selectedLocation} intakes`, 'info');
-        }
-    });
-
-    // Search functionality
-    $('#searchIntakeInput').on('keyup', function() {
-        applyIntakeFilters();
-    });
-
-    // Filter handlers
-    $('#filterIntakeLocation, #filterIntakeMode, #filterIntakeStatus').on('change', function() {
-        applyIntakeFilters();
-    });
-
-    // Clear filters button
-    $('#clearIntakeFiltersBtn').on('click', function() {
-        $('#searchIntakeInput').val('');
-        $('#filterIntakeLocation').val('');
-        $('#filterIntakeMode').val('');
-        $('#filterIntakeStatus').val('');
-        filteredIntakes = [...allIntakes];
-        currentIntakePage = 1;
-        renderIntakeTable();
-        showToast('Filters cleared', 'info');
-    });
-
-    // Per page selection
-    $('#perPageIntakeSelect').on('change', function() {
-        perIntakePage = $(this).val() === 'all' ? filteredIntakes.length : parseInt($(this).val());
-        currentIntakePage = 1;
-        renderIntakeTable();
-    });
-
-    // Sorting
-    $('.sortable-intake').on('click', function() {
-        const column = $(this).data('column');
-        if (sortIntakeColumn === column) {
-            sortIntakeDirection = sortIntakeDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            sortIntakeColumn = column;
-            sortIntakeDirection = 'asc';
-        }
-        
-        $('.sortable-intake i').attr('class', 'ti ti-selector');
-        $(this).find('i').attr('class', sortIntakeDirection === 'asc' ? 'ti ti-sort-ascending' : 'ti ti-sort-descending');
-        
-        sortIntakes();
-        renderIntakeTable();
-    });
-
-    function sortIntakes() {
-        filteredIntakes.sort((a, b) => {
-            let aVal = a[sortIntakeColumn] || '';
-            let bVal = b[sortIntakeColumn] || '';
-            
-            if (sortIntakeColumn === 'start_date' || sortIntakeColumn === 'end_date') {
-                aVal = new Date(aVal);
-                bVal = new Date(bVal);
-            } else {
-                aVal = aVal.toString().toLowerCase();
-                bVal = bVal.toString().toLowerCase();
-            }
-            
-            if (aVal < bVal) return sortIntakeDirection === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortIntakeDirection === 'asc' ? 1 : -1;
-            return 0;
-        });
-    }
-
-    // Render table
-    function renderIntakeTable() {
-        const start = (currentIntakePage - 1) * perIntakePage;
-        const end = start + perIntakePage;
-        const pageIntakes = filteredIntakes.slice(start, end);
-        
-        $('#intake-table-body').empty();
-        
-        if (pageIntakes.length === 0) {
-            $('#intake-table-body').html('<tr><td colspan="12" class="text-center">No intakes found.</td></tr>');
-            $('#intakeResultsInfo').text('Showing 0 intakes');
-        } else {
-            pageIntakes.forEach(intake => {
-                let statusBadge = '';
-                let badgeClass = '';
-                if (intake.status === 'finished') {
-                    statusBadge = 'Finished';
-                    badgeClass = 'danger';
-                } else if (intake.status === 'ongoing') {
-                    statusBadge = 'Ongoing';
-                    badgeClass = 'success';
-                } else {
-                    statusBadge = 'Upcoming';
-                    badgeClass = 'warning';
-                }
-                
-                const row = `
-                    <tr id="intake-row-${intake.intake_id}" data-intake-id="${intake.intake_id}">
-                        <td>
-                            <input type="checkbox" class="form-check-input intake-checkbox" data-intake-id="${intake.intake_id}">
-                        </td>
-                        <td class="intake-course-name" style="word-break: break-word;">${intake.course_name}</td>
-                        <td class="intake-batch">${intake.batch}</td>
-                        <td class="intake-location">${intake.location}</td>
-                        <td class="intake-mode">${intake.intake_mode}</td>
-                        <td class="intake-type">${intake.intake_type}</td>
-                        <td class="intake-start-date">${intake.start_date}</td>
-                        <td class="intake-end-date">${intake.end_date}</td>
-                        <td class="intake-enrollment-end">${intake.enrollment_end}</td>
-                        <td class="intake-capacity">${intake.capacity}</td>
-                        <td class="intake-status" data-status="${intake.status}">
-                            <span class="badge bg-${badgeClass}">${statusBadge}</span>
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary edit-intake-btn" data-intake-id="${intake.intake_id}" title="Edit">
-                                    <i class="ti ti-edit"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                $('#intake-table-body').append(row);
-            });
-            
-            const showing = filteredIntakes.length > perIntakePage ? 
-                `Showing ${start + 1}-${Math.min(end, filteredIntakes.length)} of ${filteredIntakes.length} intakes` :
-                `Showing ${filteredIntakes.length} intakes`;
-            $('#intakeResultsInfo').text(showing);
-        }
-        
-        renderIntakePagination();
-    }
-
-    // Render pagination
-    function renderIntakePagination() {
-        const totalPages = Math.ceil(filteredIntakes.length / perIntakePage);
-        $('#intakePagination').empty();
-        
-        if (totalPages <= 1) return;
-        
-        $('#intakePagination').append(`
-            <li class="page-item ${currentIntakePage === 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${currentIntakePage - 1}">Previous</a>
-            </li>
-        `);
-        
-        for (let i = 1; i <= totalPages; i++) {
-            if (i === 1 || i === totalPages || (i >= currentIntakePage - 2 && i <= currentIntakePage + 2)) {
-                $('#intakePagination').append(`
-                    <li class="page-item ${i === currentIntakePage ? 'active' : ''}">
-                        <a class="page-link" href="#" data-page="${i}">${i}</a>
-                    </li>
-                `);
-            } else if (i === currentIntakePage - 3 || i === currentIntakePage + 3) {
-                $('#intakePagination').append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
-            }
-        }
-        
-        $('#intakePagination').append(`
-            <li class="page-item ${currentIntakePage === totalPages ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${currentIntakePage + 1}">Next</a>
-            </li>
-        `);
-    }
-
-    // Pagination click
-    $(document).on('click', '#intakePagination a', function(e) {
-        e.preventDefault();
-        const page = parseInt($(this).data('page'));
-        if (page > 0 && page <= Math.ceil(filteredIntakes.length / perIntakePage)) {
-            currentIntakePage = page;
-            renderIntakeTable();
-            $('.table-responsive').scrollTop(0);
-        }
-    });
-
-    // Select all checkboxes
-    $('#selectAllIntakes, #selectAllIntakesHeader').on('change', function() {
-        const isChecked = $(this).prop('checked');
-        $('#selectAllIntakes, #selectAllIntakesHeader').prop('checked', isChecked);
-        $('.intake-checkbox').prop('checked', isChecked);
-        updateBulkDeleteIntakeButton();
-    });
-
-    $(document).on('change', '.intake-checkbox', function() {
-        updateBulkDeleteIntakeButton();
-        const total = $('.intake-checkbox').length;
-        const checked = $('.intake-checkbox:checked').length;
-        $('#selectAllIntakes, #selectAllIntakesHeader').prop('checked', total === checked);
-    });
-
-    function updateBulkDeleteIntakeButton() {
-        const checkedCount = $('.intake-checkbox:checked').length;
-        if (checkedCount > 0) {
-            $('#bulkDeleteIntakeBtn').show().text(`Delete Selected (${checkedCount})`);
-        } else {
-            $('#bulkDeleteIntakeBtn').hide();
-        }
-    }
-
-    // Export to CSV
-    $('#exportIntakeBtn').on('click', function() {
-        const csv = [];
-        csv.push(['Course Name', 'Batch', 'Location', 'Mode', 'Type', 'Start Date', 'End Date', 'Enrollment End', 'Capacity', 'Status'].join(','));
-        
-        filteredIntakes.forEach(intake => {
-            csv.push([
-                `"${intake.course_name}"`,
-                `"${intake.batch}"`,
-                `"${intake.location}"`,
-                `"${intake.intake_mode}"`,
-                `"${intake.intake_type}"`,
-                `"${intake.start_date}"`,
-                `"${intake.end_date}"`,
-                `"${intake.enrollment_end}"`,
-                `"${intake.capacity}"`,
-                `"${intake.status}"`
-            ].join(','));
-        });
-        
-        const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `intakes_export_${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        showToast('Intakes exported successfully', 'success');
-    });
-
-    // Form submission
-    $('#intakeForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        // Validate modules for certificate courses
-        if (selectedCourseType === 'certificate' && selectedModules.length === 0) {
-            showToast('Please select at least one module for certificate course', 'danger');
-            return;
-        }
-        
-        const formData = new FormData(this);
-        
-        // Add selected modules to form data
-        if (selectedCourseType === 'certificate') {
-            selectedModules.forEach(moduleId => {
-                formData.append('module_ids[]', moduleId);
-            });
-        }
-
-        $.ajax({
-            url: '{{ route("intake.store") }}',
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                if (response.success) {
-                    showToast(response.message, 'success');
-                    $('#intakeForm')[0].reset();
-                    selectedModules = []; // Reset modules
-                    updateSelectedModulesList();
-                    $('#intake_fields_container').hide();
-                    $('#degree_diploma_fields').hide();
-                    $('#certificate_fields').hide();
-                    
-                    const intake = response.intake;
-                    const status = intake.isPast ? 'finished' : (intake.isCurrent ? 'ongoing' : 'upcoming');
-                    
-                    allIntakes.unshift({
-                        intake_id: intake.intake_id,
-                        course_name: intake.course_name,
-                        batch: intake.batch,
-                        location: intake.location,
-                        intake_mode: intake.intake_mode,
-                        intake_type: intake.intake_type,
-                        start_date: formatDate(intake.start_date),
-                        end_date: formatDate(intake.end_date),
-                        enrollment_end: intake.enrollment_end_date ? formatDate(intake.enrollment_end_date) : '-',
-                        capacity: `${intake.registrations_count ?? 0} / ${intake.batch_size}`,
-                        status: status
-                    });
-                    
-                    applyIntakeFilters();
-                    
-                    setTimeout(() => {
-                        const row = $(`#intake-row-${intake.intake_id}`);
-                        if (row.length) {
-                            $('html, body').animate({
-                                scrollTop: row.offset().top - 150
-                            }, 800);
-                            row.addClass('table-success');
-                            setTimeout(() => row.removeClass('table-success'), 2500);
-                        }
-                    }, 300);
-                } else {
-                    showToast(response.message, 'danger');
-                }
-            },
-            error: function(xhr) {
-                let errorMessage = 'An error occurred while creating the intake.';
-                if (xhr.responseJSON) {
-                    if (xhr.responseJSON.error) {
-                        errorMessage = xhr.responseJSON.error;
-                    } else if (xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    }
-                    if (xhr.responseJSON.errors) {
-                        const errors = Object.values(xhr.responseJSON.errors).flat();
-                        errorMessage += '<br>' + errors.join('<br>');
-                    }
-                }
-                showToast(errorMessage, 'danger');
-            }
-        });
-    });
-
-    // Edit button click
-    $(document).on('click', '.edit-intake-btn', function() {
-        const intakeId = $(this).data('intake-id');
-        editIntake(intakeId);
-    });
-
-    let editSelectedModules = []; // Track selected module IDs for edit modal
-
-    // Edit modal module selection
-    $('#edit_modules_select').on('change', function() {
-        const moduleId = parseInt($(this).val());
-        if (!moduleId) return;
-        
-        const option = $(this).find('option:selected');
-        const moduleName = option.data('name');
-        const moduleCode = option.data('code');
-        
-        if (editSelectedModules.includes(moduleId)) {
-            showToast('This module has already been added', 'warning');
-            $(this).val('');
-            return;
-        }
-        
-        editSelectedModules.push(moduleId);
-        updateEditSelectedModulesList();
-        $(this).val('');
-        showToast(`Module "${moduleCode}" added successfully`, 'success');
-    });
-
-    function updateEditSelectedModulesList() {
-        const container = $('#edit_selected_modules_list');
-        container.empty();
-        
-        if (editSelectedModules.length === 0) {
-            $('#edit_no_modules_message').show();
-        } else {
-            $('#edit_no_modules_message').hide();
-            
-            editSelectedModules.forEach(moduleId => {
-                const option = $(`#edit_modules_select option[value="${moduleId}"]`);
-                const moduleName = option.data('name');
-                const moduleCode = option.data('code');
-                
-                const moduleTag = `
-                    <div class="badge bg-primary me-2 mb-2 p-2 d-inline-flex align-items-center" style="font-size: 0.9rem;" data-module-id="${moduleId}">
-                        <span>${moduleCode} - ${moduleName}</span>
-                        <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.6rem;" onclick="removeEditModule(${moduleId})" aria-label="Remove"></button>
-                    </div>
-                `;
-                container.append(moduleTag);
-            });
-        }
-    }
-
-    window.removeEditModule = function(moduleId) {
-        editSelectedModules = editSelectedModules.filter(id => id !== moduleId);
-        updateEditSelectedModulesList();
-        showToast('Module removed', 'info');
-    };
-
-    function editIntake(intakeId) {
-        $.ajax({
-            url: `/intake-creation/${intakeId}/edit`,
-            type: 'GET',
-            success: function(response) {
-                if (response.success) {
-                    const intake = response.intake;
-
-                    $('#edit_intake_id').val(intake.intake_id);
-                    $('#edit_location').val(intake.location);
-                    populateEditCourseOptions(intake.location, intake.course_id);
-                    $('#edit_batch').val(intake.batch);
-                    $('#edit_batch_size').val(intake.batch_size);
-                    $('#edit_intake_mode').val(intake.intake_mode);
-                    $('#edit_intake_type').val(intake.intake_type);
-                    $('#edit_registration_fee').val(intake.registration_fee);
-                    $('#edit_franchise_payment').val(intake.franchise_payment);
-                    $('#edit_franchise_payment_currency').val(intake.franchise_payment_currency);
-                    $('#edit_course_fee').val(intake.course_fee);
-                    $('#edit_sscl_tax').val(intake.sscl_tax);
-                    $('#edit_bank_charges').val(intake.bank_charges);
-
-                    $('#edit_start_date').val(formatDateForInput(intake.start_date));
-                    $('#edit_end_date').val(formatDateForInput(intake.end_date));
-                    $('#edit_enrollment_end_date').val(formatDateForInput(intake.enrollment_end_date));
-
-                    $('#edit_course_registration_id_pattern').val(intake.course_registration_id_pattern);
-
-                    // Handle modules for certificate courses
-                    if (intake.course && intake.course.course_type === 'certificate') {
-                        $('#edit_certificate_fields').show();
-                        $('#edit_selected_modules_row').show();
-                        
-                        // Load existing modules
-                        editSelectedModules = [];
-                        if (intake.modules && intake.modules.length > 0) {
-                            intake.modules.forEach(module => {
-                                editSelectedModules.push(module.module_id);
-                            });
-                        }
-                        updateEditSelectedModulesList();
-                    } else {
-                        $('#edit_certificate_fields').hide();
-                        $('#edit_selected_modules_row').hide();
-                        editSelectedModules = [];
-                    }
-
-                    $('#editIntakeModal').modal('show');
-                } else {
-                    showToast(response.message, 'danger');
-                }
-            },
-            error: function(xhr) {
-                showToast('Error loading intake data.', 'danger');
-            }
-        });
-    }
-
-    // Update intake
-    $('#updateIntakeBtn').on('click', function() {
-        const intakeId = $('#edit_intake_id').val();
-        
-        if (!intakeId) {
-            showToast('Intake ID not found. Please try again.', 'danger');
-            return;
-        }
-        
-        const formData = new FormData($('#editIntakeForm')[0]);
-        formData.append('_method', 'PUT');
-        
-        // Add modules for certificate courses
-        const courseId = $('#edit_course_id').val();
-        const selectedCourse = allCourses.find(c => c.course_id == courseId);
-        if (selectedCourse && selectedCourse.course_type === 'certificate') {
-            if (editSelectedModules.length === 0) {
-                showToast('Please select at least one module for certificate course', 'danger');
-                return;
-            }
-            editSelectedModules.forEach(moduleId => {
-                formData.append('module_ids[]', moduleId);
-            });
-        }
-        
-        $.ajax({
-            url: `/intake-creation/${intakeId}`,
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                if (response.success) {
-                    showToast(response.message, 'success');
-                    $('#editIntakeModal').modal('hide');
-                    
-                    const intake = response.intake;
-                    const index = allIntakes.findIndex(i => i.intake_id == intake.intake_id);
-                    
-                    const startDate = new Date(intake.start_date);
-                    const endDate = new Date(intake.end_date);
-                    const now = new Date();
-                    let status = 'upcoming';
-                    if (now > endDate) status = 'finished';
-                    else if (now >= startDate && now <= endDate) status = 'ongoing';
-                    
-                    if (index !== -1) {
-                        allIntakes[index] = {
-                            intake_id: intake.intake_id,
-                            course_name: intake.course_name,
-                            batch: intake.batch,
-                            location: intake.location,
-                            intake_mode: intake.intake_mode,
-                            intake_type: intake.intake_type,
-                            start_date: formatDate(intake.start_date),
-                            end_date: formatDate(intake.end_date),
-                            enrollment_end: intake.enrollment_end_date ? formatDate(intake.enrollment_end_date) : '-',
-                            capacity: `${intake.registrations_count || 0} / ${intake.batch_size}`,
-                            status: status
-                        };
-                    }
-                    
-                    applyIntakeFilters();
-                } else {
-                    showToast(response.message, 'danger');
-                }
-            },
-            error: function(xhr) {
-                let errorMessage = 'An error occurred while updating the intake.';
-                if (xhr.responseJSON) {
-                    if (xhr.responseJSON.error) {
-                        errorMessage = xhr.responseJSON.error;
-                    } else if (xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    }
-                    if (xhr.responseJSON.errors) {
-                        const errors = Object.values(xhr.responseJSON.errors).flat();
-                        errorMessage += '<br>' + errors.join('<br>');
-                    }
-                }
-                showToast(errorMessage, 'danger');
-            }
-        });
-    });
-
-    // Course details fetch
-    $('#course_id').on('change', function() {
-        const courseId = $(this).val();
-        if (!courseId) {
-            $('#courseDetailsBox').hide();
-            return;
-        }
-        
-        $.ajax({
-            url: '/api/courses/' + courseId,
-            type: 'GET',
-            success: function(response) {
-                if (response.success && response.course) {
-                    const c = response.course;
-                    $('#cd_duration').text(c.duration_formatted ? c.duration_formatted : '-');
-                    $('#cd_min_credits').text(c.min_credits ? c.min_credits : '-');
-                    $('#cd_training').text(c.training_period ? c.training_period : '-');
-                    $('#cd_entry_qualification').html(c.entry_qualification ? c.entry_qualification.replace(/\n/g, '<br>') : '-');
-                    $('#cd_medium').text(c.course_medium ? c.course_medium : '-');
-                    $('#cd_conducted_by').text(c.conducted_by ? c.conducted_by : '-');
-                    $('#courseDetailsBox').show();
-                } else {
-                    $('#courseDetailsBox').hide();
-                }
-            },
-            error: function() {
-                $('#courseDetailsBox').hide();
-            }
-        });
-    });
-
-    // Autofill payment plan
-    function autofillPaymentPlan() {
-        const courseId = $('#course_id').val();
-        const location = $('#location').val();
-        const courseType = $('#intake_type').val();
-        if (!courseId || !location || !courseType) return;
-        
-        $.ajax({
-            url: '/get-payment-plan-details',
-            type: 'POST',
-            data: {
-                _token: $('input[name="_token"]').val(),
-                course_id: courseId,
-                location: location,
-                course_type: courseType
-            },
-            success: function(response) {
-                if (response.success) {
-                    $('#registration_fee').val(response.registration_fee);
-                    $('#course_fee').val(response.course_fee);
-                }
-            }
-        });
-    }
-
-    $('#course_id, #location, #intake_type').on('change', autofillPaymentPlan);
-
-    $('#edit_location').on('change', function() {
-        populateEditCourseOptions($(this).val());
-    });
-
-    // Enrollment end date validation
-    $('#enrollment_end_date').on('blur change', function() {
-        const value = $(this).val();
-        if (!value) return;
-
-        const enrollmentEndDate = new Date(value);
-        if (isNaN(enrollmentEndDate)) return;
-
-        const startVal = $('#start_date').val();
-        const startDate = startVal ? new Date(startVal) : null;
-
-        if (startDate) {
-            // Calculate one month after start date
-            const oneMonthAfterStart = new Date(startDate);
-            oneMonthAfterStart.setMonth(oneMonthAfterStart.getMonth() + 1);
-
-            if (enrollmentEndDate > oneMonthAfterStart) {
-                showToast('Enrollment end date cannot be more than one month after the course start date.', 'danger');
-                $(this).val('');
-            }
-        }
-    });
-
-    $('#edit_enrollment_end_date').on('blur change', function() {
-        const value = $(this).val();
-        if (!value) return;
-
-        const enrollmentEndDate = new Date(value);
-        if (isNaN(enrollmentEndDate)) return;
-
-        const startVal = $('#edit_start_date').val();
-        const startDate = startVal ? new Date(startVal) : null;
-
-        if (startDate) {
-            // Calculate one month after start date
-            const oneMonthAfterStart = new Date(startDate);
-            oneMonthAfterStart.setMonth(oneMonthAfterStart.getMonth() + 1);
-
-            if (enrollmentEndDate > oneMonthAfterStart) {
-                showToast('Enrollment end date cannot be more than one month after the course start date.', 'danger');
-                $(this).val('');
-            }
-        }
-    });
-
-    function showToast(message, type) {
-        const toastHtml = `
-            <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>`;
-        $('.toast-container').append(toastHtml);
-        const toastEl = $('.toast-container .toast').last();
-        const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
-        toast.show();
-    }
-
-    function formatDate(dateStr) {
-        if (!dateStr) return '';
-        const d = new Date(dateStr);
-        if (isNaN(d)) return dateStr;
-        return window.toLocalDateString(d);
     }
 
     function formatDateForInput(dateValue) {
         if (!dateValue) return '';
+        if (typeof window.toLocalDateString === 'function') {
+            return window.toLocalDateString(dateValue) || '';
+        }
         const dateObj = new Date(dateValue);
-        if (isNaN(dateObj)) return '';
-        return window.toLocalDateString(dateObj);
+        if (isNaN(dateObj)) return String(dateValue).split('T')[0];
+        return dateObj.toISOString().slice(0, 10);
     }
-});
 
-window.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('intakeForm');
-    const locationSelect = document.getElementById('location');
-    const courseTypeSelect = document.getElementById('course_type');
+    function rebuildSelect(select, placeholder, items) {
+        if (!select) return;
+        select.innerHTML = '';
+        const first = document.createElement('option');
+        first.value = '';
+        first.textContent = placeholder;
+        first.disabled = true;
+        first.selected = true;
+        select.appendChild(first);
+        items.forEach(function (item) {
+            const opt = document.createElement('option');
+            opt.value = item.value;
+            opt.textContent = item.label;
+            select.appendChild(opt);
+        });
+        syncNebulaSelect(select);
+    }
 
-    function toggleFields() {
-        const hasLocation = locationSelect.value !== '';
+    function coursesFor(location, courseType) {
+        return allCourses.filter(function (course) {
+            return (!location || course.location === location) && (!courseType || course.course_type === courseType);
+        });
+    }
 
-        // Enable course type only if location is selected
-        courseTypeSelect.disabled = !hasLocation;
-        if (!hasLocation) {
-            courseTypeSelect.classList.add('locked-field');
+    function populateCreateCourses() {
+        const location = $('#location').val();
+        const courseType = $('#course_type').val();
+        const items = coursesFor(location, courseType).map(function (course) {
+            return { value: course.course_id, label: course.course_name };
+        });
+        rebuildSelect(document.getElementById('course_id'), items.length ? 'Choose a course...' : 'No courses available for this type', items);
+        $('#courseDetailsBox').prop('hidden', true);
+        if (!items.length && location && courseType) {
+            showAlert('No courses', 'No ' + courseType + ' courses available at ' + location + '.', 'warning');
+        }
+    }
+
+    function populateEditCourseOptions(location, selectedId) {
+        const items = coursesFor(location, null).map(function (course) {
+            return { value: course.course_id, label: formatCourseType(course.course_type) + ' - ' + course.course_name };
+        });
+        rebuildSelect(document.getElementById('edit_course_id'), 'Choose a course...', items);
+        if (selectedId) {
+            const select = document.getElementById('edit_course_id');
+            select.value = String(selectedId);
+            syncNebulaSelect(select);
+        }
+    }
+
+    function applyCreateCourseType(type) {
+        const location = $('#location').val();
+        if (!type) {
+            setSectionEnabled($('#intake_fields_container'), false);
+            setSectionEnabled($('#degree_diploma_fields'), false);
+            setSectionEnabled($('#certificate_fields'), false);
+            $('#submitIntakeBtn').prop('disabled', true);
+            return;
+        }
+        if (!location) {
+            showAlert('Missing location', 'Please select a location first.', 'warning');
+            resetFilterSelect(document.getElementById('course_type'), '');
+            return;
+        }
+        setSectionEnabled($('#intake_fields_container'), true);
+        if (type === 'degree' || type === 'diploma') {
+            setSectionEnabled($('#degree_diploma_fields'), true);
+            setSectionEnabled($('#certificate_fields'), false);
         } else {
-            courseTypeSelect.classList.remove('locked-field');
+            setSectionEnabled($('#degree_diploma_fields'), false);
+            setSectionEnabled($('#certificate_fields'), true);
+            selectedModules = [];
+            updateSelectedModulesList();
+        }
+        populateCreateCourses();
+        $('#submitIntakeBtn').prop('disabled', false);
+    }
+
+    function applyEditCourseType(type) {
+        if (type === 'certificate') {
+            setSectionEnabled($('#edit_degree_diploma_fields'), false);
+            setSectionEnabled($('#edit_certificate_fields'), true);
+        } else {
+            setSectionEnabled($('#edit_degree_diploma_fields'), true);
+            setSectionEnabled($('#edit_certificate_fields'), false);
         }
     }
 
-    // Run on load and when location changes
-    toggleFields();
-    locationSelect.addEventListener('change', function() {
-        toggleFields();
-        // Reset course type and hide fields when location changes
-        courseTypeSelect.value = '';
-        document.getElementById('intake_fields_container').style.display = 'none';
-        document.getElementById('submitIntakeBtn').disabled = true;
-        
-        if (this.value) {
-            window.location = '?location=' + this.value;
-        }
+    $('#location').on('change', function () {
+        const hasLocation = !!$(this).val();
+        $('#course_type').prop('disabled', !hasLocation).toggleClass('locked-field', !hasLocation);
+        resetFilterSelect(document.getElementById('course_type'), '');
+        applyCreateCourseType('');
+        $('#courseDetailsBox').prop('hidden', true);
     });
+
+    $('#course_type').on('change', function () {
+        applyCreateCourseType($(this).val());
+    });
+
+    function moduleChip(moduleId, code, name, removeClass) {
+        const safeCode = $('<div>').text(code || '').html();
+        const safeName = $('<div>').text(name || '').html();
+        return '<div class="badge bg-primary me-2 mb-2 p-2 d-inline-flex align-items-center" style="font-size: 0.9rem;">' +
+            '<span>' + safeCode + ' - ' + safeName + '</span>' +
+            '<button type="button" class="btn-close btn-close-white ms-2 ' + removeClass + '" data-module-id="' + moduleId + '" aria-label="Remove" style="font-size: 0.6rem;"></button>' +
+            '</div>';
+    }
+
+    function updateSelectedModulesList() {
+        const container = $('#selected_modules_list');
+        container.empty();
+        if (!selectedModules.length) {
+            $('#no_modules_message').show();
+            return;
+        }
+        $('#no_modules_message').hide();
+        selectedModules.forEach(function (moduleId) {
+            const option = $('#modules_select option[value="' + moduleId + '"]');
+            container.append(moduleChip(moduleId, option.data('code'), option.data('name'), 'remove-create-module'));
+        });
+    }
+
+    function updateEditSelectedModulesList() {
+        const container = $('#edit_selected_modules_list');
+        container.empty();
+        if (!editSelectedModules.length) {
+            $('#edit_no_modules_message').show();
+            return;
+        }
+        $('#edit_no_modules_message').hide();
+        editSelectedModules.forEach(function (moduleId) {
+            const option = $('#edit_modules_select option[value="' + moduleId + '"]');
+            container.append(moduleChip(moduleId, option.data('code'), option.data('name'), 'remove-edit-module'));
+        });
+    }
+
+    $('#modules_select').on('change', function () {
+        const moduleId = parseInt($(this).val(), 10);
+        if (!moduleId) return;
+        if (selectedModules.indexOf(moduleId) !== -1) {
+            showAlert('Already added', 'This module has already been added.', 'warning');
+            $(this).val('');
+            syncNebulaSelect(this);
+            return;
+        }
+        selectedModules.push(moduleId);
+        updateSelectedModulesList();
+        $(this).val('');
+        syncNebulaSelect(this);
+    });
+
+    $('#edit_modules_select').on('change', function () {
+        const moduleId = parseInt($(this).val(), 10);
+        if (!moduleId) return;
+        if (editSelectedModules.indexOf(moduleId) !== -1) {
+            showAlert('Already added', 'This module has already been added.', 'warning');
+            $(this).val('');
+            syncNebulaSelect(this);
+            return;
+        }
+        editSelectedModules.push(moduleId);
+        updateEditSelectedModulesList();
+        $(this).val('');
+        syncNebulaSelect(this);
+    });
+
+    $(document).on('click', '.remove-create-module', function () {
+        const moduleId = parseInt($(this).data('module-id'), 10);
+        selectedModules = selectedModules.filter(function (id) { return id !== moduleId; });
+        updateSelectedModulesList();
+    });
+
+    $(document).on('click', '.remove-edit-module', function () {
+        const moduleId = parseInt($(this).data('module-id'), 10);
+        editSelectedModules = editSelectedModules.filter(function (id) { return id !== moduleId; });
+        updateEditSelectedModulesList();
+    });
+
+    function currentListUrl() {
+        const params = new URLSearchParams($('#intakeFilterForm').serialize());
+        const query = params.toString();
+        return query ? (listUrl + '?' + query) : listUrl;
+    }
+
+    function loadIntakes(url, pushUrl) {
+        const $body = $('#intake-table-body');
+        const $pager = $('#intakePagination');
+        $body.addClass('opacity-50');
+        $pager.addClass('opacity-50');
+        $.ajax({
+            url: url,
+            method: 'GET',
+            dataType: 'json',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function (res) {
+                if (res && res.html) $body.html(res.html);
+                if (res && res.pagination) $pager.html(res.pagination);
+                $('#selectAllIntakes, #selectAllIntakesHeader').prop('checked', false);
+                updateBulkDeleteButton();
+                if (pushUrl) history.pushState({ intakeAjax: true }, '', url);
+            },
+            error: function () {
+                showAlert('Error', 'Failed to load intakes.', 'error');
+            },
+            complete: function () {
+                $body.removeClass('opacity-50');
+                $pager.removeClass('opacity-50');
+            }
+        });
+    }
+
+    $('#intakeFilterForm').on('submit', function (e) {
+        e.preventDefault();
+        loadIntakes(currentListUrl(), true);
+    });
+
+    $('#perPageIntakeSelect').on('change', function () {
+        loadIntakes(currentListUrl(), true);
+    });
+
+    $('#clearIntakeFiltersBtn').on('click', function () {
+        $('#searchIntakeInput').val('');
+        resetFilterSelect(document.getElementById('filterIntakeLocation'), '');
+        resetFilterSelect(document.getElementById('filterIntakeMode'), '');
+        resetFilterSelect(document.getElementById('filterIntakeStatus'), '');
+        resetFilterSelect(document.getElementById('perPageIntakeSelect'), '10');
+    });
+
+    $(document).on('click', '#intakePagination .pagination a.page-link', function (e) {
+        const href = $(this).attr('href');
+        if (!href || href === '#' || $(this).closest('.page-item').hasClass('disabled') || $(this).closest('.page-item').hasClass('active')) {
+            e.preventDefault();
+            return;
+        }
+        e.preventDefault();
+        loadIntakes(href, true);
+    });
+
+    window.addEventListener('popstate', function () {
+        if (!$('.intake-creation-page').length) return;
+        loadIntakes(window.location.href, false);
+    });
+
+    function updateBulkDeleteButton() {
+        const count = $('.intake-checkbox:checked').length;
+        if (count > 0) {
+            $('#bulkDeleteIntakeBtn').prop('hidden', false).html('<i class="ti ti-trash"></i> Delete Selected (' + count + ')');
+        } else {
+            $('#bulkDeleteIntakeBtn').prop('hidden', true);
+        }
+    }
+
+    $('#selectAllIntakes, #selectAllIntakesHeader').on('change', function () {
+        const isChecked = $(this).prop('checked');
+        $('#selectAllIntakes, #selectAllIntakesHeader').prop('checked', isChecked);
+        $('.intake-checkbox').prop('checked', isChecked);
+        updateBulkDeleteButton();
+    });
+
+    $(document).on('change', '.intake-checkbox', function () {
+        const total = $('.intake-checkbox').length;
+        const checked = $('.intake-checkbox:checked').length;
+        $('#selectAllIntakes, #selectAllIntakesHeader').prop('checked', total > 0 && total === checked);
+        updateBulkDeleteButton();
+    });
+
+    $('#intakeForm').on('submit', function (e) {
+        e.preventDefault();
+        const type = $('#course_type').val();
+        if (!type) {
+            showAlert('Missing type', 'Please select a course type.', 'warning');
+            return;
+        }
+        if (type === 'certificate' && !selectedModules.length) {
+            showAlert('Modules required', 'Please select at least one module for a certificate course.', 'warning');
+            return;
+        }
+        const formData = new FormData(this);
+        if (type === 'certificate') {
+            selectedModules.forEach(function (moduleId) {
+                formData.append('module_ids[]', moduleId);
+            });
+        }
+        $.ajax({
+            url: storeUrl,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                if (response.success) {
+                    $('#intakeForm')[0].reset();
+                    selectedModules = [];
+                    updateSelectedModulesList();
+                    $('#course_type').prop('disabled', true).addClass('locked-field');
+                    applyCreateCourseType('');
+                    syncNebulaSelects('#intakeForm');
+                    showAlert('Created', response.message, 'success').then(function () {
+                        loadIntakes(currentListUrl(), false);
+                    });
+                } else {
+                    showAlert('Error', response.message || 'Could not create the intake.', 'error');
+                }
+            },
+            error: function (xhr) {
+                showAlert('Error', validationMessage(xhr), 'error');
+            }
+        });
+    });
+
+    $(document).on('click', '.edit-intake-btn', function () {
+        const intakeId = $(this).data('intake-id');
+        $.ajax({
+            url: updateUrlTemplate + '/' + intakeId + '/edit',
+            type: 'GET',
+            success: function (response) {
+                if (!response.success || !response.intake) {
+                    showAlert('Error', response.message || 'Failed to fetch intake details.', 'error');
+                    return;
+                }
+                const intake = response.intake;
+                $('#edit_intake_id').val(intake.intake_id);
+                setSelectValue(document.getElementById('edit_location'), intake.location);
+                populateEditCourseOptions(intake.location, intake.course_id);
+                $('#edit_batch').val(intake.batch);
+                $('#edit_batch_size').val(intake.batch_size);
+                setSelectValue(document.getElementById('edit_intake_mode'), intake.intake_mode);
+                setSelectValue(document.getElementById('edit_intake_type'), intake.intake_type);
+                $('#edit_registration_fee').val(intake.registration_fee);
+                setSelectValue(document.getElementById('edit_franchise_payment_currency'), intake.franchise_payment_currency || 'LKR');
+                $('#edit_franchise_payment').val(intake.franchise_payment);
+                $('#edit_course_fee').val(intake.course_fee);
+                $('#edit_sscl_tax').val(intake.sscl_tax);
+                $('#edit_bank_charges').val(intake.bank_charges);
+                $('#edit_start_date').val(formatDateForInput(intake.start_date));
+                $('#edit_end_date').val(formatDateForInput(intake.end_date));
+                $('#edit_enrollment_end_date').val(formatDateForInput(intake.enrollment_end_date));
+                $('#edit_course_registration_id_pattern').val(intake.course_registration_id_pattern);
+
+                const courseType = intake.course ? intake.course.course_type : '';
+                applyEditCourseType(courseType);
+                editSelectedModules = [];
+                if (courseType === 'certificate' && intake.modules) {
+                    intake.modules.forEach(function (module) {
+                        editSelectedModules.push(module.module_id);
+                    });
+                }
+                updateEditSelectedModulesList();
+                if (editModal) editModal.show();
+            },
+            error: function () {
+                showAlert('Error', 'Error loading intake data.', 'error');
+            }
+        });
+    });
+
+    $('#edit_location').on('change', function () {
+        populateEditCourseOptions($(this).val());
+    });
+
+    $('#edit_course_id').on('change', function () {
+        const course = allCourses.find(function (item) { return String(item.course_id) === String($('#edit_course_id').val()); });
+        applyEditCourseType(course ? course.course_type : '');
+    });
+
+    $('#editIntakeForm').on('submit', function (e) {
+        e.preventDefault();
+        const intakeId = $('#edit_intake_id').val();
+        const course = allCourses.find(function (item) { return String(item.course_id) === String($('#edit_course_id').val()); });
+        if (course && course.course_type === 'certificate' && !editSelectedModules.length) {
+            showAlert('Modules required', 'Please select at least one module for a certificate course.', 'warning');
+            return;
+        }
+        const formData = new FormData(this);
+        formData.append('_method', 'PUT');
+        if (course && course.course_type === 'certificate') {
+            editSelectedModules.forEach(function (moduleId) {
+                formData.append('module_ids[]', moduleId);
+            });
+        }
+        $.ajax({
+            url: updateUrlTemplate + '/' + intakeId,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                if (response.success) {
+                    if (editModal) editModal.hide();
+                    showAlert('Updated', response.message, 'success').then(function () {
+                        loadIntakes(window.location.href, false);
+                    });
+                } else {
+                    showAlert('Error', response.message || 'Could not update the intake.', 'error');
+                }
+            },
+            error: function (xhr) {
+                showAlert('Error', validationMessage(xhr), 'error');
+            }
+        });
+    });
+
+    $(document).on('click', '.delete-intake-btn', function () {
+        const intakeId = $(this).data('intake-id');
+        const name = $(this).closest('tr').find('.intake-batch').text().trim();
+        confirmDelete('Delete intake?', 'Delete "' + name + '"? This cannot be undone.').then(function (ok) {
+            if (!ok) return;
+            $.ajax({
+                url: updateUrlTemplate + '/' + intakeId,
+                type: 'DELETE',
+                data: { _token: csrfToken },
+                success: function (response) {
+                    if (response.success) {
+                        showAlert('Deleted', response.message, 'success').then(function () {
+                            loadIntakes(window.location.href, false);
+                        });
+                    } else {
+                        showAlert('Error', response.message || 'Could not delete the intake.', 'error');
+                    }
+                },
+                error: function (xhr) {
+                    showAlert('Error', validationMessage(xhr), 'error');
+                }
+            });
+        });
+    });
+
+    $('#bulkDeleteIntakeBtn').on('click', function () {
+        const selectedIds = [];
+        $('.intake-checkbox:checked').each(function () {
+            selectedIds.push($(this).data('intake-id'));
+        });
+        if (!selectedIds.length) return;
+        confirmDelete('Delete selected intakes?', 'Delete ' + selectedIds.length + ' intake(s)? This cannot be undone.').then(function (ok) {
+            if (!ok) return;
+            $.ajax({
+                url: '{{ route("intake.bulkDestroy") }}',
+                type: 'POST',
+                data: { _token: csrfToken, ids: selectedIds },
+                success: function (response) {
+                    showAlert(response.success ? 'Deleted' : 'Error', response.message, response.success ? 'success' : 'error').then(function () {
+                        loadIntakes(window.location.href, false);
+                    });
+                },
+                error: function (xhr) {
+                    showAlert('Error', validationMessage(xhr), 'error');
+                }
+            });
+        });
+    });
+
+    $('#exportIntakeBtn').on('click', function () {
+        const params = new URLSearchParams();
+        const search = $.trim($('#searchIntakeInput').val() || '');
+        const location = $('#filterIntakeLocation').val() || '';
+        const mode = $('#filterIntakeMode').val() || '';
+        const status = $('#filterIntakeStatus').val() || '';
+        if (search) params.set('search', search);
+        if (location) params.set('location', location);
+        if (mode) params.set('intake_mode', mode);
+        if (status) params.set('status', status);
+        window.location.assign(params.toString() ? (exportUrl + '?' + params.toString()) : exportUrl);
+    });
+
+    $('#course_id').on('change', function () {
+        const courseId = $(this).val();
+        if (!courseId) {
+            $('#courseDetailsBox').prop('hidden', true);
+            return;
+        }
+        $.ajax({
+            url: '/api/courses/' + courseId,
+            type: 'GET',
+            success: function (response) {
+                if (response.success && response.course) {
+                    const c = response.course;
+                    $('#cd_min_credits').text(c.min_credits ? c.min_credits : '-');
+                    $('#cd_medium').text(c.course_medium ? c.course_medium : '-');
+                    $('#cd_conducted_by').text(c.conducted_by ? c.conducted_by : '-');
+                    $('#courseDetailsBox').prop('hidden', false);
+                } else {
+                    $('#courseDetailsBox').prop('hidden', true);
+                }
+            },
+            error: function () {
+                $('#courseDetailsBox').prop('hidden', true);
+            }
+        });
+        autofillPaymentPlan();
+    });
+
+    function autofillPaymentPlan() {
+        const courseId = $('#course_id').val();
+        const location = $('#location').val();
+        const courseType = $('#course_type').val();
+        if (!courseId || !location || !courseType) return;
+        $.ajax({
+            url: '{{ route("get.payment.plan.details") }}',
+            type: 'POST',
+            data: {
+                _token: csrfToken,
+                course_id: courseId,
+                location: location,
+                course_type: courseType
+            },
+            success: function (response) {
+                if (!response.success) return;
+                $('#registration_fee').val(response.registration_fee);
+                $('#course_fee').val(response.course_fee);
+                if (response.franchise_payment != null) $('#franchise_payment').val(response.franchise_payment);
+                if (response.franchise_payment_currency) setSelectValue(document.getElementById('franchise_payment_currency'), response.franchise_payment_currency);
+                if (response.sscl_tax != null) $('#sscl_tax').val(response.sscl_tax);
+                if (response.bank_charges != null) $('#bank_charges').val(response.bank_charges);
+            }
+        });
+    }
+
+    function checkEnrollmentDate($input, startSelector) {
+        const value = $input.val();
+        if (!value) return;
+        const enrollmentEndDate = new Date(value);
+        const startVal = $(startSelector).val();
+        if (!startVal || isNaN(enrollmentEndDate)) return;
+        const startDate = new Date(startVal);
+        const oneMonthAfterStart = new Date(startDate);
+        oneMonthAfterStart.setMonth(oneMonthAfterStart.getMonth() + 1);
+        if (enrollmentEndDate > oneMonthAfterStart) {
+            showAlert('Invalid date', 'Enrollment end date cannot be more than one month after the course start date.', 'warning');
+            $input.val('');
+        }
+    }
+
+    $('#enrollment_end_date').on('blur change', function () {
+        checkEnrollmentDate($(this), '#start_date');
+    });
+    $('#edit_enrollment_end_date').on('blur change', function () {
+        checkEnrollmentDate($(this), '#edit_start_date');
+    });
+
+    setSectionEnabled($('#intake_fields_container'), false);
+    setSectionEnabled($('#degree_diploma_fields'), false);
+    setSectionEnabled($('#certificate_fields'), false);
 });
-
 </script>
-
-
-<style nonce="{{ $cspNonce }}">
-/* Currency Type Highlighting */
-.currency-highlight {
-    background: linear-gradient(135deg, #fff3cd 0%, #fffacd 100%) !important;
-    border: 2px solid #ffc107 !important;
-    color: #856404 !important;
-    font-weight: 600 !important;
-    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.2) !important;
-}
-
-.currency-highlight option {
-    background: white;
-    color: #333;
-    font-weight: normal;
-}
-
-.currency-highlight:focus {
-    background: linear-gradient(135deg, #fff3cd 0%, #fffacd 100%) !important;
-    border-color: #ff9800 !important;
-    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25) !important;
-}
-
-.table th {
-    font-size: 0.95rem !important;
-    font-weight: 600;
-    background: #f5f7fa;
-}
-.table td {
-    font-size: 0.9rem !important;
-}
-/* Apply soft visual dim only to locked inputs */
-.locked-field {
-    background-color: #f1f3f5 !important;
-    cursor: not-allowed;
-    opacity: 1 !important; /* Keep text readable */
-}
-
-/* Keep labels and text clear */
-#intakeForm label {
-    opacity: 1 !important;
-}
-
-</style>
 @endpush

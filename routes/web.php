@@ -338,9 +338,12 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Developer'])->group(function () {
         Route::get('/intake-creation', [IntakeCreationController::class, 'create'])->name('intake.create');
+        Route::get('/intake-creation/export', [IntakeCreationController::class, 'export'])->name('intake.export');
         Route::post('/intake-creation', [IntakeCreationController::class, 'store'])->name('intake.store');
+        Route::post('/intake-creation/bulk-delete', [IntakeCreationController::class, 'bulkDestroy'])->name('intake.bulkDestroy');
         Route::get('/intake-creation/{id}/edit', [IntakeCreationController::class, 'edit'])->name('intake.edit');
         Route::put('/intake-creation/{id}', [IntakeCreationController::class, 'update'])->name('intake.update');
+        Route::delete('/intake-creation/{id}', [IntakeCreationController::class, 'destroy'])->name('intake.destroy');
         Route::post('/get-payment-plan-details', [IntakeCreationController::class, 'getPaymentPlanDetails'])->name('get.payment.plan.details');
     });
 
