@@ -127,7 +127,7 @@ public function updateUserStatus(Request $request)
         $user->employee_id = $request->employee_id;
         $user->user_role = $primaryRole;
         $user->user_roles = $updatedRoles;
-        $user->user_location = $request->user_location; // Update user location
+        $user->user_location = $this->formatCampusLocation($request->user_location);
         $user->status = $request->status;
         $user->save();
 
@@ -250,7 +250,7 @@ public function updateUserStatus(Request $request)
                 'employee_id' => $user->employee_id,
                 'user_role' => $displayRoles !== '' ? $displayRoles : 'N/A',
                 'status' => ($user->status == "1" ? "Active" : ($user->status == "0" ? "Inactive" : ($user->status == "2" ? "Suspended" : "Unknown"))),
-                'user_location' => $user->user_location ?? 'Unknown',
+                'user_location' => $this->formatCampusLocation($user->user_location),
                 'created_at' => $createdAt ? $createdAt->format('Y-m-d H:i') : 'N/A',
                 'updated_at' => $updatedAt ? $updatedAt->format('Y-m-d H:i') : 'N/A'
             ];
@@ -259,17 +259,10 @@ public function updateUserStatus(Request $request)
         // Fetch all user roles from RoleHelper
         $userRoles = array_keys(RoleHelper::getRoles());
 
-        // Add hardcoded locations array for dropdown
-        $locations = [
-            'Nebula Institute of Technology – Welisara',
-            'Nebula Institute of Technology – Moratuwa',
-            'Nebula Institute of Technology – Peradeniya'
-        ];
-
         return view('user_management.index', [
             'usersArray' => $usersArray->toArray(),
             'userRoles' => $userRoles,
-            'locations' => $locations,
+            'locations' => $this->campusLocations(),
         ]);
     }
 
@@ -309,6 +302,7 @@ public function updateUserStatus(Request $request)
                     'user_roles' => $user->getRoleList(),
                     'status' => $user->status,
                     'user_location' => $user->user_location,
+                    'user_location_key' => $this->campusKey($user->user_location),
                 ]
             ]);
         } catch (\Exception $e) {
@@ -413,5 +407,39 @@ public function updateUserStatus(Request $request)
             'message' => 'Profile picture updated successfully.',
             'url' => asset('storage/' . $path),
         ]);
+    }
+
+    private function campusLocations(): array
+    {
+        return [
+            'Welisara' => 'Nebula Institute of Technology – Welisara',
+            'Moratuwa' => 'Nebula Institute of Technology – Moratuwa',
+            'Peradeniya' => 'Nebula Institute of Technology – Peradeniya',
+        ];
+    }
+
+    private function campusKey($storedLocation): string
+    {
+        $text = trim((string) $storedLocation);
+
+        foreach (array_keys($this->campusLocations()) as $campus) {
+            if ($text !== '' && stripos($text, $campus) !== false) {
+                return $campus;
+            }
+        }
+
+        return $text;
+    }
+
+    private function formatCampusLocation($storedLocation): string
+    {
+        $text = trim((string) $storedLocation);
+        if ($text === '') {
+            return 'Unknown';
+        }
+
+        $key = $this->campusKey($text);
+
+        return $this->campusLocations()[$key] ?? $text;
     }
 }
