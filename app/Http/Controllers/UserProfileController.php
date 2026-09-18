@@ -50,7 +50,7 @@ class UserProfileController extends Controller
             'employee_id' => $user->employee_id,
             'user_role' => implode(', ', $user->getRoleList()),
             'status' => ($user->status == "1" ? "Active" : ($user->status == "0" ? "Inactive" : ($user->status == "2" ? "Suspended" : "Unknown"))),
-            'user_location' => $user->user_location ?? 'Unknown',
+            'user_location' => $this->formatCampusLocation($user->user_location),
             'user_profile' => $user->user_profile ?? null,
         ];
 
@@ -384,29 +384,63 @@ public function updateUserStatus(Request $request)
      */
     public function updateProfilePicture(Request $request)
     {
-        $request->validate([
-            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,webp|max:4096',
-        ]);
+        try {
+            $request->validate([
+                'profile_picture' => 'required|image|mimes:jpeg,png,jpg,webp|max:4096',
+            ]);
 
-        $user = Auth::user();
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
+            }
 
-        // Store file in storage/app/public/profile_pictures
-        $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+            $file = $request->file('profile_picture');
+            if (!$file) {
+                return response()->json(['success' => false, 'message' => 'Please choose an image to upload.'], 422);
+            }
 
-        // Delete previous file if it exists
-        if (!empty($user->user_profile) && \Storage::disk('public')->exists($user->user_profile)) {
-            try { \Storage::disk('public')->delete($user->user_profile); } catch (\Throwable $e) { /* ignore */ }
+            Storage::disk('public')->makeDirectory('profile_pictures');
+            $path = $file->store('profile_pictures', 'public');
+
+            if (!empty($user->user_profile) && Storage::disk('public')->exists($user->user_profile)) {
+                try {
+                    Storage::disk('public')->delete($user->user_profile);
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to delete previous profile picture', [
+                        'user_id' => $user->user_id,
+                        'path' => $user->user_profile,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            $user->user_profile = $path;
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile picture updated successfully.',
+                'url' => asset('storage/' . ltrim($path, '/')),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $firstError = collect($e->errors())->flatten()->first();
+
+            return response()->json([
+                'success' => false,
+                'message' => $firstError ?? 'Invalid profile picture.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to update profile picture', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update profile picture. Please try again.',
+            ], 500);
         }
-
-        // Save new path
-        $user->user_profile = $path;
-        $user->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Profile picture updated successfully.',
-            'url' => asset('storage/' . $path),
-        ]);
     }
 
     private function campusLocations(): array
