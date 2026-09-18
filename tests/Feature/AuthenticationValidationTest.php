@@ -69,7 +69,7 @@ class AuthenticationValidationTest extends TestCase
             'password' => self::TEST_PASSWORD
         ]);
 
-        $response->assertSessionHasErrors(['email']);
+        $response->assertSessionHasErrors(['login']);
         $this->assertGuest();
     }
 
@@ -90,7 +90,7 @@ class AuthenticationValidationTest extends TestCase
             'password' => 'wrongpassword'
         ]);
 
-        $response->assertSessionHasErrors(['email']);
+        $response->assertSessionHasErrors(['login']);
         $this->assertGuest();
     }
 
@@ -111,7 +111,7 @@ class AuthenticationValidationTest extends TestCase
             'password' => self::TEST_PASSWORD
         ]);
 
-        $response->assertSessionHasErrors(['email']);
+        $response->assertSessionHasErrors(['login']);
         $this->assertGuest();
     }
 
@@ -132,7 +132,7 @@ class AuthenticationValidationTest extends TestCase
             'password' => self::TEST_PASSWORD
         ]);
 
-        $response->assertSessionHasErrors(['email']);
+        $response->assertSessionHasErrors(['login']);
         $this->assertGuest();
     }
 
@@ -150,8 +150,44 @@ class AuthenticationValidationTest extends TestCase
         }
 
         // The 6th attempt should be blocked
-        $response->assertSessionHasErrors(['email']);
+        $response->assertSessionHasErrors(['login']);
         $this->assertGuest();
+    }
+
+    public function test_wrong_password_shows_alert_without_highlighting_username(): void
+    {
+        User::create([
+            'name' => 'Test User',
+            'email' => 'test@nebula.com',
+            'password' => Hash::make(self::TEST_PASSWORD),
+            'user_role' => 'Librarian',
+            'status' => '1',
+            'user_location' => 'Nebula Institute of Technology – Welisara'
+        ]);
+
+        $this->from(route('login'))->post('/login', [
+            'email' => 'test@nebula.com',
+            'password' => 'wrongpassword'
+        ])->assertRedirect(route('login'));
+
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('Invalid username or password. Please try again.')
+            ->assertSee('invalid-feedback', false)
+            ->assertDontSee('alert-danger', false)
+            ->assertDontSee('is-invalid', false);
+    }
+
+    public function test_login_page_is_mobile_friendly(): void
+    {
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('login-page', false)
+            ->assertSee('login-shell', false)
+            ->assertSee('viewport-fit=cover', false)
+            ->assertSee('id="togglePassword"', false)
+            ->assertSee('type="button"', false)
+            ->assertSee('Sign In');
     }
 
     public function test_login_form_displays_validation_errors()

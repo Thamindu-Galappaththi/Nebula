@@ -86,7 +86,7 @@ class LoginRequest extends FormRequest
                 $user = \App\Models\User::where('email', $this->email)->first();
                 
                 if (!$user) {
-                    $validator->errors()->add('email', 'Invalid username or password.');
+                    $validator->errors()->add('email', 'Invalid username or password. Please try again.');
                     return;
                 }
 
@@ -104,7 +104,7 @@ class LoginRequest extends FormRequest
 
                 // Check password
                 if (!Auth::attempt(['email' => $this->email, 'password' => $this->password])) {
-                    $validator->errors()->add('email', 'Invalid username or password.');
+                    $validator->errors()->add('email', 'Invalid username or password. Please try again.');
                     return;
                 }
             }
