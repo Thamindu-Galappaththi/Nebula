@@ -73,4 +73,13 @@ class AuditLog extends Model
             default => 'bg-primary',
         };
     }
+
+    public static function pruneOlderThan(int $days): int
+    {
+        $days = max(1, $days);
+
+        return static::query()
+            ->where('created_at', '<', now()->subDays($days))
+            ->delete();
+    }
 }
