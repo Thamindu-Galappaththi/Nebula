@@ -27,7 +27,7 @@ class AuthenticationService
             if (!$user) {
                 return [
                     'success' => false,
-                    'message' => 'Invalid username or password.',
+                    'message' => 'Invalid username or password. Please try again.',
                     'error_type' => 'invalid_credentials'
                 ];
             }
@@ -91,7 +91,7 @@ class AuthenticationService
 
             return [
                 'success' => false,
-                'message' => 'Invalid username or password.',
+                'message' => 'Invalid username or password. Please try again.',
                 'error_type' => 'invalid_credentials'
             ];
 

@@ -328,8 +328,7 @@
                             </div>
                             <div class="col-lg-4 col-md-4 col-sm-4 mb-3 mb-md-0 align-items-center">
                                 <!-- Second Column - Text -->
-                                <p id="footer-year" class="mb-0">&copy; <span id="current-year">{{ date('Y') }}</span> Nebula. All
-                                    rights reserved.</p>
+                                <p id="footer-year" class="mb-0">&copy; <span id="current-year">{{ date('Y') }}</span> Nebula Institute of Technology. All rights reserved.</p>
                             </div>
                             <div class="col-lg-4 col-md-4 col-sm-4">
                                 <!-- Third Column - Left Blank -->
