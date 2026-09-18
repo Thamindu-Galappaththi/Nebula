@@ -15,7 +15,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule->command('audit:prune')
+            ->dailyAt('01:15')
+            ->withoutOverlapping();
     }
 
     /**
