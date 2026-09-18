@@ -224,7 +224,41 @@
       renderOptions();
     }
 
+    function hookValueSync() {
+      const valueDesc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+      const indexDesc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
+
+      if (valueDesc && valueDesc.get && valueDesc.set) {
+        Object.defineProperty(select, 'value', {
+          configurable: true,
+          enumerable: true,
+          get() {
+            return valueDesc.get.call(this);
+          },
+          set(next) {
+            valueDesc.set.call(this, next);
+            render();
+          }
+        });
+      }
+
+      if (indexDesc && indexDesc.get && indexDesc.set) {
+        Object.defineProperty(select, 'selectedIndex', {
+          configurable: true,
+          enumerable: true,
+          get() {
+            return indexDesc.get.call(this);
+          },
+          set(next) {
+            indexDesc.set.call(this, next);
+            render();
+          }
+        });
+      }
+    }
+
     wrap._nebulaPosition = positionMenu;
+    hookValueSync();
 
     toggle.addEventListener('click', function (e) {
       e.preventDefault();

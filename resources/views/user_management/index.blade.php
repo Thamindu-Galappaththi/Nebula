@@ -203,7 +203,7 @@
                         <td class="created-at-cell">{{ $user['created_at'] }}</td>
                         <td>
                             <div class="user-actions">
-                                <button type="button" class="btn btn-sm btn-primary btn-edit-user" data-user-id="{{ $user['user_id'] }}">Edit</button>
+                                <button type="button" class="btn btn-sm btn-primary btn-edit-user" data-user-id="{{ $user['user_id'] }}" data-user-location="{{ $user['user_location'] }}">Edit</button>
                                 <button type="button" class="btn btn-sm btn-danger btn-delete-user" data-user-id="{{ $user['user_id'] }}" data-user-name="{{ $user['user_name'] }}">Delete</button>
                                 <button type="button" class="btn btn-sm btn-warning btn-reset-password" data-user-id="{{ $user['user_id'] }}" data-user-name="{{ $user['user_name'] }}">Reset Password</button>
                             </div>
@@ -285,8 +285,8 @@
                                 <label for="edit_user_location" class="form-label">Location <span class="text-danger">*</span></label>
                                 <select class="form-control" id="edit_user_location" name="user_location" required>
                                     <option value="">Select Location</option>
-                                    @foreach ($locations as $location)
-                                        <option value="{{ $location }}">{{ $location }}</option>
+                                    @foreach ($locations as $locationValue => $locationLabel)
+                                        <option value="{{ $locationValue }}">{{ $locationLabel }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -402,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', function(e) {
         if (e.target.closest('.btn-edit-user')) {
             const btn = e.target.closest('.btn-edit-user');
-            editUser(btn.dataset.userId);
+            editUser(btn.dataset.userId, btn.dataset.userLocation);
         }
         if (e.target.closest('.btn-delete-user')) {
             const btn = e.target.closest('.btn-delete-user');
@@ -475,7 +475,69 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function editUser(userId) {
+function campusKey(value) {
+    const text = String(value || '');
+    if (/Peradeniya/i.test(text)) {
+        return 'Peradeniya';
+    }
+    if (/Moratuwa/i.test(text)) {
+        return 'Moratuwa';
+    }
+    if (/Welisara/i.test(text)) {
+        return 'Welisara';
+    }
+    return text.trim();
+}
+
+function syncNebulaSelect(select) {
+    if (!select) {
+        return;
+    }
+
+    const selected = select.options[select.selectedIndex];
+    const wrap = select.closest('.nebula-select');
+    const toggle = wrap ? wrap.querySelector('.nebula-select-toggle') : null;
+    if (toggle) {
+        toggle.textContent = selected ? selected.text : '';
+        toggle.title = toggle.textContent;
+    }
+
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function setEditUserLocation(storedLocation) {
+    const select = document.getElementById('edit_user_location');
+    if (!select) {
+        return;
+    }
+
+    Array.from(select.querySelectorAll('option[data-extra="1"]')).forEach((option) => option.remove());
+
+    const stored = String(storedLocation ?? '').trim();
+    const key = campusKey(stored);
+    const matched = Array.from(select.options).find((option) => option.value !== '' && (option.value === key || option.value === stored));
+
+    if (matched) {
+        select.value = matched.value;
+        syncNebulaSelect(select);
+        return;
+    }
+
+    if (stored) {
+        const extra = new Option(stored, stored, true, true);
+        extra.dataset.extra = '1';
+        select.add(extra);
+        syncNebulaSelect(select);
+        return;
+    }
+
+    select.value = '';
+    syncNebulaSelect(select);
+}
+
+function editUser(userId, fallbackLocation) {
+    setEditUserLocation(fallbackLocation);
+
     // Fetch user details
     fetch('/user/get-details', {
         method: 'POST',
@@ -500,8 +562,10 @@ function editUser(userId) {
             if (typeof window.setEditRoleSelection === 'function') {
                 window.setEditRoleSelection(selectedRoles);
             }
-            document.getElementById('edit_user_location').value = user.user_location;
-            document.getElementById('edit_status').value = user.status;
+            setEditUserLocation(user.user_location_key || user.user_location || fallbackLocation);
+            const statusSelect = document.getElementById('edit_status');
+            statusSelect.value = user.status;
+            syncNebulaSelect(statusSelect);
             
             bootstrap.Modal.getOrCreateInstance(document.getElementById('editUserModal')).show();
         } else {
