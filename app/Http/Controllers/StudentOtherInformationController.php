@@ -26,7 +26,14 @@ class StudentOtherInformationController extends Controller
             $idValue = $request->input('idValue');
 
             if ($identificationType === 'nic') {
-                $student = Student::where('id_value', $idValue)->first();
+                $student = Student::query()
+                    ->where(function ($query) use ($idValue) {
+                        $query->where('id_value', $idValue);
+                        if (ctype_digit((string) $idValue)) {
+                            $query->orWhere('student_id', $idValue);
+                        }
+                    })
+                    ->first();
             } elseif ($identificationType === 'registration_number') {
                 $student = Student::join('course_registration', 'students.student_id', '=', 'course_registration.student_id')
                     ->where('course_registration.id', $idValue)
@@ -37,6 +44,8 @@ class StudentOtherInformationController extends Controller
             }
 
             if ($student) {
+                $other = $student->otherInformation;
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Student found',
@@ -45,6 +54,17 @@ class StudentOtherInformationController extends Controller
                         'student_name'     => $student->full_name,
                         'academic_status'  => $student->academic_status,
                         'profile_url'      => route('student_management.profile', ['studentId' => $student->student_id]),
+                        'other_information' => $other ? [
+                            'disciplinary_issues'         => $other->disciplinary_issues,
+                            'has_disciplinary_document'   => !empty($other->disciplinary_issue_document),
+                            'continue_higher_studies'     => (bool) $other->continue_higher_studies,
+                            'institute'                   => $other->institute,
+                            'field_of_study'              => $other->field_of_study,
+                            'currently_employee'          => (bool) $other->currently_employee,
+                            'job_title'                   => $other->job_title,
+                            'workplace'                   => $other->workplace,
+                            'other_information'           => $other->other_information,
+                        ] : null,
                     ],
                 ]);
             }
@@ -101,7 +121,7 @@ class StudentOtherInformationController extends Controller
         try {
             $request->validate([
                 'studentName'         => 'required|string',
-                'studentID'           => 'required|string',
+                'studentID'           => 'required',
                 'disciplinaryIssues'  => 'nullable|string',
                 'continueStudies'     => 'required|in:true,false',
                 'institute'           => 'nullable|string',
@@ -118,12 +138,10 @@ class StudentOtherInformationController extends Controller
                 'termination_document' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             ]);
 
-            $student = Student::where('student_id', $request->input('studentID'))
-                ->where('full_name', $request->input('studentName'))
-                ->first();
+            $student = Student::where('student_id', $request->input('studentID'))->first();
 
             if (!$student) {
-                return response()->json(['success' => false, 'message' => 'Student information does not exist'], Response::HTTP_BAD_REQUEST);
+                return response()->json(['success' => false, 'message' => 'Student information does not exist']);
             }
 
             if ($request->input('terminateStudent') === 'true' && $student->isTerminated()) {
@@ -146,22 +164,25 @@ class StudentOtherInformationController extends Controller
             }
 
             DB::transaction(function () use ($request, $student, $disciplinaryIssueDocumentPath, $terminationDocumentPath) {
+                $payload = [
+                    'student_id'              => $student->student_id,
+                    'disciplinary_issues'     => $request->input('disciplinaryIssues'),
+                    'continue_higher_studies' => $request->input('continueStudies') === 'true',
+                    'institute'               => $request->input('continueStudies') === 'true' ? $request->input('institute') : null,
+                    'field_of_study'          => $request->input('continueStudies') === 'true' ? $request->input('fieldOfStudy') : null,
+                    'currently_employee'      => $request->input('currentlyEmployee') === 'true',
+                    'job_title'               => $request->input('currentlyEmployee') === 'true' ? $request->input('jobTitle') : null,
+                    'workplace'               => $request->input('currentlyEmployee') === 'true' ? $request->input('workplace') : null,
+                    'other_information'       => $request->input('otherInformation'),
+                ];
 
-                // 1) upsert "other information"
+                if ($disciplinaryIssueDocumentPath) {
+                    $payload['disciplinary_issue_document'] = $disciplinaryIssueDocumentPath;
+                }
+
                 StudentOtherInformation::updateOrCreate(
-                    ['student_id' => $request->input('studentID')],
-                    [
-                        'student_id'                 => $request->input('studentID'),
-                        'disciplinary_issues'        => $request->input('disciplinaryIssues'),
-                        'disciplinary_issue_document' => $disciplinaryIssueDocumentPath,
-                        'continue_higher_studies'    => $request->input('continueStudies') === 'true',
-                        'institute'                  => $request->input('institute'),
-                        'field_of_study'             => $request->input('fieldOfStudy'),
-                        'currently_employee'         => $request->input('currentlyEmployee') === 'true',
-                        'job_title'                  => $request->input('jobTitle'),
-                        'workplace'                  => $request->input('workplace'),
-                        'other_information'          => $request->input('otherInformation'),
-                    ]
+                    ['student_id' => $student->student_id],
+                    $payload
                 );
 
                 // 2) if terminate flag on, update academic status on students

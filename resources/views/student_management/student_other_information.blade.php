@@ -251,6 +251,56 @@
         });
     });
 
+    function ajaxMessage(xhr, fallback) {
+        if (xhr.responseJSON && xhr.responseJSON.message) {
+            return xhr.responseJSON.message;
+        }
+        if (xhr.responseJSON && xhr.responseJSON.errors) {
+            return Object.values(xhr.responseJSON.errors).flat().join(' ');
+        }
+        return fallback;
+    }
+
+    function resetOtherInformationForm() {
+        document.getElementById('otherInformationForm').reset();
+        continueNo.checked = true;
+        employeeNo.checked = true;
+        higherContainer.style.display = 'none';
+        employmentContainer.style.display = 'none';
+        institute.removeAttribute('required');
+        fieldOfStudy.removeAttribute('required');
+        jobTitle.removeAttribute('required');
+        workplace.removeAttribute('required');
+        document.getElementById('statusBanner').className = 'alert d-none mt-2 mb-0';
+        document.getElementById('otherInformationForm').classList.remove('bg-terminated');
+    }
+
+    function fillOtherInformationForm(info) {
+        if (!info) {
+            return;
+        }
+        document.getElementById('disciplinaryIssues').value = info.disciplinary_issues || '';
+        document.getElementById('otherInformation').value = info.other_information || '';
+
+        if (info.continue_higher_studies) {
+            continueYes.checked = true;
+            higherContainer.style.display = 'block';
+            institute.setAttribute('required', 'required');
+            fieldOfStudy.setAttribute('required', 'required');
+            institute.value = info.institute || '';
+            fieldOfStudy.value = info.field_of_study || '';
+        }
+
+        if (info.currently_employee) {
+            employeeYes.checked = true;
+            employmentContainer.style.display = 'block';
+            jobTitle.setAttribute('required', 'required');
+            workplace.setAttribute('required', 'required');
+            jobTitle.value = info.job_title || '';
+            workplace.value = info.workplace || '';
+        }
+    }
+
     // NIC Search
     document.getElementById('nicSearchForm').addEventListener('submit', function(e){
         e.preventDefault();
@@ -266,18 +316,19 @@
             success:function(res){
                 document.getElementById('spinner-overlay').style.display='none';
                 if(res.success){
+                    resetOtherInformationForm();
                     document.getElementById('studentNameInput').value=res.data.student_name;
                     document.getElementById('studentIDInput').value=res.data.student_id;
+                    fillOtherInformationForm(res.data.other_information);
                     wrapper.style.display='block';
 
                     const status = (res.data.academic_status || '').toLowerCase();
                     const banner = document.getElementById('statusBanner');
-                    banner.className='alert d-none mt-2 mb-0';
-                    document.getElementById('otherInformationForm').classList.remove('bg-terminated');
                     if(status==='terminated'){
                         banner.innerHTML='STUDENT TERMINATED. Do not create a new record. Use Student Profile to Re-Register, or process clearance from All Clearance / Termination Tracking.'
                             + (res.data.profile_url ? ' <a class="alert-link" href="'+res.data.profile_url+'">Open Student Profile</a>' : '');
                         banner.classList.add('alert-terminated');
+                        banner.classList.remove('d-none');
                         document.getElementById('otherInformationForm').classList.add('bg-terminated');
                     }
                 } else {
@@ -285,9 +336,9 @@
                     showMessage('Warning',res.message);
                 }
             },
-            error:function(){
+            error:function(xhr){
                 document.getElementById('spinner-overlay').style.display='none';
-                showMessage('Error','An error occurred while searching for the student.');
+                showMessage('Error', ajaxMessage(xhr, 'An error occurred while searching for the student.'));
             }
         });
     });
@@ -297,7 +348,7 @@
         e.preventDefault();
         const form=this;
         if(!form.checkValidity()){
-            form.reportValidity(); // Show browser native validation
+            form.reportValidity();
             return;
         }
         const fd=new FormData(form);
@@ -308,17 +359,18 @@
             data:fd,
             processData:false,
             contentType:false,
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
             success:function(res){
                 document.getElementById('spinner-overlay').style.display='none';
                 if(res.success){
                     showToast('Success',res.message,'#ccffcc');
                 } else {
-                    showMessage('Error',res.message);
+                    showMessage('Error',res.message || 'Could not save the data.');
                 }
             },
-            error:function(){
+            error:function(xhr){
                 document.getElementById('spinner-overlay').style.display='none';
-                showMessage('Error','An error occurred while saving the data.');
+                showMessage('Error', ajaxMessage(xhr, 'An error occurred while saving the data.'));
             }
         });
     });
