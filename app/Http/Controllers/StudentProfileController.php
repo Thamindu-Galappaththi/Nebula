@@ -610,44 +610,63 @@ class StudentProfileController extends Controller
 
     public function getSemesters($studentId, $courseId)
     {
-        $semestersList = \App\Models\Semester::where('course_id', (int) $courseId)
-            ->orderBy('id')
-            ->get();
+        try {
+            $semestersList = \App\Models\Semester::where('course_id', (int) $courseId)
+                ->orderBy('id')
+                ->get();
 
-        $courseSemesters = $semestersList->map(function ($s) {
-            return trim((string) ($s->name ?: $s->id));
-        })->filter()->unique()->values();
+            $named = collect($semestersList->map(function ($semester) {
+                return trim((string) ($semester->name ?: $semester->id));
+            })->all());
 
-        $examSemesters = \App\Models\ExamResult::where('student_id', $studentId)
-            ->where('course_id', $courseId)
-            ->pluck('semester');
+            $examSemesters = \App\Models\ExamResult::where('student_id', $studentId)
+                ->where('course_id', $courseId)
+                ->pluck('semester');
 
-        $attendanceSemesters = \App\Models\Attendance::where('student_id', $studentId)
-            ->where('course_id', $courseId)
-            ->pluck('semester');
+            $attendanceSemesters = \App\Models\Attendance::where('student_id', $studentId)
+                ->where('course_id', $courseId)
+                ->pluck('semester');
 
-        $fromRecords = $examSemesters->merge($attendanceSemesters)
-            ->filter()
-            ->map(function ($sem) use ($semestersList) {
-                foreach ($semestersList as $sModel) {
-                    if ((string) $sModel->id === (string) $sem || (string) $sModel->name === (string) $sem) {
-                        return trim((string) $sModel->name);
+            $fromRecords = collect($examSemesters->merge($attendanceSemesters)->all())
+                ->map(function ($sem) use ($semestersList) {
+                    $sem = trim((string) $sem);
+                    if ($sem === '') {
+                        return null;
                     }
+                    foreach ($semestersList as $semester) {
+                        if ((string) $semester->id === $sem || (string) $semester->name === $sem) {
+                            return trim((string) $semester->name);
+                        }
+                    }
+                    return $sem;
+                });
+
+            $allSemesters = $named->merge($fromRecords)
+                ->filter(fn ($sem) => $sem !== null && $sem !== '')
+                ->unique()
+                ->values();
+
+            if ($allSemesters->isEmpty()) {
+                $course = \App\Models\Course::find($courseId);
+                $count = (int) ($course->no_of_semesters ?? 0);
+                if ($count > 0) {
+                    $allSemesters = collect(range(1, $count))->map(fn ($n) => (string) $n)->values();
                 }
-                return (string) $sem;
-            });
-
-        $allSemesters = $courseSemesters->merge($fromRecords)->filter()->unique()->values();
-
-        if ($allSemesters->isEmpty()) {
-            $course = \App\Models\Course::find($courseId);
-            $count = (int) ($course->no_of_semesters ?? 0);
-            if ($count > 0) {
-                $allSemesters = collect(range(1, $count))->map(fn ($n) => (string) $n)->values();
             }
-        }
 
-        return response()->json(['success' => true, 'semesters' => $allSemesters]);
+            return response()->json(['success' => true, 'semesters' => $allSemesters]);
+        } catch (\Throwable $e) {
+            \Log::error('Failed to fetch exam semesters: ' . $e->getMessage(), [
+                'student_id' => $studentId,
+                'course_id' => $courseId,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load semesters.',
+                'semesters' => [],
+            ]);
+        }
     }
 
     public function getModuleResults($studentId, $courseId, $semester)

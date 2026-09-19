@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\Course;
 use App\Models\CourseRegistration;
+use App\Models\ExamResult;
 use App\Models\Intake;
+use App\Models\Module;
 use App\Models\ParentGuardian;
 use App\Models\PaymentDetail;
 use App\Models\PaymentInstallment;
+use App\Models\Semester;
 use App\Models\Student;
 use App\Models\StudentExam;
 use App\Models\StudentPaymentPlan;
@@ -287,6 +290,62 @@ class StudentProfileTest extends TestCase
             ->assertJsonPath('summary.registration_fee', 20000)
             ->assertJsonPath('summary.total_local_amount', 45000)
             ->assertJsonPath('summary.local_outstanding', 25000);
+    }
+
+    public function test_exam_semesters_load_for_certificate_course_without_semester_rows(): void
+    {
+        $setup = $this->makePaymentStudent();
+        $module = Module::forceCreate([
+            'module_code'     => 'CAIT-101',
+            'module_name'     => 'IT Fundamentals',
+            'module_type'     => 'core',
+            'module_category' => 'certificate',
+            'credits'         => 5,
+        ]);
+        ExamResult::forceCreate([
+            'student_id' => $setup['student']->student_id,
+            'course_id'  => $setup['course']->course_id,
+            'module_id'  => $module->module_id,
+            'intake_id'  => $setup['intake']->intake_id,
+            'location'   => 'Welisara',
+            'semester'   => '1',
+            'marks'      => 72,
+            'grade'      => 'B',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $setup['student']->student_id . '/course/' . $setup['course']->course_id . '/semesters')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('semesters.0', '1');
+    }
+
+    public function test_exam_semesters_load_from_semester_names(): void
+    {
+        $setup = $this->makePaymentStudent();
+        Semester::forceCreate([
+            'name'       => 'Semester 1',
+            'course_id'  => $setup['course']->course_id,
+            'intake_id'  => $setup['intake']->intake_id,
+            'start_date' => '2026-01-01',
+            'end_date'   => '2026-06-30',
+            'status'     => 'active',
+        ]);
+        Semester::forceCreate([
+            'name'       => 'Semester 1',
+            'course_id'  => $setup['course']->course_id,
+            'intake_id'  => $setup['intake']->intake_id,
+            'start_date' => '2026-07-01',
+            'end_date'   => '2026-12-31',
+            'status'     => 'upcoming',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $setup['student']->student_id . '/course/' . $setup['course']->course_id . '/semesters')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('semesters.0', 'Semester 1')
+            ->assertJsonCount(1, 'semesters');
     }
 
     private function makePaymentStudent(array $intakeAttrs = []): array
