@@ -2352,6 +2352,14 @@ $(function(){
   $('#paymentIntakeSelect').on('change', function(){ const c=$('#paymentCourseSelect').val(), i=$(this).val(); if(c&&i){ fetchPaymentDetails(c,i); fetchPaymentHistory(c,i); fetchPaymentSchedule(c,i); } else { $('#paymentTableWrapper').hide(); $('#paymentHistory').empty(); $('#paymentScheduleTableBody').empty(); }});
 
   // ----- Clearance tab -----
+  function clearanceDocumentCell(info){
+    const url = (info && (info.document_url || (info.has_document ? info.clearance_slip : '')) || '').toString().trim();
+    if (url && url !== 'null' && url.toLowerCase() !== 'n/a') {
+      const href = url.startsWith('http') || url.startsWith('/') ? url : ('/storage/' + url.replace(/^public\//, ''));
+      return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm"><i class="ti ti-download"></i> Download</a>`;
+    }
+    return '<span class="text-muted">No document uploaded</span>';
+  }
   function fetchStudentClearances(){
     const sid=$('#studentIdHidden').val(); if(!sid) return;
     $.get('/api/student/'+sid+'/clearances', res=>{
@@ -2361,8 +2369,8 @@ $(function(){
           <td>${escapeHtml(info.label)}</td>
           <td>${info.status?'<span class="badge bg-success">Approved</span>':'<span class="badge bg-warning text-dark">Pending</span>'}</td>
           <td>${escapeHtml(info.approved_date||'N/A')}</td>
-          <td>${escapeHtml(info.remarks||'-')}</td>
-          <td><a href="/storage/${encodeURI(info.clearance_slip||'')}" target="_blank" class="btn btn-outline-primary btn-sm" ${info.clearance_slip?'':'disabled'}><i class="ti ti-download"></i> Download</a>${!info.clearance_slip?'<span class="text-muted ms-2">No Document</span>':''}</td>
+          <td>${escapeHtml(info.remarks || '—')}</td>
+          <td>${clearanceDocumentCell(info)}</td>
         </tr>`));
         if(!$tb.children().length){ $tb.append('<tr><td colspan="5" class="text-center">No uploaded clearance documents found.</td></tr>'); }
       }else{

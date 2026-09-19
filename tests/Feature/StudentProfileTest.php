@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ClearanceRequest;
 use App\Models\Course;
 use App\Models\CourseRegistration;
 use App\Models\ExamResult;
@@ -64,6 +65,8 @@ class StudentProfileTest extends TestCase
             ->assertSee('Student Profile')
             ->assertSee('Enter NIC number')
             ->assertSee('statusHistoryCount', false)
+            ->assertSee('No document uploaded', false)
+            ->assertSee('clearanceDocumentCell', false)
             ->assertDontSee('$(\'#status-history-tab\').addClass(\'bg-danger text-white\')', false)
             ->assertDontSee('Trying to get property');
     }
@@ -348,6 +351,57 @@ class StudentProfileTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('semesters.0', 'Semester 1')
             ->assertJsonCount(1, 'semesters');
+    }
+
+    public function test_clearance_documents_are_returned_only_when_a_file_exists(): void
+    {
+        $setup = $this->makePaymentStudent();
+        $studentId = $setup['student']->student_id;
+
+        ClearanceRequest::forceCreate([
+            'clearance_type' => ClearanceRequest::TYPE_HOSTEL,
+            'location'       => 'Welisara',
+            'course_id'      => $setup['course']->course_id,
+            'intake_id'      => $setup['intake']->intake_id,
+            'student_id'     => $studentId,
+            'status'         => ClearanceRequest::STATUS_APPROVED,
+            'remarks'        => 'NA',
+            'clearance_slip' => null,
+            'approved_at'    => now(),
+            'requested_at'   => now(),
+        ]);
+        ClearanceRequest::forceCreate([
+            'clearance_type' => ClearanceRequest::TYPE_LIBRARY,
+            'location'       => 'Welisara',
+            'course_id'      => $setup['course']->course_id,
+            'intake_id'      => $setup['intake']->intake_id,
+            'student_id'     => $studentId,
+            'status'         => ClearanceRequest::STATUS_APPROVED,
+            'remarks'        => 'Returned books',
+            'clearance_slip' => 'clearance_slips/library-slip.pdf',
+            'approved_at'    => now(),
+            'requested_at'   => now(),
+        ]);
+
+        $response = $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $studentId . '/clearances')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(2, 'clearances');
+
+        $clearances = collect($response->json('clearances'))->keyBy('label');
+
+        $hostel = $clearances['Hostel Clearance'];
+        $this->assertFalse($hostel['has_document']);
+        $this->assertNull($hostel['document_url']);
+        $this->assertNull($hostel['clearance_slip']);
+        $this->assertNull($hostel['remarks']);
+
+        $library = $clearances['Library Clearance'];
+        $this->assertTrue($library['has_document']);
+        $this->assertNotEmpty($library['document_url']);
+        $this->assertStringContainsString('/storage/clearance_slips/library-slip.pdf', $library['document_url']);
+        $this->assertSame('Returned books', $library['remarks']);
     }
 
     private function makePaymentStudent(array $intakeAttrs = []): array

@@ -1498,12 +1498,21 @@ class StudentProfileController extends Controller
         $clearances = \App\Models\ClearanceRequest::where('student_id', $studentId)
             ->get()
             ->map(function ($c) {
+                $document = $this->clearanceDocumentPayload($c->clearance_slip);
+                $remarks = trim((string) ($c->remarks ?? ''));
+                if ($remarks === '' || in_array(strtolower($remarks), ['n/a', 'na', '-', 'null'], true)) {
+                    $remarks = null;
+                }
+
                 return [
                     'label' => $c->getClearanceTypeTextAttribute(),
                     'status' => $c->status === \App\Models\ClearanceRequest::STATUS_APPROVED,
+                    'status_key' => $c->status,
                     'approved_date' => $c->approved_at ? $c->approved_at->format('d/m/Y') : null,
-                    'remarks' => $c->remarks,
-                    'clearance_slip' => $c->clearance_slip,
+                    'remarks' => $remarks,
+                    'has_document' => $document['has_document'],
+                    'document_url' => $document['url'],
+                    'clearance_slip' => $document['has_document'] ? $c->clearance_slip : null,
                 ];
             });
 
@@ -2002,5 +2011,24 @@ class StudentProfileController extends Controller
         }
 
         return array_values(array_unique($out));
+    }
+
+    private function clearanceDocumentPayload(?string $path): array
+    {
+        $path = trim((string) $path);
+        if ($path === '' || in_array(strtolower($path), ['null', 'n/a', 'na', '-'], true)) {
+            return ['has_document' => false, 'url' => null];
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            return ['has_document' => true, 'url' => $path];
+        }
+
+        $normalized = ltrim((string) preg_replace('#^public/#', '', $path), '/');
+
+        return [
+            'has_document' => true,
+            'url' => Storage::disk('public')->url($normalized),
+        ];
     }
 }
