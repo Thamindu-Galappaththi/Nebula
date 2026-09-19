@@ -67,6 +67,8 @@ class StudentProfileTest extends TestCase
             ->assertSee('statusHistoryCount', false)
             ->assertSee('No document uploaded', false)
             ->assertSee('clearanceDocumentCell', false)
+            ->assertSee('/^(?:\\+94|94|0)?[1-9]\\d{8}$/', false)
+            ->assertSee('class="form-control bg-danger text-white" id="parentEmergencyContact"', false)
             ->assertDontSee('$(\'#status-history-tab\').addClass(\'bg-danger text-white\')', false)
             ->assertDontSee('Trying to get property');
     }
@@ -402,6 +404,57 @@ class StudentProfileTest extends TestCase
         $this->assertNotEmpty($library['document_url']);
         $this->assertStringContainsString('/storage/clearance_slips/library-slip.pdf', $library['document_url']);
         $this->assertSame('Returned books', $library['remarks']);
+    }
+
+    public function test_parent_info_accepts_country_code_numbers_without_plus(): void
+    {
+        $student = $this->makeStudent('199055544V');
+        ParentGuardian::forceCreate([
+            'student_id'               => $student->student_id,
+            'guardian_name'            => 'W S H Niluka',
+            'guardian_profession'      => null,
+            'guardian_contact_number'  => '94710165814',
+            'guardian_email'           => 'hniluka740@gmail.com',
+            'guardian_address'         => 'Ragama',
+            'emergency_contact_number' => '94710165814',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->postJson(route('student_management.update.parent.info'), [
+                'student_id'               => $student->student_id,
+                'guardian_name'            => 'W S H Niluka',
+                'guardian_profession'      => '',
+                'guardian_contact_number'  => '94710165814',
+                'guardian_email'           => 'hniluka740@gmail.com',
+                'guardian_address'         => '628/25,Siyabalaghawaththa Mawatha, Ragama',
+                'emergency_contact_number' => '94710165814',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('guardian_details', [
+            'student_id'               => $student->student_id,
+            'guardian_contact_number'  => '94710165814',
+            'emergency_contact_number' => '94710165814',
+            'guardian_address'         => '628/25,Siyabalaghawaththa Mawatha, Ragama',
+        ]);
+    }
+
+    public function test_parent_info_rejects_invalid_phone_numbers(): void
+    {
+        $student = $this->makeStudent('199066633V');
+
+        $this->actingAs($this->actor)
+            ->postJson(route('student_management.update.parent.info'), [
+                'student_id'               => $student->student_id,
+                'guardian_name'            => 'Parent Name',
+                'guardian_contact_number'  => '12345',
+                'guardian_email'           => '',
+                'guardian_address'         => 'Colombo',
+                'emergency_contact_number' => '0000000000',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['guardian_contact_number', 'emergency_contact_number']);
     }
 
     private function makePaymentStudent(array $intakeAttrs = []): array

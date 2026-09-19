@@ -508,7 +508,7 @@
             <div class="mb-3 row align-items-center mx-3">
                 <label for="parentEmergencyContact" class="col-sm-3 col-form-label fw-bold">Emergency Contact Number <span class="text-danger">*</span></label>
         <div class="col-sm-9">
-          <input type="text" class="form-control bg-danger text-white" id="parentEmergencyContact" value="{{ $student?->parent?->emergency_contact_number ?? '' }}" readonly>
+          <input type="tel" class="form-control bg-danger text-white" id="parentEmergencyContact" value="{{ $student?->parent?->emergency_contact_number ?? '' }}" readonly>
           <div class="invalid-feedback" id="parentEmergencyContactFeedback" style="display:none;"></div>
         </div>
             </div>
@@ -1327,8 +1327,13 @@ function showErrorMessage(message){
 // ---------- Helper: status UI ----------
 // Add these functions at the top with your other helper functions
 function isValidPhone(phone) {
-    // Allows formats like: +94771234567, 0771234567, 771234567
-    return /^(?:\+94|0)?[0-9]{9}$/.test(phone.replace(/\s/g, ''));
+    const raw = String(phone || '').trim();
+    if (!raw) return false;
+    const hasPlus = raw.charAt(0) === '+';
+    const digits = raw.replace(/\D/g, '');
+    const normalized = hasPlus ? ('+' + digits) : digits;
+    // Allows: 0771234567, 771234567, +94771234567, 94771234567
+    return /^(?:\+94|94|0)?[1-9]\d{8}$/.test(normalized);
 }
 
 function isValidEmail(email) {
