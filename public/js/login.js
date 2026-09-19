@@ -39,10 +39,25 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            if (loginForm.dataset.csrfReady === '1') {
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Signing in...';
+                }
+                return;
+            }
+
+            e.preventDefault();
+
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.textContent = 'Signing in...';
             }
+
+            refreshLoginCsrfToken(loginForm).finally(function () {
+                loginForm.dataset.csrfReady = '1';
+                loginForm.submit();
+            });
         });
     }
 
@@ -57,3 +72,36 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+function refreshLoginCsrfToken(loginForm) {
+    return fetch('/refresh-csrf', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    }).then(function (response) {
+        if (!response.ok) {
+            return null;
+        }
+
+        return response.json();
+    }).then(function (data) {
+        if (!data || !data.token) {
+            return;
+        }
+
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) {
+            meta.setAttribute('content', data.token);
+        }
+
+        const hidden = loginForm.querySelector('input[name="_token"]');
+        if (hidden) {
+            hidden.value = data.token;
+        }
+    }).catch(function () {
+        // Submit with the token already on the form.
+    });
+}

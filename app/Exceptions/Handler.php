@@ -8,6 +8,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Session\TokenMismatchException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -153,13 +154,16 @@ class Handler extends ExceptionHandler
             }
         });
 
-        $this->renderable(function (TokenMismatchException $e, $request) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'CSRF token mismatch. Please refresh the page and try again.'
-                ], 419);
+        $this->renderable(function (HttpException $e, $request) {
+            if ($e->getStatusCode() !== 419) {
+                return null;
             }
+
+            return $this->expiredSessionResponse($request);
+        });
+
+        $this->renderable(function (TokenMismatchException $e, $request) {
+            return $this->expiredSessionResponse($request);
         });
 
         $this->renderable(function (QueryException $e, $request) {
@@ -186,5 +190,29 @@ class Handler extends ExceptionHandler
             'ip' => request()->ip(),
             'user_agent' => request()->userAgent(),
         ]);
+    }
+
+    private function expiredSessionResponse($request)
+    {
+        $message = 'Your session expired. Please try again.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], 419);
+        }
+
+        $onLogin = $request->is('login') || $request->routeIs('login', 'login.authenticate');
+
+        if ($onLogin || !auth()->check()) {
+            return redirect()->route('login')
+                ->withInput($request->except('password', 'password_confirmation', '_token'))
+                ->withErrors(['login' => $message]);
+        }
+
+        return redirect()->back()
+            ->withInput($request->except($this->dontFlash))
+            ->with('error', $message);
     }
 }

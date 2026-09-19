@@ -29,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
                 false,
                 config('session.same_site', 'strict')
             );
+        } else {
+            // Browsers drop Secure cookies on http://127.0.0.1, which causes 419 on login.
+            config(['session.secure' => false]);
         }
 
         // Register nonce directive
