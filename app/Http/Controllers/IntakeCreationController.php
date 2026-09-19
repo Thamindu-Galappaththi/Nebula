@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\Module;
 use App\Models\PaymentPlan;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class IntakeCreationController extends Controller
@@ -311,6 +312,8 @@ class IntakeCreationController extends Controller
         $request->validate([
             'course_type' => 'required|string',
             'location' => 'required|string',
+            'course_id' => 'nullable',
+            'course_name' => 'nullable|string',
         ]);
 
         $course = null;
@@ -323,17 +326,21 @@ class IntakeCreationController extends Controller
         }
 
         if (!$course) {
-            return response()->json(['success' => false, 'message' => 'Course not found.'], 404);
+            return response()->json(['success' => false, 'message' => 'Course not found.']);
         }
 
-        $plan = PaymentPlan::where('course_id', $course->course_id)
-            ->where('location', $request->location)
-            ->where('course_type', $request->course_type)
-            ->latest()
-            ->first();
+        $query = PaymentPlan::where('course_id', $course->course_id)
+            ->where('location', $request->location);
+
+        // Older schemas had course_type on payment_plans; that column was later dropped.
+        if (Schema::hasColumn('payment_plans', 'course_type')) {
+            $query->where('course_type', $request->course_type);
+        }
+
+        $plan = $query->latest()->first();
 
         if (!$plan) {
-            return response()->json(['success' => false, 'message' => 'No payment plan found for this course/location/type.'], 404);
+            return response()->json(['success' => false, 'message' => 'No payment plan found for this course and location.']);
         }
 
         return response()->json([
@@ -378,7 +385,7 @@ class IntakeCreationController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        $courses = Course::select('course_id', 'course_name', 'course_type', 'location')
+        $courses = Course::select('course_id', 'course_name', 'course_type', 'location', 'min_credits', 'course_medium', 'conducted_by')
             ->orderByRaw("CASE course_type WHEN 'degree' THEN 1 WHEN 'diploma' THEN 2 WHEN 'certificate' THEN 3 ELSE 4 END")
             ->orderBy('course_name')
             ->get();
@@ -398,6 +405,9 @@ class IntakeCreationController extends Controller
                 'course_name' => $course->course_name,
                 'course_type' => $course->course_type,
                 'location' => $course->location,
+                'min_credits' => $course->min_credits,
+                'course_medium' => $course->course_medium,
+                'conducted_by' => $course->conducted_by,
             ])->values(),
         ];
     }

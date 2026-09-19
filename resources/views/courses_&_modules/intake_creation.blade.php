@@ -1199,28 +1199,15 @@ $(function () {
 
     $('#course_id').on('change', function () {
         const courseId = $(this).val();
-        if (!courseId) {
+        const course = allCourses.find(function (item) { return String(item.course_id) === String(courseId); });
+        if (!course) {
             $('#courseDetailsBox').prop('hidden', true);
             return;
         }
-        $.ajax({
-            url: '/api/courses/' + courseId,
-            type: 'GET',
-            success: function (response) {
-                if (response.success && response.course) {
-                    const c = response.course;
-                    $('#cd_min_credits').text(c.min_credits ? c.min_credits : '-');
-                    $('#cd_medium').text(c.course_medium ? c.course_medium : '-');
-                    $('#cd_conducted_by').text(c.conducted_by ? c.conducted_by : '-');
-                    $('#courseDetailsBox').prop('hidden', false);
-                } else {
-                    $('#courseDetailsBox').prop('hidden', true);
-                }
-            },
-            error: function () {
-                $('#courseDetailsBox').prop('hidden', true);
-            }
-        });
+        $('#cd_min_credits').text(course.min_credits ? course.min_credits : '-');
+        $('#cd_medium').text(course.course_medium ? course.course_medium : '-');
+        $('#cd_conducted_by').text(course.conducted_by ? course.conducted_by : '-');
+        $('#courseDetailsBox').prop('hidden', false);
         autofillPaymentPlan();
     });
 
@@ -1246,6 +1233,9 @@ $(function () {
                 if (response.franchise_payment_currency) setSelectValue(document.getElementById('franchise_payment_currency'), response.franchise_payment_currency);
                 if (response.sscl_tax != null) $('#sscl_tax').val(response.sscl_tax);
                 if (response.bank_charges != null) $('#bank_charges').val(response.bank_charges);
+            },
+            error: function () {
+                // Fees stay blank so the user can enter them when no plan exists yet.
             }
         });
     }
