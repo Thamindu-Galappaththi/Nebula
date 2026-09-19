@@ -63,6 +63,8 @@ class StudentProfileTest extends TestCase
             ->assertOk()
             ->assertSee('Student Profile')
             ->assertSee('Enter NIC number')
+            ->assertSee('statusHistoryCount', false)
+            ->assertDontSee('$(\'#status-history-tab\').addClass(\'bg-danger text-white\')', false)
             ->assertDontSee('Trying to get property');
     }
 

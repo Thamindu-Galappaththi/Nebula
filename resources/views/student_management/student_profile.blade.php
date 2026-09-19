@@ -110,6 +110,9 @@
 .student-profile-tabs .nav-link {
     white-space: nowrap;
 }
+.student-profile-tabs .nav-link .badge {
+    vertical-align: middle;
+}
 .student-profile-page .tab-pane {
     overflow: visible;
 }
@@ -2388,17 +2391,13 @@ $(function(){
             <td>${escapeHtml(h.created_at || '')}</td>
           </tr>`);
         });
-        // highlight tab in red and show count
-        $('#status-history-tab').addClass('bg-danger text-white');
         $('#statusHistoryCount').text(res.history.length).show();
       } else {
         $tb.append('<tr><td colspan="7" class="text-center text-muted">No status history available.</td></tr>');
-        $('#status-history-tab').removeClass('bg-danger text-white');
         $('#statusHistoryCount').hide();
       }
     }).fail(function(){
       $('#statusHistoryTableBody').html('<tr><td colspan="7" class="text-center text-danger">Error loading status history.</td></tr>');
-      $('#status-history-tab').removeClass('bg-danger text-white');
       $('#statusHistoryCount').hide();
     });
   }
