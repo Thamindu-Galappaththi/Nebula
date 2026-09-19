@@ -3,9 +3,9 @@
 @section('title', 'NEBULA | Student Other Information')
 
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid student-other-info-page px-2 px-md-3">
     <div class="row justify-content-center">
-        <div class="col-md-11 mt-2">
+        <div class="col-12 col-md-11 mt-2">
             <div class="card">
                 <div class="card-body">
                     <h2 class="text-center mb-4">Student Other Information</h2>
@@ -17,18 +17,14 @@
                     {{-- Search --}}
                     <div class="card mb-4">
                         <div class="card-body">
-                            <form id="nicSearchForm">
-                                <div class="mb-3 row mx-3 align-items-center">
-                                    <label for="nicInput" class="col-sm-2 col-form-label">
-                                        Student NIC <span class="text-danger">*</span>
-                                    </label>
-                                    <div class="col-sm-8">
-                                        <input type="text" class="form-control bg-white" id="nicInput" name="nic"
-                                            placeholder="Enter Student ID (NIC)" required>
-                                    </div>
-                                    <div class="col-sm-2">
-                                        <button type="submit" class="btn btn-primary w-100">Search</button>
-                                    </div>
+                            <form id="nicSearchForm" class="student-other-search" autocomplete="off">
+                                <label for="nicInput" class="form-label">
+                                    Student NIC <span class="text-danger">*</span>
+                                </label>
+                                <div class="student-other-search-controls">
+                                    <input type="text" class="form-control bg-white" id="nicInput" name="nic"
+                                        placeholder="Enter Student ID (NIC)" required>
+                                    <button type="submit" class="btn btn-primary">Search</button>
                                 </div>
                             </form>
                         </div>
@@ -68,23 +64,23 @@
 
                     {{-- Main Form --}}
                     <div id="studentOtherInformationForm" style="display:none;">
-                        <form id="otherInformationForm" class="p-4 rounded w-100 bg-white mt-2"
+                        <form id="otherInformationForm" class="p-2 p-md-4 rounded w-100 bg-white mt-2"
                             enctype="multipart/form-data" novalidate>
                             @csrf
 
                             {{-- Student Details --}}
                             <div class="mb-4">
                                 <h5 class="mb-3">Student Details</h5>
-                                <div class="mb-3 row mx-3 align-items-center">
-                                    <label class="col-sm-3 col-form-label" for="studentNameInput">Name</label>
-                                    <div class="col-sm-9">
+                                <div class="mb-3 row g-2 mx-0 align-items-md-center">
+                                    <label class="col-12 col-md-3 col-form-label" for="studentNameInput">Name</label>
+                                    <div class="col-12 col-md-9">
                                         <input type="text" class="form-control bg-white" id="studentNameInput"
                                             name="studentName" readonly>
                                     </div>
                                 </div>
-                                <div class="mb-3 row mx-3 align-items-center">
-                                    <label class="col-sm-3 col-form-label" for="studentIDInput">Student ID</label>
-                                    <div class="col-sm-9">
+                                <div class="mb-3 row g-2 mx-0 align-items-md-center">
+                                    <label class="col-12 col-md-3 col-form-label" for="studentIDInput">Student ID</label>
+                                    <div class="col-12 col-md-9">
                                         <input type="text" class="form-control bg-white" id="studentIDInput"
                                             name="studentID" readonly>
                                     </div>
@@ -93,16 +89,16 @@
 
                             {{-- Disciplinary --}}
                             <div class="mb-4">
-                                <div class="mb-3 row mx-3 align-items-center">
-                                    <label class="col-sm-3 col-form-label" for="disciplinaryIssues">Disciplinary Issues</label>
-                                    <div class="col-sm-9">
+                                <div class="mb-3 row g-2 mx-0 align-items-md-center">
+                                    <label class="col-12 col-md-3 col-form-label" for="disciplinaryIssues">Disciplinary Issues</label>
+                                    <div class="col-12 col-md-9">
                                         <textarea class="form-control" id="disciplinaryIssues" name="disciplinaryIssues"
                                             placeholder="Enter disciplinary issues" rows="3"></textarea>
                                     </div>
                                 </div>
-                                <div class="mb-3 row mx-3 align-items-center">
-                                    <label class="col-sm-3 col-form-label" for="disciplinary_issue_document">Disciplinary Issue Document</label>
-                                    <div class="col-sm-9">
+                                <div class="mb-3 row g-2 mx-0 align-items-md-center">
+                                    <label class="col-12 col-md-3 col-form-label" for="disciplinary_issue_document">Disciplinary Issue Document</label>
+                                    <div class="col-12 col-md-9">
                                         <input type="file" class="form-control" id="disciplinary_issue_document"
                                             name="disciplinary_issue_document" accept=".pdf,.doc,.docx,.jpg,.png">
                                     </div>
@@ -113,9 +109,9 @@
 
                             {{-- Higher Studies --}}
                             <div class="mb-4">
-                                <div class="mb-3 row mx-3 align-items-center">
-                                    <label class="col-sm-3 col-form-label">Continue to Higher Studies?</label>
-                                    <div class="col-sm-9">
+                                <div class="mb-3 row g-2 mx-0 align-items-md-center">
+                                    <label class="col-12 col-md-3 col-form-label">Continue to Higher Studies?</label>
+                                    <div class="col-12 col-md-9">
                                         <div class="form-check form-check-inline">
                                             <input value="true" class="form-check-input" type="radio" id="continueYes"
                                                 name="continueStudies" required>
@@ -129,18 +125,18 @@
                                     </div>
                                 </div>
 
-                                <div id="higherStudiesContainer" class="mb-3 mx-5 bg-light-primary p-3 rounded"
+                                <div id="higherStudiesContainer" class="mb-3 mx-0 mx-md-3 bg-light-primary p-3 rounded"
                                     style="display:none;">
-                                    <div class="mb-3 row align-items-center">
-                                        <label for="institute" class="col-sm-2 col-form-label">Institute <span class="text-danger">*</span></label>
-                                        <div class="col-sm-10">
+                                    <div class="mb-3 row g-2 align-items-md-center">
+                                        <label for="institute" class="col-12 col-md-3 col-form-label">Institute <span class="text-danger">*</span></label>
+                                        <div class="col-12 col-md-9">
                                             <input type="text" class="form-control bg-white" id="institute"
                                                 name="institute" placeholder="Enter institute">
                                         </div>
                                     </div>
-                                    <div class="mb-1 row align-items-center">
-                                        <label for="fieldOfStudy" class="col-sm-2 col-form-label">Field of Study <span class="text-danger">*</span></label>
-                                        <div class="col-sm-10">
+                                    <div class="mb-1 row g-2 align-items-md-center">
+                                        <label for="fieldOfStudy" class="col-12 col-md-3 col-form-label">Field of Study <span class="text-danger">*</span></label>
+                                        <div class="col-12 col-md-9">
                                             <input type="text" class="form-control bg-white" id="fieldOfStudy"
                                                 name="fieldOfStudy" placeholder="Enter field of study">
                                         </div>
@@ -152,9 +148,9 @@
 
                             {{-- Employment --}}
                             <div class="mb-4">
-                                <div class="mb-3 row mx-3 align-items-center">
-                                    <label class="col-sm-3 col-form-label">Currently an Employee?</label>
-                                    <div class="col-sm-9">
+                                <div class="mb-3 row g-2 mx-0 align-items-md-center">
+                                    <label class="col-12 col-md-3 col-form-label">Currently an Employee?</label>
+                                    <div class="col-12 col-md-9">
                                         <div class="form-check form-check-inline">
                                             <input value="true" class="form-check-input" type="radio" id="employeeYes"
                                                 name="currentlyEmployee" required>
@@ -168,18 +164,18 @@
                                     </div>
                                 </div>
 
-                                <div id="employmentContainer" class="mb-3 mx-5 bg-light-primary p-3 rounded"
+                                <div id="employmentContainer" class="mb-3 mx-0 mx-md-3 bg-light-primary p-3 rounded"
                                     style="display:none;">
-                                    <div class="mb-3 row align-items-center">
-                                        <label for="jobTitle" class="col-sm-2 col-form-label">Job Title <span class="text-danger">*</span></label>
-                                        <div class="col-sm-10">
+                                    <div class="mb-3 row g-2 align-items-md-center">
+                                        <label for="jobTitle" class="col-12 col-md-3 col-form-label">Job Title <span class="text-danger">*</span></label>
+                                        <div class="col-12 col-md-9">
                                             <input type="text" class="form-control bg-white" id="jobTitle"
                                                 name="jobTitle" placeholder="Enter job title" >
                                         </div>
                                     </div>
-                                    <div class="mb-1 row align-items-center">
-                                        <label for="workplace" class="col-sm-2 col-form-label">Workplace <span class="text-danger">*</span></label>
-                                        <div class="col-sm-10">
+                                    <div class="mb-1 row g-2 align-items-md-center">
+                                        <label for="workplace" class="col-12 col-md-3 col-form-label">Workplace <span class="text-danger">*</span></label>
+                                        <div class="col-12 col-md-9">
                                             <input type="text" class="form-control bg-white" id="workplace"
                                                 name="workplace" placeholder="Enter workplace">
                                         </div>
@@ -191,9 +187,9 @@
 
                             {{-- Other Information --}}
                             <div class="mb-4">
-                                <div class="mb-3 row mx-3 align-items-center">
-                                    <label for="otherInformation" class="col-sm-3 col-form-label">Other Information</label>
-                                    <div class="col-sm-9">
+                                <div class="mb-3 row g-2 mx-0 align-items-md-center">
+                                    <label for="otherInformation" class="col-12 col-md-3 col-form-label">Other Information</label>
+                                    <div class="col-12 col-md-9">
                                         <textarea class="form-control" id="otherInformation" name="otherInformation"
                                             placeholder="Enter other information" rows="3"></textarea>
                                     </div>
@@ -362,5 +358,29 @@
     .bg-light-primary{background-color:#f1f5f9!important}
     .bg-terminated{background:#ffe6e9;border:1px solid #ff9aa7;}
     .alert-terminated{background:#ffccd3;color:#7a0014;border-color:#ff9aa7;font-weight:600;letter-spacing:.3px;}
+
+    .student-other-search-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+    .student-other-search-controls .form-control {
+        flex: 1 1 12rem;
+        min-width: 0;
+    }
+    .student-other-search-controls .btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+    @media (max-width: 575.98px) {
+        .student-other-search-controls .btn {
+            width: 100%;
+        }
+        #toastContainer {
+            left: 10px;
+            right: 10px;
+        }
+    }
 </style>
 @endsection
