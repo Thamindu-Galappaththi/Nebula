@@ -44,6 +44,21 @@ class LibrarianDashboardPageTest extends TestCase
             ->assertSee('librarian-pending-page', false);
     }
 
+    public function test_sidebar_and_student_list_are_available(): void
+    {
+        $this->actingAs($this->librarian)
+            ->get(route('librarian.dashboard'))
+            ->assertOk()
+            ->assertSee('STUDENT MANAGEMENT')
+            ->assertSee('Student Lists')
+            ->assertSee(route('student_management.list', [], false), false);
+
+        $this->actingAs($this->librarian)
+            ->get(route('student_management.list'))
+            ->assertOk()
+            ->assertSee('Student Lists');
+    }
+
     public function test_pending_pagination_uses_ajax_partial_without_full_page(): void
     {
         $this->seedPendingRequests(11);
