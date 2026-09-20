@@ -15,7 +15,7 @@
         box-shadow: 0 6px 18px rgba(0,0,0,0.1);
     }
 
-    .pending { border-left-color: #0d6efd; }
+    .pending { border-left-color: #f59e0b; }
     .approved { border-left-color: #198754; }
     .rejected { border-left-color: #dc3545; }
 
@@ -26,7 +26,7 @@
         font-weight: 600;
         text-transform: capitalize;
     }
-    .badge-pending { background: #0d6efd; color: white; }
+    .badge-pending { background: #f59e0b; color: #1f2937; }
     .badge-approved { background: #198754; color: white; }
     .badge-rejected { background: #dc3545; color: white; }
 </style>
@@ -48,7 +48,7 @@
         <div class="col-md-4">
             <div class="card stat-card pending p-4 shadow-sm">
                 <h6 class="text-muted">Pending Reviews</h6>
-                <h2 class="text-primary fw-bold">{{ $pendingCount }}</h2>
+                <h2 class="text-warning fw-bold">{{ $pendingCount }}</h2>
             </div>
         </div>
         <div class="col-md-4">
@@ -68,7 +68,7 @@
     <div class="card shadow-sm p-4 mb-4 bg-white">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="fw-semibold m-0">Financial Clearance Pending</h5>
-            <span class="badge bg-primary">{{ $pendingCount }} pending</span>
+            <span class="badge bg-warning text-dark">{{ $pendingCount }} pending</span>
         </div>
 
         <div class="table-responsive">
