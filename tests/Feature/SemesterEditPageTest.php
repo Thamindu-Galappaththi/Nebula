@@ -105,7 +105,9 @@ class SemesterEditPageTest extends TestCase
             ->assertSee('semester-edit-header', false)
             ->assertSee('semester-module-picker', false)
             ->assertSee('data-label="Semester"', false)
-            ->assertSee('modal-fullscreen-sm-down', false)
+            ->assertSee('duplicateCancelBtn', false)
+            ->assertSee('modal-dialog-centered modal-dialog-scrollable', false)
+            ->assertDontSee('modal-fullscreen-sm-down', false)
             ->assertSee('@media (max-width: 767.98px)', false)
             ->getContent();
 

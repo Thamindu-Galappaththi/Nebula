@@ -82,6 +82,77 @@
     .swal2-container {
         z-index: 20000;
     }
+    .semester-sheet-modal {
+        max-width: min(800px, calc(100vw - 1.5rem));
+        margin: 1rem auto;
+    }
+    .semester-sheet-modal .modal-content {
+        height: auto;
+        max-height: calc(100dvh - 2rem);
+    }
+    .semester-sheet-modal .modal-body {
+        overflow-y: auto;
+    }
+    @media (max-width: 575.98px) {
+        .semester-sheet-modal .modal-footer {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .semester-sheet-modal .modal-footer .btn {
+            flex: 1 1 auto;
+            margin: 0;
+        }
+        .semester-sheet-modal .table td {
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: normal;
+        }
+        .semester-modules-table thead {
+            display: none;
+        }
+        .semester-modules-table,
+        .semester-modules-table tbody,
+        .semester-modules-table tr,
+        .semester-modules-table td {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            box-shadow: none !important;
+            white-space: normal;
+        }
+        .semester-modules-table tbody tr {
+            margin-bottom: 0.85rem;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+            background: #fff;
+        }
+        .semester-modules-table td {
+            border: 0 !important;
+            border-bottom: 1px solid #f1f3f5 !important;
+            padding: 0.5rem 0;
+            text-align: left;
+            overflow-wrap: break-word;
+            word-break: normal;
+        }
+        .semester-modules-table td:last-child {
+            border-bottom: 0 !important;
+        }
+        .semester-modules-table td::before {
+            content: attr(data-label);
+            display: block;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 0.2rem;
+        }
+        .semester-modules-table .badge {
+            white-space: normal;
+            text-align: left;
+        }
+        .semester-modules-wrap {
+            overflow: visible;
+        }
+    }
     @media (max-width: 991.98px) {
         .semester-page-header {
             flex-direction: column;
@@ -399,7 +470,7 @@
         $status = $semester->status ?: 'completed';
     @endphp
 <div class="modal fade" id="semesterModal{{ $semester->id }}" tabindex="-1" aria-labelledby="semesterModalLabel{{ $semester->id }}" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered semester-sheet-modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="semesterModalLabel{{ $semester->id }}">Semester Details - {{ $semester->name }}</h5>
@@ -444,7 +515,7 @@
 </div>
 
 <div class="modal fade" id="modulesModal{{ $semester->id }}" tabindex="-1" aria-labelledby="modulesModalLabel{{ $semester->id }}" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered semester-sheet-modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modulesModalLabel{{ $semester->id }}">Modules - {{ $semester->name }}</h5>
@@ -452,8 +523,8 @@
             </div>
             <div class="modal-body">
                 @if($semester->modules->count() > 0)
-                    <div class="table-responsive">
-                        <table class="table table-striped">
+                    <div class="table-responsive semester-modules-wrap">
+                        <table class="table table-striped semester-modules-table">
                             <thead>
                                 <tr>
                                     <th>Module Name</th>
@@ -465,14 +536,14 @@
                             <tbody>
                                 @foreach($semester->modules as $module)
                                 <tr>
-                                    <td>{{ $module->module_name }}</td>
-                                    <td>
+                                    <td data-label="Module Name">{{ $module->module_name }}</td>
+                                    <td data-label="Type">
                                         <span class="badge bg-{{ $module->module_type === 'core' ? 'primary' : ($module->module_type === 'elective' ? 'success' : 'warning') }}">
                                             {{ ucfirst(str_replace('_', ' ', $module->module_type ?? '')) }}
                                         </span>
                                     </td>
-                                    <td>{{ $module->credits ?? 'N/A' }}</td>
-                                    <td>{{ $module->pivot->specialization ?? 'N/A' }}</td>
+                                    <td data-label="Credits">{{ $module->credits ?? 'N/A' }}</td>
+                                    <td data-label="Specialization">{{ $module->pivot->specialization ?? 'N/A' }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -491,7 +562,7 @@
 @endforeach
 
 <div class="modal fade" id="bulkActionsModal" tabindex="-1" aria-labelledby="bulkActionsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered semester-sheet-modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="bulkActionsModalLabel">Bulk Actions</h5>
