@@ -80,18 +80,16 @@
                         <option value="location_desc" @selected(request('sort')==='location_desc')>Location Z-A</option>
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-lg-2 d-grid">
-                    <button class="btn btn-primary btn-sm w-100">Filter</button>
+                <div class="col-12 col-lg-2">
+                    <label class="form-label small d-none d-lg-block">&nbsp;</label>
+                    <div class="d-flex gap-2 payment-plan-filter-actions">
+                        <button type="submit" class="btn btn-primary btn-sm flex-fill">Filter</button>
+                        <a href="{{ route('payment.plan.index') }}" class="btn btn-outline-secondary btn-sm flex-fill">
+                            <i class="bi bi-x-circle"></i> Clear Filters
+                        </a>
+                    </div>
                 </div>
             </form>
-
-            @if(request()->hasAny(['location', 'course_id', 'intake_id']))
-                <div class="mt-2">
-                    <a href="{{ route('payment.plan.index') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-x-circle"></i> Clear Filters
-                    </a>
-                </div>
-            @endif
         </div>
     </div>
 
@@ -108,9 +106,9 @@
             @endphp
 
             @if($totalCount > 0)
-                <div class="d-none d-lg-block px-3 py-2 bg-light border-bottom">
+                <div class="d-none d-lg-block px-3 py-2 bg-light border-bottom payment-plan-results-summary">
                     <small class="text-muted">
-                        Showing {{ $from }} to {{ $to }} of {{ $totalCount }} results
+                        Showing {{ $from }}–{{ $to }} of {{ $totalCount }} results
                     </small>
                 </div>
             @endif
@@ -246,9 +244,9 @@
             <!-- Mobile Card View -->
             <div class="d-lg-none">
                 @if($totalCount > 0)
-                    <div class="px-3 py-2 bg-light border-bottom">
+                    <div class="px-3 py-2 bg-light border-bottom payment-plan-results-summary">
                         <small class="text-muted">
-                            Showing {{ $from }} to {{ $to }} of {{ $totalCount }}
+                            Showing {{ $from }}–{{ $to }} of {{ $totalCount }} results
                         </small>
                     </div>
                 @endif
@@ -265,34 +263,34 @@
                             $totalIntl  += (float)($it['international_amount'] ?? 0);
                         }
                     @endphp
-                    <div class="border-bottom p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <span class="badge bg-secondary me-1">#{{ $plan->id }}</span>
-                                <span class="badge bg-info text-wrap">{{ $campusLabel($plan->location) }}</span>
+                    <div class="border-bottom p-3 payment-plan-mobile-card">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div class="d-flex flex-wrap gap-1 min-w-0">
+                                <span class="badge bg-secondary">#{{ $plan->id }}</span>
+                                <span class="badge bg-info">{{ $campusLabel($plan->location) }}</span>
                             </div>
-                            <a href="{{ route('payment.plan.edit',$plan->id) }}" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{{ route('payment.plan.edit',$plan->id) }}" class="btn btn-sm btn-warning flex-shrink-0">Edit</a>
                         </div>
 
-                        <div class="mb-2">
-                            <strong class="d-block text-truncate">{{ optional($plan->course)->course_name ?? '—' }}</strong>
+                        <div class="mb-2 min-w-0">
+                            <strong class="d-block payment-plan-course-name">{{ optional($plan->course)->course_name ?? '—' }}</strong>
                             <small class="text-muted">{{ optional($plan->intake)->batch ?? '—' }}</small>
                         </div>
 
                         <div class="row g-2 small mb-2">
-                            <div class="col-6">
+                            <div class="col-6 min-w-0">
                                 <div class="text-muted">Reg. Fee</div>
-                                <strong class="text-nowrap">LKR {{ number_format((float) $plan->registration_fee, 2) }}</strong>
+                                <strong class="payment-plan-fee">LKR {{ number_format((float) $plan->registration_fee, 2) }}</strong>
                             </div>
-                            <div class="col-6">
+                            <div class="col-6 min-w-0">
                                 <div class="text-muted">Local Fee</div>
-                                <strong class="text-nowrap">LKR {{ number_format((float) $plan->local_fee, 2) }}</strong>
+                                <strong class="payment-plan-fee">LKR {{ number_format((float) $plan->local_fee, 2) }}</strong>
                             </div>
-                            <div class="col-6">
+                            <div class="col-6 min-w-0">
                                 <div class="text-muted">Franchise</div>
-                                <strong class="text-nowrap">{{ number_format((float) $plan->international_fee, 2) }} {{ $plan->international_currency }}</strong>
+                                <strong class="payment-plan-fee">{{ number_format((float) $plan->international_fee, 2) }} {{ $plan->international_currency }}</strong>
                             </div>
-                            <div class="col-6">
+                            <div class="col-6 min-w-0">
                                 <div class="text-muted">Discount</div>
                                 <strong>
                                     @if($plan->apply_discount)
@@ -305,56 +303,62 @@
                         </div>
 
                         @if($plan->installment_plan)
-                            <button class="btn btn-sm btn-outline-secondary w-100"
+                            <button class="btn btn-sm btn-outline-secondary w-100 payment-plan-installments-toggle"
                                     type="button"
                                     data-bs-toggle="collapse"
-                                    data-bs-target="#inst-mobile-{{ $plan->id }}">
+                                    data-bs-target="#inst-mobile-{{ $plan->id }}"
+                                    aria-expanded="false"
+                                    aria-controls="inst-mobile-{{ $plan->id }}">
                                 View {{ $count }} Installments
-                                @if($count)
-                                    <small class="text-muted d-block">({{ $firstDue }} → {{ $lastDue }})</small>
-                                @endif
                             </button>
+                            @if($count)
+                                <div class="small text-muted mt-1">{{ $firstDue }} → {{ $lastDue }}</div>
+                            @endif
 
                             <div class="collapse mt-2" id="inst-mobile-{{ $plan->id }}">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped mb-0 payment-plan-installments">
-                                        <thead class="table-secondary">
-                                            <tr>
-                                                <th>#</th>
-                                                <th>Due Date</th>
-                                                <th class="text-end">Local</th>
-                                                <th class="text-end">Intl</th>
-                                                <th>Tax</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse($items as $it)
-                                                <tr>
-                                                    <td data-label="#">{{ $it['installment_number'] ?? '' }}</td>
-                                                    <td class="small" data-label="Due Date">{{ $it['due_date'] ?? '' }}</td>
-                                                    <td class="text-end small" data-label="Local">{{ number_format((float)($it['local_amount'] ?? 0), 0) }}</td>
-                                                    <td class="text-end small" data-label="Intl">{{ number_format((float)($it['international_amount'] ?? 0), 0) }}</td>
-                                                    <td data-label="Tax">
-                                                        @if(!empty($it['apply_tax']))
-                                                            <span class="badge bg-success">Y</span>
-                                                        @else
-                                                            <span class="badge bg-secondary">N</span>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr><td colspan="5" class="text-center text-muted">No installments</td></tr>
-                                            @endforelse
-                                        </tbody>
-                                        <tfoot class="small">
-                                            <tr class="fw-semibold">
-                                                <td colspan="2" data-label="Totals">Totals:</td>
-                                                <td class="text-end" data-label="Local">{{ number_format($totalLocal, 0) }}</td>
-                                                <td class="text-end" data-label="Intl">{{ number_format($totalIntl, 0) }}</td>
-                                                <td></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
+                                <div class="payment-plan-installment-list">
+                                    @forelse($items as $it)
+                                        <div class="payment-plan-installment-item">
+                                            <div>
+                                                <span class="payment-plan-installment-label">#</span>
+                                                {{ $it['installment_number'] ?? '—' }}
+                                            </div>
+                                            <div>
+                                                <span class="payment-plan-installment-label">Due Date</span>
+                                                {{ $it['due_date'] ?? '—' }}
+                                            </div>
+                                            <div>
+                                                <span class="payment-plan-installment-label">Local (LKR)</span>
+                                                {{ number_format((float)($it['local_amount'] ?? 0), 2) }}
+                                            </div>
+                                            <div>
+                                                <span class="payment-plan-installment-label">Intl ({{ $plan->international_currency }})</span>
+                                                {{ number_format((float)($it['international_amount'] ?? 0), 2) }}
+                                            </div>
+                                            <div>
+                                                <span class="payment-plan-installment-label">Tax</span>
+                                                @if(!empty($it['apply_tax']))
+                                                    <span class="badge bg-success">Yes</span>
+                                                @else
+                                                    <span class="badge bg-secondary">No</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <div class="text-muted small">No installments found</div>
+                                    @endforelse
+                                    @if($count)
+                                        <div class="payment-plan-installment-item fw-semibold">
+                                            <div>
+                                                <span class="payment-plan-installment-label">Local total</span>
+                                                {{ number_format($totalLocal, 2) }}
+                                            </div>
+                                            <div>
+                                                <span class="payment-plan-installment-label">Intl total</span>
+                                                {{ number_format($totalIntl, 2) }}
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         @endif
@@ -385,8 +389,8 @@
                             <option value="100" @selected((int) $plans->perPage() === 100)>100</option>
                         </select>
                     </form>
-                    <div class="small text-muted align-self-center">
-                        Showing {{ $plans->firstItem() }} to {{ $plans->lastItem() }} of {{ $plans->total() }}
+                    <div class="small text-muted align-self-center payment-plan-results-count">
+                        Showing {{ $plans->firstItem() }}–{{ $plans->lastItem() }} of {{ $plans->total() }} results
                     </div>
                     <nav class="payment-plan-pagination" aria-label="Payment plan pages">
                         {{ $plans->onEachSide(1)->links('pagination::bootstrap-5') }}
@@ -543,7 +547,7 @@ body:has(#payment-plan-index) .body-wrapper > .container-fluid {
     flex: 1 1 auto;
 }
 #payment-plan-index h2 {
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 #payment-plan-index .card {
     transition: box-shadow 0.2s;
@@ -642,6 +646,37 @@ body:has(#payment-plan-index) .body-wrapper > .container-fluid {
     justify-content: flex-end;
     margin-bottom: 0;
 }
+.payment-plan-results-summary,
+.payment-plan-results-count {
+    overflow-wrap: break-word;
+    word-break: normal;
+}
+.payment-plan-course-name,
+.payment-plan-fee {
+    overflow-wrap: break-word;
+    word-break: normal;
+    white-space: normal;
+}
+.payment-plan-installment-list {
+    display: grid;
+    gap: 0.65rem;
+}
+.payment-plan-installment-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    background: #fff;
+}
+.payment-plan-installment-item > div + div {
+    margin-top: 0.4rem;
+}
+.payment-plan-installment-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 2px;
+}
 #payment-plan-index .badge {
     white-space: normal;
     text-align: left;
@@ -660,6 +695,9 @@ body:has(#payment-plan-index) .body-wrapper > .container-fluid {
     .payment-plan-header-actions .btn {
         width: 100%;
     }
+    .payment-plan-filter-actions {
+        width: 100%;
+    }
     .payment-plan-footer {
         flex-direction: column;
         align-items: stretch;
@@ -667,37 +705,9 @@ body:has(#payment-plan-index) .body-wrapper > .container-fluid {
     .payment-plan-pagination .pagination {
         justify-content: center;
     }
-    #payment-plan-index .payment-plan-installments thead {
-        display: none;
-    }
-    #payment-plan-index .payment-plan-installments,
-    #payment-plan-index .payment-plan-installments tbody,
-    #payment-plan-index .payment-plan-installments tfoot,
-    #payment-plan-index .payment-plan-installments tr,
-    #payment-plan-index .payment-plan-installments td {
-        display: block;
-        width: 100%;
-    }
-    #payment-plan-index .payment-plan-installments tr {
-        border-bottom: 1px solid #e5e7eb;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.5rem;
-    }
-    #payment-plan-index .payment-plan-installments td {
-        text-align: left !important;
-        padding: 0.35rem 0;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
-    #payment-plan-index .payment-plan-installments td[data-label]::before {
-        content: attr(data-label);
-        display: block;
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: #64748b;
-        margin-bottom: 2px;
-        text-transform: uppercase;
-        letter-spacing: 0.02em;
+    .payment-plan-installments-toggle {
+        white-space: normal;
+        min-height: 2.4rem;
     }
 }
 </style>

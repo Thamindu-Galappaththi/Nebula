@@ -43,7 +43,9 @@ class PaymentPlanIndexPageTest extends TestCase
             ->get(route('payment.plan.index', ['per_page' => 10]))
             ->assertOk()
             ->assertSee('payment-plan-index', false)
-            ->assertSee('Showing 1 to 10 of 12')
+            ->assertSee('Clear Filters')
+            ->assertSee('payment-plan-filter-actions', false)
+            ->assertSee('Showing 1–10 of 12 results')
             ->assertSee('Per page')
             ->assertSee('Excel')
             ->assertSee('Nebula Institute of Technology - Welisara')
@@ -53,7 +55,7 @@ class PaymentPlanIndexPageTest extends TestCase
         $this->actingAs($this->actor)
             ->get(route('payment.plan.index', ['per_page' => 25]))
             ->assertOk()
-            ->assertSee('Showing 1 to 12 of 12');
+            ->assertSee('Showing 1–12 of 12 results');
     }
 
     public function test_courses_by_location_return_data_array(): void
@@ -105,6 +107,42 @@ class PaymentPlanIndexPageTest extends TestCase
             ->assertSeeInOrder(['#' . $first->id, '#' . $second->id]);
     }
 
+    public function test_mobile_installments_use_stacked_cards(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $this->makePlan($course, $intake, [
+            'installment_plan' => true,
+            'installments'     => [
+                [
+                    'installment_number'     => 1,
+                    'due_date'               => '2026-01-15',
+                    'local_amount'           => 10000,
+                    'international_amount'   => 50,
+                    'apply_tax'              => true,
+                ],
+                [
+                    'installment_number'     => 2,
+                    'due_date'               => '2026-02-15',
+                    'local_amount'           => 15000,
+                    'international_amount'   => 75,
+                    'apply_tax'              => false,
+                ],
+            ],
+        ]);
+
+        $this->actingAs($this->actor)
+            ->get(route('payment.plan.index'))
+            ->assertOk()
+            ->assertSee('Clear Filters')
+            ->assertSee('View 2 Installments')
+            ->assertSee('payment-plan-installment-list', false)
+            ->assertSee('payment-plan-course-name', false)
+            ->assertDontSee('d-block text-truncate', false)
+            ->assertSee('2026-01-15')
+            ->assertSee('2026-02-15');
+    }
+
     public function test_excel_and_pdf_export_download(): void
     {
         $course = $this->makeCourse();
@@ -154,9 +192,9 @@ class PaymentPlanIndexPageTest extends TestCase
         ]);
     }
 
-    private function makePlan(Course $course, Intake $intake): PaymentPlan
+    private function makePlan(Course $course, Intake $intake, array $overrides = []): PaymentPlan
     {
-        return PaymentPlan::forceCreate([
+        return PaymentPlan::forceCreate(array_merge([
             'location'               => 'Welisara',
             'course_id'              => $course->course_id,
             'intake_id'              => $intake->intake_id,
@@ -167,6 +205,6 @@ class PaymentPlanIndexPageTest extends TestCase
             'sscl_tax'               => 2.5,
             'apply_discount'         => false,
             'installment_plan'       => false,
-        ]);
+        ], $overrides));
     }
 }
