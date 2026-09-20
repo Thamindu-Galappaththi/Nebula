@@ -22,9 +22,16 @@
     .module-list-header {
         gap: 0.75rem;
     }
+    .module-creation-page,
+    .module-creation-page .card,
+    .module-creation-page .card-body {
+        max-width: 100%;
+        min-width: 0;
+    }
     .module-table-scroll {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        max-width: 100%;
     }
     #modulesTable {
         min-width: 980px;
@@ -51,6 +58,32 @@
     .swal2-container {
         z-index: 20000;
     }
+    #editModuleModal .modal-dialog {
+        max-width: min(32rem, calc(100vw - 1.5rem));
+        margin: 1rem auto;
+    }
+    #editModuleModal .modal-content {
+        height: auto;
+        max-height: calc(100dvh - 2rem);
+    }
+    #editModuleModal .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100dvh - 2rem);
+    }
+    #editModuleModal .modal-body {
+        overflow-y: auto;
+    }
+    @media (max-width: 575.98px) {
+        #editModuleModal .modal-footer {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        #editModuleModal .modal-footer .btn {
+            flex: 1 1 auto;
+            margin: 0;
+        }
+    }
     @media (max-width: 991.98px) {
         .module-list-header {
             flex-direction: column;
@@ -59,8 +92,13 @@
         .module-list-header .btn {
             width: 100%;
         }
+        .module-table-scroll {
+            overflow: visible;
+        }
         #modulesTable {
-            min-width: 0;
+            min-width: 0 !important;
+            width: 100%;
+            border: 0;
         }
         #modulesTable thead {
             display: none;
@@ -71,6 +109,9 @@
         #modulesTable td {
             display: block;
             width: 100%;
+            max-width: 100%;
+            box-shadow: none !important;
+            white-space: normal;
         }
         #modulesTable tr[data-module-id] {
             margin-bottom: 0.85rem;
@@ -80,23 +121,23 @@
             background: #fff;
         }
         #modulesTable td {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 0.75rem;
-            border: 0;
-            border-bottom: 1px solid #f1f3f5;
-            padding: 0.45rem 0;
+            border: 0 !important;
+            border-bottom: 1px solid #f1f3f5 !important;
+            padding: 0.5rem 0;
+            text-align: left;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
         #modulesTable td:last-child {
-            border-bottom: 0;
+            border-bottom: 0 !important;
         }
         #modulesTable td::before {
             content: attr(data-label);
+            display: block;
             font-weight: 600;
             color: #6c757d;
-            flex: 0 0 38%;
-            max-width: 38%;
+            margin-bottom: 0.2rem;
+            white-space: normal;
         }
         #modulesTable td[data-label=""]::before,
         #modulesTable td.module-select-cell::before {
@@ -104,13 +145,18 @@
         }
         #modulesTable td.module-select-cell,
         #modulesTable td.module-actions-cell {
+            display: flex;
             justify-content: flex-end;
             align-items: center;
+        }
+        #modulesTable td.module-actions-cell::before {
+            margin-right: auto;
+            margin-bottom: 0;
         }
         #modulesTable .empty-row td {
             display: block;
             text-align: center;
-            border: 0;
+            border: 0 !important;
         }
         #modulesTable .empty-row td::before {
             display: none;
@@ -317,7 +363,7 @@
 </div>
 
 <div class="modal fade" id="editModuleModal" tabindex="-1" aria-labelledby="editModuleModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <form id="editModuleForm">
                 @csrf
