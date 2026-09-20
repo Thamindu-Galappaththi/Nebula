@@ -50,7 +50,22 @@
         min-width: 640px;
     }
     .semester-toast-wrap {
-        z-index: 9999;
+        z-index: 20000;
+        pointer-events: none;
+    }
+    .semester-toast-wrap .toast {
+        pointer-events: auto;
+    }
+    #duplicateModal .modal-dialog {
+        max-width: min(32rem, calc(100vw - 1.5rem));
+        margin: 1rem auto;
+    }
+    #duplicateModal .modal-content {
+        height: auto;
+        max-height: calc(100dvh - 2rem);
+    }
+    #duplicateModal .modal-body {
+        overflow-y: auto;
     }
     @media (max-width: 767.98px) {
         .semester-edit-header {
@@ -112,15 +127,18 @@
         }
         .semester-toast-wrap {
             top: auto !important;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: 0.75rem;
+            left: auto;
+            right: 0.75rem;
+            width: auto;
+            max-width: calc(100vw - 1.5rem);
         }
         .semester-duplicate-footer {
-            flex-direction: column-reverse;
+            flex-wrap: wrap;
             gap: 0.5rem;
         }
         .semester-duplicate-footer .btn {
+            flex: 1 1 auto;
             width: 100%;
             margin: 0 !important;
         }
@@ -275,7 +293,7 @@
 </div>
 
 <div class="modal fade" id="duplicateModal" tabindex="-1" aria-labelledby="duplicateModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="duplicateModalLabel">Duplicate Semester</h5>
@@ -297,7 +315,7 @@
                 </div>
             </div>
             <div class="modal-footer semester-duplicate-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" id="duplicateCancelBtn" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="duplicateSemesterBtn">
                     <i class="ti ti-copy"></i> Duplicate Semester
                 </button>
@@ -911,6 +929,14 @@ document.addEventListener('DOMContentLoaded', function() {
             resetSubmitState();
             window.showToast(error.message || 'An unexpected error occurred.', 'danger');
         });
+    });
+
+    document.getElementById('duplicateCancelBtn')?.addEventListener('click', function () {
+        const modalEl = document.getElementById('duplicateModal');
+        const modal = window.bootstrap?.Modal.getOrCreateInstance(modalEl);
+        if (modal) {
+            modal.hide();
+        }
     });
 
     document.getElementById('duplicateSemesterBtn').addEventListener('click', function() {

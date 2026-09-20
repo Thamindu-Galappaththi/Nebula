@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Course;
 use App\Models\Intake;
+use App\Models\PaymentPlan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -59,6 +60,8 @@ class IntakeCreationPageTest extends TestCase
         $this->assertStringNotContainsString('Show All', $html);
         $this->assertStringNotContainsString("window.location = '?location='", $html);
         $this->assertStringNotContainsString('applyIntakeFilters', $html);
+        $this->assertStringNotContainsString("url: '/api/courses/'", $html);
+        $this->assertStringContainsString('cd_conducted_by', $html);
     }
 
     public function test_intakes_are_paginated_ten_per_page_without_full_html_on_ajax(): void
@@ -195,6 +198,45 @@ class IntakeCreationPageTest extends TestCase
         $this->assertStringContainsString('Date Match Batch', $byCapacity);
         $this->assertStringContainsString('0 / 45', $byCapacity);
         $this->assertStringNotContainsString('Other Batch', $byCapacity);
+    }
+
+    public function test_payment_plan_lookup_does_not_fail_when_course_type_column_is_missing(): void
+    {
+        $course = $this->makeCourse('BEng (Hons) in Robotics and AI');
+
+        $this->actingAs($this->actor)
+            ->post(route('get.payment.plan.details'), [
+                'course_id' => $course->course_id,
+                'location' => 'Welisara',
+                'course_type' => 'degree',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', false);
+
+        $intake = $this->makeIntake($course, '2026-Sep-RAI');
+        PaymentPlan::forceCreate([
+            'location' => 'Welisara',
+            'course_id' => $course->course_id,
+            'intake_id' => $intake->intake_id,
+            'registration_fee' => 7500,
+            'local_fee' => 275000,
+            'international_fee' => 1200,
+            'international_currency' => 'USD',
+            'sscl_tax' => 2.5,
+            'bank_charges' => 150,
+        ]);
+
+        $this->actingAs($this->actor)
+            ->post(route('get.payment.plan.details'), [
+                'course_id' => $course->course_id,
+                'location' => 'Welisara',
+                'course_type' => 'degree',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('registration_fee', '7500.00')
+            ->assertJsonPath('course_fee', '275000.00')
+            ->assertJsonPath('franchise_payment', '1200.00');
     }
 
     private function makeCourse(string $name, string $type = 'degree', string $location = 'Welisara'): Course

@@ -828,21 +828,34 @@ class DGMDashboardController extends Controller
     {
         $year = $request->input('year', date('Y'));
 
-        // Get counts for each marketing_survey type for the current year
-        $data = \App\Models\Student::select('marketing_survey', DB::raw('COUNT(*) as count'))
+        $data = \App\Models\Student::query()
+            ->select('marketing_survey', DB::raw('COUNT(*) as count'))
             ->whereYear('created_at', $year)
             ->whereNotNull('marketing_survey')
+            ->where('marketing_survey', '!=', '')
             ->groupBy('marketing_survey')
             ->get();
 
-        // Format for chart.js
-        $labels = $data->pluck('marketing_survey')->toArray();
-        $counts = $data->pluck('count')->toArray();
+        $flattened = [];
+        foreach ($data as $item) {
+            foreach ($this->splitMarketingSources($item->marketing_survey) as $source) {
+                $flattened[$source] = ($flattened[$source] ?? 0) + (int) $item->count;
+            }
+        }
+
+        arsort($flattened);
 
         return response()->json([
-            'labels' => $labels,
-            'counts' => $counts,
+            'labels' => array_values(array_keys($flattened)),
+            'counts' => array_values($flattened),
         ]);
+    }
+
+    private function splitMarketingSources(?string $value): array
+    {
+        return array_values(array_filter(array_map('trim', explode(',', (string) $value)), function ($source) {
+            return $source !== '';
+        }));
     }
 
     public function downloadStudentTemplate()

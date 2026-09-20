@@ -2,18 +2,23 @@
 
 namespace Tests\Feature;
 
+use App\Models\ClearanceRequest;
 use App\Models\Course;
 use App\Models\CourseRegistration;
+use App\Models\ExamResult;
 use App\Models\Intake;
+use App\Models\Module;
 use App\Models\ParentGuardian;
 use App\Models\PaymentDetail;
 use App\Models\PaymentInstallment;
+use App\Models\Semester;
 use App\Models\Student;
 use App\Models\StudentExam;
 use App\Models\StudentPaymentPlan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StudentProfileTest extends TestCase
@@ -60,6 +65,14 @@ class StudentProfileTest extends TestCase
             ->assertOk()
             ->assertSee('Student Profile')
             ->assertSee('Enter NIC number')
+            ->assertSee('statusHistoryCount', false)
+            ->assertSee('No document uploaded', false)
+            ->assertSee('clearanceDocumentCell', false)
+            ->assertSee('/^(?:\\+94|94|0)?[1-9]\\d{8}$/', false)
+            ->assertSee('class="form-control bg-danger text-white" id="parentEmergencyContact"', false)
+            ->assertSee('File not available', false)
+            ->assertSee('certificateTabHtml', false)
+            ->assertDontSee('$(\'#status-history-tab\').addClass(\'bg-danger text-white\')', false)
             ->assertDontSee('Trying to get property');
     }
 
@@ -287,6 +300,219 @@ class StudentProfileTest extends TestCase
             ->assertJsonPath('summary.registration_fee', 20000)
             ->assertJsonPath('summary.total_local_amount', 45000)
             ->assertJsonPath('summary.local_outstanding', 25000);
+    }
+
+    public function test_exam_semesters_load_for_certificate_course_without_semester_rows(): void
+    {
+        $setup = $this->makePaymentStudent();
+        $module = Module::forceCreate([
+            'module_code'     => 'CAIT-101',
+            'module_name'     => 'IT Fundamentals',
+            'module_type'     => 'core',
+            'module_category' => 'certificate',
+            'credits'         => 5,
+        ]);
+        ExamResult::forceCreate([
+            'student_id' => $setup['student']->student_id,
+            'course_id'  => $setup['course']->course_id,
+            'module_id'  => $module->module_id,
+            'intake_id'  => $setup['intake']->intake_id,
+            'location'   => 'Welisara',
+            'semester'   => '1',
+            'marks'      => 72,
+            'grade'      => 'B',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $setup['student']->student_id . '/course/' . $setup['course']->course_id . '/semesters')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('semesters.0', '1');
+    }
+
+    public function test_exam_semesters_load_from_semester_names(): void
+    {
+        $setup = $this->makePaymentStudent();
+        Semester::forceCreate([
+            'name'       => 'Semester 1',
+            'course_id'  => $setup['course']->course_id,
+            'intake_id'  => $setup['intake']->intake_id,
+            'start_date' => '2026-01-01',
+            'end_date'   => '2026-06-30',
+            'status'     => 'active',
+        ]);
+        Semester::forceCreate([
+            'name'       => 'Semester 1',
+            'course_id'  => $setup['course']->course_id,
+            'intake_id'  => $setup['intake']->intake_id,
+            'start_date' => '2026-07-01',
+            'end_date'   => '2026-12-31',
+            'status'     => 'upcoming',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $setup['student']->student_id . '/course/' . $setup['course']->course_id . '/semesters')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('semesters.0', 'Semester 1')
+            ->assertJsonCount(1, 'semesters');
+    }
+
+    public function test_clearance_documents_are_returned_only_when_a_file_exists(): void
+    {
+        Storage::fake('public');
+        $setup = $this->makePaymentStudent();
+        $studentId = $setup['student']->student_id;
+
+        ClearanceRequest::forceCreate([
+            'clearance_type' => ClearanceRequest::TYPE_HOSTEL,
+            'location'       => 'Welisara',
+            'course_id'      => $setup['course']->course_id,
+            'intake_id'      => $setup['intake']->intake_id,
+            'student_id'     => $studentId,
+            'status'         => ClearanceRequest::STATUS_APPROVED,
+            'remarks'        => 'NA',
+            'clearance_slip' => null,
+            'approved_at'    => now(),
+            'requested_at'   => now(),
+        ]);
+        ClearanceRequest::forceCreate([
+            'clearance_type' => ClearanceRequest::TYPE_LIBRARY,
+            'location'       => 'Welisara',
+            'course_id'      => $setup['course']->course_id,
+            'intake_id'      => $setup['intake']->intake_id,
+            'student_id'     => $studentId,
+            'status'         => ClearanceRequest::STATUS_APPROVED,
+            'remarks'        => 'Returned books',
+            'clearance_slip' => 'clearance_slips/library-slip.pdf',
+            'approved_at'    => now(),
+            'requested_at'   => now(),
+        ]);
+        Storage::disk('public')->put('clearance_slips/library-slip.pdf', 'slip');
+
+        $response = $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $studentId . '/clearances')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(2, 'clearances');
+
+        $clearances = collect($response->json('clearances'))->keyBy('label');
+
+        $hostel = $clearances['Hostel Clearance'];
+        $this->assertFalse($hostel['has_document']);
+        $this->assertNull($hostel['document_url']);
+        $this->assertNull($hostel['clearance_slip']);
+        $this->assertNull($hostel['remarks']);
+
+        $library = $clearances['Library Clearance'];
+        $this->assertTrue($library['has_document']);
+        $this->assertNotEmpty($library['document_url']);
+        $this->assertStringContainsString('/storage/clearance_slips/library-slip.pdf', $library['document_url']);
+        $this->assertSame('Returned books', $library['remarks']);
+    }
+
+    public function test_certificate_links_are_omitted_when_the_file_is_missing(): void
+    {
+        Storage::fake('public');
+        $student = $this->makeStudent('199033322V');
+        StudentExam::forceCreate([
+            'student_id'       => $student->student_id,
+            'ol_exam_type'     => 'Local',
+            'ol_exam_year'     => '2016',
+            'ol_certificate'   => '1766122568_78KHlgg7WR.pdf',
+            'ol_exam_subjects' => [
+                ['subject' => 'Maths', 'result' => 'A'],
+            ],
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $student->student_id . '/certificates')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('ol_certificate', '1766122568_78KHlgg7WR.pdf')
+            ->assertJsonPath('ol_certificate_available', false)
+            ->assertJsonPath('ol_certificate_url', null);
+    }
+
+    public function test_certificate_url_is_returned_when_the_file_exists(): void
+    {
+        Storage::fake('public');
+        $student = $this->makeStudent('199044411V');
+        Storage::disk('public')->put('certificates/ol/ol-cert.pdf', 'pdf');
+        StudentExam::forceCreate([
+            'student_id'       => $student->student_id,
+            'ol_exam_type'     => 'Local',
+            'ol_exam_year'     => '2016',
+            'ol_certificate'   => 'ol-cert.pdf',
+            'ol_exam_subjects' => [
+                ['subject' => 'Maths', 'result' => 'A'],
+            ],
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $student->student_id . '/certificates')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('ol_certificate_available', true)
+            ->assertJsonPath('ol_certificate', 'ol-cert.pdf');
+
+        $url = $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $student->student_id . '/certificates')
+            ->json('ol_certificate_url');
+
+        $this->assertNotEmpty($url);
+        $this->assertStringContainsString('/storage/certificates/ol/ol-cert.pdf', $url);
+    }
+
+    public function test_parent_info_accepts_country_code_numbers_without_plus(): void
+    {
+        $student = $this->makeStudent('199055544V');
+        ParentGuardian::forceCreate([
+            'student_id'               => $student->student_id,
+            'guardian_name'            => 'W S H Niluka',
+            'guardian_profession'      => null,
+            'guardian_contact_number'  => '94710165814',
+            'guardian_email'           => 'hniluka740@gmail.com',
+            'guardian_address'         => 'Ragama',
+            'emergency_contact_number' => '94710165814',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->postJson(route('student_management.update.parent.info'), [
+                'student_id'               => $student->student_id,
+                'guardian_name'            => 'W S H Niluka',
+                'guardian_profession'      => '',
+                'guardian_contact_number'  => '94710165814',
+                'guardian_email'           => 'hniluka740@gmail.com',
+                'guardian_address'         => '628/25,Siyabalaghawaththa Mawatha, Ragama',
+                'emergency_contact_number' => '94710165814',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('guardian_details', [
+            'student_id'               => $student->student_id,
+            'guardian_contact_number'  => '94710165814',
+            'emergency_contact_number' => '94710165814',
+            'guardian_address'         => '628/25,Siyabalaghawaththa Mawatha, Ragama',
+        ]);
+    }
+
+    public function test_parent_info_rejects_invalid_phone_numbers(): void
+    {
+        $student = $this->makeStudent('199066633V');
+
+        $this->actingAs($this->actor)
+            ->postJson(route('student_management.update.parent.info'), [
+                'student_id'               => $student->student_id,
+                'guardian_name'            => 'Parent Name',
+                'guardian_contact_number'  => '12345',
+                'guardian_email'           => '',
+                'guardian_address'         => 'Colombo',
+                'emergency_contact_number' => '0000000000',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['guardian_contact_number', 'emergency_contact_number']);
     }
 
     private function makePaymentStudent(array $intakeAttrs = []): array

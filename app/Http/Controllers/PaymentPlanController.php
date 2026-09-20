@@ -44,6 +44,12 @@ class PaymentPlanController extends Controller
             }
         }
 
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('payments.partials.payment_plan_results', compact('plans'))->render(),
+            ]);
+        }
+
         return view('payments.payment_plan_index', compact('plans', 'locations', 'courses', 'intakes'));
     }
 

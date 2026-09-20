@@ -331,8 +331,12 @@
                             </div>
 
                         </div>
-                        <div class="mt-4 flex justify-end">
-                            <button onclick="loadStudentsData()"
+                        <div class="dashboard-filter-actions">
+                            <button type="button" id="clearStudentFiltersBtn"
+                                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm font-medium">
+                                Clear Filters
+                            </button>
+                            <button type="button" id="applyStudentFiltersBtn" onclick="loadStudentsData()"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
                                 Apply Filters
                             </button>
@@ -556,8 +560,12 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="mt-4 flex justify-end">
-                            <button onclick="loadRevenueData()"
+                        <div class="dashboard-filter-actions">
+                            <button type="button" id="clearRevenueFiltersBtn"
+                                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm font-medium">
+                                Clear Filters
+                            </button>
+                            <button type="button" id="applyRevenueFiltersBtn" onclick="loadRevenueData()"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
                                 Apply Filters
                             </button>
@@ -630,8 +638,12 @@
                             </div>
                         </div>
 
-                        <div class="mt-4 flex justify-end">
-                            <button onclick="loadOutstandingTabData()"
+                        <div class="dashboard-filter-actions">
+                            <button type="button" id="clearOutstandingFiltersBtn"
+                                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm font-medium">
+                                Clear Filters
+                            </button>
+                            <button type="button" id="applyOutstandingFiltersBtn" onclick="loadOutstandingTabData()"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
                                 Apply Filters
                             </button>
@@ -712,6 +724,21 @@
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
             border: 1px solid #e5e7eb;
             width: 100%;
+        }
+        .dashboard-filter-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        @media (max-width: 575.98px) {
+            .dashboard-filter-actions {
+                flex-direction: column;
+            }
+            .dashboard-filter-actions button {
+                width: 100%;
+            }
         }
 
         .tab-content {
@@ -1430,13 +1457,21 @@
                     if (currentCharts.marketingSurvey) {
                         currentCharts.marketingSurvey.destroy();
                     }
+                    const labels = Array.isArray(data.labels) ? data.labels : [];
+                    const counts = Array.isArray(data.counts) ? data.counts : [];
+                    const rows = labels.map(function (label, index) {
+                        return {
+                            name: String(label || 'Unknown').trim() || 'Unknown',
+                            value: Number(counts[index]) || 0
+                        };
+                    });
                     currentCharts.marketingSurvey = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: data.labels,
+                            labels: rows.map(function (row) { return row.name; }),
                             datasets: [{
-                                label: 'Responses',
-                                data: data.counts,
+                                label: 'Students',
+                                data: rows.map(function (row) { return row.value; }),
                                 backgroundColor: [
                                     '#1877F2', '#E4405F', '#F59E0B', '#EF4444', '#6366F1', '#10B981', '#A3E635'
                                 ],
@@ -1454,13 +1489,31 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { display: false }
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function (items) {
+                                            return items[0] ? String(items[0].label) : '';
+                                        },
+                                        label: function (item) {
+                                            return 'Students: ' + item.parsed.y;
+                                        }
+                                    }
+                                }
                             },
                             scales: {
+                                x: {
+                                    ticks: {
+                                        autoSkip: false,
+                                        maxRotation: 45,
+                                        minRotation: 0
+                                    }
+                                },
                                 y: {
                                     beginAtZero: true,
                                     ticks: {
-                                        stepSize: 1
+                                        stepSize: 1,
+                                        precision: 0
                                     }
                                 }
                             }
@@ -2007,6 +2060,97 @@
                     });
                 }
             });
+
+            function syncDashboardSelect(select) {
+                if (!select) return;
+                const selected = select.options[select.selectedIndex];
+                const wrap = select.closest('.nebula-select');
+                const toggle = wrap ? wrap.querySelector('.nebula-select-toggle') : null;
+                if (toggle) {
+                    toggle.textContent = selected ? selected.text : '';
+                    toggle.title = toggle.textContent;
+                    toggle.disabled = !!select.disabled;
+                    wrap.classList.toggle('is-disabled', !!select.disabled);
+                }
+            }
+
+            function setDashboardSelect(select, value) {
+                if (!select) return;
+                select.value = String(value);
+                if (select.value !== String(value)) {
+                    select.selectedIndex = 0;
+                }
+                syncDashboardSelect(select);
+            }
+
+            function resetDashboardMultiSelect(select) {
+                if (!select) return;
+                Array.from(select.options).forEach(function (opt) {
+                    opt.selected = opt.value === 'all';
+                });
+            }
+
+            function padDashboardMonth(value) {
+                return String(value).padStart(2, '0');
+            }
+
+            function clearStudentFilters() {
+                const year = String(new Date().getFullYear());
+                const lastYear = String(new Date().getFullYear() - 1);
+                const month = padDashboardMonth(new Date().getMonth() + 1);
+                compareToggle.checked = false;
+                rangeToggle.checked = false;
+                setDashboardSelect(yearSelect, year);
+                setDashboardSelect(studentMonthSelect, '');
+                setDashboardSelect(studentDaySelect, '');
+                setDashboardSelect(fromYearSelect, lastYear);
+                setDashboardSelect(fromMonthSelect, '01');
+                setDashboardSelect(toYearSelect, year);
+                setDashboardSelect(toMonthSelect, month);
+                setDashboardSelect(rangeStartYearSelect, lastYear);
+                setDashboardSelect(rangeStartMonthSelect, '01');
+                setDashboardSelect(rangeEndYearSelect, year);
+                setDashboardSelect(rangeEndMonthSelect, month);
+                resetDashboardMultiSelect(document.getElementById('locationSelect'));
+                resetDashboardMultiSelect(document.getElementById('courseSelect'));
+                updateSelectors();
+                populateDays('studentDaySelect', 'yearSelect', 'studentMonthSelect');
+                loadStudentsData();
+            }
+
+            function clearRevenueFilters() {
+                const year = String(new Date().getFullYear());
+                const lastYear = String(new Date().getFullYear() - 1);
+                const month = padDashboardMonth(new Date().getMonth() + 1);
+                revenueCompareToggle.checked = false;
+                revenueRangeToggle.checked = false;
+                setDashboardSelect(revenueYearSelect, year);
+                setDashboardSelect(revenueMonthSelect, '');
+                setDashboardSelect(revenueDaySelect, '');
+                setDashboardSelect(revenueFromYearSelect, lastYear);
+                setDashboardSelect(revenueFromMonthSelect, '01');
+                setDashboardSelect(revenueToYearSelect, year);
+                setDashboardSelect(revenueToMonthSelect, month);
+                setDashboardSelect(revenueRangeStartYearSelect, lastYear);
+                setDashboardSelect(revenueRangeStartMonthSelect, '01');
+                setDashboardSelect(revenueRangeEndYearSelect, year);
+                setDashboardSelect(revenueRangeEndMonthSelect, month);
+                resetDashboardMultiSelect(document.getElementById('revenueLocationSelect'));
+                resetDashboardMultiSelect(document.getElementById('revenueCourseSelect'));
+                updateRevenueSelectors();
+                populateDays('revenueDaySelect', 'revenueYearSelect', 'revenueMonthSelect');
+                loadRevenueData();
+            }
+
+            function clearOutstandingFilters() {
+                resetDashboardMultiSelect(document.getElementById('outstandingLocationSelect'));
+                resetDashboardMultiSelect(document.getElementById('outstandingCourseSelect'));
+                loadOutstandingTabData();
+            }
+
+            document.getElementById('clearStudentFiltersBtn')?.addEventListener('click', clearStudentFilters);
+            document.getElementById('clearRevenueFiltersBtn')?.addEventListener('click', clearRevenueFilters);
+            document.getElementById('clearOutstandingFiltersBtn')?.addEventListener('click', clearOutstandingFilters);
 
             // populate on load (will disable day selects if no month)
             populateDays('studentDaySelect', 'yearSelect', 'studentMonthSelect');

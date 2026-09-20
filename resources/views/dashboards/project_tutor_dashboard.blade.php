@@ -14,7 +14,7 @@
         transform: translateY(-3px);
         box-shadow: 0 6px 18px rgba(0,0,0,0.1);
     }
-    .pending { border-left-color: #0d6efd; }
+    .pending { border-left-color: #f59e0b; }
     .approved { border-left-color: #198754; }
     .rejected { border-left-color: #dc3545; }
 
@@ -25,7 +25,7 @@
         font-weight: 600;
         text-transform: capitalize;
     }
-    .badge-pending { background: #0d6efd; color: white; }
+    .badge-pending { background: #f59e0b; color: #1f2937; }
     .badge-approved { background: #198754; color: white; }
     .badge-rejected { background: #dc3545; color: white; }
 </style>
@@ -47,7 +47,7 @@
         <div class="col-md-4">
             <div class="card stat-card pending p-4 shadow-sm">
                 <h6 class="text-muted">Pending Reviews</h6>
-                <h2 class="text-primary fw-bold">{{ $pendingCount }}</h2>
+                <h2 class="text-warning fw-bold">{{ $pendingCount }}</h2>
             </div>
         </div>
         <div class="col-md-4">
@@ -67,73 +67,11 @@
     <div class="card shadow-sm p-4 mb-4 bg-white">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="fw-semibold m-0">Project Clearance Pending</h5>
-            <span class="badge bg-primary">{{ $pendingCount }} pending</span>
+            <span class="badge bg-warning text-dark">{{ $pendingCount }} pending</span>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-hover align-middle text-center">
-                <thead class="table-light">
-                    <tr>
-                        <th>Student</th>
-                        <th>Student ID</th>
-                        <th>Course</th>
-                        <th>Intake</th>
-                        <th>Requested</th>
-                        <th>Status</th>
-                        <th>Review</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($pendingList as $req)
-                        @php
-                            $reviewUrl = route('project.clearance.management', array_filter([
-                                'location' => $req->location,
-                                'course_id' => $req->course_id,
-                                'intake_id' => $req->intake_id,
-                            ]));
-                        @endphp
-                        <tr>
-                            <td>{{ $req->student?->name_with_initials ?? $req->student?->full_name ?? 'N/A' }}</td>
-                            <td><code>{{ $req->student?->student_id ?? $req->student_id ?? '-' }}</code></td>
-                            <td>{{ $req->course?->course_name ?? 'N/A' }}</td>
-                            <td>{{ $req->intake?->batch ?? '-' }}</td>
-                            <td>{{ optional($req->requested_at ?? $req->created_at)->format('Y-m-d') ?? '-' }}</td>
-                            <td>
-                                <span class="badge-status badge-pending">Pending</span>
-                            </td>
-                            <td>
-                                <a href="{{ $reviewUrl }}" class="btn btn-sm btn-primary">Review</a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="text-muted py-3">No pending project clearances</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
-            <div class="text-muted fs-13">
-                @if($pendingList->total() > 0)
-                    Showing {{ $pendingList->firstItem() }} to {{ $pendingList->lastItem() }} of {{ $pendingList->total() }} pending request{{ $pendingList->total() === 1 ? '' : 's' }}
-                @else
-                    Showing 0 pending requests
-                @endif
-            </div>
-            <div class="d-flex gap-2">
-                <a href="{{ $pendingList->previousPageUrl() ?: '#' }}"
-                   class="btn btn-outline-secondary btn-sm {{ $pendingList->onFirstPage() ? 'disabled' : '' }}"
-                   @if($pendingList->onFirstPage()) aria-disabled="true" tabindex="-1" @endif>
-                    <i class="ti ti-chevron-left"></i> Previous
-                </a>
-                <a href="{{ $pendingList->hasMorePages() ? $pendingList->nextPageUrl() : '#' }}"
-                   class="btn btn-outline-secondary btn-sm {{ $pendingList->hasMorePages() ? '' : 'disabled' }}"
-                   @if(!$pendingList->hasMorePages()) aria-disabled="true" tabindex="-1" @endif>
-                    Next <i class="ti ti-chevron-right"></i>
-                </a>
-            </div>
+        <div id="projectPendingList">
+            @include('dashboards.partials.project_pending_list', ['pendingList' => $pendingList])
         </div>
     </div>
 
@@ -174,4 +112,76 @@
         </div>
     </div>
 </div>
+
+<script nonce="{{ $cspNonce }}">
+(function () {
+    const list = document.getElementById('projectPendingList');
+    if (!list) {
+        return;
+    }
+
+    function ajaxHeaders() {
+        return {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+    }
+
+    function loadPendingPage(url, pushUrl) {
+        list.classList.add('opacity-50');
+
+        fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: ajaxHeaders()
+        })
+        .then(function (res) {
+            if (!res.ok) {
+                throw new Error('Failed to load pending requests');
+            }
+            return res.json();
+        })
+        .then(function (payload) {
+            if (payload && payload.html) {
+                list.innerHTML = payload.html;
+            }
+            if (pushUrl) {
+                history.pushState({ projectPendingAjax: true }, '', url);
+            }
+        })
+        .catch(function () {
+            window.alert('Failed to load the next page.');
+        })
+        .finally(function () {
+            list.classList.remove('opacity-50');
+        });
+    }
+
+    document.addEventListener('click', function (e) {
+        const link = e.target.closest('#projectPendingList a.project-pending-page');
+        if (!link) {
+            return;
+        }
+
+        e.preventDefault();
+        if (link.classList.contains('disabled') || link.getAttribute('aria-disabled') === 'true') {
+            return;
+        }
+
+        const href = link.getAttribute('href');
+        if (!href || href === '#') {
+            return;
+        }
+
+        loadPendingPage(href, true);
+    });
+
+    window.addEventListener('popstate', function () {
+        if (!document.getElementById('projectPendingList')) {
+            return;
+        }
+        loadPendingPage(window.location.href, false);
+    });
+})();
+</script>
 @endsection

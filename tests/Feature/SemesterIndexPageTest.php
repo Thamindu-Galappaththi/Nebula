@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Course;
 use App\Models\Intake;
+use App\Models\Module;
 use App\Models\Semester;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -68,6 +70,19 @@ class SemesterIndexPageTest extends TestCase
             'status'     => 'active',
         ]);
 
+        $module = Module::forceCreate([
+            'module_name'     => 'Planning A Computing Project (Pearson Set)',
+            'module_code'     => 'BTEC_PLANNING_001',
+            'module_category' => 'degree',
+            'module_type'     => 'core',
+            'credits'         => 15,
+        ]);
+        $semester = Semester::query()->first();
+        DB::table('semester_module')->insert([
+            'semester_id' => $semester->id,
+            'module_id'   => $module->module_id,
+        ]);
+
         $html = $this->actingAs($this->actor)
             ->get(route('semesters.index'))
             ->assertOk()
@@ -76,13 +91,16 @@ class SemesterIndexPageTest extends TestCase
             ->assertSee('BTEC Computing')
             ->assertSee('id="semesterPagination"', false)
             ->assertSee('data-label="Semester"', false)
-            ->assertSee('semester-modules', false)
-            ->assertSee('@media (max-width: 991.98px)', false)
+            ->assertSee('Planning A Computing Project (pearson Set)')
+            ->assertSee('semester-modules-table', false)
+            ->assertSee('data-label="Module Name"', false)
+            ->assertSee('overflow-wrap: break-word', false)
+            ->assertSee('height: auto', false)
+            ->assertDontSee('modal-fullscreen-sm-down', false)
             ->getContent();
 
         $this->assertStringNotContainsString('fas fa-', $html);
         $this->assertStringContainsString('ti ti-plus', $html);
-        $this->assertStringContainsString('modal-fullscreen-sm-down', $html);
         $this->assertStringContainsString('id="clearFilters"', $html);
         $this->assertStringContainsString('resetFilterSelect', $html);
         $this->assertDoesNotMatchRegularExpression('/id="clearFilters"[^>]*>\s*<i class="ti ti-x"/', $html);

@@ -46,6 +46,18 @@
             background-image: url('{{ asset('images/backgrounds/nebula.jpg') }}');
         }
 
+        .left-sidebar {
+            z-index: 1050;
+        }
+        #main-wrapper[data-layout=vertical][data-header-position=fixed] .app-header {
+            z-index: 1040;
+        }
+        @media (max-width: 1199.98px) {
+            #main-wrapper.show-sidebar .nebula-select-menu {
+                display: none !important;
+            }
+        }
+
         html.embed-mode,
         body.embed-mode {
             height: auto !important;

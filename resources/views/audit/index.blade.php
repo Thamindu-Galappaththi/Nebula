@@ -5,11 +5,75 @@
 @section('content')
 <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
-    .audit-log-page [class*="col-"] { min-width: 0; }
+    .audit-log-page,
+    .audit-log-page .card,
+    .audit-log-page .card-body,
+    .audit-log-page form,
+    .audit-log-page .row {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    .audit-log-page,
+    .audit-log-page .card {
+        overflow-x: hidden;
+    }
+    body:has(.audit-log-page) .body-wrapper > .container-fluid {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    .audit-log-page.container-fluid {
+        padding-left: 0;
+        padding-right: 0;
+    }
+    .audit-log-page [class*="col-"] { min-width: 0; max-width: 100%; }
+    .audit-log-page h2,
+    .audit-log-page .text-muted {
+        overflow-wrap: break-word;
+        word-break: normal;
+    }
     .audit-log-page .form-select,
     .audit-log-page .form-control,
-    .audit-log-page .nebula-select {
+    .audit-log-page .nebula-select,
+    .audit-log-page .nebula-select-toggle {
+        width: 100%;
+        min-width: 0;
         max-width: 100%;
+        box-sizing: border-box;
+    }
+    .audit-log-page input[type="date"] {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+    .audit-log-page input[type="date"]::-webkit-calendar-picker-indicator {
+        margin-left: 0.25rem;
+        flex-shrink: 0;
+    }
+    .audit-log-page .input-group {
+        flex-wrap: nowrap;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+    .audit-log-page .input-group > .form-control {
+        flex: 1 1 auto;
+        width: 1%;
+        min-width: 0;
+        max-width: none;
+    }
+    .audit-log-page .input-group-text {
+        flex: 0 0 auto;
+    }
+    .audit-date-fields {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
     }
     .audit-table-scroll {
         width: 100%;
@@ -98,19 +162,38 @@
         color: #5c6370;
     }
     @media (max-width: 1199.98px) {
-        .audit-table-scroll { overflow: visible; }
-        #auditLogTable {
+        .audit-table-scroll {
+            display: block;
             width: 100%;
-            min-width: 0;
+            max-width: 100%;
+            overflow: visible;
+        }
+        #auditLogTable,
+        #auditLogTable thead,
+        #auditLogTable tbody {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0 !important;
         }
         #auditLogTable thead { display: none; }
         #auditLogTable tbody tr {
             display: block;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
             border: 1px solid #dee2e6;
             border-radius: 0.75rem;
             margin-bottom: 0.85rem;
             padding: 0.85rem 1rem;
             background: #fff;
+        }
+        #auditLogTable th,
+        #auditLogTable td,
+        #auditLogTable [class*="col-"] {
+            min-width: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
         }
         #auditLogTable tbody td,
         #auditLogTable .col-time,
@@ -123,16 +206,18 @@
         #auditLogTable .col-select,
         #auditLogTable .col-actions {
             display: grid;
-            grid-template-columns: minmax(6.5rem, 8rem) minmax(0, 1fr);
+            grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr);
             align-items: start;
-            gap: 0.5rem 0.85rem;
-            min-width: 0;
-            max-width: none;
-            width: 100%;
+            gap: 0.5rem 0.75rem;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
             border: 0;
             border-bottom: 1px solid #f1f3f5;
             padding: 0.5rem 0;
             white-space: normal;
+            overflow-wrap: break-word;
+            word-break: normal;
         }
         #auditLogTable tbody td:last-child { border-bottom: 0; }
         #auditLogTable tbody td::before {
@@ -159,8 +244,36 @@
             align-items: stretch;
         }
         .audit-pagination-bar .pagination { justify-content: center; }
+        .audit-log-page .card-body {
+            padding: 1rem 0.75rem;
+        }
+        .audit-log-page h2 {
+            font-size: 1.25rem;
+        }
+        .audit-filter-actions .btn {
+            width: 100%;
+        }
+        #auditLogTable tbody td > div,
+        #auditLogTable tbody td small {
+            min-width: 0;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-break: normal;
+        }
+    }
+    @media (max-width: 767.98px) {
+        body:has(.audit-log-page) .body-wrapper > .container-fluid {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
     }
     @media (max-width: 575.98px) {
+        .audit-log-page .form-control,
+        .audit-log-page .form-select,
+        .audit-log-page .nebula-select-toggle,
+        .audit-log-page input[type="date"] {
+            font-size: 16px;
+        }
         #auditLogTable tbody td,
         #auditLogTable .col-time,
         #auditLogTable .col-staff,
@@ -173,6 +286,13 @@
         #auditLogTable .col-actions {
             grid-template-columns: 1fr;
             gap: 0.2rem;
+        }
+        #auditLogTable tbody tr {
+            padding: 0.75rem 0.85rem;
+        }
+        #auditLogTable tbody td.col-select,
+        #auditLogTable tbody td.col-actions {
+            justify-items: start;
         }
     }
 </style>
@@ -219,11 +339,11 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-6 col-lg-2">
+                <div class="col-12 col-lg-2 audit-date-fields">
                     <label class="form-label small text-muted" for="auditDateFrom">From</label>
                     <input type="date" class="form-control" id="auditDateFrom" name="date_from" value="{{ $filters['date_from'] ?? '' }}">
                 </div>
-                <div class="col-6 col-lg-2">
+                <div class="col-12 col-lg-2 audit-date-fields">
                     <label class="form-label small text-muted" for="auditDateTo">To</label>
                     <input type="date" class="form-control" id="auditDateTo" name="date_to" value="{{ $filters['date_to'] ?? '' }}">
                 </div>
@@ -235,7 +355,7 @@
                         <option value="50" @selected((int) $perPage === 50)>50</option>
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-lg-2 d-grid gap-2">
+                <div class="col-12 col-sm-6 col-lg-2 d-grid gap-2 audit-filter-actions">
                     <button class="btn btn-primary" type="submit" id="auditFilterBtn">Filter</button>
                     <button class="btn btn-outline-secondary" type="button" id="clearAuditFiltersBtn">Clear</button>
                 </div>

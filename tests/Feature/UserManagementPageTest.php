@@ -38,6 +38,18 @@ class UserManagementPageTest extends TestCase
             ->assertSee('setEditUserLocation', false);
     }
 
+    public function test_delete_user_uses_sweetalert_instead_of_js_confirm(): void
+    {
+        $this->actingAs($this->actor)
+            ->get(route('dgm.user.management'))
+            ->assertOk()
+            ->assertSee('sweetalert2@11.22.0', false)
+            ->assertSee('confirmDeleteUser', false)
+            ->assertSee('Swal.fire', false)
+            ->assertSee('btn-delete-user', false)
+            ->assertDontSee('if (confirm(', false);
+    }
+
     public function test_user_details_include_campus_key_for_stored_location_name(): void
     {
         $user = User::forceCreate([

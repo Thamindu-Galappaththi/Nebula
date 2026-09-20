@@ -46,11 +46,15 @@ class ModuleCreationPageTest extends TestCase
             ->assertSee('Intro Programming')
             ->assertSee('module-creation-page', false)
             ->assertSee('editModuleModal', false)
-            ->assertSee('modal-fullscreen-sm-down', false)
+            ->assertSee('modal-dialog-centered modal-dialog-scrollable', false)
+            ->assertDontSee('modal-fullscreen-sm-down', false)
+            ->assertSee('height: auto', false)
             ->assertSee('sweetalert2@11.22.0', false)
             ->assertSee('Swal.fire', false)
             ->assertSee('10 per page')
             ->assertSee('@media (max-width: 991.98px)', false)
+            ->assertSee('overflow-wrap: anywhere', false)
+            ->assertSee('box-shadow: none !important', false)
             ->assertSee('data-label="Module Name"', false)
             ->assertSee('resetFilterSelect', false)
             ->assertSee(route('module.export'), false)
@@ -76,9 +80,9 @@ class ModuleCreationPageTest extends TestCase
         $this->actingAs($this->actor)
             ->get(route('module.creation'))
             ->assertOk()
-            ->assertSee('Alpha Module 01')
-            ->assertSee('Alpha Module 10')
-            ->assertDontSee('Alpha Module 11')
+            ->assertSee('Alpha Module 11')
+            ->assertSee('Alpha Module 02')
+            ->assertDontSee('Alpha Module 01')
             ->assertSee('Showing 1–10 of 11');
 
         $pageTwo = $this->actingAs($this->actor)
@@ -87,9 +91,43 @@ class ModuleCreationPageTest extends TestCase
             ->assertOk()
             ->assertJsonStructure(['html', 'pagination']);
 
-        $this->assertStringContainsString('Alpha Module 11', $pageTwo->json('html'));
-        $this->assertStringNotContainsString('Alpha Module 01', $pageTwo->json('html'));
+        $this->assertStringContainsString('Alpha Module 01', $pageTwo->json('html'));
+        $this->assertStringNotContainsString('Alpha Module 11', $pageTwo->json('html'));
         $this->assertStringContainsString('Showing 11–11 of 11', $pageTwo->json('pagination'));
+    }
+
+    public function test_newest_module_appears_first(): void
+    {
+        Module::forceCreate([
+            'module_name'     => 'Older Module',
+            'module_code'     => 'CS101_OLD_001',
+            'module_category' => 'degree',
+            'module_type'     => 'core',
+            'credits'         => 10,
+            'created_at'      => now()->subDay(),
+            'updated_at'      => now()->subDay(),
+        ]);
+        Module::forceCreate([
+            'module_name'     => 'Newest Module',
+            'module_code'     => 'CS101_NEW_001',
+            'module_category' => 'degree',
+            'module_type'     => 'core',
+            'credits'         => 15,
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ]);
+
+        $html = $this->actingAs($this->actor)
+            ->get(route('module.creation'))
+            ->assertOk()
+            ->assertSee('Newest Module')
+            ->assertSee('Older Module')
+            ->getContent();
+
+        $this->assertTrue(
+            strpos($html, 'Newest Module') < strpos($html, 'Older Module'),
+            'Newest module should appear before older modules in the list.'
+        );
     }
 
     public function test_module_can_be_updated(): void

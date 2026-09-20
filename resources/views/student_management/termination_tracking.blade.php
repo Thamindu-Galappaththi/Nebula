@@ -22,7 +22,7 @@ body:has(.termination-tracking-page) .body-wrapper > .container-fluid {
 }
 .termination-filters {
     position: relative;
-    z-index: 20;
+    z-index: 1;
     overflow: visible;
 }
 .termination-filters [class*="col-"] {

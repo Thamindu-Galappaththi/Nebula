@@ -24,6 +24,7 @@ use App\Models\StudentStatusHistory;
 use App\Models\ClearanceRequest;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\UpdateParentInfoRequest;
+use App\Services\FileManagementService;
 
 class StudentProfileController extends Controller
 {
@@ -585,11 +586,31 @@ class StudentProfileController extends Controller
 
         $payload = $student->toArray();
         $payload['parent'] = $student->parentGuardian;
-        $payload['other_information'] = $student->otherInformation;
         $payload['birthday'] = $student->birthday
             ? \Illuminate\Support\Carbon::parse($student->birthday)->format('Y-m-d')
             : null;
         $payload['academic_status'] = $student->academic_status;
+        $payload['exams'] = $student->exams->map(function ($exam) {
+            $data = $exam->toArray();
+            $olFile = $this->resolveCertificateFile($exam->ol_certificate);
+            $alFile = $this->resolveCertificateFile($exam->al_certificate);
+            $data['ol_certificate_url'] = $olFile['url'];
+            $data['ol_certificate_available'] = $olFile['exists'];
+            $data['al_certificate_url'] = $alFile['url'];
+            $data['al_certificate_available'] = $alFile['exists'];
+            return $data;
+        })->values();
+
+        $other = $student->otherInformation?->toArray();
+        if ($other) {
+            $disciplinaryFile = $this->resolvePublicFile(
+                $student->otherInformation->disciplinary_issue_document,
+                ['disciplinary_issues', 'public/disciplinary_issues']
+            );
+            $other['disciplinary_issue_document_url'] = $disciplinaryFile['url'];
+            $other['disciplinary_issue_document_available'] = $disciplinaryFile['exists'];
+        }
+        $payload['other_information'] = $other;
 
         return response()->json(['success' => true, 'student' => $payload]);
     }
@@ -610,44 +631,63 @@ class StudentProfileController extends Controller
 
     public function getSemesters($studentId, $courseId)
     {
-        $semestersList = \App\Models\Semester::where('course_id', (int) $courseId)
-            ->orderBy('id')
-            ->get();
+        try {
+            $semestersList = \App\Models\Semester::where('course_id', (int) $courseId)
+                ->orderBy('id')
+                ->get();
 
-        $courseSemesters = $semestersList->map(function ($s) {
-            return trim((string) ($s->name ?: $s->id));
-        })->filter()->unique()->values();
+            $named = collect($semestersList->map(function ($semester) {
+                return trim((string) ($semester->name ?: $semester->id));
+            })->all());
 
-        $examSemesters = \App\Models\ExamResult::where('student_id', $studentId)
-            ->where('course_id', $courseId)
-            ->pluck('semester');
+            $examSemesters = \App\Models\ExamResult::where('student_id', $studentId)
+                ->where('course_id', $courseId)
+                ->pluck('semester');
 
-        $attendanceSemesters = \App\Models\Attendance::where('student_id', $studentId)
-            ->where('course_id', $courseId)
-            ->pluck('semester');
+            $attendanceSemesters = \App\Models\Attendance::where('student_id', $studentId)
+                ->where('course_id', $courseId)
+                ->pluck('semester');
 
-        $fromRecords = $examSemesters->merge($attendanceSemesters)
-            ->filter()
-            ->map(function ($sem) use ($semestersList) {
-                foreach ($semestersList as $sModel) {
-                    if ((string) $sModel->id === (string) $sem || (string) $sModel->name === (string) $sem) {
-                        return trim((string) $sModel->name);
+            $fromRecords = collect($examSemesters->merge($attendanceSemesters)->all())
+                ->map(function ($sem) use ($semestersList) {
+                    $sem = trim((string) $sem);
+                    if ($sem === '') {
+                        return null;
                     }
+                    foreach ($semestersList as $semester) {
+                        if ((string) $semester->id === $sem || (string) $semester->name === $sem) {
+                            return trim((string) $semester->name);
+                        }
+                    }
+                    return $sem;
+                });
+
+            $allSemesters = $named->merge($fromRecords)
+                ->filter(fn ($sem) => $sem !== null && $sem !== '')
+                ->unique()
+                ->values();
+
+            if ($allSemesters->isEmpty()) {
+                $course = \App\Models\Course::find($courseId);
+                $count = (int) ($course->no_of_semesters ?? 0);
+                if ($count > 0) {
+                    $allSemesters = collect(range(1, $count))->map(fn ($n) => (string) $n)->values();
                 }
-                return (string) $sem;
-            });
-
-        $allSemesters = $courseSemesters->merge($fromRecords)->filter()->unique()->values();
-
-        if ($allSemesters->isEmpty()) {
-            $course = \App\Models\Course::find($courseId);
-            $count = (int) ($course->no_of_semesters ?? 0);
-            if ($count > 0) {
-                $allSemesters = collect(range(1, $count))->map(fn ($n) => (string) $n)->values();
             }
-        }
 
-        return response()->json(['success' => true, 'semesters' => $allSemesters]);
+            return response()->json(['success' => true, 'semesters' => $allSemesters]);
+        } catch (\Throwable $e) {
+            \Log::error('Failed to fetch exam semesters: ' . $e->getMessage(), [
+                'student_id' => $studentId,
+                'course_id' => $courseId,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load semesters.',
+                'semesters' => [],
+            ]);
+        }
     }
 
     public function getModuleResults($studentId, $courseId, $semester)
@@ -1479,12 +1519,21 @@ class StudentProfileController extends Controller
         $clearances = \App\Models\ClearanceRequest::where('student_id', $studentId)
             ->get()
             ->map(function ($c) {
+                $document = $this->clearanceDocumentPayload($c->clearance_slip);
+                $remarks = trim((string) ($c->remarks ?? ''));
+                if ($remarks === '' || in_array(strtolower($remarks), ['n/a', 'na', '-', 'null'], true)) {
+                    $remarks = null;
+                }
+
                 return [
                     'label' => $c->getClearanceTypeTextAttribute(),
                     'status' => $c->status === \App\Models\ClearanceRequest::STATUS_APPROVED,
+                    'status_key' => $c->status,
                     'approved_date' => $c->approved_at ? $c->approved_at->format('d/m/Y') : null,
-                    'remarks' => $c->remarks,
-                    'clearance_slip' => $c->clearance_slip,
+                    'remarks' => $remarks,
+                    'has_document' => $document['has_document'],
+                    'document_url' => $document['url'],
+                    'clearance_slip' => $document['has_document'] ? $c->clearance_slip : null,
                 ];
             });
 
@@ -1519,11 +1568,21 @@ class StudentProfileController extends Controller
         $al_cert = $al_exam && !empty($al_exam->al_certificate) ? $al_exam->al_certificate : null;
         $disciplinary_doc = $otherInfo && !empty($otherInfo->disciplinary_issue_document) ? $otherInfo->disciplinary_issue_document : null;
 
+        $olFile = $this->resolveCertificateFile($ol_cert);
+        $alFile = $this->resolveCertificateFile($al_cert);
+        $disciplinaryFile = $this->resolvePublicFile($disciplinary_doc, ['disciplinary_issues', 'public/disciplinary_issues']);
+
         return response()->json([
             'success' => true,
             'ol_certificate' => $ol_cert,
+            'ol_certificate_url' => $olFile['url'],
+            'ol_certificate_available' => $olFile['exists'],
             'al_certificate' => $al_cert,
+            'al_certificate_url' => $alFile['url'],
+            'al_certificate_available' => $alFile['exists'],
             'disciplinary_issue_document' => $disciplinary_doc,
+            'disciplinary_issue_document_url' => $disciplinaryFile['url'],
+            'disciplinary_issue_document_available' => $disciplinaryFile['exists'],
         ]);
     }
 
@@ -1983,5 +2042,25 @@ class StudentProfileController extends Controller
         }
 
         return array_values(array_unique($out));
+    }
+
+    private function clearanceDocumentPayload(?string $path): array
+    {
+        $resolved = $this->resolvePublicFile($path, ['clearance_slips']);
+
+        return [
+            'has_document' => $resolved['exists'],
+            'url' => $resolved['url'],
+        ];
+    }
+
+    private function resolveCertificateFile(?string $path): array
+    {
+        return $this->resolvePublicFile($path, ['certificates', 'certificates/ol', 'certificates/al']);
+    }
+
+    private function resolvePublicFile(?string $path, array $searchDirectories = []): array
+    {
+        return app(FileManagementService::class)->resolvePublicFile($path, $searchDirectories);
     }
 }
