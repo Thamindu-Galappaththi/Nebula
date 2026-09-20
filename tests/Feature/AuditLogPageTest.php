@@ -53,6 +53,14 @@ class AuditLogPageTest extends TestCase
 
         $this->assertStringContainsString('Times are Asia/Colombo', $html);
         $this->assertStringContainsString('@media (max-width: 1199.98px)', $html);
+        $this->assertStringContainsString('@media (max-width: 575.98px)', $html);
+        $this->assertStringContainsString('overflow-x: hidden', $html);
+        $this->assertStringContainsString('audit-date-fields', $html);
+        $this->assertStringContainsString('col-12 col-lg-2 audit-date-fields', $html);
+        $this->assertStringContainsString('display: block', $html);
+        $this->assertStringContainsString('#auditLogTable tbody', $html);
+        $this->assertStringNotContainsString('col-6 col-lg-2', $html);
+        $this->assertStringNotContainsString('col-12 col-sm-6 col-lg-2 audit-date-fields', $html);
         $this->assertStringContainsString('word-break: normal', $html);
         $this->assertStringNotContainsString('word-break: break-all', $html);
         $this->assertStringContainsString('id="auditPagination"', $html);
