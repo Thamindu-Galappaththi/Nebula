@@ -26,7 +26,10 @@ class ModuleCreationController extends Controller
     public function export(Request $request)
     {
         $filters = $this->moduleFilters($request);
-        $modules = $this->filteredModulesQuery($filters)->orderBy('module_name')->get();
+        $modules = $this->filteredModulesQuery($filters)
+            ->orderByDesc('created_at')
+            ->orderByDesc('module_id')
+            ->get();
 
         $filename = 'modules_export_' . now()->timezone('Asia/Colombo')->format('Y-m-d') . '.csv';
 
@@ -212,7 +215,8 @@ class ModuleCreationController extends Controller
         $perPage = (int) ($filters['per_page'] ?? 10);
 
         $modules = $this->filteredModulesQuery($filters)
-            ->orderBy('module_name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('module_id')
             ->paginate($perPage)
             ->withQueryString();
 
