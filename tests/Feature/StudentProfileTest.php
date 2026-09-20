@@ -18,6 +18,7 @@ use App\Models\StudentPaymentPlan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StudentProfileTest extends TestCase
@@ -69,6 +70,8 @@ class StudentProfileTest extends TestCase
             ->assertSee('clearanceDocumentCell', false)
             ->assertSee('/^(?:\\+94|94|0)?[1-9]\\d{8}$/', false)
             ->assertSee('class="form-control bg-danger text-white" id="parentEmergencyContact"', false)
+            ->assertSee('File not available', false)
+            ->assertSee('certificateTabHtml', false)
             ->assertDontSee('$(\'#status-history-tab\').addClass(\'bg-danger text-white\')', false)
             ->assertDontSee('Trying to get property');
     }
@@ -357,6 +360,7 @@ class StudentProfileTest extends TestCase
 
     public function test_clearance_documents_are_returned_only_when_a_file_exists(): void
     {
+        Storage::fake('public');
         $setup = $this->makePaymentStudent();
         $studentId = $setup['student']->student_id;
 
@@ -384,6 +388,7 @@ class StudentProfileTest extends TestCase
             'approved_at'    => now(),
             'requested_at'   => now(),
         ]);
+        Storage::disk('public')->put('clearance_slips/library-slip.pdf', 'slip');
 
         $response = $this->actingAs($this->actor)
             ->getJson('/api/student/' . $studentId . '/clearances')
@@ -404,6 +409,59 @@ class StudentProfileTest extends TestCase
         $this->assertNotEmpty($library['document_url']);
         $this->assertStringContainsString('/storage/clearance_slips/library-slip.pdf', $library['document_url']);
         $this->assertSame('Returned books', $library['remarks']);
+    }
+
+    public function test_certificate_links_are_omitted_when_the_file_is_missing(): void
+    {
+        Storage::fake('public');
+        $student = $this->makeStudent('199033322V');
+        StudentExam::forceCreate([
+            'student_id'       => $student->student_id,
+            'ol_exam_type'     => 'Local',
+            'ol_exam_year'     => '2016',
+            'ol_certificate'   => '1766122568_78KHlgg7WR.pdf',
+            'ol_exam_subjects' => [
+                ['subject' => 'Maths', 'result' => 'A'],
+            ],
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $student->student_id . '/certificates')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('ol_certificate', '1766122568_78KHlgg7WR.pdf')
+            ->assertJsonPath('ol_certificate_available', false)
+            ->assertJsonPath('ol_certificate_url', null);
+    }
+
+    public function test_certificate_url_is_returned_when_the_file_exists(): void
+    {
+        Storage::fake('public');
+        $student = $this->makeStudent('199044411V');
+        Storage::disk('public')->put('certificates/ol/ol-cert.pdf', 'pdf');
+        StudentExam::forceCreate([
+            'student_id'       => $student->student_id,
+            'ol_exam_type'     => 'Local',
+            'ol_exam_year'     => '2016',
+            'ol_certificate'   => 'ol-cert.pdf',
+            'ol_exam_subjects' => [
+                ['subject' => 'Maths', 'result' => 'A'],
+            ],
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $student->student_id . '/certificates')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('ol_certificate_available', true)
+            ->assertJsonPath('ol_certificate', 'ol-cert.pdf');
+
+        $url = $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $student->student_id . '/certificates')
+            ->json('ol_certificate_url');
+
+        $this->assertNotEmpty($url);
+        $this->assertStringContainsString('/storage/certificates/ol/ol-cert.pdf', $url);
     }
 
     public function test_parent_info_accepts_country_code_numbers_without_plus(): void

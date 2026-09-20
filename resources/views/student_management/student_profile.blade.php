@@ -288,15 +288,18 @@
   $studentDob = $student?->birthday
     ? \Illuminate\Support\Carbon::parse($student->birthday)->format('Y-m-d')
     : '';
-  $certificateUrl = function (?string $path): string {
-    if (!$path) {
-      return '';
+  $fileService = app(\App\Services\FileManagementService::class);
+  $resolveCertificate = function (?string $path) use ($fileService): array {
+    return $fileService->resolvePublicFile($path, ['certificates', 'certificates/ol', 'certificates/al']);
+  };
+  $storedFileLink = function (?string $path, array $resolved, string $viewLabel = 'View Certificate'): string {
+    if (!empty($resolved['exists']) && !empty($resolved['url'])) {
+      return '<a href="' . e($resolved['url']) . '" target="_blank" rel="noopener">' . e($viewLabel) . '</a>';
     }
-    $clean = ltrim(preg_replace('#^storage/#', '', $path), '/');
-    if (!str_starts_with($clean, 'certificates/')) {
-      $clean = 'certificates/' . $clean;
+    if (!empty($path)) {
+      return '<span class="text-muted">File not available</span>';
     }
-    return asset('storage/' . $clean);
+    return '<span class="text-muted">Not uploaded</span>';
   };
 @endphp
 
@@ -655,11 +658,7 @@
                   <div class="mb-3 row align-items-center mx-3">
                     <label class="col-sm-3 col-form-label fw-bold">O/L Certificate</label>
                     <div class="col-sm-9">
-                      @if (!empty($ol_exam->ol_certificate))
-                        <a href="{{ $certificateUrl($ol_exam->ol_certificate) }}" target="_blank">View Certificate</a>
-                      @else
-                        <span class="text-muted">Not uploaded</span>
-                      @endif
+                      {!! $storedFileLink($ol_exam->ol_certificate ?? null, $resolveCertificate($ol_exam->ol_certificate ?? null)) !!}
                     </div>
                   </div>
                 </div>
@@ -797,11 +796,7 @@
                   <div class="mb-3 row align-items-center mx-3">
                     <label class="col-sm-3 col-form-label fw-bold">A/L Certificate</label>
                     <div class="col-sm-9">
-                      @if (!empty($al_exam->al_certificate))
-                        <a href="{{ $certificateUrl($al_exam->al_certificate) }}" target="_blank">View Certificate</a>
-                      @else
-                        <span class="text-muted">Not uploaded</span>
-                      @endif
+                      {!! $storedFileLink($al_exam->al_certificate ?? null, $resolveCertificate($al_exam->al_certificate ?? null)) !!}
                     </div>
                   </div>
                 </div>
@@ -1255,11 +1250,11 @@
                 <div class="mb-3 row align-items-center mx-3">
                   <label class="col-sm-3 col-form-label fw-bold">Disciplinary Document</label>
                   <div class="col-sm-9">
-                    @if($student?->other_information?->disciplinary_issue_document)
-                      <a href="{{ asset('storage/' . $student->other_information->disciplinary_issue_document) }}" target="_blank">View Document</a>
-                    @else
-                      <span class="text-muted">Not uploaded</span>
-                    @endif
+                    {!! $storedFileLink(
+                      $student?->other_information?->disciplinary_issue_document,
+                      $fileService->resolvePublicFile($student?->other_information?->disciplinary_issue_document, ['disciplinary_issues', 'public/disciplinary_issues']),
+                      'View Document'
+                    ) !!}
                   </div>
                 </div>
                 <div class="mb-3 row align-items-center mx-3">
@@ -1300,13 +1295,23 @@
 function escapeHtml(value){
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
 }
-function certificateUrl(path){
-  if (!path) return '';
-  const clean = String(path).replace(/^\/+/, '').replace(/^storage\//, '');
-  if (clean.startsWith('certificates/')) {
-    return '/storage/' + clean;
+function storedFileViewHtml(storedPath, url, available, viewLabel){
+  if (available && url) {
+    return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(viewLabel || 'View Certificate')}</a>`;
   }
-  return '/storage/certificates/' + clean;
+  if (storedPath) {
+    return '<span class="text-muted">File not available</span>';
+  }
+  return '<span class="text-muted">Not uploaded</span>';
+}
+function certificateTabHtml(storedPath, url, available, uploadFn, typeLabel){
+  if (available && url) {
+    return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Certificate</a>`;
+  }
+  const status = storedPath
+    ? '<span class="text-muted">File not available</span>'
+    : '<span class="text-muted">Pending</span>';
+  return `${status} <button type="button" class="btn btn-sm btn-primary ms-2" onclick="${uploadFn}()"><i class="fas fa-upload"></i> Upload ${escapeHtml(typeLabel)} Certificate</button>`;
 }
 
 function showSuccessMessage(message){
@@ -1868,7 +1873,7 @@ $(function(){
           </div>
           <div class="mb-3 row align-items-center mx-3">
             <label class="col-sm-3 col-form-label fw-bold">O/L Certificate</label>
-            <div class="col-sm-9">${ol_exam.ol_certificate?`<a href="${certificateUrl(ol_exam.ol_certificate)}" target="_blank">View Certificate</a>`:'<span class="text-muted">Not uploaded</span>'}</div>
+            <div class="col-sm-9">${storedFileViewHtml(ol_exam.ol_certificate, ol_exam.ol_certificate_url, ol_exam.ol_certificate_available, 'View Certificate')}</div>
           </div>
         </div>`);
     }
@@ -1981,7 +1986,7 @@ $(function(){
           </div>
           <div class="mb-3 row align-items-center mx-3">
             <label class="col-sm-3 col-form-label fw-bold">A/L Certificate</label>
-            <div class="col-sm-9">${al_exam.al_certificate?`<a href="${certificateUrl(al_exam.al_certificate)}" target="_blank">View Certificate</a>`:'<span class="text-muted">Not uploaded</span>'}</div>
+            <div class="col-sm-9">${storedFileViewHtml(al_exam.al_certificate, al_exam.al_certificate_url, al_exam.al_certificate_available, 'View Certificate')}</div>
           </div>
         </div>`);
     }
@@ -1992,7 +1997,7 @@ $(function(){
     if(!!oi){
       $otherInfoTab.append(`
         <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Disciplinary Issues</label><div class="col-sm-9"><textarea class="form-control" rows="2" readonly>${escapeHtml(oi.disciplinary_issues||'')}</textarea></div></div>
-        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Disciplinary Document</label><div class="col-sm-9">${oi.disciplinary_issue_document?`<a href="/storage/${encodeURI(oi.disciplinary_issue_document)}" target="_blank">View Document</a>`:'<span class="text-muted">Not uploaded</span>'}</div></div>
+        <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Disciplinary Document</label><div class="col-sm-9">${storedFileViewHtml(oi.disciplinary_issue_document, oi.disciplinary_issue_document_url, oi.disciplinary_issue_document_available, 'View Document')}</div></div>
         <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Institute</label><div class="col-sm-9"><input class="form-control" readonly value="${escapeHtml(oi.institute||'-')}"></div></div>
         <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Field of Study</label><div class="col-sm-9"><input class="form-control" readonly value="${escapeHtml(oi.field_of_study||'-')}"></div></div>
         <div class="mb-3 row align-items-center mx-3"><label class="col-sm-3 col-form-label fw-bold">Job Title</label><div class="col-sm-9"><input class="form-control" readonly value="${escapeHtml(oi.job_title||'-')}"></div></div>
@@ -2767,21 +2772,15 @@ $(function(){
     $.get('/api/student/'+sid+'/certificates', res=>{
       if(res.success){
         // OL Certificate
-        if(res.ol_certificate){
-          $('#olCertificate').html(`<a href="${certificateUrl(res.ol_certificate)}" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Certificate</a>`);
+        $('#olCertificate').html(certificateTabHtml(res.ol_certificate, res.ol_certificate_url, res.ol_certificate_available, 'uploadOLCertificate', 'OL'));
+        $('#alCertificate').html(certificateTabHtml(res.al_certificate, res.al_certificate_url, res.al_certificate_available, 'uploadALCertificate', 'AL'));
+        if (res.disciplinary_issue_document_available && res.disciplinary_issue_document_url) {
+          $('#disciplinaryDocument').html(`<a href="${escapeHtml(res.disciplinary_issue_document_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Document</a>`);
+        } else if (res.disciplinary_issue_document) {
+          $('#disciplinaryDocument').html('<span class="text-muted">File not available</span>');
         } else {
-          $('#olCertificate').html(`<span class="text-muted">Pending</span> <button class="btn btn-sm btn-primary ms-2" onclick="uploadOLCertificate()"><i class="fas fa-upload"></i> Upload OL Certificate</button>`);
+          $('#disciplinaryDocument').html('<span class="text-muted">Not uploaded</span>');
         }
-        
-        // AL Certificate
-        if(res.al_certificate){
-          $('#alCertificate').html(`<a href="${certificateUrl(res.al_certificate)}" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Certificate</a>`);
-        } else {
-          $('#alCertificate').html(`<span class="text-muted">Pending</span> <button class="btn btn-sm btn-primary ms-2" onclick="uploadALCertificate()"><i class="fas fa-upload"></i> Upload AL Certificate</button>`);
-        }
-        
-        // Disciplinary Document
-        $('#disciplinaryDocument').html(res.disciplinary_issue_document?`<a href="/storage/${res.disciplinary_issue_document}" target="_blank" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View Document</a>`:'<span class="text-muted">Not uploaded</span>');
       }else{
         showEmpty('Not uploaded');
       }

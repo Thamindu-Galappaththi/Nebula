@@ -24,6 +24,7 @@ use App\Models\StudentStatusHistory;
 use App\Models\ClearanceRequest;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\UpdateParentInfoRequest;
+use App\Services\FileManagementService;
 
 class StudentProfileController extends Controller
 {
@@ -585,11 +586,31 @@ class StudentProfileController extends Controller
 
         $payload = $student->toArray();
         $payload['parent'] = $student->parentGuardian;
-        $payload['other_information'] = $student->otherInformation;
         $payload['birthday'] = $student->birthday
             ? \Illuminate\Support\Carbon::parse($student->birthday)->format('Y-m-d')
             : null;
         $payload['academic_status'] = $student->academic_status;
+        $payload['exams'] = $student->exams->map(function ($exam) {
+            $data = $exam->toArray();
+            $olFile = $this->resolveCertificateFile($exam->ol_certificate);
+            $alFile = $this->resolveCertificateFile($exam->al_certificate);
+            $data['ol_certificate_url'] = $olFile['url'];
+            $data['ol_certificate_available'] = $olFile['exists'];
+            $data['al_certificate_url'] = $alFile['url'];
+            $data['al_certificate_available'] = $alFile['exists'];
+            return $data;
+        })->values();
+
+        $other = $student->otherInformation?->toArray();
+        if ($other) {
+            $disciplinaryFile = $this->resolvePublicFile(
+                $student->otherInformation->disciplinary_issue_document,
+                ['disciplinary_issues', 'public/disciplinary_issues']
+            );
+            $other['disciplinary_issue_document_url'] = $disciplinaryFile['url'];
+            $other['disciplinary_issue_document_available'] = $disciplinaryFile['exists'];
+        }
+        $payload['other_information'] = $other;
 
         return response()->json(['success' => true, 'student' => $payload]);
     }
@@ -1547,11 +1568,21 @@ class StudentProfileController extends Controller
         $al_cert = $al_exam && !empty($al_exam->al_certificate) ? $al_exam->al_certificate : null;
         $disciplinary_doc = $otherInfo && !empty($otherInfo->disciplinary_issue_document) ? $otherInfo->disciplinary_issue_document : null;
 
+        $olFile = $this->resolveCertificateFile($ol_cert);
+        $alFile = $this->resolveCertificateFile($al_cert);
+        $disciplinaryFile = $this->resolvePublicFile($disciplinary_doc, ['disciplinary_issues', 'public/disciplinary_issues']);
+
         return response()->json([
             'success' => true,
             'ol_certificate' => $ol_cert,
+            'ol_certificate_url' => $olFile['url'],
+            'ol_certificate_available' => $olFile['exists'],
             'al_certificate' => $al_cert,
+            'al_certificate_url' => $alFile['url'],
+            'al_certificate_available' => $alFile['exists'],
             'disciplinary_issue_document' => $disciplinary_doc,
+            'disciplinary_issue_document_url' => $disciplinaryFile['url'],
+            'disciplinary_issue_document_available' => $disciplinaryFile['exists'],
         ]);
     }
 
@@ -2015,20 +2046,21 @@ class StudentProfileController extends Controller
 
     private function clearanceDocumentPayload(?string $path): array
     {
-        $path = trim((string) $path);
-        if ($path === '' || in_array(strtolower($path), ['null', 'n/a', 'na', '-'], true)) {
-            return ['has_document' => false, 'url' => null];
-        }
-
-        if (preg_match('#^https?://#i', $path)) {
-            return ['has_document' => true, 'url' => $path];
-        }
-
-        $normalized = ltrim((string) preg_replace('#^public/#', '', $path), '/');
+        $resolved = $this->resolvePublicFile($path, ['clearance_slips']);
 
         return [
-            'has_document' => true,
-            'url' => Storage::disk('public')->url($normalized),
+            'has_document' => $resolved['exists'],
+            'url' => $resolved['url'],
         ];
+    }
+
+    private function resolveCertificateFile(?string $path): array
+    {
+        return $this->resolvePublicFile($path, ['certificates', 'certificates/ol', 'certificates/al']);
+    }
+
+    private function resolvePublicFile(?string $path, array $searchDirectories = []): array
+    {
+        return app(FileManagementService::class)->resolvePublicFile($path, $searchDirectories);
     }
 }
