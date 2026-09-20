@@ -1457,13 +1457,21 @@
                     if (currentCharts.marketingSurvey) {
                         currentCharts.marketingSurvey.destroy();
                     }
+                    const labels = Array.isArray(data.labels) ? data.labels : [];
+                    const counts = Array.isArray(data.counts) ? data.counts : [];
+                    const rows = labels.map(function (label, index) {
+                        return {
+                            name: String(label || 'Unknown').trim() || 'Unknown',
+                            value: Number(counts[index]) || 0
+                        };
+                    });
                     currentCharts.marketingSurvey = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: data.labels,
+                            labels: rows.map(function (row) { return row.name; }),
                             datasets: [{
-                                label: 'Responses',
-                                data: data.counts,
+                                label: 'Students',
+                                data: rows.map(function (row) { return row.value; }),
                                 backgroundColor: [
                                     '#1877F2', '#E4405F', '#F59E0B', '#EF4444', '#6366F1', '#10B981', '#A3E635'
                                 ],
@@ -1481,13 +1489,31 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { display: false }
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function (items) {
+                                            return items[0] ? String(items[0].label) : '';
+                                        },
+                                        label: function (item) {
+                                            return 'Students: ' + item.parsed.y;
+                                        }
+                                    }
+                                }
                             },
                             scales: {
+                                x: {
+                                    ticks: {
+                                        autoSkip: false,
+                                        maxRotation: 45,
+                                        minRotation: 0
+                                    }
+                                },
                                 y: {
                                     beginAtZero: true,
                                     ticks: {
-                                        stepSize: 1
+                                        stepSize: 1,
+                                        precision: 0
                                     }
                                 }
                             }
