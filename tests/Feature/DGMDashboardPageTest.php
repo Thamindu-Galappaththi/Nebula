@@ -44,7 +44,13 @@ class DGMDashboardPageTest extends TestCase
             ->assertSee('dashboard-filter-actions', false)
             ->assertSee('bg-gray-600 text-white', false)
             ->assertSee('rows.map(function (row) { return row.name; })', false)
-            ->assertSee('rows.map(function (row) { return row.value; })', false);
+            ->assertSee('rows.map(function (row) { return row.value; })', false)
+            ->assertSee('dgm-dashboard-page', false)
+            ->assertSee('dgm-kpi-grid', false)
+            ->assertSee('dgm-chart-box', false)
+            ->assertSee('body:has(.dgm-dashboard-page)', false)
+            ->assertSee('.dgm-dashboard-page .overflow-x-auto table', false)
+            ->assertDontSee('width: max-content', false);
     }
 
     public function test_marketing_survey_labels_match_counts_after_splitting_sources(): void

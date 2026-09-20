@@ -36,12 +36,12 @@
     <script src="{{ asset('js/jquery-3.6.0.min.js') }}"></script>
     <script src="{{ asset('js/tailwindcss.js') }}"></script>
     <script src="{{ asset('libs/chartjs/chart.min.js') }}"></script>
-    <div id="pageContent" class="bg-gray-50">
+    <div id="pageContent" class="bg-gray-50 dgm-dashboard-page">
 
         <!-- Navigation Tabs -->
         <nav class="bg-white shadow-sm">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex flex-wrap gap-1 py-3">
+                <div class="dgm-tab-bar flex gap-1 py-3">
                     <button data-tab="overview" id="tab-overview"
                         class="px-4 py-2 rounded-lg text-sm font-medium tab-active">
                         <i class="fas fa-chart-line mr-2"></i>Overview
@@ -70,8 +70,8 @@
             <!-- Overview Tab -->
             <div id="content-overview" class="tab-content active">
                 <!-- Key Metrics Cards -->
-                <div class="flex flex-wrap gap-4">
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-sky-500 flex-1" style="min-width: 160px;">
+                <div class="dgm-kpi-grid">
+                    <div class="stat-card bg-white p-3 rounded-xl shadow-sm border-4 border-sky-500">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Total Students</p>
@@ -81,7 +81,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-green-500 flex-1" style="min-width: 160px;">
+                    <div class="stat-card bg-white p-3 rounded-xl shadow-sm border-4 border-green-500">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Yearly Revenue</p>
@@ -91,7 +91,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-orange-500 flex-1" style="min-width: 160px;">
+                    <div class="stat-card bg-white p-3 rounded-xl shadow-sm border-4 border-orange-500">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Due this year</p>
@@ -100,7 +100,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2  rounded-xl shadow-sm border-4 border-red-500 flex-1" style="min-width: 160px;">
+                    <div class="stat-card bg-white p-3 rounded-xl shadow-sm border-4 border-red-500">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Outstanding</p>
@@ -108,22 +108,20 @@
                             </div>
                         </div>
                     </div>
-
-
                 </div>
 
                 <!-- Quick Charts Grid -->
-                <div class="grid gap-6">
+                <div class="grid gap-6 mt-6">
                     <div class="bg-white p-6 rounded-xl shadow-sm">
                         <h3 class="text-lg font-semibold mb-4">Students by Location</h3>
-                        <div style="height: 300px;">
+                        <div class="dgm-chart-box">
                             <canvas id="studentsLocationChart"></canvas>
                         </div>
                     </div>
                 </div>
 
                 <!-- Revenue Summary Table -->
-                <div class="bg-white p-6 rounded-xl shadow-sm">
+                <div class="bg-white p-6 rounded-xl shadow-sm mt-6">
                     <h3 class="text-lg font-semibold mb-4">Revenue Summary</h3>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -366,13 +364,13 @@
 
                 <div class="bg-white p-6 rounded-xl shadow-sm mb-6">
                     <h3 class="text-lg font-semibold mb-4">Students by Location and Course</h3>
-                    <div class="relative" style="height: 700px;">
+                    <div class="relative dgm-chart-box dgm-chart-box-tall">
                         <canvas id="chartCombined"></canvas>
                     </div>
                 </div>
 
                 <!-- Students Tab Upload/Download -->
-                <div class="flex gap-2 mb-4">
+                <div class="flex flex-wrap gap-2 mb-4">
                     <button class="px-3 py-2 bg-green-600 text-white rounded" onclick="downloadStudentTemplate()">Download
                         Student Excel Template</button>
                     <button class="px-3 py-2 bg-blue-600 text-white rounded"
@@ -575,19 +573,19 @@
                 <div class="grid  mb-6 gap-4">
                     <div class="bg-white p-6 rounded-xl shadow-sm">
                         <h3 class="text-lg font-semibold mb-4">Revenue</h3>
-                        <div style="height: 500px;">
+                        <div class="dgm-chart-box dgm-chart-box-tall">
                             <canvas id="revenueYearChart"></canvas>
                         </div>
                     </div>
                     <div class="bg-white p-6 rounded-xl shadow-sm">
                         <h3 class="text-lg font-semibold mb-4">Outstanding</h3>
-                        <div style="height: 300px;">
+                        <div class="dgm-chart-box">
                             <canvas id="outstandingYearChart"></canvas>
                         </div>
                     </div>
                 </div>
                 <!-- Revenues Tab Upload/Download -->
-                <div class="flex gap-2 mb-4">
+                <div class="flex flex-wrap gap-2 mb-4">
                     <button class="px-3 py-2 bg-green-600 text-white rounded" onclick="downloadRevenueTemplate()">Download
                         Revenue Excel Template</button>
                     <button class="px-3 py-2 bg-blue-600 text-white rounded"
@@ -654,7 +652,7 @@
                 <div class="grid gap-6 mb-6">
                     <div class="bg-white p-6 rounded-xl shadow-sm">
                         <h3 class="text-lg font-semibold mb-4">Outstanding by Location</h3>
-                        <div style="height: 400px;">
+                        <div class="dgm-chart-box">
                             <canvas id="outstandingTabChart"></canvas>
                         </div>
                     </div>
@@ -686,7 +684,7 @@
 
                 <div class="bg-white p-6 rounded-xl shadow-sm">
                     <h3 class="text-lg font-semibold mb-4">Marketing Survey Analysis</h3>
-                    <div style="height: 400px;">
+                    <div class="dgm-chart-box dgm-chart-box-tall">
                         <canvas id="marketingSurveyChart"></canvas>
                     </div>
                 </div>
@@ -711,10 +709,98 @@
 
         .stat-card {
             transition: all 0.3s ease;
+            min-width: 0;
+            width: 100%;
         }
 
         .stat-card:hover {
             transform: translateY(-2px);
+        }
+
+        body:has(.dgm-dashboard-page) .body-wrapper > .container-fluid {
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .dgm-dashboard-page {
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+
+        .dgm-dashboard-page .max-w-7xl {
+            width: 100%;
+            max-width: min(80rem, 100%);
+            box-sizing: border-box;
+        }
+
+        .dgm-dashboard-page .tab-content,
+        .dgm-dashboard-page .grid,
+        .dgm-dashboard-page .flex,
+        .dgm-dashboard-page .bg-white {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .dgm-tab-bar {
+            flex-wrap: wrap;
+        }
+
+        .dgm-kpi-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 1rem;
+            min-width: 0;
+        }
+
+        .dgm-chart-box {
+            position: relative;
+            width: 100%;
+            min-width: 0;
+            height: 280px;
+            overflow: hidden;
+        }
+
+        .dgm-chart-box-tall {
+            height: 360px;
+        }
+
+        .dgm-dashboard-page canvas {
+            display: block;
+            max-width: 100% !important;
+        }
+
+        .dgm-chart-box canvas {
+            position: absolute;
+            inset: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .dgm-dashboard-page .overflow-x-auto {
+            min-width: 0;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .dgm-dashboard-page .overflow-x-auto table {
+            width: 100%;
+            min-width: 100%;
+            table-layout: fixed;
+        }
+
+        .dgm-dashboard-page h3,
+        .dgm-dashboard-page .stat-card p {
+            overflow-wrap: anywhere;
+        }
+
+        .dgm-dashboard-page .w-96 {
+            width: min(24rem, calc(100vw - 2rem));
+            max-width: 100%;
         }
 
         .filter-card {
@@ -732,6 +818,77 @@
             gap: 0.5rem;
             margin-top: 1rem;
         }
+        @media (min-width: 640px) {
+            .dgm-kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .dgm-kpi-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+            .dgm-chart-box {
+                height: 300px;
+            }
+            .dgm-chart-box-tall {
+                height: 420px;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .dgm-tab-bar {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+            }
+            .dgm-tab-bar button {
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+            body:has(.dgm-dashboard-page) .body-wrapper > .container-fluid {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+            .dgm-dashboard-page .max-w-7xl {
+                padding-left: 0;
+                padding-right: 0;
+            }
+            .dgm-dashboard-page .py-8 {
+                padding-top: 1rem;
+                padding-bottom: 1rem;
+            }
+            .dgm-dashboard-page .p-6 {
+                padding: 1rem;
+            }
+            .dgm-chart-box {
+                height: 240px;
+            }
+            .dgm-chart-box-tall {
+                height: 280px;
+            }
+            .stat-card:hover {
+                transform: none;
+            }
+            .stat-card .text-2xl {
+                font-size: 1.35rem;
+            }
+            .dgm-dashboard-page .overflow-x-auto table {
+                min-width: 36rem;
+                table-layout: auto;
+            }
+            .dgm-dashboard-page table th,
+            .dgm-dashboard-page table td {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+                white-space: nowrap;
+            }
+            .dgm-dashboard-page .flex-wrap > button {
+                flex: 1 1 100%;
+            }
+        }
+
         @media (max-width: 575.98px) {
             .dashboard-filter-actions {
                 flex-direction: column;
@@ -799,6 +956,18 @@
         let currentCharts = {};
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
+        function dgmLegendOptions(position) {
+            const isMobile = window.innerWidth < 768;
+            return {
+                position: position,
+                labels: {
+                    boxWidth: isMobile ? 10 : 12,
+                    font: { size: isMobile ? 11 : 12 },
+                    padding: isMobile ? 8 : 12
+                }
+            };
+        }
+
         function downloadStudentTemplate() {
             window.location.href = "{{ route('bulk.student.template') }}";
         }
@@ -826,6 +995,19 @@
 
             setTimeout(() => initializeChartsForTab(tabName), 100);
         }
+
+        function resizeDashboardCharts() {
+            Object.values(currentCharts).forEach(function (chart) {
+                if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            });
+        }
+
+        window.addEventListener('resize', function () {
+            clearTimeout(window._dgmChartResizeTimer);
+            window._dgmChartResizeTimer = setTimeout(resizeDashboardCharts, 150);
+        });
 
         function showModal(id) {
             const modal = document.getElementById(id);
@@ -976,7 +1158,7 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { position: 'bottom' }
+                                legend: dgmLegendOptions('bottom')
                             }
                         }
                     });
@@ -1023,10 +1205,11 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { position: 'bottom' }
+                                legend: dgmLegendOptions('bottom')
                             }
                         }
                     });
+                    requestAnimationFrame(resizeDashboardCharts);
                 }
             } catch (error) {
                 console.error('Error loading location breakdown:', error);
