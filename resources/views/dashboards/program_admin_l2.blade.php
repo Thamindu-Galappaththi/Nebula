@@ -113,6 +113,26 @@
         .chart-container {
             position: relative;
             height: 300px;
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .chart-container canvas {
+            display: block;
+            max-width: 100% !important;
+        }
+
+        .batch-student-chart-container {
+            min-height: 280px;
+        }
+
+        .program-admin-l2-page [class*="col-"],
+        .program-admin-l2-page .card,
+        .program-admin-l2-page .card-body {
+            min-width: 0;
+            max-width: 100%;
         }
 
         .analytics-filter-field {
@@ -291,7 +311,12 @@
             }
 
             .chart-container {
-                height: 220px;
+                height: 240px;
+            }
+
+            .batch-student-chart-container {
+                height: 360px;
+                min-height: 320px;
             }
 
             .card-hover:hover {
@@ -703,7 +728,7 @@
                                                         </select>
                                                     </div>
                                                 </div>
-                                                <div class="chart-container">
+                                                <div class="chart-container batch-student-chart-container">
                                                     <canvas id="batchStudentChart"></canvas>
                                                 </div>
                                             </div>
@@ -1331,6 +1356,7 @@
         let currentRejectId = null;
         let currentSearchQuery = '';
         let chartInstances = {};
+        let lastBatchChartNarrow = null;
         const emptyChartPlugin = {
             id: 'emptyChartMessage',
             afterDraw(chart) {
@@ -1443,6 +1469,19 @@
             // Chart type changes
             document.getElementById('batchChartType').addEventListener('change', function () {
                 updateBatchStudentChart(window.lastBatchStudentData || []);
+            });
+
+            let batchChartResizeTimer;
+            window.addEventListener('resize', function () {
+                clearTimeout(batchChartResizeTimer);
+                batchChartResizeTimer = setTimeout(function () {
+                    const narrow = isNarrowDashboard();
+                    if (narrow !== lastBatchChartNarrow) {
+                        updateBatchStudentChart(window.lastBatchStudentData || []);
+                        return;
+                    }
+                    resizeDashboardCharts();
+                }, 150);
             });
 
             document.getElementById('gradeChartType').addEventListener('change', function () {
@@ -2042,20 +2081,81 @@
             }
         }
 
+        function isNarrowDashboard() {
+            return window.matchMedia('(max-width: 767.98px)').matches;
+        }
+
+        function truncateChartLabel(value, max) {
+            const text = String(value || '');
+            return text.length > max ? text.slice(0, max - 1) + '…' : text;
+        }
+
+        function sizeBatchChartContainer(count, horizontal) {
+            const el = document.querySelector('.batch-student-chart-container');
+            if (!el) {
+                return;
+            }
+
+            const mobile = isNarrowDashboard();
+            if (mobile && horizontal) {
+                el.style.height = Math.max(320, Math.min(560, 72 + Math.max(count, 1) * 44)) + 'px';
+                return;
+            }
+            if (mobile) {
+                el.style.height = '340px';
+                return;
+            }
+            el.style.height = '';
+        }
+
         function updateBatchStudentChart(data) {
             const chartType = document.getElementById('batchChartType')?.value || 'bar';
+            const narrow = isNarrowDashboard();
+            lastBatchChartNarrow = narrow;
+            const useHorizontal = chartType === 'horizontalBar' || narrow;
             const hasData = Array.isArray(data) && data.length > 0;
-            const labels = hasData
+            const fullLabels = hasData
                 ? data.map(item => {
                     const batch = item.batch || 'N/A';
-                    const course = item.course_name ? String(item.course_name).substring(0, 20) : '';
+                    const course = item.course_name ? String(item.course_name) : '';
                     return course ? `${batch} (${course})` : batch;
                 })
                 : ['No batches'];
+            const labelMax = useHorizontal ? (narrow ? 22 : 36) : (narrow ? 14 : 24);
+            const labels = fullLabels.map(label => truncateChartLabel(label, labelMax));
             const counts = hasData ? data.map(item => Number(item.count) || 0) : [0];
 
+            sizeBatchChartContainer(labels.length, useHorizontal);
+
+            const categoryTicks = {
+                autoSkip: false,
+                font: { size: narrow ? 10 : 11 },
+                maxRotation: useHorizontal ? 0 : (narrow ? 50 : 45),
+                minRotation: useHorizontal ? 0 : (narrow ? 50 : 0)
+            };
+
+            const valueScale = {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1,
+                    precision: 0
+                },
+                grid: {
+                    color: 'rgba(15, 23, 42, 0.06)'
+                }
+            };
+
+            const categoryScale = {
+                ticks: categoryTicks,
+                afterFit: function (scale) {
+                    if (useHorizontal && narrow) {
+                        scale.width = Math.min(scale.width, Math.max(96, Math.floor(scale.chart.width * 0.38)));
+                    }
+                }
+            };
+
             createChart('batchStudent', 'batchStudentChart', {
-                type: chartType === 'horizontalBar' ? 'bar' : chartType,
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
@@ -2064,32 +2164,36 @@
                         backgroundColor: 'rgba(102, 126, 234, 0.8)',
                         borderColor: 'rgba(102, 126, 234, 1)',
                         borderWidth: 1,
-                        borderRadius: chartType === 'bar' ? 6 : 0
+                        borderRadius: useHorizontal ? 4 : 6,
+                        maxBarThickness: narrow ? 28 : 48
                     }]
                 },
                 options: {
-                    indexAxis: chartType === 'horizontalBar' ? 'y' : 'x',
+                    indexAxis: useHorizontal ? 'y' : 'x',
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: narrow ? { top: 8, right: 12, bottom: 4, left: 0 } : { top: 8, right: 8, bottom: 0, left: 0 }
+                    },
                     plugins: {
                         legend: {
                             display: false
                         },
                         tooltip: {
                             callbacks: {
+                                title: function (items) {
+                                    const index = items[0] ? items[0].dataIndex : 0;
+                                    return fullLabels[index] || '';
+                                },
                                 label: function (context) {
                                     return `Students: ${context.raw}`;
                                 }
                             }
                         }
                     },
-                    scales: chartType === 'pie' || chartType === 'doughnut' ? {} : {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
+                    scales: {
+                        x: useHorizontal ? valueScale : categoryScale,
+                        y: useHorizontal ? categoryScale : valueScale
                     }
                 }
             });
