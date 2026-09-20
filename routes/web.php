@@ -168,7 +168,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     });
 
     // Student List
-    Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Bursar,Marketing Manager,Developer'])->group(function () {
+    Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Bursar,Marketing Manager,Project Tutor,Developer'])->group(function () {
         Route::get('/student/list', [StudentListController::class, 'showStudentList'])->name('student_management.list');
         Route::get('/student/list/get-intakes/{courseId}/{location}', [StudentListController::class, 'getIntakesForCourseAndLocation'])->name('student.list.getIntakes');
         Route::post('/get-student-list-data', [StudentListController::class, 'getStudentListData'])->name('student.getListData');
@@ -180,6 +180,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::post('/import-student-list', [StudentListController::class, 'importStudentList'])->name('import.student.list');
         Route::get('/student-list-excel', [StudentListController::class, 'downloadExcel'])->name('student.list.excel');
         Route::get('/student/blacklist-check', [StudentListController::class, 'checkBlacklistStatus'])->name('student.blacklist.check');
+        Route::get('/api/course/{courseId}/specializations', [StudentProfileController::class, 'getCourseSpecializations']);
+        Route::get('/course-registration/get-courses-by-location/{location}', [CourseRegistraionController::class, 'getCoursesByLocation'])->name('course.registration.courses.by.location');
     });
 
     // Student View (All Students)
@@ -219,7 +221,6 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/api/student/{studentId}/certificates', [StudentProfileController::class, 'getStudentCertificates']);
         Route::post('/student/{studentId}/upload-ol-certificate', [StudentProfileController::class, 'uploadOLCertificate'])->name('student.uploadOLCertificate');
         Route::post('/student/{studentId}/upload-al-certificate', [StudentProfileController::class, 'uploadALCertificate'])->name('student.uploadALCertificate');
-        Route::get('/api/course/{courseId}/specializations', [StudentProfileController::class, 'getCourseSpecializations']);
         Route::post('/api/course-registration/{id}/update-grade', [StudentProfileController::class, 'updateCourseRegistrationGrade']);
         Route::get('/api/student/{studentId}/course/{courseId}/intakes', [StudentProfileController::class, 'getIntakesForCourse'])->name('student.intakes.for.course');
         Route::get('/api/student/{studentId}/course/{courseId}/intake/{intake}/payment-details', [StudentProfileController::class, 'getPaymentDetails'])->name('student.payment.details');
@@ -249,7 +250,6 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Bursar,Marketing Manager,Developer'])->group(function () {
         Route::get('/course-registration', [CourseRegistraionController::class, 'showCourseRegistration'])->name('course.registration');
-        Route::get('/course-registration/get-courses-by-location/{location}', [CourseRegistraionController::class, 'getCoursesByLocation'])->name('course.registration.courses.by.location');
         Route::get('/course-registration/get-intakes/{courseName}/{location}', [CourseRegistraionController::class, 'getIntakesForCourseAndLocation'])->name('course.registration.intakes.by.course.location');
         Route::post('/check-student-exists', [CourseRegistraionController::class, 'checkStudentExists'])->name('check.student.exists');
         Route::post('/store-course-registration', [CourseRegistraionController::class, 'storeCourseRegistration'])->name('store.course.registration');
