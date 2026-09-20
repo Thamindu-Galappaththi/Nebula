@@ -37,13 +37,19 @@ class TerminationTrackingTest extends TestCase
     {
         $student = $this->makeTerminatedStudent('199011111V', 'No History Student');
 
-        $this->actingAs($this->actor)
+        $html = $this->actingAs($this->actor)
             ->get(route('termination.tracking'))
             ->assertOk()
             ->assertSee('Termination Tracking')
             ->assertSee('No History Student')
             ->assertSee('Currently Terminated Students')
-            ->assertDontSee('Attempt to read property');
+            ->assertSee('z-index: 1050', false)
+            ->assertSee('#main-wrapper.show-sidebar .nebula-select-menu', false)
+            ->assertDontSee('Attempt to read property')
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/\.termination-filters\s*\{[^}]*z-index:\s*1;/', $html);
+        $this->assertDoesNotMatchRegularExpression('/\.termination-filters\s*\{[^}]*z-index:\s*20;/', $html);
     }
 
     public function test_page_shows_history_and_latest_course_clearances(): void
