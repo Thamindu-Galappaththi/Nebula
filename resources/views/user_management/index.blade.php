@@ -3,6 +3,7 @@
 @section('title', 'NEBULA | User Management')
 
 @section('content')
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
     .body-wrapper > .container-fluid {
         min-width: 0;
@@ -170,6 +171,9 @@
         .modal-dialog {
             margin: 0.5rem;
         }
+    }
+    .swal2-container {
+        z-index: 20000;
     }
 </style>
 
@@ -348,6 +352,7 @@
 <script nonce="{{ $cspNonce }}" type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js" integrity="sha384-ficRBwtap/VLzILv81vIvgp30PoJYnlCm96tPpNYHXAf+h9SIThOZxxIzRUzbpAh" crossorigin="anonymous"></script>
 <script nonce="{{ $cspNonce }}" type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js" integrity="sha384-jIAE3P7Re8BgMkT0XOtfQ6lzZgbDw/02WeRMJvXK3WMHBNynEx5xofqia1OHuGh0" crossorigin="anonymous"></script>
 
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const editRoleSelect = document.getElementById('edit_user_roles');
@@ -577,8 +582,42 @@ function editUser(userId, fallbackLocation) {
     });
 }
 
+function confirmDeleteUser(title, text) {
+    if (!window.Swal) {
+        return Promise.resolve(window.confirm(text));
+    }
+
+    return Swal.fire({
+        title: title,
+        text: text,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, delete',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true,
+        focusCancel: true
+    }).then(function (result) {
+        return result.isConfirmed;
+    });
+}
+
+function showDeleteAlert(title, text, icon) {
+    if (window.Swal) {
+        return Swal.fire({ title: title, text: text, icon: icon, confirmButtonText: 'OK' });
+    }
+    window.alert(text);
+    return Promise.resolve();
+}
+
 function deleteUser(userId, userName) {
-    if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+    const name = userName || 'this user';
+    confirmDeleteUser('Delete user?', 'Delete "' + name + '"? This cannot be undone.').then(function (ok) {
+        if (!ok) {
+            return;
+        }
+
         fetch('/user/delete', {
             method: 'POST',
             headers: {
@@ -588,20 +627,20 @@ function deleteUser(userId, userName) {
             },
             body: JSON.stringify({ user_id: userId })
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
             if (data.success) {
-                showToast(data.message, 'success');
-                // Reload page to show updated data
-                setTimeout(() => location.reload(), 1500);
+                showDeleteAlert('Deleted', data.message || 'User deleted.', 'success').then(function () {
+                    location.reload();
+                });
             } else {
-                showToast(data.message || 'Error deleting user', 'danger');
+                showDeleteAlert('Error', data.message || 'Error deleting user', 'error');
             }
         })
-        .catch(error => {
-            showToast('Error: ' + error.message, 'danger');
+        .catch(function (error) {
+            showDeleteAlert('Error', error.message || 'Error deleting user', 'error');
         });
-    }
+    });
 }
 
 function showResetPasswordModal(userId, userName) {
