@@ -788,9 +788,9 @@
         }
 
         .dgm-dashboard-page .overflow-x-auto table {
-            max-width: none;
-            min-width: 36rem;
-            width: max-content;
+            width: 100%;
+            min-width: 100%;
+            table-layout: fixed;
         }
 
         .dgm-dashboard-page h3,
@@ -873,6 +873,10 @@
             }
             .stat-card .text-2xl {
                 font-size: 1.35rem;
+            }
+            .dgm-dashboard-page .overflow-x-auto table {
+                min-width: 36rem;
+                table-layout: auto;
             }
             .dgm-dashboard-page table th,
             .dgm-dashboard-page table td {
