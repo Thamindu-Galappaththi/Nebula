@@ -45,6 +45,10 @@ class PaymentPlanIndexPageTest extends TestCase
             ->assertSee('payment-plan-index', false)
             ->assertSee('Clear Filters')
             ->assertSee('payment-plan-filter-actions', false)
+            ->assertSee('paymentPlanResults', false)
+            ->assertSee('loadPaymentPlans', false)
+            ->assertSee('clearFiltersBtn', false)
+            ->assertSee('e.preventDefault()', false)
             ->assertSee('Showing 1–10 of 12 results')
             ->assertSee('Per page')
             ->assertSee('Excel')
@@ -56,6 +60,63 @@ class PaymentPlanIndexPageTest extends TestCase
             ->get(route('payment.plan.index', ['per_page' => 25]))
             ->assertOk()
             ->assertSee('Showing 1–12 of 12 results');
+    }
+
+    public function test_filter_and_pagination_use_ajax_partial_without_full_page(): void
+    {
+        $welisaraCourse = $this->makeCourse();
+        $welisaraIntake = $this->makeIntake($welisaraCourse);
+        $moratuwaCourse = Course::forceCreate([
+            'course_name'         => 'HND Software',
+            'course_type'         => 'diploma',
+            'location'            => 'Moratuwa',
+            'no_of_semesters'     => 4,
+            'duration'            => '2 years',
+            'min_credits'         => 60,
+            'course_medium'       => 'English',
+            'entry_qualification' => 'A/L or equivalent',
+            'conducted_by'        => 0,
+        ]);
+        $moratuwaIntake = Intake::forceCreate([
+            'location'          => 'Moratuwa',
+            'course_id'         => $moratuwaCourse->course_id,
+            'course_name'       => $moratuwaCourse->course_name,
+            'batch'             => '2024-JUL-M01',
+            'batch_size'        => 30,
+            'intake_mode'       => 'Physical',
+            'intake_type'       => 'Fulltime',
+            'registration_fee'  => '5000',
+            'franchise_payment' => '0',
+            'course_fee'        => '50000',
+            'start_date'        => now()->subMonth()->toDateString(),
+            'end_date'          => now()->addYears(2)->toDateString(),
+        ]);
+
+        for ($i = 0; $i < 11; $i++) {
+            $this->makePlan($welisaraCourse, $welisaraIntake);
+        }
+        $other = $this->makePlan($moratuwaCourse, $moratuwaIntake, [
+            'location' => 'Moratuwa',
+        ]);
+
+        $pageTwo = $this->actingAs($this->actor)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payment.plan.index', ['per_page' => 10, 'page' => 2]))
+            ->assertOk()
+            ->assertJsonStructure(['html']);
+
+        $this->assertStringContainsString('Showing 11–12 of 12', $pageTwo->json('html'));
+        $this->assertStringNotContainsString('id="filterForm"', $pageTwo->json('html'));
+        $this->assertStringNotContainsString('Payment Plans</h2>', $pageTwo->json('html'));
+
+        $filtered = $this->actingAs($this->actor)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('payment.plan.index', ['location' => 'Moratuwa']))
+            ->assertOk();
+
+        $this->assertStringContainsString('#' . $other->id, $filtered->json('html'));
+        $this->assertStringContainsString('Showing 1–1 of 1', $filtered->json('html'));
+        $this->assertStringContainsString('HND Software', $filtered->json('html'));
     }
 
     public function test_courses_by_location_return_data_array(): void
