@@ -126,6 +126,20 @@ body {
     line-height: 1.4;
 }
 
+.maintenance-title {
+    margin: 0 0 0.75rem;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.maintenance-copy {
+    margin: 0;
+    color: #4b5563;
+    font-size: 0.98rem;
+    line-height: 1.5;
+}
+
 .login-page .form-control,
 .login-page .form-control-lg,
 .login-page .btn,
@@ -134,6 +148,10 @@ body {
 }
 
 @media (max-width: 767.98px) {
+    .maintenance-title {
+        font-size: 1.25rem;
+    }
+
     .login-main {
         align-items: center;
         justify-content: center;

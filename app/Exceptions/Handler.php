@@ -155,6 +155,17 @@ class Handler extends ExceptionHandler
         });
 
         $this->renderable(function (HttpException $e, $request) {
+            if ($e->getStatusCode() === 503) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The system is temporarily unavailable for maintenance. Please try again shortly.',
+                    ], 503);
+                }
+
+                return response()->view('errors.503', [], 503);
+            }
+
             if ($e->getStatusCode() !== 419) {
                 return null;
             }
