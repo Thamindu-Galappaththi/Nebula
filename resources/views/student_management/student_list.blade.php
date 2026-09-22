@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const placeholder = new Option('Select Specialization', '', true, true);
         placeholder.disabled = true;
         specializationSelect.add(placeholder);
-        specializationSelect.add(new Option('Common', 'Common'));
+        specializationSelect.add(new Option('Common (No Specialization)', 'Common'));
         named.forEach(label => specializationSelect.add(new Option(label, label)));
         specializationSelect.disabled = false;
         specializationRow.style.display = '';

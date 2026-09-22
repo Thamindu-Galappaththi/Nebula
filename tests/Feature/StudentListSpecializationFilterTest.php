@@ -244,17 +244,22 @@ class StudentListSpecializationFilterTest extends TestCase
         );
     }
 
-    public function test_named_specialization_with_no_assignments_still_returns_the_intake(): void
+    public function test_named_specialization_with_no_assignments_returns_no_students(): void
     {
         DB::table('specialization_registrations')->delete();
 
         $response = $this->listStudents('Electrical & Electronic Engineering');
 
         $response->assertOk()->assertJson(['success' => true]);
-        $ids = collect($response->json('students'))->pluck('student_id');
+        $this->assertSame([], $response->json('students'));
+    }
 
-        $this->assertContains($this->commonStudent->student_id, $ids);
-        $this->assertContains($this->eeeStudent->student_id, $ids);
+    public function test_specialization_dropdown_labels_common_as_no_specialization(): void
+    {
+        $this->actingAs($this->actor)
+            ->get(route('student_management.list'))
+            ->assertOk()
+            ->assertSee("new Option('Common (No Specialization)', 'Common')", false);
     }
 
     public function test_terminated_profile_status_is_listed_as_not_eligible(): void
