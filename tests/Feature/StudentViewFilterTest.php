@@ -119,6 +119,7 @@ class StudentViewFilterTest extends TestCase
             ->assertSee('Export Excel')
             ->assertSee('Export PDF')
             ->assertSee('Per page')
+            ->assertSee("new Option('Common (No Specialization)', 'Common')", false)
             ->assertDontSee('Export CSV');
     }
 
@@ -387,6 +388,62 @@ class StudentViewFilterTest extends TestCase
         $this->assertContains($unassigned->student_id, $ids);
         $this->assertNotContains($assigned->student_id, $ids);
         $this->assertSame('-', $students->firstWhere('student_id', $unassigned->student_id)['specialization']);
+    }
+
+    public function test_named_specialization_filter_does_not_return_unassigned_students(): void
+    {
+        $unassigned = $this->makeStudent('2000406913510');
+        $assigned = $this->makeStudent('200528805160');
+        $unassignedReg = $this->makeRegistration($unassigned->student_id, 63, 630);
+        $this->makeRegistration($assigned->student_id, 63, 630);
+        $unassignedReg->course->update([
+            'specializations' => ['Data Analytics'],
+        ]);
+
+        DB::table('specialization_registrations')->insert([
+            'student_id' => $assigned->student_id,
+            'course_id' => 63,
+            'intake_id' => 630,
+            'location' => 'Welisara',
+            'specialization' => 'Data Analytics',
+            'status' => 'registered',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->actor)
+            ->postJson($this->route(), [
+                'course_id' => 63,
+                'intake_id' => 630,
+                'specialization' => 'Data Analytics',
+            ]);
+
+        $response->assertOk();
+        $students = collect($response->json('data'));
+        $ids = $students->pluck('student_id');
+
+        $this->assertContains($assigned->student_id, $ids);
+        $this->assertNotContains($unassigned->student_id, $ids);
+        $this->assertSame('Data Analytics', $students->first()['specialization']);
+    }
+
+    public function test_named_specialization_with_no_assignments_returns_no_students(): void
+    {
+        $student = $this->makeStudent('2000406913511');
+        $registration = $this->makeRegistration($student->student_id, 64, 640);
+        $registration->course->update([
+            'specializations' => ['Data Analytics'],
+        ]);
+
+        $response = $this->actingAs($this->actor)
+            ->postJson($this->route(), [
+                'course_id' => 64,
+                'intake_id' => 640,
+                'specialization' => 'Data Analytics',
+            ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $this->assertSame([], $response->json('data'));
     }
 
     private function excelSheetFromResponse($response)

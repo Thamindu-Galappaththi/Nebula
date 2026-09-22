@@ -434,7 +434,7 @@ function loadSpecializations(courseId) {
 
       specializationSelect.innerHTML = '';
       specializationSelect.add(new Option('All', 'all'));
-      specializationSelect.add(new Option('Common', 'Common'));
+      specializationSelect.add(new Option('Common (No Specialization)', 'Common'));
       named.forEach(label => specializationSelect.add(new Option(label, label)));
       specializationWrap.style.display = '';
     })

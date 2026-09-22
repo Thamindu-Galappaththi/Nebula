@@ -145,9 +145,6 @@ class StudentViewController extends Controller
             ->all();
 
         if (empty($matchingIds)) {
-            if ($assignments->isEmpty()) {
-                return;
-            }
             $query->whereRaw('1 = 0');
             return;
         }
