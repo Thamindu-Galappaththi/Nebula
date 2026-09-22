@@ -101,12 +101,6 @@ class StudentListController extends Controller
             ->all();
 
         if (empty($matchingIds)) {
-            // Course definition can list a track before anyone is assigned.
-            // Hiding the whole intake makes UH Batch 06 look empty.
-            if ($assignments->isEmpty()) {
-                return $query;
-            }
-
             return $query->whereRaw('1 = 0');
         }
 
