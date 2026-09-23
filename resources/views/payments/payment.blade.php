@@ -1979,6 +1979,10 @@ function fillStudentCourseSelect(select, courses, { includeApproval = false, aut
     return false;
 }
 
+function studentLookupReady(value) {
+    return String(value || '').trim().length >= 10;
+}
+
 function fetchStudentCourses(studentNic) {
     return fetch('{{ route("payment.get.student.courses") }}', {
         method: 'POST',
@@ -2035,44 +2039,21 @@ function bindStudentNicCourseLoader(inputId, loader) {
     el.addEventListener('paste', () => setTimeout(schedule, 0));
 }
 
-document.addEventListener('input', function (e) {
-    const source = {
-        'plan-student-nic': 'plan',
-        'slip-student-id': 'slip',
-        'update-student-nic': 'update',
-        'slt-loan-student-nic': 'slt'
-    }[e.target?.id];
-    if (source) {
-        scheduleStudentCourseLoad(source);
-    }
-});
-document.addEventListener('change', function (e) {
-    const source = {
-        'plan-student-nic': 'plan',
-        'slip-student-id': 'slip',
-        'update-student-nic': 'update',
-        'slt-loan-student-nic': 'slt'
-    }[e.target?.id];
-    if (source) {
-        scheduleStudentCourseLoad(source);
-    }
-});
-
 function loadStudentCoursesIfIdPresent() {
     const slipId = (document.getElementById('slip-student-id')?.value || '').trim();
-    if (slipId.length >= 9) {
+    if (studentLookupReady(slipId)) {
         checkStudentAndCourse();
     }
     const planNic = (document.getElementById('plan-student-nic')?.value || '').trim();
-    if (planNic.length >= 9) {
+    if (studentLookupReady(planNic)) {
         loadCoursesForStudent();
     }
     const updateNic = (document.getElementById('update-student-nic')?.value || '').trim();
-    if (updateNic.length >= 9) {
+    if (studentLookupReady(updateNic)) {
         loadStudentCoursesForUpdate();
     }
     const sltNic = (document.getElementById('slt-loan-student-nic')?.value || '').trim();
-    if (sltNic.length >= 9) {
+    if (studentLookupReady(sltNic)) {
         loadStudentCoursesForSltLoan();
     }
 }
@@ -2086,7 +2067,7 @@ function loadCoursesForStudent() {
         resetCourseSelect(courseSelect, 'Enter Student NIC first');
         return;
     }
-    if (studentNic.length < 9) {
+    if (!studentLookupReady(studentNic)) {
         return;
     }
 
@@ -2095,17 +2076,12 @@ function loadCoursesForStudent() {
         .then(data => {
             if (!data.success) {
                 resetCourseSelect(courseSelect, data.message || 'No registered courses found');
-                showErrorMessage(data.message || 'Failed to load courses for student.');
                 return;
             }
             fillStudentCourseSelect(courseSelect, data.courses);
-            if (!data.courses.length) {
-                showInfoMessage('No courses found for this student.');
-            }
         })
         .catch(() => {
             resetCourseSelect(courseSelect, 'Error loading courses');
-            showErrorMessage('An error occurred while loading courses.');
         });
 }
 
@@ -4140,21 +4116,12 @@ function loadPaymentRecords() {
 function loadStudentCoursesForUpdate() {
     const studentNic = document.getElementById('update-student-nic').value;
 
-    if (!studentNic) {
+    if (!studentLookupReady(studentNic)) {
         document.getElementById('update-course').innerHTML = '<option value="" selected disabled>Select a Course</option>';
         return Promise.resolve(false);
     }
 
-    showSpinner(true);
-
-    return fetch('/payment/get-student-courses', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-        body: JSON.stringify({
-            student_nic: studentNic
-        })
-    })
-    .then(response => response.json())
+    return fetchStudentCourses(studentNic)
     .then(data => {
         const courseSelect = document.getElementById('update-course');
         courseSelect.innerHTML = '<option value="" selected disabled>Select a Course</option>';
@@ -4166,20 +4133,23 @@ function loadStudentCoursesForUpdate() {
                 option.textContent = course.course_name;
                 courseSelect.appendChild(option);
             });
-
-            showSuccessMessage('Courses loaded successfully!');
+            if (!data.courses.length) {
+                courseSelect.innerHTML = '<option value="" selected disabled>No registered courses found</option>';
+            }
+            syncCustomSelect(courseSelect);
             return true;
         }
 
-        showErrorMessage(data.message || 'Failed to load courses.');
+        courseSelect.innerHTML = `<option value="" selected disabled>${data.message || 'No registered courses found'}</option>`;
+        syncCustomSelect(courseSelect);
         return false;
     })
     .catch(() => {
-        showErrorMessage('An error occurred while loading courses.');
-        document.getElementById('update-course').innerHTML = '<option value="" selected disabled>Select a Course</option>';
+        const courseSelect = document.getElementById('update-course');
+        courseSelect.innerHTML = '<option value="" selected disabled>Error loading courses</option>';
+        syncCustomSelect(courseSelect);
         return false;
-    })
-    .finally(() => showSpinner(false));
+    });
 }
 
 function resetSltLoanAutoFields() {
@@ -4208,10 +4178,10 @@ function updateSltLoanInstallmentCountField() {
 }
 
 function loadStudentCoursesForSltLoan() {
-    const studentNic = document.getElementById('slt-loan-student-nic')?.value;
+    const studentNic = (document.getElementById('slt-loan-student-nic')?.value || '').trim();
+    const courseSelect = document.getElementById('slt-loan-course');
 
     if (!studentNic) {
-        const courseSelect = document.getElementById('slt-loan-course');
         if (courseSelect) {
             courseSelect.innerHTML = '<option value="" selected disabled>Select a Course</option>';
             courseSelect.disabled = true;
@@ -4220,16 +4190,15 @@ function loadStudentCoursesForSltLoan() {
         return;
     }
 
-    showSpinner(true);
+    if (!studentLookupReady(studentNic)) {
+        return;
+    }
 
-    fetch('/payment/get-student-courses', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-        body: JSON.stringify({ student_nic: studentNic })
-    })
-    .then(response => response.json())
+    fetchStudentCourses(studentNic)
     .then(data => {
-        const courseSelect = document.getElementById('slt-loan-course');
+        if (!courseSelect) {
+            return;
+        }
         courseSelect.innerHTML = '<option value="" selected disabled>Select a Course</option>';
         resetSltLoanAutoFields();
 
@@ -4241,19 +4210,26 @@ function loadStudentCoursesForSltLoan() {
                 courseSelect.appendChild(option);
             });
             courseSelect.disabled = data.courses.length === 0;
-        } else {
-            courseSelect.disabled = true;
-            showErrorMessage(data.message || 'Failed to load courses.');
+            if (!data.courses.length) {
+                courseSelect.innerHTML = '<option value="" selected disabled>No registered courses found</option>';
+            }
+            syncCustomSelect(courseSelect);
+            return;
         }
+
+        courseSelect.disabled = true;
+        courseSelect.innerHTML = `<option value="" selected disabled>${data.message || 'No registered courses found'}</option>`;
+        syncCustomSelect(courseSelect);
     })
     .catch(() => {
-        showErrorMessage('An error occurred while loading courses.');
-        const courseSelect = document.getElementById('slt-loan-course');
-        courseSelect.innerHTML = '<option value="" selected disabled>Select a Course</option>';
+        if (!courseSelect) {
+            return;
+        }
+        courseSelect.innerHTML = '<option value="" selected disabled>Error loading courses</option>';
         courseSelect.disabled = true;
         resetSltLoanAutoFields();
-    })
-    .finally(() => showSpinner(false));
+        syncCustomSelect(courseSelect);
+    });
 }
 
 function loadSltLoanPlanDetails() {
@@ -4568,46 +4544,50 @@ function updatePaymentRecords() {
 
 // Load courses for student when NIC is entered (for summary)
 function loadStudentCoursesForSummary() {
-    const studentNic = document.getElementById('summary-student-nic').value;
+    const studentNic = (document.getElementById('summary-student-nic')?.value || '').trim();
+    const courseSelect = document.getElementById('summary-course');
 
     if (!studentNic) {
-        document.getElementById('summary-course').innerHTML = '<option value="" selected disabled>Select a Course</option>';
+        if (courseSelect) {
+            courseSelect.innerHTML = '<option value="" selected disabled>Select a Course</option>';
+        }
         return;
     }
 
-    showSpinner(true);
+    if (!studentLookupReady(studentNic)) {
+        return;
+    }
 
-    fetch('/payment/get-student-courses', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-        body: JSON.stringify({
-            student_nic: studentNic
-        })
-    })
-    .then(response => response.json())
+    fetchStudentCourses(studentNic)
     .then(data => {
-        if (data.success) {
-            const courseSelect = document.getElementById('summary-course');
-            courseSelect.innerHTML = '<option value="" selected disabled>Select a Course</option>';
+        if (!courseSelect) {
+            return;
+        }
+        courseSelect.innerHTML = '<option value="" selected disabled>Select a Course</option>';
 
+        if (data.success) {
             data.courses.forEach(course => {
                 const option = document.createElement('option');
                 option.value = course.course_id;
                 option.textContent = course.course_name;
                 courseSelect.appendChild(option);
             });
-
-            showSuccessMessage('Courses loaded successfully!');
-        } else {
-            showErrorMessage(data.message || 'Failed to load courses.');
-            document.getElementById('summary-course').innerHTML = '<option value="" selected disabled>Select a Course</option>';
+            if (!data.courses.length) {
+                courseSelect.innerHTML = '<option value="" selected disabled>No registered courses found</option>';
+            }
+            syncCustomSelect(courseSelect);
+            return;
         }
+
+        courseSelect.innerHTML = `<option value="" selected disabled>${data.message || 'No registered courses found'}</option>`;
+        syncCustomSelect(courseSelect);
     })
     .catch(() => {
-        showErrorMessage('An error occurred while loading courses.');
-        document.getElementById('summary-course').innerHTML = '<option value="" selected disabled>Select a Course</option>';
-    })
-    .finally(() => showSpinner(false));
+        if (courseSelect) {
+            courseSelect.innerHTML = '<option value="" selected disabled>Error loading courses</option>';
+            syncCustomSelect(courseSelect);
+        }
+    });
 }
 
 // Generate payment summary
@@ -4828,11 +4808,6 @@ document.addEventListener('DOMContentLoaded', function() {
     bindStudentNicCourseLoader('update-student-nic', loadStudentCoursesForUpdate);
     bindStudentNicCourseLoader('slt-loan-student-nic', loadStudentCoursesForSltLoan);
     loadStudentCoursesIfIdPresent();
-
-    document.getElementById('generate-slips-tab')?.addEventListener('shown.bs.tab', loadStudentCoursesIfIdPresent);
-    document.getElementById('payment-plans-tab')?.addEventListener('shown.bs.tab', loadStudentCoursesIfIdPresent);
-    document.getElementById('update-records-tab')?.addEventListener('shown.bs.tab', loadStudentCoursesIfIdPresent);
-    document.getElementById('slt-loan-tab')?.addEventListener('shown.bs.tab', loadStudentCoursesIfIdPresent);
 
     // Add event listeners for payment plan form fields
     const paymentPlanFields = ['payment-plan-type'];
@@ -5072,7 +5047,7 @@ function checkStudentAndCourse() {
         resetCourseSelect(courseSelect, 'Enter Student ID / NIC first');
         return;
     }
-    if (nic.length < 9) {
+    if (!studentLookupReady(nic)) {
         return;
     }
 
@@ -5085,9 +5060,6 @@ function checkStudentAndCourse() {
                     courseSelect,
                     data.success ? 'No registered courses found' : (data.message || 'No registered courses found')
                 );
-                if (!data.success) {
-                    showErrorMessage(data.message || 'Failed to load courses.');
-                }
                 return;
             }
 
@@ -5095,7 +5067,6 @@ function checkStudentAndCourse() {
         })
         .catch(() => {
             resetCourseSelect(courseSelect, 'Error loading courses');
-            showErrorMessage('An error occurred while loading courses.');
         });
 }
 async function loadPaymentDetails() {
@@ -6090,8 +6061,6 @@ $('#paymentTabs .nav-link').on('shown.bs.tab', function (e) {
     $('#paymentTabs .nav-link').removeClass('bg-primary text-white');
     $(e.target).addClass('bg-primary text-white');
 
-    loadStudentCoursesIfIdPresent();
-
     // ✅ REFRESH Generate Slips tab data when it becomes active
     if ($(e.target).attr('id') === 'generate-slips-tab') {
         console.log('✅ Generate Slips tab activated - refreshing data from backend...');
@@ -6137,10 +6106,6 @@ window.scheduleStudentCourseLoad = scheduleStudentCourseLoad;
 window.checkStudentAndCourse = checkStudentAndCourse;
 window.loadCoursesForStudent = loadCoursesForStudent;
 window.loadStudentCoursesIfIdPresent = loadStudentCoursesIfIdPresent;
-bindStudentNicCourseLoader('slip-student-id', checkStudentAndCourse);
-bindStudentNicCourseLoader('plan-student-nic', loadCoursesForStudent);
-loadStudentCoursesIfIdPresent();
-window.addEventListener('pageshow', loadStudentCoursesIfIdPresent);
 
 </script>
 

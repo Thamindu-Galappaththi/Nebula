@@ -64,9 +64,13 @@ class StudentPaymentPlanPageTest extends TestCase
             ->assertSee('Enter Student ID / NIC first', false)
             ->assertSee('scheduleStudentCourseLoad', false)
             ->assertSee('bindStudentNicCourseLoader', false)
+            ->assertDontSee('Courses loaded successfully!', false)
             ->assertDontSee("showWarningMessage('Select a course.')", false)
             ->assertDontSee("showWarningMessage('Select a payment type.')", false)
-            ->assertDontSee('Please select an installment first.', false);
+            ->assertDontSee('Please select an installment first.', false)
+            ->assertSee('function studentLookupReady', false)
+            ->assertDontSee("showErrorMessage(data.message || 'Failed to load courses.')", false)
+            ->assertDontSee("showErrorMessage('An error occurred while loading courses.')", false);
     }
 
     public function test_franchise_details_derive_conversion_rate_when_it_was_not_stored(): void
