@@ -273,7 +273,7 @@ function loadCourses(location, then) {
     .catch(function () {
         syncCustomSelect(courseSelect);
         if (then) then();
-    });
+});
 }
 
 function loadIntakes(courseId, location, then) {
