@@ -156,8 +156,8 @@ class PaymentController extends Controller
                     ->where('intake_id', $registration->intake_id)
                     ->first();
 
-                $franchiseSsclTax = (float) ($franchisePlan->sscl_tax ?? optional($registration->intake)->sscl_tax ?? 0);
-                $franchiseBankCharges = (float) ($franchisePlan->bank_charges ?? optional($registration->intake)->bank_charges ?? 0);
+                $franchiseSsclTax = (float) (optional($franchisePlan)->sscl_tax ?? optional($registration->intake)->sscl_tax ?? 0);
+                $franchiseBankCharges = (float) (optional($franchisePlan)->bank_charges ?? optional($registration->intake)->bank_charges ?? 0);
 
                 $franchiseInstallments = \App\Models\PaymentInstallment::whereHas('paymentPlan', function($q) use ($student, $request) {
                         $q->where('student_id', $student->student_id)
@@ -191,13 +191,11 @@ class PaymentController extends Controller
                             'status'             => $status,
                             'paid_date'          => $paidDate,
                             'receipt_no'         => $receiptNo,
-                            'currency'           => $paymentDetail->foreign_currency_code ?? $ins->international_currency ?: 'USD',
-                            'conversion_rate'    => $paymentDetail ? (float) $paymentDetail->conversion_rate : null,
+                            'currency'           => optional($paymentDetail)->foreign_currency_code ?? $ins->international_currency ?: 'USD',
+                            'conversion_rate'    => $this->resolveFranchiseConversionRate($paymentDetail),
                             'lkr_amount'         => $paymentDetail ? (float) $paymentDetail->amount : null,
                             'apply_tax'          => false,
-                            'sscl_tax'           => $paymentDetail ? (float) $paymentDetail->sscl_tax_amount : $franchiseSsclTax,
-                            'bank_charges'       => $paymentDetail ? (float) $paymentDetail->bank_charges : $franchiseBankCharges,
-                        ];
+                        ] + $this->franchiseChargeFields($paymentDetail, $franchiseSsclTax, $franchiseBankCharges);
                     }
 
                     break;
@@ -244,13 +242,15 @@ class PaymentController extends Controller
                             'status'             => $status,
                             'paid_date'          => $paidDate,
                             'receipt_no'         => $receiptNo,
-                            'currency'           => $paymentDetail->foreign_currency_code ?? $plan->international_currency ?: 'USD',
-                            'conversion_rate'    => $paymentDetail ? (float) $paymentDetail->conversion_rate : null,
+                            'currency'           => optional($paymentDetail)->foreign_currency_code ?? $plan->international_currency ?: 'USD',
+                            'conversion_rate'    => $this->resolveFranchiseConversionRate($paymentDetail),
                             'lkr_amount'         => $paymentDetail ? (float) $paymentDetail->amount : null,
                             'apply_tax'          => (bool)($item['apply_tax'] ?? false),
-                            'sscl_tax'           => $paymentDetail ? (float) $paymentDetail->sscl_tax_amount : (float)($plan->sscl_tax ?? 0),
-                            'bank_charges'       => $paymentDetail ? (float) $paymentDetail->bank_charges : (float)($plan->bank_charges ?? 0),
-                        ];
+                        ] + $this->franchiseChargeFields(
+                            $paymentDetail,
+                            (float) ($plan->sscl_tax ?? 0),
+                            (float) ($plan->bank_charges ?? 0)
+                        );
                     }
                 }
 
@@ -605,9 +605,12 @@ class PaymentController extends Controller
                 ]);
             }
 
-            // Get courses that the student is registered for and approved by manager or DGM
+            // Courses this student is registered for (skip rejected applications)
             $courses = CourseRegistration::where('student_id', $student->student_id)
-                ->whereIn('approval_status', ['Approved by manager', 'DGM'])
+                ->where(function ($query) {
+                    $query->whereNull('approval_status')
+                        ->orWhereRaw("LOWER(TRIM(approval_status)) <> 'rejected'");
+                })
                 ->with('course')
                 ->get()
                 ->map(function ($registration) {
@@ -1340,6 +1343,7 @@ public function generatePaymentSlip(Request $request)
             }
 
             $franchiseFee = $amount; // base franchise fee in LKR
+            $ssclPercent = 0;
 
             // 🔹 Get student payment plan
             $studentPlan = \App\Models\StudentPaymentPlan::where('student_id', $student->student_id)
@@ -1362,9 +1366,16 @@ public function generatePaymentSlip(Request $request)
         }
     }
 
-    // ✅ Always prefer manually entered frontend values (if provided)
+    // Prefer manually entered SSCL LKR, but never treat a percent leak / LKR-as-% as the tax amount.
     if ($request->filled('sscl_tax_amount')) {
-        $ssclTaxAmount = (float) $request->sscl_tax_amount;
+        $incomingSscl = (float) $request->sscl_tax_amount;
+        if ($franchiseFee > 0 && $incomingSscl > $franchiseFee) {
+            $ssclTaxAmount = $ssclPercent > 0
+                ? round($franchiseFee * ($ssclPercent / 100), 2)
+                : 0;
+        } else {
+            $ssclTaxAmount = $incomingSscl;
+        }
     }
 
     if ($request->filled('bank_charges')) {
@@ -1631,7 +1642,7 @@ if ($existingPayment) {
             'partial_payments'  => json_encode([]), // ensures proper JSON
             'foreign_currency_code'  => $foreignCurrency,
             'foreign_currency_amount'=> $foreignAmount,
-            'conversion_rate'        => $paymentType === 'franchise_fee' ? $conversionRate : null,
+            'conversion_rate'        => $paymentType === 'franchise_fee' && $conversionRate > 0 ? $conversionRate : null,
             'installment_type'           => $installmentType,
             // Actual payment date supplied by staff; drives late-fee calculations
             'payment_effective_date'     => $request->payment_effective_date ?: null,
@@ -2016,6 +2027,11 @@ public function getPaymentRecords(Request $request)
         'payment_type'       => $paymentType,
         'installment_number' => $payment->installment_number,
         'amount'             => $baseAmount,
+        'conversion_rate'    => $paymentType === 'franchise_fee'
+            ? $this->resolveFranchiseConversionRate($payment)
+            : ($payment->conversion_rate !== null ? (float) $payment->conversion_rate : null),
+        'sscl_tax_amount'    => $ssclTaxAmount,
+        'bank_charges'       => $bankCharges,
         'late_fee'           => $lateFee,
         'approved_late_fee'  => $approvedLateFee,
         'total_fee'          => $storedTotalFee,
@@ -3251,6 +3267,55 @@ private function getPaymentDescription($payment)
         return \Carbon\Carbon::parse($value)
             ->timezone(config('app.timezone', 'Asia/Colombo'))
             ->format('Y-m-d');
+    }
+
+    /**
+     * Stored FX rate, or LKR amount / foreign amount when older slips have no rate.
+     */
+    private function resolveFranchiseConversionRate(?PaymentDetail $paymentDetail): ?float
+    {
+        if (!$paymentDetail) {
+            return null;
+        }
+
+        $stored = $paymentDetail->conversion_rate !== null ? (float) $paymentDetail->conversion_rate : 0.0;
+        if ($stored > 0) {
+            return $stored;
+        }
+
+        $foreign = (float) ($paymentDetail->foreign_currency_amount ?? 0);
+        $lkr = (float) ($paymentDetail->amount ?? 0);
+        if ($foreign > 0 && $lkr > 0) {
+            return round($lkr / $foreign, 6);
+        }
+
+        return null;
+    }
+
+    /**
+     * Keep SSCL percent (e.g. 2.56) separate from stored SSCL LKR on a slip.
+     */
+    private function franchiseChargeFields(?PaymentDetail $paymentDetail, float $planSsclPercent, float $planBankCharges): array
+    {
+        $ssclPercent = $planSsclPercent > 0 ? $planSsclPercent : 0.0;
+        $ssclAmount = $paymentDetail ? (float) $paymentDetail->sscl_tax_amount : null;
+        $lkrBase = $paymentDetail ? (float) $paymentDetail->amount : 0.0;
+
+        if ($ssclPercent <= 0 && $lkrBase > 0 && $ssclAmount > 0 && $ssclAmount <= $lkrBase) {
+            $ssclPercent = round(($ssclAmount / $lkrBase) * 100, 4);
+        }
+
+        // Guard: older refresh bugs stored LKR-as-percent back into sscl_tax_amount.
+        if ($ssclAmount !== null && $lkrBase > 0 && $ssclAmount > $lkrBase && $ssclPercent > 0) {
+            $ssclAmount = round($lkrBase * $ssclPercent / 100, 2);
+        }
+
+        return [
+            'sscl_tax' => $ssclPercent,
+            'sscl_percent' => $ssclPercent,
+            'sscl_tax_amount' => $ssclAmount,
+            'bank_charges' => $paymentDetail ? (float) $paymentDetail->bank_charges : $planBankCharges,
+        ];
     }
 
 }

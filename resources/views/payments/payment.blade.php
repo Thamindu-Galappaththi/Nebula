@@ -7,12 +7,13 @@
 <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
 /* Toast Notification Styles */
-.toast-container {
+.toast-container,
+#toastContainer {
     position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
-    max-width: 400px;
+    top: calc(70px + 16px);
+    right: 16px;
+    z-index: 2000;
+    max-width: min(400px, calc(100vw - 24px));
 }
 
 .toast {
@@ -526,7 +527,7 @@
 
             <!-- Spinner and Toast containers -->
             <div id="spinner-overlay" style="display:none;"><div class="lds-ring"><div></div><div></div><div></div><div></div></div></div>
-            <div id="toastContainer" aria-live="polite" aria-atomic="true" style="position: fixed; top: 10px; right: 10px; z-index: 1000;"></div>
+            <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
             <!-- Navigation Tabs -->
             <ul class="nav nav-tabs payment-page-tabs" id="paymentTabs" role="tablist">
@@ -573,11 +574,8 @@
                             <div class="row mb-3 align-items-center">
                                 <label class="col-12 col-md-3 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
                                 <div class="col-12 col-md-9">
-                                    <select class="form-select filter-param" id="plan-course" name="course_id" required>
-                                        <option selected disabled value="">Select a Course</option>
-                                        @foreach($courses as $course)
-                                            <option value="{{ $course->course_id }}">{{ $course->course_name }}</option>
-                                        @endforeach
+                                    <select class="form-select filter-param" id="plan-course" name="course_id" required disabled>
+                                        <option selected disabled value="">Enter Student NIC first</option>
                                     </select>
                                 </div>
                             </div>
@@ -814,13 +812,8 @@
                             <div class="row mb-3 align-items-center">
                                 <label class="col-12 col-md-3 col-form-label fw-bold">Course <span class="text-danger">*</span></label>
                                 <div class="col-12 col-md-9">
-                                    <select class="form-select" id="slip-course" required>
-                                        <option value="" selected disabled>Select Course</option>
-                                        @if(isset($courses))
-                                            @foreach($courses as $course)
-                                                <option value="{{ $course->course_id }}">{{ $course->course_name }}</option>
-                                            @endforeach
-                                        @endif
+                                    <select class="form-select" id="slip-course" required disabled>
+                                        <option value="" selected disabled>Enter Student ID / NIC first</option>
                                     </select>
                                 </div>
                             </div>
@@ -884,6 +877,7 @@
                                     <label class="col-12 col-md-3 col-form-label fw-bold">SSCL Tax (LKR)</label>
                                     <div class="col-12 col-md-9">
                                         <input type="text" class="form-control" id="sscl-tax-amount" value="0" readonly>
+                                        <small class="form-text text-muted" id="ssclTaxFormulaHint"></small>
                                     </div>
                                 </div>
 
@@ -893,6 +887,9 @@
                                     <div class="col-12 col-md-9">
                                         <input type="number" class="form-control" id="bank-charges"
                                             placeholder="Enter Bank Charges" step="0.01" min="0" value="0">
+                                        <small class="form-text text-muted" id="franchiseInstallmentHint">
+                                            First tick an installment in the Payment Details table below (Select column). SSCL and bank charges then apply to that installment.
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -1125,6 +1122,9 @@
                             <th>Payment Type</th>
                             <th>Installment #</th>
                             <th>Amount</th>
+                            <th>Conversion Rate</th>
+                            <th>SSCL (LKR)</th>
+                            <th>Bank Charges</th>
                             <th>Late Fee</th>
                             <th>Approved Late Fee</th>
                             <th>Total Fee</th>
@@ -1705,10 +1705,6 @@ document.addEventListener('change', function(e) {
 });
 
 // Event delegation for slip inputs
-document.getElementById('slip-student-id')?.addEventListener('change', function() {
-    checkStudentAndCourse();
-});
-
 document.getElementById('slip-course')?.addEventListener('change', function() {
     loadIntakesForCourse();
     if (document.getElementById('slip-payment-type')?.value) {
@@ -1729,14 +1725,6 @@ document.getElementById('payment-effective-date')?.addEventListener('change', fu
 
 document.getElementById('currency-from')?.addEventListener('change', function() {
     updateConversionLabel();
-});
-
-document.getElementById('update-student-nic')?.addEventListener('change', function() {
-    loadStudentCoursesForUpdate();
-});
-
-document.getElementById('slt-loan-student-nic')?.addEventListener('change', function() {
-    loadStudentCoursesForSltLoan();
 });
 
 document.getElementById('slt-loan-course')?.addEventListener('change', function() {
@@ -1955,54 +1943,170 @@ function autoSelectFullPaymentDiscount() {
 
 
 
+function resetCourseSelect(select, placeholder, disabled = true) {
+    if (!select) return;
+    select.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
+    select.disabled = disabled;
+    syncCustomSelect(select);
+}
+
+function fillStudentCourseSelect(select, courses, { includeApproval = false, autoSelect = true } = {}) {
+    if (!select) return false;
+    const list = Array.isArray(courses) ? courses : [];
+    if (!list.length) {
+        resetCourseSelect(select, 'No registered courses found');
+        return false;
+    }
+
+    select.innerHTML = '<option value="" selected disabled>Select a Course</option>';
+    list.forEach(course => {
+        const option = document.createElement('option');
+        option.value = course.course_id;
+        option.textContent = includeApproval && course.approval_status
+            ? `${course.course_name} (${course.approval_status})`
+            : course.course_name;
+        select.appendChild(option);
+    });
+    select.disabled = false;
+
+    if (autoSelect && list.length === 1) {
+        select.value = String(list[0].course_id);
+        syncCustomSelect(select);
+        return true;
+    }
+
+    syncCustomSelect(select);
+    return false;
+}
+
+function fetchStudentCourses(studentNic) {
+    return fetch('{{ route("payment.get.student.courses") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ student_nic: studentNic })
+    }).then(async response => {
+        const text = await response.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (err) {
+            throw new Error('Unexpected server response while loading courses.');
+        }
+        if (!response.ok && !data.message) {
+            throw new Error('Failed to load courses.');
+        }
+        return data;
+    });
+}
+
+window._studentCourseLoadTimers = window._studentCourseLoadTimers || {};
+
+function scheduleStudentCourseLoad(which) {
+    const loaders = {
+        plan: loadCoursesForStudent,
+        slip: checkStudentAndCourse,
+        update: loadStudentCoursesForUpdate,
+        slt: loadStudentCoursesForSltLoan
+    };
+    const loader = loaders[which];
+    if (!loader) return;
+    clearTimeout(window._studentCourseLoadTimers[which]);
+    window._studentCourseLoadTimers[which] = setTimeout(loader, 250);
+}
+
+function bindStudentNicCourseLoader(inputId, loader) {
+    const el = document.getElementById(inputId);
+    if (!el || el.dataset.courseLoaderBound === '1') return;
+    el.dataset.courseLoaderBound = '1';
+    const schedule = () => {
+        clearTimeout(el._studentCourseTimer);
+        el._studentCourseTimer = setTimeout(loader, 250);
+    };
+    el.addEventListener('input', schedule);
+    el.addEventListener('change', schedule);
+    el.addEventListener('keyup', schedule);
+    el.addEventListener('blur', loader);
+    el.addEventListener('paste', () => setTimeout(schedule, 0));
+}
+
+document.addEventListener('input', function (e) {
+    const source = {
+        'plan-student-nic': 'plan',
+        'slip-student-id': 'slip',
+        'update-student-nic': 'update',
+        'slt-loan-student-nic': 'slt'
+    }[e.target?.id];
+    if (source) {
+        scheduleStudentCourseLoad(source);
+    }
+});
+document.addEventListener('change', function (e) {
+    const source = {
+        'plan-student-nic': 'plan',
+        'slip-student-id': 'slip',
+        'update-student-nic': 'update',
+        'slt-loan-student-nic': 'slt'
+    }[e.target?.id];
+    if (source) {
+        scheduleStudentCourseLoad(source);
+    }
+});
+
+function loadStudentCoursesIfIdPresent() {
+    const slipId = (document.getElementById('slip-student-id')?.value || '').trim();
+    if (slipId.length >= 9) {
+        checkStudentAndCourse();
+    }
+    const planNic = (document.getElementById('plan-student-nic')?.value || '').trim();
+    if (planNic.length >= 9) {
+        loadCoursesForStudent();
+    }
+    const updateNic = (document.getElementById('update-student-nic')?.value || '').trim();
+    if (updateNic.length >= 9) {
+        loadStudentCoursesForUpdate();
+    }
+    const sltNic = (document.getElementById('slt-loan-student-nic')?.value || '').trim();
+    if (sltNic.length >= 9) {
+        loadStudentCoursesForSltLoan();
+    }
+}
+
 // Load courses for student based on NIC
 function loadCoursesForStudent() {
-    const studentNic = document.getElementById('plan-student-nic').value;
+    const studentNic = (document.getElementById('plan-student-nic')?.value || '').trim();
+    const courseSelect = document.getElementById('plan-course');
 
     if (!studentNic) {
-        // Reset course dropdown to show all courses
-        document.getElementById('plan-course').innerHTML = '<option selected disabled value="">Select a Course</option>' +
-            '@foreach($courses as $course)<option value="{{ $course->course_id }}">{{ $course->course_name }}</option>@endforeach';
+        resetCourseSelect(courseSelect, 'Enter Student NIC first');
+        return;
+    }
+    if (studentNic.length < 9) {
         return;
     }
 
-    showSpinner(true);
-
-    // Make API call to get courses for the student
-    fetch('/payment/get-student-courses', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-        body: JSON.stringify({
-            student_nic: studentNic
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const courseSelect = document.getElementById('plan-course');
-            courseSelect.innerHTML = '<option selected disabled value="">Select a Course</option>';
-
-            data.courses.forEach(course => {
-                courseSelect.innerHTML += `<option value="${course.course_id}">${course.course_name}</option>`;
-            });
-
-            if (data.courses.length === 0) {
+    resetCourseSelect(courseSelect, 'Loading courses...', true);
+    fetchStudentCourses(studentNic)
+        .then(data => {
+            if (!data.success) {
+                resetCourseSelect(courseSelect, data.message || 'No registered courses found');
+                showErrorMessage(data.message || 'Failed to load courses for student.');
+                return;
+            }
+            fillStudentCourseSelect(courseSelect, data.courses);
+            if (!data.courses.length) {
                 showInfoMessage('No courses found for this student.');
             }
-        } else {
-            showErrorMessage(data.message || 'Failed to load courses for student.');
-            // Reset to all courses on error
-            document.getElementById('plan-course').innerHTML = '<option selected disabled value="">Select a Course</option>' +
-                '@foreach($courses as $course)<option value="{{ $course->course_id }}">{{ $course->course_name }}</option>@endforeach';
-        }
-    })
-    .catch(() => {
-        showErrorMessage('An error occurred while loading courses.');
-        // Reset to all courses on error
-        document.getElementById('plan-course').innerHTML = '<option selected disabled value="">Select a Course</option>' +
-            '@foreach($courses as $course)<option value="{{ $course->course_id }}">{{ $course->course_name }}</option>@endforeach';
-    })
-    .finally(() => showSpinner(false));
+        })
+        .catch(() => {
+            resetCourseSelect(courseSelect, 'Error loading courses');
+            showErrorMessage('An error occurred while loading courses.');
+        });
 }
 
 // Load student and course details for payment plan creation
@@ -3645,7 +3749,10 @@ function savePaymentPlans() {
 
 async function generatePaymentSlip() {
   const selected = document.querySelector('input[name="selectedPayment"]:checked');
-  if (!selected) return showWarningMessage('Please select a payment to generate a slip.');
+  if (!selected) {
+    focusPaymentInstallmentTable();
+    return showWarningMessage('Tick an installment in the Payment Details table below (Select column), then generate the slip.');
+  }
 
   const idx         = parseInt(selected.value, 10);
   const row         = (window.paymentDetailsData || [])[idx];
@@ -3675,8 +3782,11 @@ if (paymentType === 'franchise_fee') {
     // ✅ Ensure installment is selected first
     const selectedInstallment = document.querySelector('input[name="selectedPayment"]:checked');
     if (!selectedInstallment) {
-        showErrorMessage('Please select an installment before entering SSCL or Bank Charges.');
+    if (!selectedInstallment) {
+        focusPaymentInstallmentTable();
+        showErrorMessage('Tick an installment in the Payment Details table below (Select column) before entering SSCL or bank charges.');
         return;
+    }
     }
 
     // ✅ Conversion Rate
@@ -3854,12 +3964,18 @@ function setText(id, val) {
   if (el) el.textContent = (val == null ? '' : String(val));
 }
 
+function focusPaymentInstallmentTable() {
+    const section = document.getElementById('paymentDetailsSection');
+    if (!section) return;
+    section.style.display = '';
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function recalculateSSCL() {
     const selected = document.querySelector('input[name="selectedPayment"]:checked');
     if (!selected) {
-        showWarningMessage('Please select an installment first.');
-        document.getElementById('sscl-value').value = 0;
         document.getElementById('sscl-tax-amount').value = 0;
+        updateSsclTaxFormulaHint(null, 0, null, 0);
         return;
     }
 
@@ -3880,6 +3996,7 @@ function recalculateSSCL() {
     }
 
     document.getElementById('sscl-tax-amount').value = ssclAmount.toFixed(2);
+    updateSsclTaxFormulaHint(row, conversionRate, type === 'percentage' ? value : null, ssclAmount);
 }
 
 
@@ -4218,7 +4335,7 @@ function renderPaymentRecords() {
     window.paymentRecordsPage = page;
 
     if (!records.length) {
-        tbody.innerHTML = '<tr><td colspan="14" class="text-center text-muted">No payment records found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="17" class="text-center text-muted">No payment records found.</td></tr>';
         renderPaymentRecordsPagination(0, 1, perPage);
         return;
     }
@@ -4241,6 +4358,9 @@ function renderPaymentRecords() {
     const isPaid = String(r.status || '').toLowerCase() === 'paid';
     const remaining = Number(r.remaining_amount ?? 0);
     const payDisabled = isPaid || remaining <= 0;
+    const conversionRate = r.conversion_rate != null && r.conversion_rate !== '' ? Number(r.conversion_rate) : null;
+    const ssclTaxAmount = Number(r.sscl_tax_amount ?? 0);
+    const bankCharges = Number(r.bank_charges ?? 0);
 
     const row = `
       <tr ${isPaid ? 'class="table-secondary"' : ''}>
@@ -4249,6 +4369,9 @@ function renderPaymentRecords() {
         <td>${paymentTypeDisplay}</td>
         <td>${r.installment_number ?? '-'}</td>
         <td>${Number(r.amount ?? 0).toLocaleString()}</td>
+        <td>${conversionRate != null ? conversionRate.toLocaleString() : '-'}</td>
+        <td>${ssclTaxAmount.toLocaleString()}</td>
+        <td>${bankCharges.toLocaleString()}</td>
         <td>${Number(r.late_fee ?? 0).toLocaleString()}</td>
         <td>${Number(r.approved_late_fee ?? 0).toLocaleString()}</td>
         <td>${Number(r.total_fee ?? 0).toLocaleString()}</td>
@@ -4699,22 +4822,17 @@ document.addEventListener('DOMContentLoaded', function() {
         statusIndicator.style.display = 'block';
     }
 
-    // Add event listener for NIC field to filter courses
-    const studentNicField = document.getElementById('plan-student-nic');
-    if (studentNicField) {
-        studentNicField.addEventListener('input', function() {
-            const nicValue = this.value.trim();
+    // Filter course dropdowns to this student's registrations only
+    bindStudentNicCourseLoader('plan-student-nic', loadCoursesForStudent);
+    bindStudentNicCourseLoader('slip-student-id', checkStudentAndCourse);
+    bindStudentNicCourseLoader('update-student-nic', loadStudentCoursesForUpdate);
+    bindStudentNicCourseLoader('slt-loan-student-nic', loadStudentCoursesForSltLoan);
+    loadStudentCoursesIfIdPresent();
 
-            // Wait for complete NIC number (assuming NIC is 10-12 characters)
-            if (nicValue.length >= 10) {
-                // Add a small delay to avoid too many API calls while typing
-                clearTimeout(this.timeout);
-                this.timeout = setTimeout(() => {
-                    loadCoursesForStudent();
-                }, 1000); // 1 second delay after complete NIC
-            }
-        });
-    }
+    document.getElementById('generate-slips-tab')?.addEventListener('shown.bs.tab', loadStudentCoursesIfIdPresent);
+    document.getElementById('payment-plans-tab')?.addEventListener('shown.bs.tab', loadStudentCoursesIfIdPresent);
+    document.getElementById('update-records-tab')?.addEventListener('shown.bs.tab', loadStudentCoursesIfIdPresent);
+    document.getElementById('slt-loan-tab')?.addEventListener('shown.bs.tab', loadStudentCoursesIfIdPresent);
 
     // Add event listeners for payment plan form fields
     const paymentPlanFields = ['payment-plan-type'];
@@ -4941,56 +5059,44 @@ function loadIntakesForCourse() {
 }
 
 function checkStudentAndCourse() {
-    const nic = document.getElementById('slip-student-id').value.trim();
-    if (!nic) return;
-
-    // Disable dropdown while loading
+    const nic = (document.getElementById('slip-student-id')?.value || '').trim();
     const courseSelect = document.getElementById('slip-course');
-    courseSelect.disabled = true;
-    courseSelect.innerHTML = '<option>Loading courses...</option>';
+    const paymentTypeSelect = document.getElementById('slip-payment-type');
 
-    fetch('{{ route("payment.get.student.courses") }}', {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ student_nic: nic })
-    })
-    .then(response => response.json())
-    .then(data => {
-        courseSelect.innerHTML = '<option value="" selected disabled>Select Course</option>';
+    if (paymentTypeSelect) {
+        paymentTypeSelect.value = '';
+        paymentTypeSelect.disabled = true;
+    }
 
-        if (data.success && data.courses.length > 0) {
-            data.courses.forEach(course => {
-                courseSelect.innerHTML += `
-                    <option value="${course.course_id}">
-                        ${course.course_name} (${course.approval_status})
-                    </option>`;
-            });
+    if (!nic) {
+        resetCourseSelect(courseSelect, 'Enter Student ID / NIC first');
+        return;
+    }
+    if (nic.length < 9) {
+        return;
+    }
 
-            // Auto-select if only one course
-            if (data.courses.length === 1) {
-                courseSelect.value = data.courses[0].course_id;
-                loadIntakesForCourse(); // Automatically trigger the next step
+    resetCourseSelect(courseSelect, 'Loading courses...', true);
 
-                // If payment type already selected, refresh details immediately
-                if (document.getElementById('slip-payment-type')?.value) {
-                    loadPaymentDetails();
+    fetchStudentCourses(nic)
+        .then(data => {
+            if (!(data.success && Array.isArray(data.courses) && data.courses.length)) {
+                resetCourseSelect(
+                    courseSelect,
+                    data.success ? 'No registered courses found' : (data.message || 'No registered courses found')
+                );
+                if (!data.success) {
+                    showErrorMessage(data.message || 'Failed to load courses.');
                 }
+                return;
             }
 
-            courseSelect.disabled = false;
-        } else {
-            courseSelect.innerHTML = '<option value="">No approved courses found</option>';
-            courseSelect.disabled = true;
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching courses:', error);
-        courseSelect.innerHTML = '<option value="">Error loading courses</option>';
-        courseSelect.disabled = true;
-    });
+            fillStudentCourseSelect(courseSelect, data.courses, { includeApproval: true });
+        })
+        .catch(() => {
+            resetCourseSelect(courseSelect, 'Error loading courses');
+            showErrorMessage('An error occurred while loading courses.');
+        });
 }
 async function loadPaymentDetails() {
   const studentIdOrNic = document.getElementById('slip-student-id').value?.trim();
@@ -5001,16 +5107,7 @@ async function loadPaymentDetails() {
   const currencySelect  = document.getElementById('currency-from');
   const franchiseRow    = document.getElementById('franchiseChargesRow'); // 👈 our new div
 
-  if (!studentIdOrNic) {
-    showWarningMessage('Enter Student ID / NIC first.');
-    return;
-  }
-  if (!courseId) {
-    showWarningMessage('Select a course.');
-    return;
-  }
-  if (!paymentType) {
-    showWarningMessage('Select a payment type.');
+  if (!studentIdOrNic || !courseId || !paymentType) {
     return;
   }
 
@@ -5084,11 +5181,13 @@ async function loadPaymentDetails() {
       paid_date:          d.paid_date || null,
       receipt_no:         d.receipt_no || null,
       currency:           d.currency || 'LKR',
-      sscl_tax:           Number(d.sscl_tax || 0),
+      sscl_tax:           Number(d.sscl_percent ?? d.sscl_tax ?? 0),
+      sscl_percent:       Number(d.sscl_percent ?? d.sscl_tax ?? 0),
+      sscl_tax_amount:    d.sscl_tax_amount != null && d.sscl_tax_amount !== '' ? Number(d.sscl_tax_amount) : null,
       bank_charges:       Number(d.bank_charges || 0),
       apply_tax:          Boolean(d.apply_tax),
-      conversion_rate:    d.conversion_rate ? Number(d.conversion_rate) : null,
-      lkr_amount:         d.lkr_amount ? Number(d.lkr_amount) : null
+      conversion_rate:    d.conversion_rate != null && d.conversion_rate !== '' ? Number(d.conversion_rate) : null,
+      lkr_amount:         d.lkr_amount != null && d.lkr_amount !== '' ? Number(d.lkr_amount) : null
     }));
 
     renderPaymentDetailsTable(details, paymentType);
@@ -5311,9 +5410,38 @@ function recalculateLKRAmounts() {
     }
 }
 
+function franchiseSsclPercent(row) {
+    const explicit = Number(row?.sscl_percent);
+    if (Number.isFinite(explicit) && explicit > 0 && explicit <= 100) {
+        return explicit;
+    }
+
+    const tax = Number(row?.sscl_tax || 0);
+    if (tax > 0 && tax <= 100) {
+        return tax;
+    }
+
+    const base = Number(row?.lkr_amount || 0);
+    const ssclLkr = Number(row?.sscl_tax_amount);
+    if (base > 0 && Number.isFinite(ssclLkr) && ssclLkr > 0 && ssclLkr <= base) {
+        return (ssclLkr / base) * 100;
+    }
+
+    return 0;
+}
+
+function franchiseSsclAmountLkr(row, baseLkr) {
+    const stored = Number(row?.sscl_tax_amount);
+    if (Number.isFinite(stored) && stored >= 0 && (baseLkr <= 0 || stored <= baseLkr)) {
+        return stored;
+    }
+
+    return (Number(baseLkr || 0) * franchiseSsclPercent(row)) / 100;
+}
+
 function calculateFranchiseChargesForRow(row, conversionRate) {
     const amount = Number(row?.amount || 0);
-    const ssclPercent = Number(row?.sscl_tax || 0);
+    const ssclPercent = franchiseSsclPercent(row);
     const bankCharges = Number(row?.bank_charges || 0);
     const lkrBase = conversionRate > 0 ? amount * conversionRate : amount;
     const ssclAmount = (lkrBase * ssclPercent) / 100;
@@ -5343,11 +5471,13 @@ function syncFranchiseChargeInputsToSelection() {
     const bankChargesEl = document.getElementById('bank-charges');
 
     const charges = calculateFranchiseChargesForRow(row, conversionRate);
+    const percentValue = parseFloat(Number(charges.ssclPercent).toFixed(4));
 
     if (ssclTypeEl) ssclTypeEl.value = 'percentage';
-    if (ssclValueEl) ssclValueEl.value = charges.ssclPercent;
+    if (ssclValueEl) ssclValueEl.value = percentValue;
     if (ssclAmountEl) ssclAmountEl.value = charges.ssclAmount.toFixed(2);
     if (bankChargesEl) bankChargesEl.value = charges.bankCharges;
+    updateSsclTaxFormulaHint(row, conversionRate, percentValue, charges.ssclAmount);
 }
 
 // Update LKR amounts in the existing table without recreating the entire table
@@ -5367,7 +5497,7 @@ function updateLKRAmountsInTable(conversionRate) {
         }
 
         const amount = parseFloat(payment.amount || 0);
-        const ssclTax = parseFloat(payment.sscl_tax || 0);
+        const ssclTax = franchiseSsclPercent(payment);
         const bankCharges = parseFloat(payment.bank_charges || 0);
         if (conversionRate > 0) {
             const lkrBase = amount * conversionRate;
@@ -5377,7 +5507,8 @@ function updateLKRAmountsInTable(conversionRate) {
             lkrCell.style.backgroundColor = '#fff3cd';
             lkrCell.innerHTML = `
                 <div>LKR ${money(lkrFinal)}</div>
-                <small class="text-muted">Base: LKR ${money(lkrBase)} | SSCL: LKR ${money(ssclAmount)} | Bank: LKR ${money(bankCharges)}</small>
+                <small class="text-muted">Rate: ${formatConversionRate(conversionRate)}</small>
+                <br><small class="text-muted">${franchiseLkrBreakdownHtml(lkrBase, ssclAmount, bankCharges, payment.currency)}</small>
             `;
 
             setTimeout(() => {
@@ -5591,6 +5722,48 @@ function recalculateLKRAmounts() {
 }
 
 
+function formatConversionRate(rate) {
+    const n = Number(rate);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return parseFloat(n.toFixed(4)).toString();
+}
+
+function resolvedFranchiseRate(payment, fallbackRate) {
+    const stored = Number(payment?.conversion_rate);
+    if (Number.isFinite(stored) && stored > 0) return stored;
+
+    const foreign = Number(payment?.amount || 0);
+    const baseLkr = Number(payment?.lkr_amount);
+    if (foreign > 0 && Number.isFinite(baseLkr) && baseLkr > 0) {
+        return baseLkr / foreign;
+    }
+
+    const fallback = Number(fallbackRate);
+    return Number.isFinite(fallback) && fallback > 0 ? fallback : null;
+}
+
+function updateSsclTaxFormulaHint(row, conversionRate, percent, ssclAmount) {
+    const el = document.getElementById('ssclTaxFormulaHint');
+    if (!el) return;
+
+    const foreign = Number(row?.amount || 0);
+    const currency = row?.currency || 'GBP';
+    const rate = Number(conversionRate);
+    if (!(foreign > 0) || !(rate > 0) || ssclAmount == null) {
+        el.textContent = '';
+        return;
+    }
+
+    const baseLkr = foreign * rate;
+    const percentLabel = percent != null && Number(percent) > 0 ? `${parseFloat(Number(percent).toFixed(4))}%` : 'SSCL';
+    el.textContent = `${currency} ${money(foreign)} × ${formatConversionRate(rate)} = LKR ${money(baseLkr)}; then ${percentLabel} SSCL = LKR ${money(ssclAmount)}.`;
+}
+
+function franchiseLkrBreakdownHtml(baseLkr, ssclLkr, bankLkr, currency) {
+    const ccy = currency || 'GBP';
+    return `${ccy} x rate: LKR ${money(baseLkr)} | SSCL: LKR ${money(ssclLkr)} | Bank: LKR ${money(bankLkr)}`;
+}
+
 // ---------- main renderer ----------
 function renderPaymentDetailsTable(rows, paymentType) {
     console.log('Payment rows from API (FRESH DATA):', rows);
@@ -5658,8 +5831,12 @@ function renderPaymentDetailsTable(rows, paymentType) {
       receipt_no:         r.receipt_no || null,
       approved_late_fee:  Number(r.approved_late_fee ?? r.approvedLateFee ?? 0), // ✅ map both cases
       currency:           r.currency || (paymentType === 'franchise_fee' ? (ccy || 'USD') : 'LKR'),
-      sscl_tax:           Number(r.sscl_tax || 0),
+      sscl_tax:           Number(r.sscl_percent ?? r.sscl_tax ?? 0),
+      sscl_percent:       Number(r.sscl_percent ?? r.sscl_tax ?? 0),
+      sscl_tax_amount:    r.sscl_tax_amount != null && r.sscl_tax_amount !== '' ? Number(r.sscl_tax_amount) : null,
       bank_charges:       Number(r.bank_charges || 0),
+      conversion_rate:    r.conversion_rate != null && r.conversion_rate !== '' ? Number(r.conversion_rate) : null,
+      lkr_amount:         r.lkr_amount != null && r.lkr_amount !== '' ? Number(r.lkr_amount) : null,
       apply_tax:          Boolean(r.apply_tax),
       is_payable:         r.is_payable !== false,
       blocked_reason:     r.blocked_reason || null
@@ -5684,8 +5861,8 @@ function renderPaymentDetailsTable(rows, paymentType) {
   normalized.forEach((p, idx) => {
     const isPaid = p.status && p.status.toLowerCase() === 'paid';
     const hasGeneratedSlip = p.receipt_no && p.receipt_no !== null && p.receipt_no !== '';
-    const disabled = (isPaid || hasGeneratedSlip) ? 'disabled' : '';
-    const rowStyle = (isPaid || hasGeneratedSlip)
+    const disabled = isPaid ? 'disabled' : '';
+    const rowStyle = isPaid
       ? 'style="opacity: 0.6; background-color: #f8f9fa;"'
             : '';
     const amountText = `${p.currency} ${money(p.amount)}`;
@@ -5693,21 +5870,29 @@ function renderPaymentDetailsTable(rows, paymentType) {
     // LKR column for franchise
     let lkrCell = '';
     if (showLkr) {
-      // ✅ If slip has already been generated (receipt_no exists), always use locked data
-      if (hasGeneratedSlip && p.conversion_rate && p.conversion_rate > 0 && p.lkr_amount !== null && p.lkr_amount !== undefined) {
-        // Slip already generated - show LOCKED amount that NEVER changes
+      const lockedRate = resolvedFranchiseRate(p, null);
+      const rateText = formatConversionRate(lockedRate);
+      // If a slip already exists, show the stored conversion/SSCL/bank — not the live form rate
+      if (hasGeneratedSlip && p.lkr_amount !== null && p.lkr_amount !== undefined) {
+        const lockedBase = Number(p.lkr_amount);
+        const lockedSscl = franchiseSsclAmountLkr(p, lockedBase);
+        const lockedBank = Number(p.bank_charges || 0);
+        const lockedFinal = lockedBase + lockedSscl + lockedBank;
+        const rateLabel = rateText ? `Rate: ${rateText}` : 'Rate: —';
         lkrCell = `<td style="background-color: #f0f0f0; position: relative;">
-                    <div><strong>LKR ${money(p.lkr_amount)}</strong></div>
-                    <small class="text-muted">🔒 Locked | Rate: ${p.conversion_rate}</small>
+                    <div><strong>LKR ${money(lockedFinal)}</strong></div>
+                    <small class="text-muted">🔒 Locked | ${rateLabel}</small>
+                    <br><small class="text-muted">${franchiseLkrBreakdownHtml(lockedBase, lockedSscl, lockedBank, p.currency)}</small>
                 </td>`;
       } else if (!hasGeneratedSlip && rate && rate > 0) {
         // No slip yet - calculate dynamically based on current conversion rate
         const lkrBase = p.amount * rate;
-        const ssclAmount = (lkrBase * p.sscl_tax) / 100;
+        const ssclAmount = (lkrBase * franchiseSsclPercent(p)) / 100;
         const lkrFinal = lkrBase + ssclAmount + p.bank_charges;
         lkrCell = `<td>
                     <div>LKR ${money(lkrFinal)}</div>
-                    <small class="text-muted">Base: LKR ${money(lkrBase)} | SSCL: LKR ${money(ssclAmount)} | Bank: LKR ${money(p.bank_charges)}</small>
+                    <small class="text-muted">Rate: ${formatConversionRate(rate)}</small>
+                    <br><small class="text-muted">${franchiseLkrBreakdownHtml(lkrBase, ssclAmount, p.bank_charges, p.currency)}</small>
                 </td>`;
       } else {
         lkrCell = `<td class="text-muted">—</td>`;
@@ -5760,7 +5945,7 @@ function renderPaymentDetailsTable(rows, paymentType) {
       <tr ${rowStyle}>
         <td class="text-center">
           <input type="checkbox" name="selectedPayment" value="${idx}" class="payment-checkbox" ${disabled}>
-                    ${isPaid ? '<br><small class="text-danger">Cannot generate new slip</small>' : ''}
+                    ${isPaid ? '<br><small class="text-danger">Cannot generate new slip</small>' : (hasGeneratedSlip ? '<br><small class="text-muted">Slip exists - Generate reopens the same receipt</small>' : '')}
         </td>
         <td>${p.installment_number ?? '-'}</td>
         <td>${dstr(p.due_date)}</td>
@@ -5905,6 +6090,8 @@ $('#paymentTabs .nav-link').on('shown.bs.tab', function (e) {
     $('#paymentTabs .nav-link').removeClass('bg-primary text-white');
     $(e.target).addClass('bg-primary text-white');
 
+    loadStudentCoursesIfIdPresent();
+
     // ✅ REFRESH Generate Slips tab data when it becomes active
     if ($(e.target).attr('id') === 'generate-slips-tab') {
         console.log('✅ Generate Slips tab activated - refreshing data from backend...');
@@ -5946,6 +6133,14 @@ async function deleteSlip(id) {
     });
 }
 
+window.scheduleStudentCourseLoad = scheduleStudentCourseLoad;
+window.checkStudentAndCourse = checkStudentAndCourse;
+window.loadCoursesForStudent = loadCoursesForStudent;
+window.loadStudentCoursesIfIdPresent = loadStudentCoursesIfIdPresent;
+bindStudentNicCourseLoader('slip-student-id', checkStudentAndCourse);
+bindStudentNicCourseLoader('plan-student-nic', loadCoursesForStudent);
+loadStudentCoursesIfIdPresent();
+window.addEventListener('pageshow', loadStudentCoursesIfIdPresent);
 
 </script>
 
