@@ -70,7 +70,9 @@ class StudentPaymentPlanPageTest extends TestCase
             ->assertDontSee('Please select an installment first.', false)
             ->assertSee('function studentLookupReady', false)
             ->assertDontSee("showErrorMessage(data.message || 'Failed to load courses.')", false)
-            ->assertDontSee("showErrorMessage('An error occurred while loading courses.')", false);
+            ->assertDontSee("showErrorMessage('An error occurred while loading courses.')", false)
+            ->assertDontSee('autoSelect && list.length === 1', false)
+            ->assertSee("select.innerHTML = '<option value=\"\" selected>Select a Course</option>'", false);
     }
 
     public function test_franchise_details_derive_conversion_rate_when_it_was_not_stored(): void
