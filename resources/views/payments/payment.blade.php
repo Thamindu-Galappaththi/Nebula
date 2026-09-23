@@ -1950,7 +1950,7 @@ function resetCourseSelect(select, placeholder, disabled = true) {
     syncCustomSelect(select);
 }
 
-function fillStudentCourseSelect(select, courses, { includeApproval = false, autoSelect = true } = {}) {
+function fillStudentCourseSelect(select, courses, { includeApproval = false } = {}) {
     if (!select) return false;
     const list = Array.isArray(courses) ? courses : [];
     if (!list.length) {
@@ -1958,7 +1958,7 @@ function fillStudentCourseSelect(select, courses, { includeApproval = false, aut
         return false;
     }
 
-    select.innerHTML = '<option value="" selected disabled>Select a Course</option>';
+    select.innerHTML = '<option value="" selected>Select a Course</option>';
     list.forEach(course => {
         const option = document.createElement('option');
         option.value = course.course_id;
@@ -1967,14 +1967,9 @@ function fillStudentCourseSelect(select, courses, { includeApproval = false, aut
             : course.course_name;
         select.appendChild(option);
     });
+    select.value = '';
+    select.selectedIndex = 0;
     select.disabled = false;
-
-    if (autoSelect && list.length === 1) {
-        select.value = String(list[0].course_id);
-        syncCustomSelect(select);
-        return true;
-    }
-
     syncCustomSelect(select);
     return false;
 }
