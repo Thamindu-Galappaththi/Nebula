@@ -1975,7 +1975,19 @@ function fillStudentCourseSelect(select, courses, { includeApproval = false } = 
 }
 
 function studentLookupReady(value) {
-    return String(value || '').trim().length >= 10;
+    const text = String(value || '').trim();
+    if (!text) {
+        return false;
+    }
+    // Student IDs are short numbers (for example 69). NICs are 10 or 12 characters.
+    if (/^\d{1,7}$/.test(text)) {
+        return true;
+    }
+    return text.length >= 10;
+}
+
+function studentCourseLoadDelay(value) {
+    return /^\d{1,7}$/.test(String(value || '').trim()) ? 700 : 250;
 }
 
 function fetchStudentCourses(studentNic) {
@@ -2016,7 +2028,7 @@ function scheduleStudentCourseLoad(which) {
     const loader = loaders[which];
     if (!loader) return;
     clearTimeout(window._studentCourseLoadTimers[which]);
-    window._studentCourseLoadTimers[which] = setTimeout(loader, 250);
+    window._studentCourseLoadTimers[which] = setTimeout(loader, studentCourseLoadDelay(''));
 }
 
 function bindStudentNicCourseLoader(inputId, loader) {
@@ -2025,7 +2037,7 @@ function bindStudentNicCourseLoader(inputId, loader) {
     el.dataset.courseLoaderBound = '1';
     const schedule = () => {
         clearTimeout(el._studentCourseTimer);
-        el._studentCourseTimer = setTimeout(loader, 250);
+        el._studentCourseTimer = setTimeout(loader, studentCourseLoadDelay(el.value));
     };
     el.addEventListener('input', schedule);
     el.addEventListener('change', schedule);
