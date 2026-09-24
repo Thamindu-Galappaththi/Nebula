@@ -69,6 +69,7 @@ class StudentPaymentPlanPageTest extends TestCase
             ->assertDontSee("showWarningMessage('Select a payment type.')", false)
             ->assertDontSee('Please select an installment first.', false)
             ->assertSee('function studentLookupReady', false)
+            ->assertSee('/^\\d{1,7}$/', false)
             ->assertDontSee("showErrorMessage(data.message || 'Failed to load courses.')", false)
             ->assertDontSee("showErrorMessage('An error occurred while loading courses.')", false)
             ->assertDontSee('autoSelect && list.length === 1', false)
