@@ -560,7 +560,7 @@ class SemesterCreationController extends Controller
         $assigned = $this->querySemesterAssignedModules((int) $semester->id);
         $fromCourse = $this->queryCourseModules(
             (int) $course->course_id,
-            $this->resolveSemesterNumber($semester)
+            $semester->resolvedSlotNumber()
         );
 
         return $assigned
