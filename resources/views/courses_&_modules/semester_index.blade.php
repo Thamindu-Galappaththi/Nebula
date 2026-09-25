@@ -321,7 +321,7 @@
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h4 class="mb-0" id="activeSemesters">{{ $semesters->where('status', 'active')->count() }}</h4>
+                                    <h4 class="mb-0" id="activeSemesters">{{ $semesters->filter(fn ($semester) => $semester->derivedStatus() === 'active')->count() }}</h4>
                                     <small>Active Semesters</small>
                                 </div>
                                 <div class="align-self-center">
@@ -336,7 +336,7 @@
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h4 class="mb-0" id="upcomingSemesters">{{ $semesters->where('status', 'upcoming')->count() }}</h4>
+                                    <h4 class="mb-0" id="upcomingSemesters">{{ $semesters->filter(fn ($semester) => $semester->derivedStatus() === 'upcoming')->count() }}</h4>
                                     <small>Upcoming Semesters</small>
                                 </div>
                                 <div class="align-self-center">
@@ -351,7 +351,7 @@
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h4 class="mb-0" id="completedSemesters">{{ $semesters->where('status', 'completed')->count() }}</h4>
+                                    <h4 class="mb-0" id="completedSemesters">{{ $semesters->filter(fn ($semester) => $semester->derivedStatus() === 'completed')->count() }}</h4>
                                     <small>Completed Semesters</small>
                                 </div>
                                 <div class="align-self-center">
@@ -386,18 +386,19 @@
                             @php
                                 $days = $durationDays($semester->start_date, $semester->end_date);
                                 $moduleCount = $semester->modules->count();
-                                $status = $semester->status ?: 'completed';
+                                $status = $semester->derivedStatus();
+                                $displayName = $semester->displayName();
                             @endphp
-                            <tr data-semester="{{ strtolower($semester->name) }}"
+                            <tr data-semester="{{ strtolower($displayName) }}"
                                 data-course="{{ strtolower($semester->course->course_name ?? '') }}"
                                 data-course-id="{{ $semester->course_id }}"
                                 data-intake="{{ strtolower($semester->intake->batch ?? '') }}"
                                 data-status="{{ $status }}">
                                 <td class="semester-select-cell" data-label="">
-                                    <input type="checkbox" class="form-check-input semester-checkbox" value="{{ $semester->id }}" aria-label="Select {{ $semester->name }}">
+                                    <input type="checkbox" class="form-check-input semester-checkbox" value="{{ $semester->id }}" aria-label="Select {{ $displayName }}">
                                 </td>
                                 <td data-label="Semester">
-                                    <strong class="semester-name">{{ $semester->name }}</strong>
+                                    <strong class="semester-name">{{ $displayName }}</strong>
                                     <span class="badge bg-success ms-2 current-badge" @if($status !== 'active') hidden @endif>Current</span>
                                 </td>
                                 <td data-label="Course">{{ $semester->course->course_name ?? 'N/A' }}</td>
@@ -438,7 +439,7 @@
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-danger delete-semester"
                                                 data-semester-id="{{ $semester->id }}"
-                                                data-semester-name="{{ $semester->name }}"
+                                                data-semester-name="{{ $displayName }}"
                                                 title="Delete Semester">
                                             <i class="ti ti-trash"></i>
                                         </button>
@@ -467,13 +468,14 @@
 @foreach($semesters as $semester)
     @php
         $days = $durationDays($semester->start_date, $semester->end_date);
-        $status = $semester->status ?: 'completed';
+        $status = $semester->derivedStatus();
+        $displayName = $semester->displayName();
     @endphp
 <div class="modal fade" id="semesterModal{{ $semester->id }}" tabindex="-1" aria-labelledby="semesterModalLabel{{ $semester->id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered semester-sheet-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="semesterModalLabel{{ $semester->id }}">Semester Details - {{ $semester->name }}</h5>
+                <h5 class="modal-title" id="semesterModalLabel{{ $semester->id }}">Semester Details - {{ $displayName }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -481,7 +483,7 @@
                     <div class="col-12 col-md-6">
                         <h6>Basic Information</h6>
                         <table class="table table-sm">
-                            <tr><td><strong>Name:</strong></td><td>{{ $semester->name }}</td></tr>
+                            <tr><td><strong>Name:</strong></td><td>{{ $displayName }}</td></tr>
                             <tr><td><strong>Course:</strong></td><td>{{ $semester->course->course_name ?? 'N/A' }}</td></tr>
                             <tr><td><strong>Intake:</strong></td><td>{{ $semester->intake->batch ?? 'N/A' }}</td></tr>
                             <tr><td><strong>Status:</strong></td><td>
@@ -518,7 +520,7 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered semester-sheet-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modulesModalLabel{{ $semester->id }}">Modules - {{ $semester->name }}</h5>
+                <h5 class="modal-title" id="modulesModalLabel{{ $semester->id }}">Modules - {{ $semester->displayName() }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">

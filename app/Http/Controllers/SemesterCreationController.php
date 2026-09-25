@@ -16,6 +16,7 @@ class SemesterCreationController extends Controller
     public function index()
     {
         $semesters = Semester::with(['course', 'intake', 'modules'])->orderBy('created_at', 'desc')->get();
+        $this->assignSemesterSequenceNumbers($semesters);
         $courses = Course::orderBy('course_name', 'asc')->get();
         return view('courses_&_modules.semester_index', compact('semesters', 'courses'));
     }
@@ -55,7 +56,7 @@ class SemesterCreationController extends Controller
             ->where('semester_id', $semester->id)
             ->get();
 
-        $semesterNumber = $this->resolveSemesterNumber($semester);
+        $semesterNumber = $semester->resolvedSlotNumber();
         $semesterLabel = $this->formatSemesterLabel(
             $semesterNumber,
             optional($semester->course)->semester_format ?? 'numerical'
@@ -661,22 +662,20 @@ class SemesterCreationController extends Controller
             ->get();
     }
 
-    private function resolveSemesterNumber(Semester $semester): int
+    private function assignSemesterSequenceNumbers($semesters): void
     {
-        $name = trim((string) $semester->name);
+        $semesters
+            ->groupBy(fn (Semester $semester) => $semester->course_id . '-' . $semester->intake_id)
+            ->each(function ($group) {
+                $ordered = $group->sortBy([
+                    fn (Semester $semester) => optional($semester->start_date)->timestamp ?? 0,
+                    fn (Semester $semester) => $semester->id,
+                ])->values();
 
-        if (preg_match('/(\d+)/', $name, $matches)) {
-            return (int) $matches[1];
-        }
-
-        if (preg_match('/([A-Za-z])/', $name, $matches)) {
-            $offset = ord(strtoupper($matches[1])) - 64;
-            if ($offset >= 1 && $offset <= 26) {
-                return $offset;
-            }
-        }
-
-        return (int) $semester->id;
+                foreach ($ordered as $index => $semester) {
+                    $semester->setAttribute('sequence_number', $index + 1);
+                }
+            });
     }
 
     private function formatSemesterLabel(int $number, ?string $format): string

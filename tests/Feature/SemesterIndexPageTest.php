@@ -87,7 +87,7 @@ class SemesterIndexPageTest extends TestCase
             ->get(route('semesters.index'))
             ->assertOk()
             ->assertSee('Semester Management')
-            ->assertSee('Semester 1')
+            ->assertSee('class="semester-name">1</strong>', false)
             ->assertSee('BTEC Computing')
             ->assertSee('id="semesterPagination"', false)
             ->assertSee('data-label="Semester"', false)
@@ -108,5 +108,55 @@ class SemesterIndexPageTest extends TestCase
         $this->assertStringContainsString('Swal.fire', $html);
         $this->assertStringContainsString('delete-semester', $html);
         $this->assertStringContainsString('confirmSemesterDelete', $html);
+    }
+
+    public function test_index_shows_alphabetical_slot_and_date_status_not_row_id(): void
+    {
+        $course = Course::forceCreate([
+            'course_name'         => 'B.Eng. (Hons) Electrical & Electronic Engineering',
+            'course_type'         => 'degree',
+            'location'            => 'Welisara',
+            'no_of_semesters'     => 6,
+            'semester_format'     => 'alphabetical',
+            'duration'            => '4 years',
+            'min_credits'         => 120,
+            'course_medium'       => 'English',
+            'entry_qualification' => 'A/L or equivalent',
+            'conducted_by'        => 0,
+        ]);
+
+        $intake = Intake::forceCreate([
+            'location'          => 'Welisara',
+            'course_id'         => $course->course_id,
+            'course_name'       => $course->course_name,
+            'batch'             => '2025-JUL-B09-EEE',
+            'batch_size'        => 30,
+            'intake_mode'       => 'Physical',
+            'intake_type'       => 'Fulltime',
+            'registration_fee'  => '5000',
+            'franchise_payment' => '0',
+            'course_fee'        => '50000',
+            'start_date'        => now()->subYear()->toDateString(),
+            'end_date'          => now()->addYear()->toDateString(),
+        ]);
+
+        $semester = Semester::forceCreate([
+            'name'       => '38',
+            'course_id'  => $course->course_id,
+            'intake_id'  => $intake->intake_id,
+            'start_date' => '2026-02-02',
+            'end_date'   => '2026-05-29',
+            'status'     => 'active',
+        ]);
+
+        $html = $this->actingAs($this->actor)
+            ->get(route('semesters.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('class="semester-name">A</strong>', $html);
+        $this->assertStringContainsString('badge bg-secondary">Completed</span>', $html);
+        $this->assertStringNotContainsString('class="semester-name">38</strong>', $html);
+        $this->assertStringNotContainsString('badge bg-success">Active</span>', $html);
     }
 }
