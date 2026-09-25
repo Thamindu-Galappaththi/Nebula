@@ -122,6 +122,29 @@ class SemesterEditPageTest extends TestCase
         $this->assertNotSame(1, (int) $this->semester->id);
     }
 
+    public function test_edit_page_does_not_treat_out_of_range_name_as_semester_number(): void
+    {
+        $this->course->semester_format = 'alphabetical';
+        $this->course->no_of_semesters = 6;
+        $this->course->save();
+
+        Semester::query()
+            ->where('intake_id', $this->intake->intake_id)
+            ->where('id', '!=', $this->semester->id)
+            ->delete();
+
+        $this->semester->name = '38';
+        $this->semester->save();
+
+        $html = $this->actingAs($this->actor)
+            ->get(route('semesters.edit', $this->semester))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('value="1" selected>Semester A</option>', $html);
+        $this->assertStringNotContainsString('Semester 38', $html);
+    }
+
     public function test_update_keeps_semester_name_instead_of_replacing_it_with_id(): void
     {
         $response = $this->actingAs($this->actor)->putJson(route('semesters.update', $this->semester), [
