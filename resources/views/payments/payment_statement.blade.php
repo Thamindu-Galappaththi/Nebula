@@ -4,246 +4,161 @@
     <meta charset="utf-8">
     <title>Payment Statement</title>
     <style nonce="{{ $cspNonce }}">
-        body { 
-            font-family: 'Arial', 'Helvetica', sans-serif; 
-            font-size: 11px; 
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
             line-height: 1.4;
             margin: 0;
-            padding: 20px;
+            padding: 18px 18px 40px 18px;
             color: #000;
             background: #fff;
         }
-        
+
         .institute-header {
             text-align: center;
             border-bottom: 1px solid #000;
             padding-bottom: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
-        
+
         .institute-name {
-            font-size: 28px;
-            font-weight: bold;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            margin: 0;
-            color: #000;
-        }
-        
-        .header {
-            text-align: center;
-            border-bottom: 3px solid #000;
-            padding: 10px 0 15px 0;
-            margin-bottom: 25px;
-        }
-        
-        .header h1 {
-            margin: 0;
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
             letter-spacing: 2px;
             text-transform: uppercase;
+            margin: 0;
         }
-        
-        .student-info {
-            background: #f8f8f8;
-            border: 1px solid #000;
-            padding: 15px;
-            margin-bottom: 20px;
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding: 8px 0 12px 0;
+            margin-bottom: 16px;
         }
-        
-        .student-info .student-name {
-            font-size: 14px;
+
+        .header h1 {
+            margin: 0;
+            font-size: 16px;
             font-weight: bold;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 5px;
+            text-transform: uppercase;
         }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+
+        .info-table,
+        .summary-table,
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
         }
-        
-        .info-item {
-            margin-bottom: 5px;
+
+        .info-table {
+            margin-bottom: 16px;
+            border: 1px solid #000;
+            background: #f8f8f8;
         }
-        
+
+        .info-table td {
+            width: 50%;
+            padding: 6px 10px;
+            vertical-align: top;
+            border: none;
+        }
+
+        .student-name {
+            font-size: 13px;
+            font-weight: bold;
+            padding: 8px 10px 4px 10px !important;
+            border-bottom: 1px solid #ccc !important;
+        }
+
         .info-label {
             font-weight: bold;
-            display: inline-block;
-            min-width: 120px;
         }
-        
+
         .section-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             text-transform: uppercase;
             border-bottom: 2px solid #000;
-            padding: 8px 0 5px 0;
-            margin: 25px 0 15px 0;
-            letter-spacing: 1px;
+            padding: 6px 0 4px 0;
+            margin: 18px 0 8px 0;
         }
-        
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-bottom: 20px;
-            border: 2px solid #000;
+
+        .data-table {
+            margin-bottom: 16px;
+            border: 1px solid #000;
         }
-        
-        th {
+
+        .data-table th,
+        .data-table td {
+            border: 1px solid #000;
+            padding: 6px 6px;
+            vertical-align: middle;
+            word-wrap: break-word;
+        }
+
+        .data-table th {
             background: #000;
             color: #fff;
-            padding: 10px 8px;
-            text-align: left;
+            font-size: 9px;
             font-weight: bold;
-            font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
-        
-        td {
-            border-bottom: 1px solid #ddd;
-            padding: 8px;
-            vertical-align: top;
+
+        .col-center {
+            text-align: center;
         }
-        
-        tr:nth-child(even) {
-            background: #f9f9f9;
+
+        .col-left {
+            text-align: left;
         }
-        
-        tr:hover {
-            background: #f0f0f0;
-        }
-        
-        .amount-cell {
+
+        .col-amount {
             text-align: right;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
         }
-        
-        .summary {
-            border: 2px solid #000;
-            background: #f8f8f8;
-            padding: 15px;
-            margin: 25px 0;
-        }
-        
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px 0;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .summary-row:last-child {
-            border-bottom: none;
-            font-weight: bold;
-            font-size: 13px;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 2px solid #000;
-        }
-        
-        .summary-label {
-            font-weight: bold;
-        }
-        
-        .summary-amount {
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-        }
-        
+
         .no-records {
             text-align: center;
             font-style: italic;
             color: #666;
-            padding: 20px;
-            background: #f5f5f5;
+            padding: 14px;
         }
-        
-        .installment-table {
-            font-size: 10px;
+
+        .summary-table {
+            width: 55%;
+            margin: 0 0 16px auto;
+            border: 1px solid #000;
+            background: #f8f8f8;
         }
-        
-        .installment-table th {
-            font-size: 9px;
-            padding: 8px 4px;
+
+        .summary-table td {
+            border: 1px solid #000;
+            padding: 6px 8px;
         }
-        
-        .installment-table td {
-            padding: 6px 4px;
-        }
-        
-        .total-row {
-            background: #e8e8e8 !important;
+
+        .summary-table .col-amount {
+            width: 40%;
             font-weight: bold;
-            border-top: 2px solid #000 !important;
         }
-        
+
         .total-row td {
-            padding: 10px 4px;
-            border-top: 2px solid #000;
+            background: #e8e8e8;
+            font-weight: bold;
         }
-        
+
         .outstanding {
             color: #666;
             font-style: italic;
         }
-        
+
         .footer {
             position: fixed;
-            bottom: 20px;
-            width: 100%;
+            bottom: 12px;
+            left: 0;
+            right: 0;
             text-align: center;
             font-size: 10px;
             color: #666;
-            border-top: 1px solid #ddd;
-            padding-top: 10px;
-            background: #fff;
-        }
-        
-        .page-number:before {
-            content: "Page " counter(page);
-        }
-        
-        @media print {
-            body {
-                padding: 10px;
-                padding-bottom: 60px;
-            }
-            
-            .institute-header, .header {
-                page-break-after: avoid;
-            }
-            
-            table {
-                page-break-inside: avoid;
-            }
-            
-            .summary {
-                page-break-inside: avoid;
-            }
-            
-            .footer {
-                position: fixed;
-                bottom: 10px;
-                left: 0;
-                right: 0;
-                height: 30px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                font-size: 10px;
-                color: #000;
-            }
-        }
-        
-        @page {
-            margin-bottom: 40px;
         }
     </style>
 </head>
@@ -256,51 +171,54 @@
         <h1>Statement of Account</h1>
     </div>
 
-    <div class="student-info">
-        <div class="student-name">{{ $student['id'] }} - {{ $student['name'] }}</div>
-        <div class="info-grid">
-            <div class="info-item">
-                <span class="info-label">NIC:</span> {{ $student['nic'] }}
-            </div>
-            <div class="info-item">
-                <span class="info-label">Date Issued:</span> {{ $generated_date }}
-            </div>
-            <div class="info-item">
-                <span class="info-label">Course:</span> {{ $course['name'] }}
-            </div>
-            <div class="info-item">
-                <span class="info-label">Intake:</span> {{ $course['intake'] }}
-            </div>
-            <div class="info-item">
-                <span class="info-label">Registration:</span> {{ $course['registration_date'] }}
-            </div>
-        </div>
-    </div>
+    <table class="info-table">
+        <tr>
+            <td class="student-name" colspan="2">{{ $student['id'] }} - {{ $student['name'] }}</td>
+        </tr>
+        <tr>
+            <td><span class="info-label">NIC:</span> {{ $student['nic'] }}</td>
+            <td><span class="info-label">Date Issued:</span> {{ $generated_date }}</td>
+        </tr>
+        <tr>
+            <td><span class="info-label">Course:</span> {{ $course['name'] }}</td>
+            <td><span class="info-label">Intake:</span> {{ $course['intake'] }}</td>
+        </tr>
+        <tr>
+            <td colspan="2"><span class="info-label">Registration:</span> {{ $course['registration_date'] }}</td>
+        </tr>
+    </table>
 
     <h2 class="section-title">Payment Details</h2>
-    <table>
+    <table class="data-table">
+        <colgroup>
+            <col style="width:38%">
+            <col style="width:16%">
+            <col style="width:16%">
+            <col style="width:14%">
+            <col style="width:16%">
+        </colgroup>
         <thead>
             <tr>
-                <th style="width: 40%;">Item Description</th>
-                <th style="width: 15%;">Payment Mode</th>
-                <th style="width: 15%;">Receipt No</th>
-                <th style="width: 15%;">Date</th>
-                <th style="width: 15%;">Amount Paid</th>
+                <th class="col-left">Item Description</th>
+                <th class="col-center">Payment Mode</th>
+                <th class="col-center">Receipt No</th>
+                <th class="col-center">Date</th>
+                <th class="col-amount">Amount Paid</th>
             </tr>
         </thead>
         <tbody>
             @forelse($payments as $p)
                 <tr>
-                    <td>
+                    <td class="col-left">
                         {{ $p['description'] }}
                         @if(($p['amount'] ?? 0) == 0)
                             <span class="outstanding">(Outstanding)</span>
                         @endif
                     </td>
-                    <td>{{ $p['method'] ?? '-' }}</td>
-                    <td>{{ $p['receipt_no'] ?? '-' }}</td>
-                    <td>{{ $p['date'] ?? '-' }}</td>
-                    <td class="amount-cell">{{ number_format($p['amount'], 2) }}</td>
+                    <td class="col-center">{{ $p['method'] ?? '-' }}</td>
+                    <td class="col-center">{{ $p['receipt_no'] ?? '-' }}</td>
+                    <td class="col-center">{{ $p['date'] ?? '-' }}</td>
+                    <td class="col-amount">{{ number_format((float) ($p['amount'] ?? 0), 2) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -310,63 +228,71 @@
         </tbody>
     </table>
 
-    <div class="summary">
-        <div class="summary-row">
-            <span class="summary-label">Total Amount:</span>
-            <span class="summary-amount">Rs. {{ number_format($totals['total_amount'], 2) }}</span>
-        </div>
-        <div class="summary-row">
-            <span class="summary-label">Total Paid:</span>
-            <span class="summary-amount">Rs. {{ number_format($totals['total_paid'], 2) }}</span>
-        </div>
-        <div class="summary-row">
-            <span class="summary-label">Total Outstanding:</span>
-            <span class="summary-amount">Rs. {{ number_format($totals['total_remaining'], 2) }}</span>
-        </div>
-    </div>
+    <table class="summary-table">
+        <tr>
+            <td>Total Amount:</td>
+            <td class="col-amount">Rs. {{ number_format((float) $totals['total_amount'], 2) }}</td>
+        </tr>
+        <tr>
+            <td>Total Paid:</td>
+            <td class="col-amount">Rs. {{ number_format((float) $totals['total_paid'], 2) }}</td>
+        </tr>
+        <tr>
+            <td>Total Outstanding:</td>
+            <td class="col-amount">Rs. {{ number_format((float) $totals['total_remaining'], 2) }}</td>
+        </tr>
+    </table>
 
     @if($paymentPlan && $paymentPlan->installments->count())
     <h2 class="section-title">Student Payment Plan (LKR)</h2>
-    <table class="installment-table">
+    <table class="data-table">
+        <colgroup>
+            <col style="width:8%">
+            <col style="width:16%">
+            <col style="width:19%">
+            <col style="width:19%">
+            <col style="width:19%">
+            <col style="width:19%">
+        </colgroup>
         <thead>
             <tr>
-                <th style="width: 8%;">#</th>
-                <th style="width: 15%;">Due Date</th>
-                <th style="width: 18%;">Base Amount</th>
-                <th style="width: 15%;">Discount</th>
-                <th style="width: 18%;">SLT Loan</th>
-                <th style="width: 18%;">Final Amount</th>
+                <th class="col-center">#</th>
+                <th class="col-center">Due Date</th>
+                <th class="col-amount">Base Amount</th>
+                <th class="col-amount">Discount</th>
+                <th class="col-amount">SLT Loan</th>
+                <th class="col-amount">Final Amount</th>
             </tr>
         </thead>
         <tbody>
             @php
-                $sumBase   = 0;
-                $sumDisc   = 0;
-                $sumLoan   = 0;
-                $sumFinal  = 0;
+                $sumBase = 0;
+                $sumDisc = 0;
+                $sumLoan = 0;
+                $sumFinal = 0;
             @endphp
             @foreach($paymentPlan->installments as $inst)
                 @php
-                    $sumBase  += $inst->base_amount ?? $inst->amount ?? 0;
-                    $sumDisc  += $inst->discount_amount ?? 0;
-                    $sumLoan  += $inst->slt_loan_amount ?? 0;
+                    $sumBase += $inst->base_amount ?? $inst->amount ?? 0;
+                    $sumDisc += $inst->discount_amount ?? 0;
+                    $sumLoan += $inst->slt_loan_amount ?? 0;
                     $sumFinal += $inst->final_amount ?? ($inst->base_amount ?? $inst->amount ?? 0);
                 @endphp
                 <tr>
-                    <td>{{ $inst->installment_number }}</td>
-                    <td>{{ $inst->formatted_due_date }}</td>
-                    <td class="amount-cell">{{ number_format($inst->base_amount ?? $inst->amount ?? 0, 2) }}</td>
-                    <td class="amount-cell">{{ number_format($inst->discount_amount ?? 0, 2) }}</td>
-                    <td class="amount-cell">{{ number_format($inst->slt_loan_amount ?? 0, 2) }}</td>
-                    <td class="amount-cell">{{ number_format($inst->final_amount ?? ($inst->base_amount ?? $inst->amount ?? 0), 2) }}</td>
+                    <td class="col-center">{{ $inst->installment_number }}</td>
+                    <td class="col-center">{{ $inst->formatted_due_date }}</td>
+                    <td class="col-amount">{{ number_format((float) ($inst->base_amount ?? $inst->amount ?? 0), 2) }}</td>
+                    <td class="col-amount">{{ number_format((float) ($inst->discount_amount ?? 0), 2) }}</td>
+                    <td class="col-amount">{{ number_format((float) ($inst->slt_loan_amount ?? 0), 2) }}</td>
+                    <td class="col-amount">{{ number_format((float) ($inst->final_amount ?? ($inst->base_amount ?? $inst->amount ?? 0)), 2) }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: bold;">TOTAL</td>
-                <td class="amount-cell">{{ number_format($sumBase, 2) }}</td>
-                <td class="amount-cell">{{ number_format($sumDisc, 2) }}</td>
-                <td class="amount-cell">{{ number_format($sumLoan, 2) }}</td>
-                <td class="amount-cell">{{ number_format($sumFinal, 2) }}</td>
+                <td class="col-amount" colspan="2">TOTAL</td>
+                <td class="col-amount">{{ number_format((float) $sumBase, 2) }}</td>
+                <td class="col-amount">{{ number_format((float) $sumDisc, 2) }}</td>
+                <td class="col-amount">{{ number_format((float) $sumLoan, 2) }}</td>
+                <td class="col-amount">{{ number_format((float) $sumFinal, 2) }}</td>
             </tr>
         </tbody>
     </table>
@@ -374,47 +300,51 @@
 
     @if(!empty($courseInstallments))
     <h2 class="section-title">Course Installment Plan (Master)</h2>
-    <table class="installment-table">
+    <table class="data-table">
+        <colgroup>
+            <col style="width:10%">
+            <col style="width:18%">
+            <col style="width:26%">
+            <col style="width:26%">
+            <col style="width:20%">
+        </colgroup>
         <thead>
             <tr>
-                <th style="width: 8%;">#</th>
-                <th style="width: 20%;">Due Date</th>
-                <th style="width: 25%;">Local Amount (LKR)</th>
-                <th style="width: 25%;">Foreign Amount</th>
-                <th style="width: 15%;">Currency</th>
+                <th class="col-center">#</th>
+                <th class="col-center">Due Date</th>
+                <th class="col-amount">Local Amount (LKR)</th>
+                <th class="col-amount">Foreign Amount</th>
+                <th class="col-center">Currency</th>
             </tr>
         </thead>
         <tbody>
             @php
-                $sumLocal   = 0;
+                $sumLocal = 0;
                 $sumForeign = 0;
             @endphp
             @foreach($courseInstallments as $inst)
                 @php
-                    $sumLocal   += $inst['local_amount'] ?? 0;
+                    $sumLocal += $inst['local_amount'] ?? 0;
                     $sumForeign += $inst['international_amount'] ?? 0;
                 @endphp
                 <tr>
-                    <td>{{ $inst['installment_number'] }}</td>
-                    <td>{{ \Carbon\Carbon::parse($inst['due_date'])->format('d/m/Y') }}</td>
-                    <td class="amount-cell">{{ number_format($inst['local_amount'] ?? 0, 2) }}</td>
-                    <td class="amount-cell">{{ number_format($inst['international_amount'] ?? 0, 2) }}</td>
-                    <td>{{ $coursePlan->international_currency ?? '-' }}</td>
+                    <td class="col-center">{{ $inst['installment_number'] }}</td>
+                    <td class="col-center">{{ \Carbon\Carbon::parse($inst['due_date'])->timezone(config('app.timezone', 'Asia/Colombo'))->format('d/m/Y') }}</td>
+                    <td class="col-amount">{{ number_format((float) ($inst['local_amount'] ?? 0), 2) }}</td>
+                    <td class="col-amount">{{ number_format((float) ($inst['international_amount'] ?? 0), 2) }}</td>
+                    <td class="col-center">{{ $coursePlan->international_currency ?? '-' }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="2" style="text-align: right; font-weight: bold;">TOTAL</td>
-                <td class="amount-cell">{{ number_format($sumLocal, 2) }}</td>
-                <td class="amount-cell">{{ number_format($sumForeign, 2) }}</td>
-                <td></td>
+                <td class="col-amount" colspan="2">TOTAL</td>
+                <td class="col-amount">{{ number_format((float) $sumLocal, 2) }}</td>
+                <td class="col-amount">{{ number_format((float) $sumForeign, 2) }}</td>
+                <td class="col-center"></td>
             </tr>
         </tbody>
     </table>
     @endif
 
-    <div class="footer">
-        <div class="page-number"></div>
-    </div>
-
+    <div class="footer">Page 1</div>
 </body>
 </html>

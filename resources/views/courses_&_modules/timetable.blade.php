@@ -3,14 +3,164 @@
 @section('title', 'NEBULA | Timetable Management')
 
 @section('content')
-    <div class="container-fluid">
+<style nonce="{{ $cspNonce }}">
+    .timetable-page,
+    .timetable-page .card,
+    .timetable-page .card-body {
+        min-width: 0;
+        max-width: 100%;
+        overflow: visible;
+        height: auto;
+    }
+    body:has(.timetable-page) .body-wrapper > .container-fluid {
+        overflow: visible;
+    }
+    .timetable-page [class*="col-"] {
+        min-width: 0;
+    }
+    .timetable-page .form-select,
+    .timetable-page .form-control {
+        width: 100%;
+        max-width: 100%;
+    }
+    .timetable-page .tab-content > .tab-pane:not(.active) {
+        display: none !important;
+        height: 0;
+        overflow: hidden;
+    }
+    .timetable-tabs {
+        flex-wrap: wrap;
+        overflow: hidden;
+        row-gap: 0.25rem;
+    }
+    .timetable-tabs .nav-link {
+        white-space: nowrap;
+    }
+    .timetable-filter-actions,
+    .timetable-download-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    .timetable-download-actions {
+        display: none;
+    }
+    .timetable-download-actions.is-visible {
+        display: flex;
+    }
+    .timetable-filter-actions .btn,
+    .timetable-download-actions .btn {
+        flex: 1 1 140px;
+        min-width: 0;
+    }
+    .timetable-calendar-wrap {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    .timetable-page .fc {
+        min-width: 0;
+        max-width: 100%;
+    }
+    .timetable-page .fc-event {
+        width: auto !important;
+    }
+    .timetable-toast {
+        max-width: min(360px, calc(100vw - 1.5rem));
+    }
+    .timetable-page .modal-body .d-flex.time-row {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    @media (max-width: 767.98px) {
+        .timetable-page h2 {
+            font-size: 1.25rem;
+        }
+        .timetable-page .card-body {
+            padding: 1rem 0.75rem;
+        }
+        .timetable-page .form-control,
+        .timetable-page .form-select {
+            font-size: 16px;
+        }
+        .timetable-page .col-form-label {
+            text-align: left !important;
+            padding-bottom: 0.2rem;
+        }
+        .timetable-tabs .nav-link {
+            width: 100%;
+            text-align: left;
+        }
+        .timetable-filter-actions .btn,
+        .timetable-download-actions .btn,
+        .timetable-page .modal-footer .btn {
+            width: 100%;
+            flex: 1 1 100%;
+        }
+        .timetable-page .fc-header-toolbar {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.5rem;
+        }
+        .timetable-page .fc-toolbar-chunk {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+        .timetable-page .fc-toolbar-title {
+            font-size: 1.05rem;
+            text-align: center;
+        }
+        .timetable-page .modal-dialog {
+            margin: 0.5rem;
+        }
+    }
+    .timetable-modal .modal-header {
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.9rem 1rem;
+    }
+    .timetable-modal .modal-title {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+    }
+    .timetable-modal .btn-close {
+        flex: 0 0 auto;
+        width: 2.5rem;
+        height: 2.5rem;
+        padding: 0.7rem;
+        margin: 0;
+        background-size: 0.85em;
+        opacity: 0.7;
+    }
+    @media (max-width: 767.98px) {
+        .timetable-modal .modal-title {
+            font-size: 1.05rem;
+        }
+        .timetable-modal .btn-close {
+            width: 2.75rem;
+            height: 2.75rem;
+            padding: 0.8rem;
+        }
+    }
+</style>
+
+    <div class="container-fluid px-2 px-md-3 timetable-page">
         <div class="card">
             <div class="card-body">
                 <h2 class="text-center mb-4">Timetable Management</h2>
                 <hr>
 
+                <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3 timetable-toast" aria-live="polite" aria-atomic="true" style="z-index: 1090;"></div>
+
                 <!-- Tab Navigation -->
-                <ul class="nav nav-tabs mb-4" id="timetableTabs" role="tablist">
+                <ul class="nav nav-tabs mb-4 timetable-tabs" id="timetableTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="degree-tab" data-bs-toggle="tab"
                             data-bs-target="#degree-timetable" type="button" role="tab" aria-controls="degree-timetable"
@@ -34,9 +184,9 @@
                         <!-- Degree Filters -->
                         <div id="degree-filters" class="mb-4">
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_location" class="col-sm-3 col-form-label fw-bold">Location<span
+                                <label for="degree_location" class="col-md-3 col-form-label fw-bold">Location<span
                                         class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <div class="col-md-9">
                                     <select class="form-select" id="degree_location" name="location" required>
                                         <option value="" selected disabled>Select Location</option>
                                         <option value="Welisara">Nebula Institute of Technology - Welisara</option>
@@ -47,9 +197,9 @@
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_course" class="col-sm-3 col-form-label fw-bold">Course<span
+                                <label for="degree_course" class="col-md-3 col-form-label fw-bold">Course<span
                                         class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <div class="col-md-9">
                                     <select class="form-select" id="degree_course" name="course_id" required>
                                         <option selected disabled value="">Select Course</option>
                                     </select>
@@ -57,9 +207,9 @@
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_intake" class="col-sm-3 col-form-label fw-bold">Intake<span
+                                <label for="degree_intake" class="col-md-3 col-form-label fw-bold">Intake<span
                                         class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <div class="col-md-9">
                                     <select class="form-select" id="degree_intake" name="intake_id" required>
                                         <option selected disabled value="">Select Intake</option>
                                     </select>
@@ -67,8 +217,8 @@
                             </div>
 
                             <div class="mb-3 row align-items-center" id="degree_specialization_row" style="display:none;">
-                                <label for="degree_specialization" class="col-sm-3 col-form-label fw-bold">Specialization<span class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <label for="degree_specialization" class="col-md-3 col-form-label fw-bold">Specialization<span class="text-danger">*</span></label>
+                                <div class="col-md-9">
                                     <select class="form-select" id="degree_specialization" name="specialization" disabled>
                                         <option selected disabled value="">Select Specialization</option>
                                     </select>
@@ -76,9 +226,9 @@
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_semester" class="col-sm-3 col-form-label fw-bold">Semester<span
+                                <label for="degree_semester" class="col-md-3 col-form-label fw-bold">Semester<span
                                         class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <div class="col-md-9">
                                     <select class="form-select" id="degree_semester" name="semester" required>
                                         <option selected disabled value="">Select Semester</option>
                                     </select>
@@ -86,39 +236,40 @@
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_start_date" class="col-sm-3 col-form-label fw-bold">Semester Start
+                                <label for="degree_start_date" class="col-md-3 col-form-label fw-bold">Semester Start
                                     Date<span class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <div class="col-md-9">
                                     <input type="date" class="form-control" id="degree_start_date" name="start_date"
                                         required readonly>
                                 </div>
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_end_date" class="col-sm-3 col-form-label fw-bold">End Date<span
+                                <label for="degree_end_date" class="col-md-3 col-form-label fw-bold">End Date<span
                                         class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <div class="col-md-9">
                                     <input type="date" class="form-control" id="degree_end_date" name="end_date" required
                                         readonly>
                                 </div>
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <div class="col-sm-9 offset-sm-3">
-                                    <p class="text-muted small mb-2">For Degree/Diploma, select Location, Course, Intake and Semester. For Certificate, select Location, Course and Intake. Dates will be filled automatically.</p>
-                                    <button type="button" class="btn btn-primary" id="showTimetableBtn">Show Timetable</button>
-                                    <div id="degree_download_buttons" style="display:none;display:inline-block;margin-left:8px;">
-                                        <button type="button" class="btn btn-outline-secondary" id="downloadPdfBtn">Download PDF</button>
-                                        <!-- Simplified actions: direct week/month PDF -->
-                                        <button type="button" class="btn btn-success" id="downloadWeekPdfBtn" style="margin-left:12px;">Download Week PDF</button>
-                                        <button type="button" class="btn btn-dark" id="downloadMonthPdfBtn" style="margin-left:8px;">Download Month PDF</button>
+                                <div class="col-md-9 offset-md-3">
+                                    <p class="text-muted small mb-2">For Degree/Diploma, select Location, Course, Intake and Semester. Dates will be filled automatically.</p>
+                                    <div class="timetable-filter-actions">
+                                        <button type="button" class="btn btn-primary" id="showTimetableBtn">Show Timetable</button>
+                                        <div id="degree_download_buttons" class="timetable-download-actions">
+                                            <button type="button" class="btn btn-outline-secondary" id="downloadPdfBtn">Download PDF</button>
+                                            <button type="button" class="btn btn-success" id="downloadWeekPdfBtn">Download Week PDF</button>
+                                            <button type="button" class="btn btn-dark" id="downloadMonthPdfBtn">Download Month PDF</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- FullCalendar Container -->
-                        <div class="mt-4" id="degreeTimetableSection" style="display:none;">
+                        <div class="mt-4 timetable-calendar-wrap" id="degreeTimetableSection" style="display:none;">
                             <div id="calendar"></div>
                         </div>
                     </div>
@@ -126,8 +277,8 @@
                     <div class="tab-pane fade" id="certificate-timetable" role="tabpanel" aria-labelledby="certificate-tab">
                         <div id="certificate-filters" class="mb-4">
                             <div class="mb-3 row align-items-center">
-                                <label for="certificate_location" class="col-sm-3 col-form-label fw-bold">Location<span class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <label for="certificate_location" class="col-md-3 col-form-label fw-bold">Location<span class="text-danger">*</span></label>
+                                <div class="col-md-9">
                                     <select class="form-select" id="certificate_location" name="location">
                                         <option value="" selected disabled>Select Location</option>
                                         <option value="Welisara">Nebula Institute of Technology - Welisara</option>
@@ -138,8 +289,8 @@
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <label for="certificate_course" class="col-sm-3 col-form-label fw-bold">Course<span class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <label for="certificate_course" class="col-md-3 col-form-label fw-bold">Course<span class="text-danger">*</span></label>
+                                <div class="col-md-9">
                                     <select class="form-select" id="certificate_course" name="course_id">
                                         <option selected disabled value="">Select Course</option>
                                     </select>
@@ -147,8 +298,8 @@
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <label for="certificate_intake" class="col-sm-3 col-form-label fw-bold">Intake<span class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <label for="certificate_intake" class="col-md-3 col-form-label fw-bold">Intake<span class="text-danger">*</span></label>
+                                <div class="col-md-9">
                                     <select class="form-select" id="certificate_intake" name="intake_id">
                                         <option selected disabled value="">Select Intake</option>
                                     </select>
@@ -156,33 +307,35 @@
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <label for="certificate_start_date" class="col-sm-3 col-form-label fw-bold">Course Start Date<span class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <label for="certificate_start_date" class="col-md-3 col-form-label fw-bold">Course Start Date<span class="text-danger">*</span></label>
+                                <div class="col-md-9">
                                     <input type="date" class="form-control" id="certificate_start_date" name="start_date" readonly>
                                 </div>
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <label for="certificate_end_date" class="col-sm-3 col-form-label fw-bold">Course End Date<span class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <label for="certificate_end_date" class="col-md-3 col-form-label fw-bold">Course End Date<span class="text-danger">*</span></label>
+                                <div class="col-md-9">
                                     <input type="date" class="form-control" id="certificate_end_date" name="end_date" readonly>
                                 </div>
                             </div>
 
                             <div class="mb-3 row align-items-center">
-                                <div class="col-sm-9 offset-sm-3">
+                                <div class="col-md-9 offset-md-3">
                                     <p class="text-muted small mb-2">For Certificate, select Location, Course and Intake. The course dates will be filled automatically.</p>
-                                    <button type="button" class="btn btn-primary" id="certificate_showTimetableBtn">Show Timetable</button>
-                                    <div id="certificate_download_buttons" style="display:none;display:inline-block;margin-left:8px;">
-                                        <button type="button" class="btn btn-outline-secondary" id="certificate_downloadPdfBtn">Download PDF</button>
-                                        <button type="button" class="btn btn-success" id="certificate_downloadWeekPdfBtn" style="margin-left:12px;">Download Week PDF</button>
-                                        <button type="button" class="btn btn-dark" id="certificate_downloadMonthPdfBtn" style="margin-left:8px;">Download Month PDF</button>
+                                    <div class="timetable-filter-actions">
+                                        <button type="button" class="btn btn-primary" id="certificate_showTimetableBtn">Show Timetable</button>
+                                        <div id="certificate_download_buttons" class="timetable-download-actions">
+                                            <button type="button" class="btn btn-outline-secondary" id="certificate_downloadPdfBtn">Download PDF</button>
+                                            <button type="button" class="btn btn-success" id="certificate_downloadWeekPdfBtn">Download Week PDF</button>
+                                            <button type="button" class="btn btn-dark" id="certificate_downloadMonthPdfBtn">Download Month PDF</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="mt-4" id="certificateTimetableSection" style="display:none;">
+                        <div class="mt-4 timetable-calendar-wrap" id="certificateTimetableSection" style="display:none;">
                             <div id="certificate_calendar"></div>
                         </div>
                     </div>
@@ -191,22 +344,14 @@
         </div>
     </div>
 
-    <!-- Success Notification Alert -->
-    <div id="successNotification" class="alert alert-success alert-dismissible fade show" role="alert" style="position:fixed;top:20px;right:20px;z-index:9999;min-width:350px;display:none;">
-        <strong>Success!</strong> <span id="successNotificationMessage">Timetable entry has been saved successfully.</span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-
     <!-- Modal for subject selection -->
-    <div id="subjectSelectionModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="subjectModalLabel"
+    <div id="subjectSelectionModal" class="modal fade timetable-modal" tabindex="-1" role="dialog" aria-labelledby="subjectModalLabel"
         aria-hidden="true">
-        <div class="modal-dialog" role="document">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="subjectModalLabel">Select Subjects and Duration</h5>
-                    <button type="button" class="close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <!-- Hidden input to store the selected date -->
@@ -215,8 +360,8 @@
 
                     <!-- Display selected date -->
                     <div class="mb-3 row">
-                        <label for="selected_date_display" class="col-sm-3 col-form-label fw-bold">Date</label>
-                        <div class="col-sm-9">
+                        <label for="selected_date_display" class="col-md-3 col-form-label fw-bold">Date</label>
+                        <div class="col-md-9">
                             <input type="date" class="form-control" id="selected_date_display">
                         </div>
                     </div>
@@ -226,9 +371,9 @@
                         <!-- Each block groups subject + duration + time -->
                         <div class="subject-block">
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_subject_0" class="col-sm-3 col-form-label fw-bold">Subject <span
+                                <label for="degree_subject_0" class="col-md-3 col-form-label fw-bold">Subject <span
                                         class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <div class="col-md-9">
                                     <select class="form-select subject-select" id="degree_subject_0" name="subject_ids[]"
                                         required>
                                         <option selected disabled value="">Select Subject</option>
@@ -236,31 +381,31 @@
                                 </div>
                             </div>
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_duration_0" class="col-sm-3 col-form-label fw-bold">Duration (Hours) <span
+                                <label for="degree_duration_0" class="col-md-3 col-form-label fw-bold">Duration (Hours) <span
                                         class="text-danger">*</span></label>
-                                <div class="col-sm-9">
+                                <div class="col-md-9">
                                     <input type="number" step="0.01" min="0" class="form-control duration-input" id="degree_duration_0"
                                         name="durations[]" placeholder="Hours (e.g. 1.5)" required>
                                 </div>
                             </div>
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_time_0" class="col-sm-3 col-form-label fw-bold">Time <span
+                                <label for="degree_time_0" class="col-md-3 col-form-label fw-bold">Time <span
                                         class="text-danger">*</span></label>
-                                <div class="col-sm-9 d-flex">
-                                    <input type="time" class="form-control time-input me-2" id="degree_time_0" name="times[]"
+                                <div class="col-md-9 time-row d-flex">
+                                    <input type="time" class="form-control time-input" id="degree_time_0" name="times[]"
                                         required>
                                     <button type="button" class="btn btn-outline-danger btn-sm remove-subject-btn" style="display:none;">Remove</button>
                                 </div>
                             </div>
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_classroom_0" class="col-sm-3 col-form-label fw-bold">Classroom</label>
-                                <div class="col-sm-9">
+                                <label for="degree_classroom_0" class="col-md-3 col-form-label fw-bold">Classroom</label>
+                                <div class="col-md-9">
                                     <input type="text" class="form-control classroom-input" id="degree_classroom_0" name="classrooms[]" placeholder="Optional">
                                 </div>
                             </div>
                             <div class="mb-3 row align-items-center">
-                                <label for="degree_lecturer_0" class="col-sm-3 col-form-label fw-bold">Lecturer</label>
-                                <div class="col-sm-9">
+                                <label for="degree_lecturer_0" class="col-md-3 col-form-label fw-bold">Lecturer</label>
+                                <div class="col-md-9">
                                     <input type="text" class="form-control lecturer-input" id="degree_lecturer_0" name="lecturers[]" placeholder="Optional">
                                 </div>
                             </div>
@@ -278,23 +423,21 @@
 
 
     <!-- PDF Filter Modal -->
-    <div id="downloadPdfModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="downloadPdfLabel" aria-hidden="true">
-      <div class="modal-dialog" role="document">
+    <div id="downloadPdfModal" class="modal fade timetable-modal" tabindex="-1" role="dialog" aria-labelledby="downloadPdfLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
         <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Download Timetable PDF (apply filters)</h5>
-                        <button type="button" class="close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
           <div class="modal-body">
             <div class="mb-3">
               <label class="form-label">Location</label>
               <select class="form-select" id="pdf_location">
                 <option value="">All</option>
-                <option value="Welisara">Welisara</option>
-                <option value="Moratuwa">Moratuwa</option>
-                <option value="Peradeniya">Peradeniya</option>
+                <option value="Welisara">Nebula Institute of Technology - Welisara</option>
+                <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
+                <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
               </select>
             </div>
             <div class="mb-3">
@@ -321,14 +464,12 @@
     </div>
 
         <!-- Event Details Modal -->
-        <div id="eventDetailsModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="eventDetailsLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
+        <div id="eventDetailsModal" class="modal fade timetable-modal" tabindex="-1" role="dialog" aria-labelledby="eventDetailsLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Event Details</h5>
-                        <button type="button" class="close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-2"><strong>Subject:</strong> <span id="ev_subject"></span></div>
@@ -349,9 +490,6 @@
     <!-- FullCalendar v5 (modern build) -->
     <link nonce="{{ $cspNonce }}" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" integrity="sha384-39yVKLsD9lMelmY+ij49KZgE+Mfk6hjdUPNE8yKHqdMPceLXzhlCJAK81xlD5jDj" crossorigin="anonymous" />
 
-    <!-- jQuery (kept for other UI code) -->
-    <script nonce="{{ $cspNonce }}" src="{{ asset('js/jquery-3.6.0.min.js') }}"></script>
-
     <!-- Moment.js (used in other parts of this page) -->
     <script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js" crossorigin="anonymous"></script>
 
@@ -369,6 +507,84 @@
         $(document).ready(function () {
             var latestEventsRaw = []; // raw server rows
             var latestFcEvents = [];  // mapped fullcalendar events
+            var timetableEventsUrl = @json(route('timetable.events'));
+            var timetableModulesUrl = @json(route('timetable.modules.by.semester'));
+
+            function showTimetableToast(title, message, type) {
+                var container = document.getElementById('toastContainer');
+                if (!container) return;
+                container.innerHTML = '';
+                var normalized = (type || '').includes('success') ? 'success' : ((type || '').includes('warning') ? 'warning' : 'error');
+                var toast = document.createElement('div');
+                toast.className = 'toast show';
+                toast.setAttribute('role', 'alert');
+                var header = document.createElement('div');
+                header.className = 'toast-header bg-' + (normalized === 'success' ? 'success' : (normalized === 'warning' ? 'warning' : 'danger')) + (normalized === 'warning' ? ' text-dark' : ' text-white');
+                var strong = document.createElement('strong');
+                strong.className = 'me-auto';
+                strong.textContent = title || (normalized === 'success' ? 'Success' : (normalized === 'warning' ? 'Warning' : 'Error'));
+                var closeBtn = document.createElement('button');
+                closeBtn.type = 'button';
+                closeBtn.className = 'btn-close' + (normalized === 'warning' ? '' : ' btn-close-white');
+                closeBtn.setAttribute('data-bs-dismiss', 'toast');
+                header.appendChild(strong);
+                header.appendChild(closeBtn);
+                var body = document.createElement('div');
+                body.className = 'toast-body';
+                body.textContent = message || '';
+                toast.appendChild(header);
+                toast.appendChild(body);
+                container.appendChild(toast);
+                if (window.bootstrap && bootstrap.Toast) {
+                    bootstrap.Toast.getOrCreateInstance(toast, { delay: 4000 }).show();
+                }
+                toast.addEventListener('hidden.bs.toast', function () { toast.remove(); });
+            }
+
+            function alert(message) {
+                showTimetableToast('Notice', String(message || ''), 'warning');
+            }
+
+            function escapeHtml(value) {
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function resetSelect($el, placeholder) {
+                var select = $el.get(0);
+                if (!select) return;
+                select.innerHTML = '';
+                var opt = new Option(placeholder || 'Select', '', true, true);
+                opt.disabled = true;
+                select.appendChild(opt);
+            }
+
+            function addSelectOption($el, value, label, dataset) {
+                var select = $el.get(0);
+                if (!select) return;
+                var opt = new Option(label, value);
+                if (dataset) {
+                    Object.keys(dataset).forEach(function (key) {
+                        if (dataset[key] !== undefined && dataset[key] !== null) {
+                            opt.setAttribute('data-' + key, dataset[key]);
+                        }
+                    });
+                }
+                select.appendChild(opt);
+            }
+
+            function setDownloadButtonsVisible(selector, visible) {
+                $(selector).toggleClass('is-visible', !!visible);
+            }
+
+            function refreshCalendarsSize() {
+                try { if (window.__nebulaCalendar) window.__nebulaCalendar.updateSize(); } catch (e) {}
+                try { if (window.__nebulaCertificateCalendar) window.__nebulaCertificateCalendar.updateSize(); } catch (e) {}
+            }
 
             // build available periods (weeks/months) based on semester start/end
             function buildPeriodsFromSemester() {
@@ -432,7 +648,7 @@
                         if (cellEvents.length) {
                             cellEvents.forEach(function (ce) {
                                 var st = moment(ce.start).format('HH:mm'), en = ce.end ? moment(ce.end).format('HH:mm') : '';
-                                html += '<div class="badge bg-primary text-white mb-1" style="display:block;">' + ce.title + '</div>';
+                        html += '<div class="badge bg-primary text-white mb-1" style="display:block;">' + escapeHtml(ce.title) + '</div>';
                                 html += '<div style="font-size:0.85em;color:#333;">' + st + (en ? ' - ' + en : '') + '</div>';
                             });
                         } else {
@@ -481,7 +697,7 @@
                         if (cellEvents.length) {
                             cellEvents.forEach(function (ce) {
                                 var st = moment(ce.start).format('HH:mm'), en = ce.end ? moment(ce.end).format('HH:mm') : '';
-                                html += '<div class="badge bg-primary text-white mb-1" style="display:block;">' + ce.title + '</div>';
+                        html += '<div class="badge bg-primary text-white mb-1" style="display:block;">' + escapeHtml(ce.title) + '</div>';
                                 html += '<div style="font-size:0.85em;color:#333;">' + st + (en ? ' - ' + en : '') + '</div>';
                             });
                         } else {
@@ -567,29 +783,24 @@
                 var location = $(this).val();
                 if (location) {
                     $.ajax({
-                        url: '/timetable/get-courses-by-location',
+                        url: @json(route('timetable.courses.by.location')),
                         type: 'GET',
                         data: { location: location, course_type: 'Degree' },
                         success: function (data) {
-                            console.log("Courses data received:", data);
-                            if (data.success) {
-                                $('#degree_course').empty();
-                                $('#degree_course').append('<option selected disabled value="">Select Course</option>');
-                                if (data.courses && data.courses.length > 0) {
-                                    $.each(data.courses, function (index, course) {
-                                        $('#degree_course').append('<option value="' + course.course_id + '">' + course.course_name + '</option>');
-                                    });
-                                    $('#degree_course').prop('disabled', false);
-                                } else {
-                                    $('#degree_course').append('<option disabled>No courses found</option>');
-                                    $('#degree_course').prop('disabled', true);
-                                }
+                            resetSelect($('#degree_course'), 'Select Course');
+                            if (data.success && data.courses && data.courses.length > 0) {
+                                $.each(data.courses, function (index, course) {
+                                    addSelectOption($('#degree_course'), course.course_id, course.course_name);
+                                });
+                                $('#degree_course').prop('disabled', false);
                             } else {
-                                console.error('No courses available for the selected location.');
+                                resetSelect($('#degree_course'), 'No courses found');
+                                $('#degree_course').prop('disabled', true);
+                                showTimetableToast('Info', (data && data.message) ? data.message : 'No courses found for this location.', 'warning');
                             }
                         },
-                        error: function (xhr, status, error) {
-                            console.error('Error fetching courses:', error);
+                        error: function () {
+                            showTimetableToast('Error', 'Could not load courses.', 'error');
                         }
                     });
                 }
@@ -600,23 +811,25 @@
                 var location = $(this).val();
                 if (location) {
                     $.ajax({
-                        url: '/timetable/get-courses-by-location',
+                        url: @json(route('timetable.courses.by.location')),
                         type: 'GET',
                         data: { location: location, course_type: 'Certificate' },
                         success: function (data) {
-                            $('#certificate_course').empty();
-                            $('#certificate_course').append('<option selected disabled value="">Select Course</option>');
+                            resetSelect($('#certificate_course'), 'Select Course');
                             if (data && data.courses && data.courses.length > 0) {
                                 $.each(data.courses, function (i, course) {
-                                    $('#certificate_course').append('<option value="' + course.course_id + '">' + course.course_name + '</option>');
+                                    addSelectOption($('#certificate_course'), course.course_id, course.course_name);
                                 });
                                 $('#certificate_course').prop('disabled', false);
                             } else {
-                                $('#certificate_course').append('<option disabled>No courses found</option>');
+                                resetSelect($('#certificate_course'), 'No courses found');
                                 $('#certificate_course').prop('disabled', true);
+                                showTimetableToast('Info', 'No courses found for this location.', 'warning');
                             }
                         },
-                        error: function () { console.error('Error fetching certificate courses'); }
+                        error: function () {
+                            showTimetableToast('Error', 'Could not load courses.', 'error');
+                        }
                     });
                 }
             });
@@ -634,7 +847,7 @@
                 $('#degree_specialization_row').hide();
                 $('#degree_start_date').val('');
                 $('#degree_end_date').val('');
-                $('#degree_download_buttons').hide();
+                setDownloadButtonsVisible('#degree_download_buttons', false);
                 $('#degreeTimetableSection').hide();
 
                 // Sync pdf_course options
@@ -652,16 +865,18 @@
                         type: 'GET',
                         success: function (data) {
                             console.log('Intakes data received:', data);
-                            $('#degree_intake').empty()
-                                .append('<option selected disabled value="">Select Intake</option>');
+                            resetSelect($('#degree_intake'), 'Select Intake');
                             if (data.intakes && data.intakes.length > 0) {
                                 $.each(data.intakes, function (index, intake) {
-                                    $('#degree_intake').append('<option value="' + intake.intake_id + '" data-start="' + (intake.start_date || '') + '" data-end="' + (intake.end_date || '') + '">' + intake.batch + '</option>');
+                                    addSelectOption($('#degree_intake'), intake.intake_id, intake.batch, {
+                                        start: intake.start_date || '',
+                                        end: intake.end_date || ''
+                                    });
                                 });
                                 $('#degree_intake').prop('disabled', false);
                             } else {
-                                $('#degree_intake').append('<option disabled>No intakes found</option>')
-                                    .prop('disabled', true);
+                                resetSelect($('#degree_intake'), 'No intakes found');
+                                $('#degree_intake').prop('disabled', true);
                             }
                         },
                         error: function (xhr, status, error) {
@@ -685,15 +900,17 @@
                         url: '/timetable/get-intakes/' + courseId + '/' + location,
                         type: 'GET',
                         success: function (data) {
-                            $('#certificate_intake').empty();
-                            $('#certificate_intake').append('<option selected disabled value="">Select Intake</option>');
+                            resetSelect($('#certificate_intake'), 'Select Intake');
                             if (data.intakes && data.intakes.length > 0) {
                                 $.each(data.intakes, function (index, intake) {
-                                    $('#certificate_intake').append('<option value="' + intake.intake_id + '" data-start="' + (intake.start_date || '') + '" data-end="' + (intake.end_date || '') + '">' + intake.batch + '</option>');
+                                    addSelectOption($('#certificate_intake'), intake.intake_id, intake.batch, {
+                                        start: intake.start_date || '',
+                                        end: intake.end_date || ''
+                                    });
                                 });
                                 $('#certificate_intake').prop('disabled', false);
                             } else {
-                                $('#certificate_intake').append('<option disabled>No intakes found</option>');
+                                resetSelect($('#certificate_intake'), 'No intakes found');
                                 $('#certificate_intake').prop('disabled', true);
                             }
                         },
@@ -715,7 +932,7 @@
 
                 $('#degree_start_date').val(start);
                 $('#degree_end_date').val(end);
-                $('#degree_download_buttons').toggle(!!start && !!end);
+                setDownloadButtonsVisible('#degree_download_buttons', !!start && !!end);
 
                 if (intakeId && courseId) {
                     $.ajax({
@@ -725,22 +942,23 @@
                         success: function (data) {
                             console.log("Semesters data received:", data); // Debug log for semesters
 
-                            $('#degree_semester').empty();
-                            $('#degree_semester').append('<option selected disabled value="">Select Semester</option>');
+                            resetSelect($('#degree_semester'), 'Select Semester');
 
                             if (data.semesters && data.semesters.length > 0) {
                                 $.each(data.semesters, function (index, semester) {
-                                    const label = semester.display_name || semester.semester_name || semester.name;
-                                    // include start/end dates in option attributes so we can auto-fill date inputs
-                                    $('#degree_semester').append('<option value="' + semester.id + '" data-start="' + (semester.start_date || '') + '" data-end="' + (semester.end_date || '') + '">' + label + '</option>');
+                                    var label = semester.display_name || semester.semester_name || semester.name;
+                                    addSelectOption($('#degree_semester'), semester.id, label, {
+                                        start: semester.start_date || '',
+                                        end: semester.end_date || ''
+                                    });
                                 });
                                 $('#degree_semester').prop('disabled', false);
                             } else {
-                                $('#degree_semester').append('<option disabled>No semesters found</option>');
+                                resetSelect($('#degree_semester'), 'No semesters found');
                                 $('#degree_semester').prop('disabled', true);
 
                                 if ($('#degree_location').val() && $('#degree_course').val() && $('#degree_intake').val() && start && end) {
-                                    $('#showTimetableBtn').trigger('click', [{ autoOpenIfEmpty: true }]);
+                                    $('#showTimetableBtn').trigger('click', [{ autoOpenIfEmpty: false }]);
                                 }
                             }
                         },
@@ -760,7 +978,7 @@
                 if (end && moment(end).isValid()) end = moment(end).format('YYYY-MM-DD');
                 $('#certificate_start_date').val(start);
                 $('#certificate_end_date').val(end);
-                $('#certificate_download_buttons').toggle(!!start && !!end);
+                setDownloadButtonsVisible('#certificate_download_buttons', !!start && !!end);
 
                 // Auto-show timetable after all certificate fields are selected
                 if ($('#certificate_location').val() && $('#certificate_course').val() && $('#certificate_intake').val() && start && end) {
@@ -783,26 +1001,28 @@
                 var semesterId = $('#degree_semester').val();
                 var courseId   = $('#degree_course').val();
                 var specialization = $('#degree_specialization').val();
+                if ($('#degree_specialization_row').is(':visible') && !specialization) {
+                    resetSelect($('#degree_subject_0'), 'Select Specialization first');
+                    $('#degree_subject_0').prop('disabled', true);
+                    return;
+                }
                 if (semesterId && courseId) {
                     if (_degreeSubjectXhr) { _degreeSubjectXhr.abort(); _degreeSubjectXhr = null; }
                     _degreeSubjectXhr = $.ajax({
-                        url: '/get-modules-by-semester',
+                        url: timetableModulesUrl,
                         type: 'GET',
                         data: { semester_id: semesterId, course_id: courseId, specialization: specialization },
                         success: function (data) {
                             _degreeSubjectXhr = null;
-                            console.log('Modules data received:', data);
+                            resetSelect($('#degree_subject_0'), 'Select Subject');
                             if (data.modules && data.modules.length > 0) {
-                                $('#degree_subject_0').empty()
-                                    .append('<option selected disabled value="">Select Subject</option>');
                                 $.each(data.modules, function (index, module) {
-                                    $('#degree_subject_0').append('<option value="' + module.module_id + '">' + module.module_name + ' (' + module.module_code + ')</option>');
+                                    addSelectOption($('#degree_subject_0'), module.module_id, module.module_name + ' (' + module.module_code + ')');
                                 });
                                 $('#degree_subject_0').prop('disabled', false);
                             } else {
-                                $('#degree_subject_0').empty()
-                                    .append('<option value="" disabled>No subjects found</option>')
-                                    .prop('disabled', true);
+                                resetSelect($('#degree_subject_0'), 'No subjects found');
+                                $('#degree_subject_0').prop('disabled', true);
                             }
                         },
                         error: function (xhr, status) {
@@ -824,9 +1044,9 @@
                 $('#degree_start_date').val(start);
                 $('#degree_end_date').val(end);
                 if ($(this).val()) {
-                    $('#degree_download_buttons').show();
+                    setDownloadButtonsVisible('#degree_download_buttons', true);
                 } else {
-                    $('#degree_download_buttons').hide();
+                    setDownloadButtonsVisible('#degree_download_buttons', false);
                 }
                 loadDegreeSubjects();
                 if ($('#degree_location').val() && $('#degree_course').val() && $('#degree_intake').val() && start && end) {
@@ -848,14 +1068,15 @@
                     type: 'GET',
                     data: { course_id: courseId },
                     success: function (response) {
-                        $specialization.empty().append('<option selected disabled value="">Select Specialization</option>');
-                        if (response && Array.isArray(response.specializations) && response.specializations.length) {
-                            response.specializations.forEach(function (specialization) {
-                                var value = typeof specialization === 'object' ? (specialization.name || specialization.value || specialization.specialization || '') : specialization;
-                                if (value) {
-                                    $specialization.append('<option value="' + value + '">' + value + '</option>');
-                                }
-                            });
+                    $specialization.empty();
+                    resetSelect($specialization, 'Select Specialization');
+                    if (response && Array.isArray(response.specializations) && response.specializations.length) {
+                        response.specializations.forEach(function (specialization) {
+                            var value = typeof specialization === 'object' ? (specialization.name || specialization.value || specialization.specialization || '') : specialization;
+                            if (value) {
+                                addSelectOption($specialization, value, value);
+                            }
+                        });
                             $specialization.prop('disabled', false);
                             $('#degree_specialization_row').show();
                             return;
@@ -896,17 +1117,15 @@
                         // Guard: only update the subject dropdown when the modal is currently
                         // in certificate mode (prevents a late response from clobbering degree options).
                         if ($('#selectedTimetableMode').val() !== 'certificate') return;
+                        resetSelect($('#degree_subject_0'), 'Select Subject');
                         if (data.modules && data.modules.length > 0) {
-                            $('#degree_subject_0').empty()
-                                .append('<option selected disabled value="">Select Subject</option>');
                             $.each(data.modules, function (index, module) {
-                                $('#degree_subject_0').append('<option value="' + module.module_id + '">' + module.module_name + ' (' + module.module_code + ')</option>');
+                                addSelectOption($('#degree_subject_0'), module.module_id, module.module_name + ' (' + module.module_code + ')');
                             });
                             $('#degree_subject_0').prop('disabled', false);
                         } else {
-                            $('#degree_subject_0').empty()
-                                .append('<option value="" disabled>No subjects found</option>')
-                                .prop('disabled', true);
+                            resetSelect($('#degree_subject_0'), 'No subjects found');
+                            $('#degree_subject_0').prop('disabled', true);
                         }
                     },
                     error: function (xhr, status) {
@@ -925,6 +1144,8 @@
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay'
                 },
+                height: 'auto',
+                handleWindowResize: true,
                 allDaySlot: false,
                 editable: true,
                 selectable: true,
@@ -991,6 +1212,13 @@
             // attach calendar instance to window for debug access
             window.__nebulaCalendar = calendar;
             calendar.render();
+
+            $('#timetableTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function () {
+                refreshCalendarsSize();
+            });
+            $(window).on('resize', function () {
+                refreshCalendarsSize();
+            });
 
             function applyCalendarDateRange(calendarInstance, startDate, endDate) {
                 if (!calendarInstance || !startDate || !endDate) {
@@ -1073,7 +1301,7 @@
                 applyCalendarDateRange(window.__nebulaCalendar, data.start_date, data.end_date);
 
                 $.ajax({
-                    url: '/get-timetable-events',
+                    url: timetableEventsUrl,
                     type: 'GET',
                     data: data,
                     success: function (response) {
@@ -1121,7 +1349,11 @@
                                     window.__nebulaCalendar.render();
                                 } catch (e) { console.warn('Degree calendar render failed', e); }
                             }
-                            openNewTimetablePopup('degree');
+                            if (options.autoOpenIfEmpty) {
+                                openNewTimetablePopup('degree');
+                            } else {
+                                refreshCalendarsSize();
+                            }
                             return;
                         }
 
@@ -1307,7 +1539,7 @@
                 $('#downloadPdfModal').modal('hide');
 
                 $.ajax({
-                    url: '/get-timetable-events',
+                    url: timetableEventsUrl,
                     type: 'GET',
                     data: filters,
                     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || '' },
@@ -1456,7 +1688,7 @@
                         if (cellEvents.length) {
                             cellEvents.forEach(function (ce) {
                                 var st = moment(ce.start).format('HH:mm'), en = ce.end ? moment(ce.end).format('HH:mm') : '';
-                                html += '<div class="badge bg-primary text-white mb-1" style="display:block;">' + ce.title + '</div>';
+                        html += '<div class="badge bg-primary text-white mb-1" style="display:block;">' + escapeHtml(ce.title) + '</div>';
                                 html += '<div style="font-size:0.85em;color:#333;">' + st + (en ? ' - ' + en : '') + '</div>';
                             });
                         } else {
@@ -2034,16 +2266,7 @@
 
                         // Show success notification
                         var subjectCount = subject_ids.length;
-                        $('#successNotificationMessage').text(subjectCount + ' timetable entry/entries have been saved successfully.');
-                        var $notification = $('#successNotification');
-                        $notification.show();
-
-                        // Auto-dismiss after 4 seconds
-                        setTimeout(function() {
-                            $notification.fadeOut('slow', function() {
-                                $notification.hide();
-                            });
-                        }, 4000);
+                        showTimetableToast('Success', subjectCount + ' timetable entry/entries have been saved successfully.', 'success');
 
                         // delay reload to allow modal to fully close and calendar to be ready
                         setTimeout(function() {
@@ -2136,6 +2359,7 @@
                     initialView: 'timeGridWeek',
                     headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay,dayGridMonth' },
                     height: 'auto',
+                    handleWindowResize: true,
                     selectable: true,
                     navLinks: true,
                     eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
@@ -2198,7 +2422,7 @@
                 applyCalendarDateRange(window.__nebulaCertificateCalendar, start_date, end_date);
 
                 $.ajax({
-                    url: '/get-timetable-events',
+                    url: timetableEventsUrl,
                     type: 'GET',
                     data: data,
                     success: function (response) {
@@ -2231,7 +2455,11 @@
                                     window.__nebulaCertificateCalendar.render();
                                 } catch (e) { console.warn('Certificate calendar render failed', e); }
                             }
-                            openNewTimetablePopup('certificate');
+                            if (options.autoOpenIfEmpty) {
+                                openNewTimetablePopup('certificate');
+                            } else {
+                                refreshCalendarsSize();
+                            }
                             return;
                         }
 
@@ -2282,7 +2510,9 @@
                         } catch (ex) { console.warn('Failed to add certificate events', ex); }
 
                         // show download buttons once certificate timetable is loaded
-                        if ($('#certificate_intake').val()) $('#certificate_download_buttons').show();
+                        if ($('#certificate_intake').val()) {
+                            setDownloadButtonsVisible('#certificate_download_buttons', true);
+                        }
                     },
                     error: function () {
                         alert('Error occurred while fetching certificate timetable.');
@@ -2335,12 +2565,4 @@
         });
     </script>
 @endpush
-
-    <style nonce="{{ $cspNonce }}">
-        /* Allow FullCalendar to handle positioning for agendaWeek/agendaDay.
-           Do not override position/left/top; only adjust width if needed. */
-        #calendar .fc-event {
-            width: auto !important;
-        }
-    </style>
 @endsection

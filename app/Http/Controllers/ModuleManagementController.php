@@ -13,8 +13,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\Semester;
+use App\Models\SpecializationRegistration;
 use App\Support\SemesterModuleSpecializationHelper;
 use App\Support\SpecializationStudentScope;
+use Illuminate\Support\Facades\Schema;
 
 class ModuleManagementController extends Controller
 {
@@ -44,6 +46,34 @@ class ModuleManagementController extends Controller
         return is_array($specializations) && count(array_filter($specializations)) > 0;
     }
 
+    private function decodeCourseSpecializations(?Course $course): array
+    {
+        if (!$course || empty($course->specializations)) {
+            return [];
+        }
+
+        $decoded = is_array($course->specializations)
+            ? $course->specializations
+            : json_decode((string) $course->specializations, true);
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(function ($value) {
+            if (is_string($value)) {
+                $trimmed = trim($value);
+                return $trimmed === '' ? null : $trimmed;
+            }
+            if (is_array($value) || is_object($value)) {
+                $value = (array) $value;
+                $name = trim((string) ($value['name'] ?? $value['title'] ?? $value['specialization'] ?? ''));
+                return $name === '' ? null : $name;
+            }
+            return null;
+        }, $decoded))));
+    }
+
     /**
      * Display the module management page.
      */
@@ -53,11 +83,10 @@ class ModuleManagementController extends Controller
             return redirect()->route('login')->with('error', 'Unauthorized access.');
         }
 
-       $degreeCourses = Course::where('course_type', 'degree')->orderBy('course_name')->get();
-       $diplomaCourses = Course::where('course_type', 'diploma')->orderBy('course_name')->get();
-       $modules = Module::orderBy('module_name')->get();
+        $degreeCourses = Course::where('course_type', 'degree')->orderBy('course_name')->get(['course_id', 'course_name', 'location']);
+        $diplomaCourses = Course::where('course_type', 'diploma')->orderBy('course_name')->get(['course_id', 'course_name', 'location']);
 
-return view('registration.module_management', compact('degreeCourses', 'diplomaCourses', 'modules'));
+        return view('registration.module_management', compact('degreeCourses', 'diplomaCourses'));
     }
 
     /**
@@ -92,7 +121,13 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
 
             // Get intakes ordered by batch
             $intakes = $query->orderBy('batch')
-                ->get(['intake_id', 'batch as intake_name']);
+                ->get(['intake_id', 'batch'])
+                ->map(function ($intake) {
+                    return [
+                        'intake_id' => $intake->intake_id,
+                        'intake_name' => $intake->batch,
+                    ];
+                });
 
             return response()->json([
                 'success' => true,
@@ -131,14 +166,6 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
                 return response()->json(['success' => false, 'message' => 'Please select a specialization for this course.'], 422);
             }
 
-            // Debug: Log the request parameters
-            \Log::info('getStudents called with:', [
-                'intake_id' => $request->intake_id,
-                'course_id' => $request->course_id,
-                'semester' => $request->semester,
-                'specialization' => $specialization
-            ]);
-            
             // Get students who have registered for this semester through semester registration
             $students = \App\Models\SemesterRegistration::where('intake_id', $request->intake_id)
                                                        ->where('course_id', $request->course_id)
@@ -148,12 +175,7 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
                                                        })
                                                        ->with(['student:student_id,full_name,id_value,email'])
                                                        ->get();
-            
-            // Debug: Log the query count
-            \Log::info('SemesterRegistration query count for getStudents:', [
-                'count' => $students->count(),
-            ]);
-            
+
             $mappedStudents = $students->map(function ($registration) {
                 return [
                     'student_id' => $registration->student->student_id ?? null,
@@ -536,44 +558,41 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
             'semester_id' => 'required|exists:semesters,id',
             'location' => 'required|in:Welisara,Moratuwa,Peradeniya',
             'specialization' => 'nullable|string|max:255',
+            'module_id' => 'nullable|exists:modules,module_id',
         ]);
 
         try {
             $specialization = $this->normalizeSpecializationValue($request->specialization);
-            \Log::info('getElectiveStudents called with:', [
-                'course_id' => $request->course_id,
-                'intake_id' => $request->intake_id,
-                'semester_id' => $request->semester_id,
-                'location' => $request->location
-            ]);
-            
-            // Get students who have registered for this semester through semester registration
-            $students = \App\Models\SemesterRegistration::where('course_id', $request->course_id)
+            $course = Course::find($request->course_id);
+
+            $query = \App\Models\SemesterRegistration::query()
+                ->where('course_id', $request->course_id)
                 ->where('intake_id', $request->intake_id)
                 ->where('semester_id', $request->semester_id)
                 ->where('location', $request->location)
                 ->where('status', 'registered')
-                ->with('student')
-                ;
+                ->whereHas('student')
+                ->with('student');
 
             if ($specialization && $specialization !== self::COMMON_SPECIALIZATION) {
-                SpecializationStudentScope::applyToQuery(
-                    $students,
-                    'student_id',
+                $specializationStudentIds = SpecializationStudentScope::resolveStudentIds(
                     (int) $request->course_id,
                     (int) $request->intake_id,
                     $request->location,
-                    $specialization
+                    $specialization,
+                    null,
+                    null,
+                    $this->decodeCourseSpecializations($course)
                 );
+
+                if (empty($specializationStudentIds)) {
+                    return response()->json(['success' => true, 'students' => []]);
+                }
+
+                $query->whereIn('student_id', $specializationStudentIds);
             }
 
-            $students = $students->get();
-            
-            // Debug: Log the query results count
-            \Log::info('SemesterRegistration query count for getElectiveStudents:', [
-                'count' => $students->count(),
-            ]);
-            
+            $students = $query->get()->unique('student_id')->values();
             $studentIds = $students->pluck('student_id')->filter()->unique()->values();
 
             $courseRegistrationByStudent = CourseRegistration::where('course_id', $request->course_id)
@@ -582,24 +601,58 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
                 ->whereIn('student_id', $studentIds)
                 ->orderByDesc('id')
                 ->get()
-                ->groupBy('student_id')
-                ->map(function ($registrations) {
-                    return $registrations->first();
-                });
+                ->unique('student_id')
+                ->keyBy(fn ($registration) => (int) $registration->student_id);
 
-            $mappedStudents = $students->map(function($reg) use ($courseRegistrationByStudent) {
-                $studentId = $reg->student->student_id;
-                $courseRegistration = $courseRegistrationByStudent->get($studentId);
+            $assignmentsByStudentId = collect();
+            if (Schema::hasTable('specialization_registrations') && $studentIds->isNotEmpty()) {
+                $assignmentsByStudentId = SpecializationRegistration::query()
+                    ->where('course_id', $request->course_id)
+                    ->where('intake_id', $request->intake_id)
+                    ->where('location', $request->location)
+                    ->where('status', 'registered')
+                    ->whereIn('student_id', $studentIds)
+                    ->get()
+                    ->keyBy(fn ($assignment) => (int) $assignment->student_id);
+            }
+
+            $alreadyRegistered = [];
+            if ($request->filled('module_id')) {
+                $semester = Semester::find($request->semester_id);
+                if ($semester && $studentIds->isNotEmpty()) {
+                    $alreadyRegistered = ModuleManagement::query()
+                        ->where('module_id', $request->module_id)
+                        ->where('semester', $semester->name)
+                        ->where('course_id', $request->course_id)
+                        ->where('intake_id', $request->intake_id)
+                        ->where('location', $request->location)
+                        ->whereIn('student_id', $studentIds)
+                        ->pluck('student_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+                }
+            }
+
+            $mappedStudents = $students->map(function ($reg) use ($courseRegistrationByStudent, $assignmentsByStudentId, $alreadyRegistered) {
+                $student = $reg->student;
+                if (!$student) {
+                    return null;
+                }
+
+                $studentId = (int) $student->student_id;
+                $assignment = $assignmentsByStudentId->get($studentId);
+                $specialization = $assignment ? trim((string) $assignment->specialization) : null;
 
                 return [
                     'student_id' => $studentId,
-                    'course_registration_id' => optional($courseRegistration)->course_registration_id,
-                    'name' => $reg->student->name_with_initials,
-                    'specialization' => $reg->specialization,
-                    'email' => $reg->student->email,
-                    'nic' => $reg->student->id_value,
+                    'course_registration_id' => optional($courseRegistrationByStudent->get($studentId))->course_registration_id,
+                    'name' => $student->name_with_initials ?: $student->full_name,
+                    'specialization' => $specialization !== '' ? $specialization : null,
+                    'email' => $student->email,
+                    'nic' => $student->id_value,
+                    'already_registered' => in_array($studentId, $alreadyRegistered, true),
                 ];
-            });
+            })->filter()->values();
 
             return response()->json([
                 'success' => true,
@@ -679,9 +732,6 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
             return response()->json(['success' => false, 'message' => 'Unauthorized.'], 401);
         }
 
-        // Debug: Log the incoming request data
-        \Log::info('Elective module registration request data:', $request->all());
-
         $request->validate([
             'register_students' => 'required|array|min:1',
             'register_students.*' => 'exists:students,student_id',
@@ -698,11 +748,10 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
 
             $semester = Semester::find($request->semester_id);
             if (!$semester) {
-                \Log::error('Semester not found:', ['semester_id' => $request->semester_id]);
                 DB::rollBack();
                 return response()->json([
-                    'success' => false, 
-                    'message' => '❌ Invalid semester selected. Please try again.'
+                    'success' => false,
+                    'message' => 'Invalid semester selected. Please try again.'
                 ], 400);
             }
 
@@ -734,8 +783,6 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
                 return response()->json(['success' => false, 'message' => 'Select the specialization that matches the elective module.'], 422);
             }
 
-            \Log::info('Found semester:', ['semester' => $semester->toArray()]);
-
             $registrations = [];
             $alreadyRegistered = 0;
             foreach ($request->register_students as $studentId) {
@@ -763,17 +810,11 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
                     ];
                 } else {
                     $alreadyRegistered++;
-                    \Log::info('Student already registered:', ['student_id' => $studentId, 'semester' => $semester->name, 'module_id' => $request->module_id]);
                 }
             }
 
-            \Log::info('Registrations to be created:', ['count' => count($registrations), 'data' => $registrations]);
-
             if (!empty($registrations)) {
                 ModuleManagement::insert($registrations);
-                \Log::info('Registrations saved successfully to module_management table');
-            } else {
-                \Log::info('No new registrations to save');
             }
 
             DB::commit();
@@ -782,15 +823,13 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
             $module = \DB::table('modules')->where('module_id', $request->module_id)->first();
             $moduleName = $module ? $module->module_name : 'Elective Module';
 
-            $successMessage = '';
             if (count($registrations) > 0) {
-                $successMessage = "🎉 *Success!* " . count($registrations) . " students have been successfully registered for *{$moduleName}* in Semester {$semester->name}!";
-                
+                $successMessage = count($registrations) . ' student(s) registered for ' . $moduleName . ' in ' . $semester->name . '.';
                 if ($alreadyRegistered > 0) {
-                    $successMessage .= " ({$alreadyRegistered} students were already registered)";
+                    $successMessage .= ' ' . $alreadyRegistered . ' student(s) were already registered.';
                 }
             } else {
-                $successMessage = "ℹ *Info:* All selected students are already registered for *{$moduleName}* in Semester {$semester->name}.";
+                $successMessage = 'All selected students are already registered for ' . $moduleName . ' in ' . $semester->name . '.';
             }
 
             return response()->json([
@@ -802,11 +841,10 @@ return view('registration.module_management', compact('degreeCourses', 'diplomaC
 
         } catch (\Exception $e) {
             DB::rollback();
-            \Log::error('Error registering elective modules: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Error registering elective modules: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => '❌ *Oops!* Something went wrong while registering elective modules. Please try again or contact support if the issue persists.'
+                'message' => 'Something went wrong while registering elective modules. Please try again.'
             ], 500);
         }
     }

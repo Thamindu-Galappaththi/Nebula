@@ -3,7 +3,131 @@
 @section('title', 'Course / Intake Change')
 
 @section('content')
-<div class="container mt-5 mb-5">
+<style nonce="{{ $cspNonce }}">
+    .course-change-page,
+    .course-change-page .card,
+    .course-change-page .card-body {
+        min-width: 0;
+        max-width: 100%;
+        overflow: visible;
+    }
+    body:has(.course-change-page) .body-wrapper > .container-fluid {
+        overflow: visible;
+    }
+    .course-change-page [class*="col-"] {
+        min-width: 0;
+    }
+    .course-change-page .form-select,
+    .course-change-page .form-control,
+    .course-change-page .nebula-select,
+    .course-change-page .nebula-select-toggle {
+        width: 100%;
+        max-width: 100%;
+    }
+    .course-change-page .input-group {
+        flex-wrap: wrap;
+        width: 100%;
+        max-width: 100%;
+    }
+    .course-change-page .input-group > .form-control,
+    .course-change-page .input-group > .form-select {
+        width: 1%;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+    .course-change-page .table-responsive {
+        width: 100%;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+    .course-change-table th,
+    .course-change-table td {
+        word-break: break-word;
+        vertical-align: middle;
+    }
+    .student-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .course-change-toast {
+        max-width: min(360px, calc(100vw - 1.5rem));
+    }
+    .spinner {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    @media (max-width: 767.98px) {
+        .course-change-page h3 {
+            font-size: 1.25rem;
+        }
+        .course-change-page .card-body {
+            padding: 1rem 0.75rem;
+        }
+        .course-change-page .form-control,
+        .course-change-page .form-select,
+        .course-change-page .nebula-select-toggle {
+            font-size: 16px;
+        }
+        .course-change-page .btn {
+            min-height: 42px;
+        }
+        .student-header-actions {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+        .student-header-actions .btn {
+            flex: 1 1 auto;
+        }
+        #searchBtn,
+        #paymentPlanFrame {
+            width: 100%;
+        }
+        #paymentPlanFrame {
+            height: 420px !important;
+        }
+        .course-change-table thead {
+            display: none;
+        }
+        .course-change-table,
+        .course-change-table tbody,
+        .course-change-table tr,
+        .course-change-table td {
+            display: block;
+            width: 100%;
+        }
+        .course-change-table tbody tr[data-reg-row] {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            padding: 8px 12px 12px;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+        }
+        .course-change-table td {
+            border: 0;
+            padding: 0.45rem 0;
+        }
+        .course-change-table td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .course-change-table td .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="container-fluid px-2 px-md-3 mt-3 mb-5 course-change-page">
     <div class="card shadow border-0">
         <div class="card-body">
             <h3 class="text-primary mb-4">
@@ -24,14 +148,9 @@
                     <form id="searchForm" class="mb-0">
                         <div class="row g-3 align-items-end">
                             <div class="col-md-8">
-                                <label for="nic" class="form-label">Enter Student NIC</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="ti ti-id"></i>
-                                    </span>
-                                    <input type="text" class="form-control" id="nic" 
-                                           placeholder="Enter Student NIC" required>
-                                </div>
+                                <label for="nic" class="form-label fw-bold">Student NIC</label>
+                                <input type="text" class="form-control" id="nic"
+                                       placeholder="Enter Student NIC" required autocomplete="off">
                             </div>
                             <div class="col-md-4">
                                 <button class="btn btn-primary w-100" type="submit" id="searchBtn">
@@ -46,11 +165,11 @@
             <!-- Student Details Section -->
             <div id="student-section" class="d-none">
                 <div class="card mb-4 border-info">
-                    <div class="card-header bg-info text-white d-flex align-items-center justify-content-between">
+                    <div class="card-header bg-info text-white d-flex flex-wrap align-items-center justify-content-between gap-2">
                         <h5 class="mb-0">
                             <i class="ti ti-user"></i> Student Details
                         </h5>
-                        <div class="d-flex gap-2">
+                        <div class="student-header-actions">
                             <button type="button" class="btn btn-light btn-sm" id="logsBtn" disabled>
                                 <i class="ti ti-list-details me-1"></i> View Logs
                             </button>
@@ -90,7 +209,7 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0" id="reg_table">
+                            <table class="table table-hover align-middle mb-0 course-change-table" id="reg_table">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Course</th>
@@ -112,7 +231,7 @@
 
             <!-- Course + Intake Selection Modal -->
             <div class="modal fade" id="changeCourseModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
+                <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
                     <div class="modal-content">
                         <div class="modal-header bg-warning text-dark">
                             <h5 class="modal-title">
@@ -201,7 +320,7 @@
 
             <!-- Payment Summary Modal -->
             <div class="modal fade" id="paymentSummaryModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-fullscreen-sm-down">
                     <div class="modal-content">
                         <div class="modal-header bg-success text-white">
                             <h5 class="modal-title">
@@ -233,7 +352,7 @@
 
             <!-- Payment History Preview Modal -->
             <div class="modal fade" id="paymentHistoryPreviewModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-xl">
+                <div class="modal-dialog modal-xl modal-fullscreen-sm-down">
                     <div class="modal-content">
                         <div class="modal-header bg-info text-white">
                             <h5 class="modal-title">
@@ -262,7 +381,7 @@
 
             <!-- Cancelled Payments Remarks Modal -->
             <div class="modal fade" id="cancelledPaymentsModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
+                <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
                     <div class="modal-content">
                         <div class="modal-header bg-secondary text-white">
                             <h5 class="modal-title">
@@ -291,7 +410,7 @@
 
             <!-- Course Change Logs Modal -->
             <div class="modal fade" id="courseChangeLogsModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-xl">
+                <div class="modal-dialog modal-xl modal-fullscreen-sm-down">
                     <div class="modal-content">
                         <div class="modal-header bg-primary text-white">
                             <h5 class="modal-title">
@@ -322,7 +441,7 @@
 </div>
 
 <!-- Payment Plan Panel -->
-<div id="paymentPlanPanel" class="container mt-4 d-none">
+<div id="paymentPlanPanel" class="container-fluid px-2 px-md-3 mt-3 d-none course-change-page">
     <div class="card border-success shadow-sm">
         <div class="card-header bg-success text-white d-flex align-items-center justify-content-between">
             <h6 class="mb-0">
@@ -346,7 +465,7 @@
 </div>
 
 <!-- Toast Container -->
-<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1090">
+<div class="toast-container position-fixed top-0 end-0 p-3 course-change-toast" style="z-index: 1090">
     <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert">
         <div class="d-flex">
             <div class="toast-body">
@@ -378,21 +497,53 @@ let courseStartDate = null;
 let searchedNIC = null;
 let studentId = null;
 let paymentInfo = null;
+const LOCATION_LABELS = {
+    Welisara: 'Nebula Institute of Technology - Welisara',
+    Moratuwa: 'Nebula Institute of Technology - Moratuwa',
+    Peradeniya: 'Nebula Institute of Technology - Peradeniya'
+};
+
+function escapeHtml(text) {
+    const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+    return String(text ?? '').replace(/[&<>"']/g, function (match) {
+        return map[match];
+    });
+}
+
+function campusLabel(location) {
+    return LOCATION_LABELS[location] || location || '';
+}
+
+function resetSelect(select, placeholder) {
+    select.innerHTML = '';
+    const option = new Option(placeholder, '', true, true);
+    option.disabled = true;
+    select.add(option);
+    select.disabled = true;
+}
 
 // Show alert message
 function showAlert(message, type = 'info', duration = 5000) {
     const alertContainer = document.getElementById('alert-container');
     const alertId = 'alert-' + Date.now();
-    
-    const alertHTML = `
-        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
-            <i class="ti ti-${type === 'success' ? 'check' : type === 'warning' ? 'alert-triangle' : type === 'danger' ? 'alert-circle' : 'info-circle'} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-    
-    alertContainer.innerHTML = alertHTML;
+    const icon = type === 'success' ? 'check' : (type === 'warning' ? 'alert-triangle' : (type === 'danger' ? 'alert-circle' : 'info-circle'));
+
+    const alert = document.createElement('div');
+    alert.id = alertId;
+    alert.className = 'alert alert-' + type + ' alert-dismissible fade show';
+    alert.setAttribute('role', 'alert');
+    const iconEl = document.createElement('i');
+    iconEl.className = 'ti ti-' + icon + ' me-2';
+    const text = document.createElement('span');
+    text.textContent = message;
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close';
+    closeBtn.setAttribute('data-bs-dismiss', 'alert');
+    alert.appendChild(iconEl);
+    alert.appendChild(text);
+    alert.appendChild(closeBtn);
+    alertContainer.replaceChildren(alert);
     
     // Auto remove after duration
     if (duration > 0) {
@@ -458,15 +609,15 @@ function showPaymentHistoryPreview(data) {
 
             return `
                 <tr>
-                    <td>${item.payment_date || '-'}</td>
-                    <td>${getPaymentTypeLabel(item.payment_type)}</td>
-                    <td>${item.installment_number ?? '-'}</td>
-                    <td>${item.receipt_no || '-'}</td>
+                    <td>${escapeHtml(item.payment_date || '-')}</td>
+                    <td>${escapeHtml(getPaymentTypeLabel(item.payment_type))}</td>
+                    <td>${escapeHtml(item.installment_number ?? '-')}</td>
+                    <td>${escapeHtml(item.receipt_no || '-')}</td>
                     <td>${Number(item.total_fee || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td>${Number(item.paid_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td>${Number(item.remaining_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td><span class="badge bg-${statusClass}">${item.status || '-'}</span></td>
-                    <td>${item.payment_method || '-'}</td>
+                    <td><span class="badge bg-${statusClass}">${escapeHtml(item.status || '-')}</span></td>
+                    <td>${escapeHtml(item.payment_method || '-')}</td>
                 </tr>
             `;
         }).join('');
@@ -566,13 +717,13 @@ async function showCancelledPayments() {
             const isCancelled = isCancelledByRemarks(payment.remarks || '');
             rowsHtml += `
                 <tr>
-                    <td>${payment.course_registration_id ?? '-'}</td>
-                    <td>${payment.remarks ?? '-'}</td>
-                    <td>${payment.updated_at ?? '-'}</td>
+                    <td>${escapeHtml(payment.course_registration_id ?? '-')}</td>
+                    <td>${escapeHtml(payment.remarks ?? '-')}</td>
+                    <td>${escapeHtml(payment.updated_at ?? '-')}</td>
                     <td class="text-center">
-                        <input type="checkbox"
-                               ${isCancelled ? 'checked' : ''}
-                               onchange="toggleCancelledPaymentStatus(${payment.id}, this.checked)">
+                        <input type="checkbox" class="cancelled-payment-toggle"
+                               data-payment-id="${escapeHtml(payment.id)}"
+                               ${isCancelled ? 'checked' : ''}>
                     </td>
                 </tr>
             `;
@@ -597,7 +748,7 @@ async function showCancelledPayments() {
         console.error('Cancelled payments error:', error);
         content.innerHTML = `
             <div class="alert alert-danger">
-                Failed to load cancelled payments: ${error.message}
+                Failed to load cancelled payments: ${escapeHtml(error.message)}
             </div>
         `;
     }
@@ -635,14 +786,14 @@ async function showChangeLogs() {
             data.logs.forEach(log => {
                 logsHtml += `
                     <tr>
-                        <td>${log.changed_at ?? '-'}</td>
-                        <td>${log.old_course_id ?? '-'}</td>
-                        <td>${log.new_course_id ?? '-'}</td>
-                        <td>${log.old_intake_id ?? '-'}</td>
-                        <td>${log.new_intake_id ?? '-'}</td>
-                        <td>${log.total_paid_amount ?? '-'}</td>
-                        <td>${log.changed_by_name ?? '-'}</td>
-                        <td>${log.remarks ?? '-'}</td>
+                        <td>${escapeHtml(log.changed_at ?? '-')}</td>
+                        <td>${escapeHtml(log.old_course_name ?? log.old_course_id ?? '-')}</td>
+                        <td>${escapeHtml(log.new_course_name ?? log.new_course_id ?? '-')}</td>
+                        <td>${escapeHtml(log.old_intake_batch ?? log.old_intake_id ?? '-')}</td>
+                        <td>${escapeHtml(log.new_intake_batch ?? log.new_intake_id ?? '-')}</td>
+                        <td>${escapeHtml(log.total_paid_amount ?? '-')}</td>
+                        <td>${escapeHtml(log.changed_by_name ?? '-')}</td>
+                        <td>${escapeHtml(log.remarks ?? '-')}</td>
                     </tr>
                 `;
             });
@@ -659,12 +810,12 @@ async function showChangeLogs() {
             data.payments.forEach(payment => {
                 paymentsHtml += `
                     <tr>
-                        <td>${payment.created_at ?? '-'}</td>
-                        <td>${payment.old_course_id ?? '-'}</td>
-                        <td>${payment.old_intake_id ?? '-'}</td>
-                        <td>${payment.old_payment_plan_id ?? '-'}</td>
-                        <td>${payment.total_paid_amount ?? '-'}</td>
-                        <td>${payment.remarks ?? '-'}</td>
+                        <td>${escapeHtml(payment.created_at ?? '-')}</td>
+                        <td>${escapeHtml(payment.old_course_name ?? payment.old_course_id ?? '-')}</td>
+                        <td>${escapeHtml(payment.old_intake_batch ?? payment.old_intake_id ?? '-')}</td>
+                        <td>${escapeHtml(payment.old_payment_plan_id ?? '-')}</td>
+                        <td>${escapeHtml(payment.total_paid_amount ?? '-')}</td>
+                        <td>${escapeHtml(payment.remarks ?? '-')}</td>
                     </tr>
                 `;
             });
@@ -720,7 +871,7 @@ async function showChangeLogs() {
         console.error('Course change history error:', error);
         content.innerHTML = `
             <div class="alert alert-danger">
-                Failed to load course change history: ${error.message}
+                Failed to load course change history: ${escapeHtml(error.message)}
             </div>
         `;
     }
@@ -846,39 +997,39 @@ async function searchStudent(nic) {
                 `;
             } else {
                 data.registrations.forEach(reg => {
-                    const startDate = new Date(reg.course_start_date);
-                    const deadline = new Date(startDate);
-                    deadline.setFullYear(deadline.getFullYear() + 1);
-                    const isAllowed = new Date() < deadline;
+                    const isAllowed = !!reg.is_change_allowed;
                     const statusClass = isAllowed ? 'badge bg-success' : 'badge bg-warning';
                     const statusText = isAllowed ? 'Change Allowed' : 'Restricted';
+                    const courseName = reg.course?.course_name || 'N/A';
+                    const location = campusLabel(reg.course?.location || '');
+                    const courseType = reg.course?.course_type || '';
                     
                     const actionButton = isAllowed 
                         ? `<button class="btn btn-warning btn-sm btn-change-modal" 
-                                  data-reg-id="${reg.id}" 
-                                  data-course-id="${reg.course_id}" 
-                                  data-intake-id="${reg.intake_id}" 
-                                  data-start-date="${reg.course_start_date}">
+                                  data-reg-id="${escapeHtml(reg.id)}" 
+                                  data-course-id="${escapeHtml(reg.course_id)}" 
+                                  data-intake-id="${escapeHtml(reg.intake_id)}" 
+                                  data-start-date="${escapeHtml(reg.course_start_date || '')}">
                               <i class="ti ti-refresh me-1"></i> Change
                            </button>`
                         : `<span class="text-muted">Not Allowed</span>`;
                     
                     const row = `
-                        <tr>
-                            <td>
-                                <strong>${reg.course?.course_name || 'N/A'}</strong><br>
-                                <small class="text-muted">${reg.course?.location || ''} | ${reg.course?.course_type || ''}</small>
+                        <tr data-reg-row>
+                            <td data-label="Course">
+                                <strong>${escapeHtml(courseName)}</strong><br>
+                                <small class="text-muted">${escapeHtml(location)}${courseType ? ' | ' + escapeHtml(courseType) : ''}</small>
                             </td>
-                            <td>${reg.intake?.batch || 'N/A'}</td>
-                            <td>${reg.course_start_date}</td>
-                            <td><span class="${statusClass}">${statusText}</span></td>
-                            <td>
+                            <td data-label="Intake/Batch">${escapeHtml(reg.intake?.batch || 'N/A')}</td>
+                            <td data-label="Start Date">${escapeHtml(reg.course_start_date || '-')}</td>
+                            <td data-label="Status"><span class="${statusClass}">${statusText}</span></td>
+                            <td data-label="Payment Status">
                                 <button class="btn btn-info btn-sm btn-check-payment" 
-                                        data-reg-id="${reg.id}">
+                                        data-reg-id="${escapeHtml(reg.id)}">
                                     <i class="ti ti-credit-card me-1"></i> Check
                                 </button>
                             </td>
-                            <td>${actionButton}</td>
+                            <td data-label="Action">${actionButton}</td>
                         </tr>
                     `;
                     tbody.innerHTML += row;
@@ -904,13 +1055,7 @@ async function searchStudent(nic) {
 // Check payment status
 async function checkPaymentStatus(registrationId) {
     try {
-        console.log('Checking payment status for registration:', registrationId);
-        
         showAlert('Checking payment status...', 'info', 2000);
-        
-        // Debug: Show what we're sending
-        console.log('Sending request to:', "{{ route('course.change.check.payment') }}");
-        console.log('CSRF Token exists:', !!document.querySelector('meta[name="csrf-token"]')?.content);
         
         const response = await fetch("{{ route('course.change.check.payment') }}", {
             method: 'POST',
@@ -919,14 +1064,10 @@ async function checkPaymentStatus(registrationId) {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
             },
             body: JSON.stringify({ 
-                registration_id: registrationId,
-                _token: '{{ csrf_token() }}'
+                registration_id: registrationId
             })
         });
         
-        console.log('Response status:', response.status, response.statusText);
-        
-        // Check if response is JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
@@ -935,7 +1076,6 @@ async function checkPaymentStatus(registrationId) {
         }
         
         const data = await response.json();
-        console.log('Payment check response:', data);
         
         if (data.status === 'success') {
             let message, alertType;
@@ -954,17 +1094,10 @@ async function checkPaymentStatus(registrationId) {
             
             showAlert(message, alertType);
         } else {
-            console.error('Payment check error from server:', data);
             showAlert(data.message || 'Error checking payment status', 'danger');
         }
         
     } catch (error) {
-        console.error('Payment check error:', error);
-        console.error('Error details:', {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-        });
         showAlert('Error checking payment status: ' + error.message, 'danger');
     }
 }
@@ -980,7 +1113,7 @@ async function showChangeModal(regId, courseId, intakeId, startDate) {
     document.getElementById('paymentWarning').classList.add('d-none');
     document.getElementById('yearWarning').classList.add('d-none');
     document.getElementById('course_select').innerHTML = '<option value="">Loading...</option>';
-    document.getElementById('new_intake').innerHTML = '<option value="">Loading...</option>';
+    resetSelect(document.getElementById('new_intake'), 'Select course first');
     document.getElementById('generated_id').value = '';
     document.getElementById('submitBtn').disabled = true;
     document.getElementById('generateBtn').disabled = true;
@@ -1024,15 +1157,14 @@ async function showChangeModal(regId, courseId, intakeId, startDate) {
         const warningText = document.getElementById('paymentWarningText');
         
         if (paymentInfo.status === 'success' && paymentInfo.has_payments) {
-            warningText.textContent = `Student has paid LKR ${paymentInfo.total_paid_amount.toLocaleString()} for this course. All payment records will be cancelled.`;
+            warningText.textContent = `Student has paid LKR ${Number(paymentInfo.total_paid_amount || 0).toLocaleString()}. That amount will be carried forward onto the new payment plan.`;
             warningDiv.classList.remove('d-none');
         } else {
             warningDiv.classList.add('d-none');
         }
         
     } catch (error) {
-        console.error('Payment check error:', error);
-        warningDiv.classList.add('d-none');
+        document.getElementById('paymentWarning')?.classList.add('d-none');
     }
     
     // Load courses
@@ -1058,8 +1190,6 @@ async function loadCourses() {
         }
         
         const data = await response.json();
-        
-        console.log('Courses response:', data); // Debug log
         
         if (data.status !== 'success' || !data.courses) {
             throw new Error(data.message || 'Invalid response from server');
@@ -1094,7 +1224,7 @@ async function loadCourses() {
             headerOption.style.borderTop = `2px solid ${color}`;
             headerOption.style.background = `linear-gradient(to right, ${color}20, transparent)`;
             headerOption.style.cursor = 'default';
-            headerOption.textContent = `📍 ${location.toUpperCase()}`;
+            headerOption.textContent = campusLabel(location);
             courseSelect.appendChild(headerOption);
             
             // Courses in this location
@@ -1131,15 +1261,13 @@ document.getElementById('course_select').addEventListener('change', async functi
     const generateBtn = document.getElementById('generateBtn');
     
     if (!courseId) {
-        intakeSelect.innerHTML = '<option value="">Select course first</option>';
-        intakeSelect.disabled = true;
+        resetSelect(intakeSelect, 'Select course first');
         generateBtn.disabled = true;
         document.getElementById('submitBtn').disabled = true;
         return;
     }
     
-    intakeSelect.innerHTML = '<option value="">Loading intakes...</option>';
-    intakeSelect.disabled = true;
+    resetSelect(intakeSelect, 'Loading intakes...');
     generateBtn.disabled = true;
     document.getElementById('generated_id').value = '';
     clearErrors();
@@ -1157,35 +1285,29 @@ document.getElementById('course_select').addEventListener('change', async functi
         const data = await response.json();
         
         if (data.status === 'success') {
-            intakeSelect.innerHTML = '<option value="">Select New Intake</option>';
+            resetSelect(intakeSelect, 'Select New Intake');
             
-            // Filter out current intake and sort by start date (newest first)
-            const filteredIntakes = data.intakes.filter(intake => intake.intake_id != currentIntakeId);
+            const filteredIntakes = (data.intakes || []).filter(intake => String(intake.intake_id) !== String(currentIntakeId));
             filteredIntakes.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
             
             if (filteredIntakes.length === 0) {
-                intakeSelect.innerHTML = '<option value="">No other intakes available</option>';
+                resetSelect(intakeSelect, 'No other intakes available');
             } else {
                 filteredIntakes.forEach(intake => {
-                    const startDate = new Date(intake.start_date).toLocaleDateString();
-                    intakeSelect.innerHTML += `
-                        <option value="${intake.intake_id}">
-                            ${intake.batch} (Starts: ${startDate})
-                        </option>
-                    `;
+                    const startDate = intake.start_date ? (window.toLocalDateString(intake.start_date) || intake.start_date) : '-';
+                    intakeSelect.add(new Option(`${intake.batch} (Starts: ${startDate})`, intake.intake_id));
                 });
                 intakeSelect.disabled = false;
                 generateBtn.disabled = false;
             }
             
         } else {
-            intakeSelect.innerHTML = '<option value="">Error loading intakes</option>';
+            resetSelect(intakeSelect, 'Error loading intakes');
             showError('intakeError', data.message || 'Failed to load intakes');
         }
         
     } catch (error) {
-        console.error('Error loading intakes:', error);
-        intakeSelect.innerHTML = '<option value="">Error loading intakes</option>';
+        resetSelect(intakeSelect, 'Error loading intakes');
         showError('intakeError', 'Failed to load intakes. Please try again.');
     }
 });
@@ -1227,7 +1349,6 @@ async function generateNewId() {
         }
         
     } catch (error) {
-        console.error('Error generating ID:', error);
         showError('idError', 'Failed to generate ID. Please try again.');
         showAlert('Error generating registration ID', 'danger');
     } finally {
@@ -1329,7 +1450,6 @@ async function submitChange() {
         }
         
     } catch (error) {
-        console.error('Submit error:', error);
         showAlert('Error submitting change: ' + error.message, 'danger');
     } finally {
         submitBtn.innerHTML = '<i class="ti ti-check me-2"></i>Confirm Change';
@@ -1354,9 +1474,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Modal hidden event
     document.getElementById('changeCourseModal').addEventListener('hidden.bs.modal', function() {
-        // Reset modal
-        document.getElementById('course_select').value = '';
-        document.getElementById('new_intake').value = '';
+        resetSelect(document.getElementById('course_select'), 'Select Course');
+        resetSelect(document.getElementById('new_intake'), 'Select course first');
         document.getElementById('generated_id').value = '';
         document.getElementById('paymentWarning').classList.add('d-none');
         document.getElementById('yearWarning').classList.add('d-none');
@@ -1367,11 +1486,6 @@ document.addEventListener('DOMContentLoaded', function() {
         paymentInfo = null;
     });
     
-    // Debug: Test routes
-    console.log('Course change routes loaded');
-    console.log('Check payment route:', "{{ route('course.change.check.payment') }}");
-    
-    // Add event listeners for buttons to avoid inline onclick (CSP compliance)
     document.getElementById('logsBtn')?.addEventListener('click', showChangeLogs);
     document.getElementById('remarksBtn')?.addEventListener('click', showCancelledPayments);
     document.getElementById('generateBtn')?.addEventListener('click', generateNewId);
@@ -1397,57 +1511,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
     });
+
+    document.getElementById('cancelledPaymentsContent')?.addEventListener('change', function(e) {
+        const toggle = e.target.closest('.cancelled-payment-toggle');
+        if (!toggle) {
+            return;
+        }
+        toggleCancelledPaymentStatus(toggle.dataset.paymentId, toggle.checked);
+    });
 });
 </script>
-
-<style nonce="{{ $cspNonce }}">
-.spinner {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.table td {
-    vertical-align: middle;
-}
-
-.badge {
-    font-size: 0.75em;
-    padding: 0.35em 0.65em;
-}
-
-.card-header {
-    font-weight: 600;
-}
-
-#paymentWarning, #yearWarning {
-    animation: fadeIn 0.5s ease-in;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.alert ul {
-    margin-bottom: 0;
-}
-
-.toast {
-    z-index: 1090;
-}
-
-.form-text[style*="color: red"] {
-    font-size: 0.875em;
-    margin-top: 0.25rem;
-}
-
-#course_select option:disabled {
-    background-color: #f8f9fa;
-    font-weight: bold;
-}
-</style>
 @endsection

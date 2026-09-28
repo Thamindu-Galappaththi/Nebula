@@ -96,7 +96,7 @@
             @endif
             @if(RoleHelper::hasPermission($role, 'course.badge'))
                 <li class="sidebar-item">
-                    <a class="sidebar-link {{ Route::currentRouteName() == 'badges.index' ? 'active' : '' }}" href="{{ route('badges.index') }}">
+                    <a class="sidebar-link {{ in_array(Route::currentRouteName(), ['badges.index', 'badges.generate'], true) ? 'active' : '' }}" href="{{ route('badges.generate') }}">
                         <span><i class="ti ti-id-badge"></i></span>
                         <span class="hide-menu">Badges Generation</span>
                     </a>
@@ -533,6 +533,19 @@
                 <a class="sidebar-link {{ request()->routeIs('latefee.approval.index') ? 'active' : '' }}" href="{{ route('latefee.approval.index') }}">
                     <span><i class="ti ti-currency-dollar"></i></span>
                     <span class="hide-menu">Late Fee Approval</span>
+                </a>
+            </li>
+            @endif
+
+            {{-- AUDIT --}}
+            @if(RoleHelper::hasPermission($role, 'audit.log') || RoleHelper::hasAnyRole($role, ['Developer']))
+            <li class="nav-small-cap">
+                <span class="nav-small-cap-text">AUDIT</span>
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link {{ request()->routeIs('audit.log') ? 'active' : '' }}" href="{{ route('audit.log') }}">
+                    <span><i class="ti ti-clipboard-list"></i></span>
+                    <span class="hide-menu">Audit Log</span>
                 </a>
             </li>
             @endif

@@ -229,6 +229,49 @@ class FileManagementService
     }
 
     /**
+     * Resolve a stored public-disk path to a URL only when the file exists.
+     *
+     * @param  array<int, string>  $searchDirectories
+     * @return array{exists: bool, url: ?string, path: ?string}
+     */
+    public function resolvePublicFile(?string $path, array $searchDirectories = []): array
+    {
+        $empty = ['exists' => false, 'url' => null, 'path' => null];
+        $path = trim((string) $path);
+        if ($path === '' || in_array(strtolower($path), ['null', 'n/a', 'na', '-'], true)) {
+            return $empty;
+        }
+
+        if (preg_match('#^https?://#i', $path)) {
+            return ['exists' => true, 'url' => $path, 'path' => $path];
+        }
+
+        $normalized = ltrim((string) preg_replace('#^(public/|storage/)#', '', $path), '/');
+        $basename = basename($normalized);
+        $candidates = [$normalized];
+
+        foreach ($searchDirectories as $directory) {
+            $directory = trim((string) $directory, '/');
+            if ($directory === '') {
+                continue;
+            }
+            $candidates[] = $directory . '/' . $basename;
+        }
+
+        foreach (array_values(array_unique(array_filter($candidates))) as $candidate) {
+            if (Storage::disk(self::STORAGE_DISK)->exists($candidate)) {
+                return [
+                    'exists' => true,
+                    'url' => Storage::disk(self::STORAGE_DISK)->url($candidate),
+                    'path' => $candidate,
+                ];
+            }
+        }
+
+        return ['exists' => false, 'url' => null, 'path' => $normalized];
+    }
+
+    /**
      * Delete multiple files
      *
      * @param array $filenames

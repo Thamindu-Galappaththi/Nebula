@@ -32,6 +32,26 @@ class SpecializationStudentScopeTest extends TestCase
         );
     }
 
+    public function test_specific_selection_is_limited_to_module_specializations(): void
+    {
+        $aiOnly = json_encode(['AI Solutions & Application Development']);
+
+        $this->assertSame(
+            ['AI Solutions & Application Development'],
+            SpecializationStudentScope::resolveSelectionSpecializations('AI Solutions & Application Development', $aiOnly, null)
+        );
+
+        $this->assertSame(
+            [],
+            SpecializationStudentScope::resolveSelectionSpecializations('Cyber Security', $aiOnly, null)
+        );
+
+        $this->assertSame(
+            ['AI Solutions & Application Development'],
+            SpecializationStudentScope::resolveSelectionSpecializations('Common', $aiOnly, 'AI Solutions & Application Development')
+        );
+    }
+
     public function test_common_selection_is_case_insensitive_and_accepts_course_scope(): void
     {
         $this->assertSame(

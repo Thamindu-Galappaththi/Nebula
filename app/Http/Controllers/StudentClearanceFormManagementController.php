@@ -18,7 +18,7 @@ class StudentClearanceFormManagementController extends Controller
     // Method to show the student clearance form management view
     public function showStudentClearanceFormManagement(Request $request)
     {
-        return view('clearance.library_clearance', $this->clearancePageData($request, ClearanceRequest::TYPE_LIBRARY));
+        return $this->clearancePageResponse($request, ClearanceRequest::TYPE_LIBRARY, 'clearance.library_clearance');
     }
 
     public function store(Request $request)
@@ -87,7 +87,7 @@ class StudentClearanceFormManagementController extends Controller
 
     public function search(Request $request)
     {
-        return view('clearance.library_clearance', $this->clearancePageData($request, ClearanceRequest::TYPE_LIBRARY));
+        return $this->clearancePageResponse($request, ClearanceRequest::TYPE_LIBRARY, 'clearance.library_clearance');
     }
 
     public function getCourseData($courseID)

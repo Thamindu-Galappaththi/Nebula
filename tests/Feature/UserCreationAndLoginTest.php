@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\User;
 use App\Helpers\RoleHelper;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
@@ -150,5 +151,24 @@ class UserCreationAndLoginTest extends TestCase
 
         $response->assertRedirect('/login');
         $this->assertGuest();
+    }
+
+    public function test_user_created_time_is_shown_in_sri_lanka_timezone(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-16 10:44:00', 'Asia/Colombo'));
+
+        $user = User::forceCreate([
+            'name'          => 'Created Time User',
+            'email'         => 'created-time@nebula.lk',
+            'password'      => Hash::make('password123'),
+            'user_role'     => 'Program Administrator (level 01)',
+            'status'        => '1',
+            'user_location' => 'Welisara',
+        ]);
+
+        $this->assertSame('2026-09-16 10:44', $user->createdAtSriLanka()?->format('Y-m-d H:i'));
+        $this->assertNotSame('2026-09-16 16:14', $user->createdAtSriLanka()?->format('Y-m-d H:i'));
+
+        Carbon::setTestNow();
     }
 } 

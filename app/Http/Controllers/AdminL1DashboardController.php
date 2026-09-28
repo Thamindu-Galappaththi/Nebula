@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class AdminL1DashboardController extends Controller
@@ -29,28 +30,38 @@ class AdminL1DashboardController extends Controller
 
         $metrics = [
             'total_students' => DB::table('students')->count(),
-            'active_students' => DB::table('students')->where('academic_status', 'active')->count(),
+            'active_students' => DB::table('students')
+                ->whereRaw("LOWER(COALESCE(academic_status, '')) = 'active'")
+                ->count(),
             'new_students_this_period' => DB::table('students')
                 ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])->count(),
 
             'total_registrations' => DB::table('course_registration')->count(),
             'registrations_this_period' => DB::table('course_registration')
                 ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])->count(),
-            'pending_registrations' => DB::table('course_registration')->where('status', 'Pending')->count(),
-            'completed_registrations' => DB::table('course_registration')->where('status', 'Registered')->count(),
+            'pending_registrations' => $this->pendingRegistrationsQuery()->count(),
+            'completed_registrations' => DB::table('course_registration')
+                ->whereRaw("LOWER(COALESCE(status, '')) = 'registered'")
+                ->count(),
 
-            'pending_clearances' => DB::table('clearance_requests')->where('status', 'pending')->count(),
+            'pending_clearances' => DB::table('clearance_requests')
+                ->whereRaw("LOWER(COALESCE(status, '')) = 'pending'")
+                ->count(),
             'clearances_this_period' => DB::table('clearance_requests')
                 ->whereBetween('created_at', [$dateRange['start'], $dateRange['end']])->count(),
             'total_courses' => DB::table('courses')->count(),
             'active_intakes' => DB::table('intakes')
                 ->where('start_date', '<=', now())
-                ->where('end_date', '>=', now())->count(),
+                ->where(function ($q) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })->count(),
 
-            'pending_payments' => DB::table('payment_details')->where('status', 'pending')->count(),
+            'pending_payments' => DB::table('payment_details')
+                ->whereRaw("LOWER(COALESCE(status, '')) IN ('pending', 'overdue', 'unpaid', 'partial')")
+                ->count(),
             'total_revenue_this_period' => DB::table('payment_details')
-                ->where('status', 'paid')
-                ->whereBetween('payment_effective_date', [$dateRange['start'], $dateRange['end']])
+                ->whereRaw("LOWER(COALESCE(status, '')) IN ('paid', 'complete', 'completed')")
+                ->whereRaw($this->paymentDateExpression() . ' BETWEEN ? AND ?', [$dateRange['start'], $dateRange['end']])
                 ->sum('amount'),
 
             'attendance_taken_today' => DB::table('attendance')->whereDate('date', today())->count(),
@@ -146,9 +157,16 @@ class AdminL1DashboardController extends Controller
             
             'pending_list' => DB::table('clearance_requests')
                 ->join('students', 'clearance_requests.student_id', '=', 'students.student_id')
-                ->join('courses', 'clearance_requests.course_id', '=', 'courses.course_id')
-                ->select('clearance_requests.*', 'students.name_with_initials as student_name', 'courses.course_name')
-                ->where('clearance_requests.status', 'pending')
+                ->leftJoin('courses', 'clearance_requests.course_id', '=', 'courses.course_id')
+                ->select(
+                    'clearance_requests.id',
+                    'clearance_requests.clearance_type',
+                    'clearance_requests.status',
+                    'clearance_requests.created_at',
+                    'students.name_with_initials as student_name',
+                    'courses.course_name'
+                )
+                ->whereRaw("LOWER(COALESCE(clearance_requests.status, '')) = 'pending'")
                 ->orderBy('clearance_requests.created_at', 'desc')->limit(20)->get(),
         ];
 
@@ -162,21 +180,41 @@ class AdminL1DashboardController extends Controller
     {
         $dateRange = $this->getDateRange($request->get('period', 'month'));
 
-        $stats = [
-            'revenue_summary' => [
-                'total_revenue' => DB::table('payment_details')->where('status', 'paid')->sum('amount'),
-                'revenue_this_period' => DB::table('payment_details')
-                    ->where('status', 'paid')
-                    ->whereBetween('payment_effective_date', [$dateRange['start'], $dateRange['end']])
-                    ->sum('amount'),
-                'pending_amount' => DB::table('payment_details')->where('status', 'pending')->sum('amount'),
-            ],
-            
-            'late_payments' => DB::table('payment_installments')
+        $dateExpr = $this->paymentDateExpression();
+
+        $latePayments = [];
+        try {
+            $latePayments = DB::table('payment_installments')
                 ->join('student_payment_plans', 'payment_installments.payment_plan_id', '=', 'student_payment_plans.id')
                 ->join('students', 'student_payment_plans.student_id', '=', 'students.student_id')
-                ->select('payment_installments.*', 'students.name_with_initials as student_name')
-                ->where('payment_installments.status', 'overdue')->limit(20)->get(),
+                ->select(
+                    'payment_installments.due_date',
+                    'payment_installments.amount',
+                    'students.name_with_initials as student_name'
+                )
+                ->whereRaw("LOWER(COALESCE(payment_installments.status, '')) IN ('overdue', 'pending')")
+                ->whereDate('payment_installments.due_date', '<', now())
+                ->orderBy('payment_installments.due_date')
+                ->limit(20)
+                ->get();
+        } catch (\Throwable $e) {
+            $latePayments = [];
+        }
+
+        $stats = [
+            'revenue_summary' => [
+                'total_revenue' => (float) DB::table('payment_details')
+                    ->whereRaw("LOWER(COALESCE(status, '')) IN ('paid', 'complete', 'completed')")
+                    ->sum('amount'),
+                'revenue_this_period' => (float) DB::table('payment_details')
+                    ->whereRaw("LOWER(COALESCE(status, '')) IN ('paid', 'complete', 'completed')")
+                    ->whereRaw("{$dateExpr} BETWEEN ? AND ?", [$dateRange['start'], $dateRange['end']])
+                    ->sum('amount'),
+                'pending_amount' => (float) DB::table('payment_details')
+                    ->whereRaw("LOWER(COALESCE(status, '')) IN ('pending', 'overdue', 'unpaid', 'partial')")
+                    ->sum('amount'),
+            ],
+            'late_payments' => $latePayments,
         ];
 
         return response()->json($stats);
@@ -219,16 +257,29 @@ class AdminL1DashboardController extends Controller
     public function getActionItems()
     {
         $actions = [
-            'pending_registrations' => DB::table('course_registration')
+            'pending_registrations' => $this->pendingRegistrationsQuery()
                 ->join('students', 'course_registration.student_id', '=', 'students.student_id')
                 ->join('courses', 'course_registration.course_id', '=', 'courses.course_id')
-                ->select('course_registration.*', 'students.name_with_initials as student_name', 'courses.course_name')
-                ->where('course_registration.status', 'Pending')->limit(10)->get(),
-            
+                ->select(
+                    'course_registration.id',
+                    'students.name_with_initials as student_name',
+                    'courses.course_name'
+                )
+                ->orderBy('course_registration.created_at', 'desc')
+                ->limit(10)
+                ->get(),
+
             'pending_clearances' => DB::table('clearance_requests')
                 ->join('students', 'clearance_requests.student_id', '=', 'students.student_id')
-                ->select('clearance_requests.*', 'students.name_with_initials as student_name')
-                ->where('clearance_requests.status', 'pending')->limit(10)->get(),
+                ->select(
+                    'clearance_requests.id',
+                    'clearance_requests.clearance_type',
+                    'students.name_with_initials as student_name'
+                )
+                ->whereRaw("LOWER(COALESCE(clearance_requests.status, '')) = 'pending'")
+                ->orderBy('clearance_requests.created_at', 'desc')
+                ->limit(10)
+                ->get(),
         ];
 
         return response()->json($actions);
@@ -253,5 +304,27 @@ class AdminL1DashboardController extends Controller
             default:
                 return ['start' => Carbon::now()->startOfMonth()->startOfDay(), 'end' => Carbon::now()->endOfMonth()->endOfDay()];
         }
+    }
+
+    private function pendingRegistrationsQuery()
+    {
+        return DB::table('course_registration')
+            ->where(function ($q) {
+                $q->whereRaw("LOWER(COALESCE(course_registration.status, '')) = 'pending'")
+                    ->orWhereRaw("LOWER(COALESCE(course_registration.approval_status, '')) = 'pending'");
+            });
+    }
+
+    private function paymentDateExpression(): string
+    {
+        if (Schema::hasColumn('payment_details', 'payment_effective_date')) {
+            return 'COALESCE(payment_effective_date, payment_date, created_at)';
+        }
+
+        if (Schema::hasColumn('payment_details', 'payment_date')) {
+            return 'COALESCE(payment_date, created_at)';
+        }
+
+        return 'created_at';
     }
 }

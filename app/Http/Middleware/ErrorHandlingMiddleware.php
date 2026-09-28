@@ -144,15 +144,26 @@ class ErrorHandlingMiddleware
                 'user_id' => auth()->id()
             ]);
 
+            $message = 'Your session expired. Please try again.';
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'CSRF token mismatch. Please refresh the page and try again.'
+                    'message' => $message,
                 ], 419);
             }
 
+            $onLogin = $request->is('login') || $request->routeIs('login', 'login.authenticate');
+
+            if ($onLogin || !auth()->check()) {
+                return redirect()->route('login')
+                    ->withInput($request->except('password', 'password_confirmation', '_token'))
+                    ->withErrors(['login' => $message]);
+            }
+
             return redirect()->back()
-                ->with('error', 'CSRF token mismatch. Please refresh the page and try again.');
+                ->withInput($request->except('password', 'password_confirmation', '_token'))
+                ->with('error', $message);
         } catch (QueryException $e) {
             Log::error('Database error', [
                 'url' => $request->fullUrl(),

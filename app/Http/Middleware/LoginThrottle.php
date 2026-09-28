@@ -146,8 +146,11 @@ class LoginThrottle
             return false;
         }
 
+        $loginError = strtolower((string) $errors->first('login'));
         $emailError = strtolower((string) $errors->first('email'));
-        return str_contains($emailError, 'invalid username or password');
+
+        return str_contains($loginError, 'invalid username or password')
+            || str_contains($emailError, 'invalid username or password');
     }
 
     private function failedLoginResponse(Request $request, ?string $email, string $message, int $status)
@@ -156,12 +159,12 @@ class LoginThrottle
             return response()->json([
                 'success' => false,
                 'message' => $message,
-                'errors' => ['email' => [$message]],
+                'errors' => ['login' => [$message]],
             ], $status);
         }
 
         return back()
-            ->withErrors(['email' => $message])
+            ->withErrors(['login' => $message])
             ->withInput($request->except('password'))
             ->with('popup', true);
     }

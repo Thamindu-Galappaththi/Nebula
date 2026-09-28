@@ -3,7 +3,14 @@
 @section('title', 'NEBULA | Payment Plans')
 
 @section('content')
-<div class="container-fluid px-2 px-md-3">
+<div id="payment-plan-index" class="container-fluid px-2 px-md-3">
+    @php
+        $campusLabel = function ($loc) {
+            return in_array($loc, ['Welisara', 'Moratuwa', 'Peradeniya'], true)
+                ? 'Nebula Institute of Technology - ' . $loc
+                : ($loc ?: '—');
+        };
+    @endphp
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ session('success') }}
@@ -21,29 +28,30 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h2 class="mb-0 fs-4 fs-md-3">Payment Plans</h2>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-success btn-sm btn-export-csv" data-format="csv">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> CSV
-                    </button>
-                    <button type="button" class="btn btn-danger btn-sm btn-export-pdf" data-format="pdf">
+                <div class="d-flex flex-wrap gap-2 payment-plan-header-actions">
+                    <a href="{{ route('payment.plan.export.excel', request()->query()) }}" class="btn btn-success btn-sm">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Excel
+                    </a>
+                    <a href="{{ route('payment.plan.export.pdf', request()->query()) }}" class="btn btn-danger btn-sm">
                         <i class="bi bi-file-earmark-pdf"></i> PDF
-                    </button>
+                    </a>
                 </div>
             </div>
 
             <form method="GET" action="{{ route('payment.plan.index') }}" id="filterForm" class="row gy-2 gx-2 gx-md-3 align-items-end">
-                <div class="col-12 col-sm-6 col-md-3">
+                <input type="hidden" name="per_page" value="{{ $plans->perPage() }}">
+                <div class="col-12 col-sm-6 col-lg-3">
                     <label class="form-label small">Location</label>
-                    <select name="location" class="form-select form-select-sm form-select-md">
+                    <select name="location" id="filter-location" class="form-select form-select-sm">
                         <option value="">All</option>
                         @foreach($locations as $loc)
-                            <option value="{{ $loc }}" @selected(request('location')===$loc)>{{ $loc }}</option>
+                            <option value="{{ $loc }}" @selected(request('location')===$loc)>{{ $campusLabel($loc) }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-md-3">
+                <div class="col-12 col-sm-6 col-lg-3">
                     <label class="form-label small">Course</label>
-                    <select name="course_id" id="filter-course" class="form-select form-select-sm form-select-md">
+                    <select name="course_id" id="filter-course" class="form-select form-select-sm">
                         <option value="">All</option>
                         @foreach($courses as $c)
                             <option value="{{ $c->course_id }}" @selected((string)request('course_id')===(string)$c->course_id)>
@@ -52,9 +60,9 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-md-2">
+                <div class="col-12 col-sm-6 col-lg-2">
                     <label class="form-label small">Intake</label>
-                    <select name="intake_id" id="filter-intake" class="form-select form-select-sm form-select-md">
+                    <select name="intake_id" id="filter-intake" class="form-select form-select-sm">
                         <option value="">All</option>
                         @foreach($intakes as $i)
                             <option value="{{ $i->intake_id }}" @selected((string)request('intake_id')===(string)$i->intake_id)>
@@ -63,571 +71,542 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-md-2">
+                <div class="col-12 col-sm-6 col-lg-2">
                     <label class="form-label small">Sort By</label>
-                    <select name="sort" class="form-select form-select-sm form-select-md" id="sortSelect">
+                    <select name="sort" class="form-select form-select-sm" id="sortSelect">
                         <option value="newest" @selected(request('sort', 'newest')==='newest')>Newest First</option>
                         <option value="oldest" @selected(request('sort')==='oldest')>Oldest First</option>
                         <option value="location_asc" @selected(request('sort')==='location_asc')>Location A-Z</option>
                         <option value="location_desc" @selected(request('sort')==='location_desc')>Location Z-A</option>
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-md-1">
-                    <label class="form-label small">Show</label>
-                    <select name="per_page" class="form-select form-select-sm form-select-md" id="perPageSelect">
-                        <option value="10" @selected(request('per_page', 10)==10)>10</option>
-                        <option value="25" @selected(request('per_page', 10)==25)>25</option>
-                        <option value="50" @selected(request('per_page', 10)==50)>50</option>
-                        <option value="100" @selected(request('per_page', 10)==100)>100</option>
-                    </select>
-                </div>
-                <div class="col-12 col-sm-6 col-md-1 d-grid">
-                    <button class="btn btn-primary btn-sm btn-md-md">Filter</button>
+                <div class="col-12 col-lg-2">
+                    <label class="form-label small d-none d-lg-block">&nbsp;</label>
+                    <div class="d-flex gap-2 payment-plan-filter-actions">
+                        <button type="submit" class="btn btn-primary btn-sm flex-fill">Filter</button>
+                        <a href="{{ route('payment.plan.index') }}" id="clearFiltersBtn" class="btn btn-outline-secondary btn-sm flex-fill">
+                            <i class="bi bi-x-circle"></i> Clear Filters
+                        </a>
+                    </div>
                 </div>
             </form>
-
-            @if(request()->hasAny(['location', 'course_id', 'intake_id']))
-                <div class="mt-2">
-                    <a href="{{ route('payment.plan.index') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-x-circle"></i> Clear Filters
-                    </a>
-                </div>
-            @endif
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-body p-0 p-md-3">
-            <!-- Results Summary -->
-            @php
-                $allPlans = $plans->items();
-                $totalCount = $plans->total();
-                $currentPage = $plans->currentPage();
-                $perPage = $plans->perPage();
-                $from = ($currentPage - 1) * $perPage + 1;
-                $to = min($currentPage * $perPage, $totalCount);
-            @endphp
-
-            @if($totalCount > 0)
-                <div class="d-none d-lg-block px-3 py-2 bg-light border-bottom">
-                    <small class="text-muted">
-                        Showing {{ $from }} to {{ $to }} of {{ $totalCount }} results
-                    </small>
-                </div>
-            @endif
-
-            <!-- Desktop Table View -->
-            <div class="d-none d-lg-block table-responsive">
-                <table class="table table-bordered align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>#</th>
-                            <th>Location</th>
-                            <th>Course</th>
-                            <th>Intake</th>
-                            <th class="text-end">Reg. Fee (LKR)</th>
-                            <th class="text-end">Local Fee (LKR)</th>
-                            <th class="text-end">Franchise</th>
-                            <th>Full Payment Discount (%)</th>
-                            <th>Installments</th>
-                            <th>Created</th>
-                            <th style="width: 130px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($allPlans as $plan)
-                        @php
-                            $items = is_array($plan->installments) ? $plan->installments : (json_decode($plan->installments, true) ?? []);
-                            $count = count($items);
-                            $firstDue = $count ? ($items[0]['due_date'] ?? null) : null;
-                            $lastDue  = $count ? ($items[array_key_last($items)]['due_date'] ?? null) : null;
-                            $totalLocal = 0; $totalIntl = 0;
-                            foreach ($items as $it) {
-                                $totalLocal += (float)($it['local_amount'] ?? 0);
-                                $totalIntl  += (float)($it['international_amount'] ?? 0);
-                            }
-                        @endphp
-                        <tr>
-                            <td>{{ $plan->id }}</td>
-                            <td>{{ $plan->location }}</td>
-                            <td>{{ optional($plan->course)->course_name ?? '—' }}</td>
-                            <td>{{ optional($plan->intake)->batch ?? '—' }}</td>
-                            <td class="text-end">{{ number_format($plan->registration_fee, 2, '.', ',') }}</td>
-                            <td class="text-end">{{ number_format($plan->local_fee, 2, '.', ',') }}</td>
-                            <td class="text-end">
-                                {{ number_format($plan->international_fee, 2, '.', ',') }}
-                                <small class="text-muted">{{ $plan->international_currency }}</small>
-                            </td>
-                            <td>
-                                @if($plan->apply_discount)
-                                    {{ rtrim(rtrim(number_format($plan->discount ?? 0, 2, '.', ''), '0'), '.') }}%
-                                @else
-                                    —
-                                @endif
-                            </td>
-                            <td>
-                                @if($plan->installment_plan)
-                                    <button class="btn btn-sm btn-outline-secondary"
-                                            type="button"
-                                            data-bs-toggle="collapse"
-                                            data-bs-target="#inst-{{ $plan->id }}">
-                                        View {{ $count }} Installments
-                                    </button>
-                                    <div class="small text-muted mt-1">
-                                        @if($count)
-                                            {{ $firstDue }} → {{ $lastDue }}
-                                        @endif
-                                    </div>
-                                @else
-                                    —
-                                @endif
-                            </td>
-                            <td>
-                                <div class="small text-muted">{{ $plan->created_at?->format('Y-m-d H:i') }}</div>
-                            </td>
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ route('payment.plan.edit',$plan->id) }}" class="btn btn-sm btn-warning">Edit</a>
-                                </div>
-                            </td>
-                        </tr>
-                        @if($plan->installment_plan)
-                            <tr class="collapse" id="inst-{{ $plan->id }}">
-                                <td colspan="11">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-striped mb-2">
-                                            <thead class="table-secondary">
-                                                <tr>
-                                                    <th>#</th>
-                                                    <th>Due Date</th>
-                                                    <th class="text-end">Local (LKR)</th>
-                                                    <th class="text-end">International ({{ $plan->international_currency }})</th>
-                                                    <th>Tax?</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @forelse($items as $it)
-                                                    <tr>
-                                                        <td>{{ $it['installment_number'] ?? '' }}</td>
-                                                        <td>{{ $it['due_date'] ?? '' }}</td>
-                                                        <td class="text-end">{{ number_format((float)($it['local_amount'] ?? 0), 2, '.', ',') }}</td>
-                                                        <td class="text-end">{{ number_format((float)($it['international_amount'] ?? 0), 2, '.', ',') }}</td>
-                                                        <td>
-                                                            @if(!empty($it['apply_tax']))
-                                                                <span class="badge bg-success">Yes</span>
-                                                            @else
-                                                                <span class="badge bg-secondary">No</span>
-                                                            @endif
-                                                        </td>
-                                                    </tr>
-                                                @empty
-                                                    <tr><td colspan="5" class="text-center text-muted">No installments found</td></tr>
-                                                @endforelse
-                                            </tbody>
-                                            <tfoot>
-                                                <tr class="fw-semibold">
-                                                    <td colspan="2" class="text-end">Totals:</td>
-                                                    <td class="text-end">{{ number_format($totalLocal, 2, '.', ',') }}</td>
-                                                    <td class="text-end">{{ number_format($totalIntl, 2, '.', ',') }}</td>
-                                                    <td></td>
-                                                </tr>
-                                                <tr class="small text-muted">
-                                                    <td colspan="2" class="text-end">Required:</td>
-                                                    <td class="text-end">{{ number_format((float)$plan->local_fee, 2, '.', ',') }}</td>
-                                                    <td class="text-end">{{ number_format((float)$plan->international_fee, 2, '.', ',') }}</td>
-                                                    <td></td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endif
-                    @empty
-                        <tr><td colspan="11" class="text-center text-muted py-4">No payment plans found.</td></tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Mobile Card View -->
-            <div class="d-lg-none">
-                @if($totalCount > 0)
-                    <div class="px-3 py-2 bg-light border-bottom">
-                        <small class="text-muted">
-                            Showing {{ $from }}-{{ $to }} of {{ $totalCount }}
-                        </small>
-                    </div>
-                @endif
-
-                @forelse($allPlans as $plan)
-                    @php
-                        $items = is_array($plan->installments) ? $plan->installments : (json_decode($plan->installments, true) ?? []);
-                        $count = count($items);
-                        $firstDue = $count ? ($items[0]['due_date'] ?? null) : null;
-                        $lastDue  = $count ? ($items[array_key_last($items)]['due_date'] ?? null) : null;
-                        $totalLocal = 0; $totalIntl = 0;
-                        foreach ($items as $it) {
-                            $totalLocal += (float)($it['local_amount'] ?? 0);
-                            $totalIntl  += (float)($it['international_amount'] ?? 0);
-                        }
-                    @endphp
-                    <div class="border-bottom p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <span class="badge bg-secondary me-1">#{{ $plan->id }}</span>
-                                <span class="badge bg-info">{{ $plan->location }}</span>
-                            </div>
-                            <a href="{{ route('payment.plan.edit',$plan->id) }}" class="btn btn-sm btn-warning">Edit</a>
-                        </div>
-
-                        <div class="mb-2">
-                            <strong class="d-block text-truncate">{{ optional($plan->course)->course_name ?? '—' }}</strong>
-                            <small class="text-muted">{{ optional($plan->intake)->batch ?? '—' }}</small>
-                        </div>
-
-                        <div class="row g-2 small mb-2">
-                            <div class="col-6">
-                                <div class="text-muted">Reg. Fee</div>
-                                <strong>LKR {{ number_format($plan->registration_fee, 2, '.', ',') }}</strong>
-                            </div>
-                            <div class="col-6">
-                                <div class="text-muted">Local Fee</div>
-                                <strong>LKR {{ number_format($plan->local_fee, 2, '.', ',') }}</strong>
-                            </div>
-                            <div class="col-6">
-                                <div class="text-muted">Franchise</div>
-                                <strong>{{ number_format($plan->international_fee, 2, '.', ',') }} {{ $plan->international_currency }}</strong>
-                            </div>
-                            <div class="col-6">
-                                <div class="text-muted">Discount</div>
-                                <strong>
-                                    @if($plan->apply_discount)
-                                        {{ rtrim(rtrim(number_format($plan->discount ?? 0, 2, '.', ''), '0'), '.') }}%
-                                    @else
-                                        —
-                                    @endif
-                                </strong>
-                            </div>
-                        </div>
-
-                        @if($plan->installment_plan)
-                            <button class="btn btn-sm btn-outline-secondary w-100"
-                                    type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#inst-mobile-{{ $plan->id }}">
-                                View {{ $count }} Installments
-                                @if($count)
-                                    <small class="text-muted d-block">({{ $firstDue }} → {{ $lastDue }})</small>
-                                @endif
-                            </button>
-
-                            <div class="collapse mt-2" id="inst-mobile-{{ $plan->id }}">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped mb-0">
-                                        <thead class="table-secondary">
-                                            <tr>
-                                                <th>#</th>
-                                                <th>Due Date</th>
-                                                <th class="text-end">Local</th>
-                                                <th class="text-end">Intl</th>
-                                                <th>Tax</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse($items as $it)
-                                                <tr>
-                                                    <td>{{ $it['installment_number'] ?? '' }}</td>
-                                                    <td class="small">{{ $it['due_date'] ?? '' }}</td>
-                                                    <td class="text-end small">{{ number_format((float)($it['local_amount'] ?? 0), 0) }}</td>
-                                                    <td class="text-end small">{{ number_format((float)($it['international_amount'] ?? 0), 0) }}</td>
-                                                    <td>
-                                                        @if(!empty($it['apply_tax']))
-                                                            <span class="badge bg-success">Y</span>
-                                                        @else
-                                                            <span class="badge bg-secondary">N</span>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr><td colspan="5" class="text-center text-muted">No installments</td></tr>
-                                            @endforelse
-                                        </tbody>
-                                        <tfoot class="small">
-                                            <tr class="fw-semibold">
-                                                <td colspan="2">Totals:</td>
-                                                <td class="text-end">{{ number_format($totalLocal, 0) }}</td>
-                                                <td class="text-end">{{ number_format($totalIntl, 0) }}</td>
-                                                <td></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            </div>
-                        @endif
-
-                        <div class="small text-muted mt-2">
-                            Created: {{ $plan->created_at?->format('Y-m-d H:i') }}
-                        </div>
-                    </div>
-                @empty
-                    <div class="text-center text-muted py-5">No payment plans found.</div>
-                @endforelse
-            </div>
-
-            <!-- Pagination -->
-<div class="flex flex-col sm:flex-row justify-between items-center p-3 gap-2">
-    <div class="text-sm text-gray-500">
-        Showing {{ $plans->firstItem() ?? 0 }}–{{ $plans->lastItem() ?? 0 }} of {{ $plans->total() }}
-    </div>
-
-    <div id="pagination-wrapper" class="text-sm" style="display:flex;align-items:center;gap:4px;line-height:1;">
-        {{ $plans->withQueryString()->links() }}
-    </div>
-
-    <script nonce="{{ $cspNonce }}">
-        window.addEventListener('load', () => {
-            // Select all pagination icons and normalize their size
-            document.querySelectorAll('#pagination-wrapper svg').forEach(svg => {
-                svg.style.width = '14px';
-                svg.style.height = '14px';
-                svg.style.margin = '0 2px';
-                svg.style.verticalAlign = 'middle';
-                svg.style.display = 'inline-block';
-            });
-
-            // Center pagination items horizontally
-            const pag = document.querySelector('#pagination-wrapper nav');
-            if (pag) {
-                pag.style.display = 'flex';
-                pag.style.alignItems = 'center';
-                pag.style.gap = '4px';
-            }
-        });
-    </script>
-</div>
-
-
-        </div>
+    <div class="card" id="paymentPlanResults">
+        @include('payments.partials.payment_plan_results')
     </div>
 </div>
 
-<script nonce="{{ $cspNonce }}">
-// Event delegation for export buttons
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.btn-export-csv') || e.target.closest('.btn-export-pdf')) {
-        const btn = e.target.closest('.btn-export-csv, .btn-export-pdf');
-        const format = btn.dataset.format;
-        exportData(format);
-    }
-});
+<script nonce="{{ $cspNonce ?? '' }}">
+const paymentPlanListUrl = @json(route('payment.plan.index'));
+const paymentPlanExcelUrl = @json(route('payment.plan.export.excel'));
+const paymentPlanPdfUrl = @json(route('payment.plan.export.pdf'));
+const paymentPlanCoursesUrl = @json(route('payment.plan.courses.byLocation'));
+const paymentPlanIntakesUrl = @json(route('intakes.byCourse'));
+let paymentPlanLoadToken = 0;
 
-// Event delegation for select changes
-document.addEventListener('change', function(e) {
-    if (e.target.id === 'sortSelect' || e.target.id === 'perPageSelect') {
-        e.target.form.submit();
-    }
-});
+function jsonHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+}
 
-// CLIENT-SIDE EXPORT FUNCTIONS (Frontend Only)
-function exportData(format) {
-    // Get current filter parameters
-    const params = new URLSearchParams(window.location.search);
+function ajaxHeaders() {
+    return {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+}
 
-    // Get all plans data from the page
-    const plans = @json($plans->items());
+function courseListFromPayload(payload) {
+    if (payload && Array.isArray(payload.data)) return payload.data;
+    if (payload && Array.isArray(payload.courses)) return payload.courses;
+    return [];
+}
 
-    if (format === 'csv') {
-        exportToCSV(plans);
-    } else if (format === 'pdf') {
-        exportToPDF(plans);
+function syncCustomSelect(select) {
+    if (!select) return;
+    const selected = select.options[select.selectedIndex];
+    const wrap = select.closest('.nebula-select');
+    const toggle = wrap ? wrap.querySelector('.nebula-select-toggle') : null;
+    if (toggle) {
+        toggle.textContent = selected ? selected.text : '';
+        toggle.title = toggle.textContent;
+        toggle.disabled = !!select.disabled;
+        wrap.classList.toggle('is-disabled', !!select.disabled);
     }
 }
 
-function exportToCSV(plans) {
-    // CSV Headers
-    const headers = ['ID', 'Location', 'Course', 'Intake', 'Reg. Fee (LKR)', 'Local Fee (LKR)',
-                     'International Fee', 'Currency', 'Discount %', 'Installment Plan', 'Created At'];
-
-    // Build CSV content
-    let csv = headers.join(',') + '\n';
-
-    plans.forEach(plan => {
-        const row = [
-            plan.id,
-            `"${plan.location}"`,
-            `"${plan.course?.course_name || '—'}"`,
-            `"${plan.intake?.batch || '—'}"`,
-            plan.registration_fee,
-            plan.local_fee,
-            plan.international_fee,
-            plan.international_currency,
-            plan.apply_discount ? plan.discount : 'N/A',
-            plan.installment_plan ? 'Yes' : 'No',
-            `"${plan.created_at}"`
-        ];
-        csv += row.join(',') + '\n';
-    });
-
-    // Download CSV
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `payment_plans_${new Date().toISOString().slice(0,10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+function setSelectValue(select, value) {
+    if (!select) return;
+    const next = value == null ? '' : String(value);
+    select.value = next;
+    if (select.value !== next) {
+        select.selectedIndex = 0;
+    }
+    syncCustomSelect(select);
 }
 
-function exportToPDF(plans) {
-    // Create a printable HTML version
-    let printContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Payment Plans Report</title>
-            <style>
-                body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
-                h1 { text-align: center; color: #333; margin-bottom: 10px; }
-                .info { text-align: center; margin-bottom: 20px; color: #666; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; font-weight: bold; }
-                .text-right { text-align: right; }
-                @media print {
-                    body { margin: 0; }
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Payment Plans Report</h1>
-            <div class="info">Generated: ${new Date().toLocaleString()}</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Location</th>
-                        <th>Course</th>
-                        <th>Intake</th>
-                        <th class="text-right">Reg. Fee</th>
-                        <th class="text-right">Local Fee</th>
-                        <th class="text-right">Int'l Fee</th>
-                        <th>Discount</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    plans.forEach(plan => {
-        printContent += `
-            <tr>
-                <td>${plan.id}</td>
-                <td>${plan.location}</td>
-                <td>${plan.course?.course_name || '—'}</td>
-                <td>${plan.intake?.batch || '—'}</td>
-                <td class="text-right">${Number(plan.registration_fee).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="text-right">${Number(plan.local_fee).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-                <td class="text-right">${Number(plan.international_fee).toLocaleString('en-US', {minimumFractionDigits: 2})} ${plan.international_currency}</td>
-                <td>${plan.apply_discount ? plan.discount + '%' : '—'}</td>
-            </tr>
-        `;
-    });
-
-    printContent += `
-                </tbody>
-            </table>
-        </body>
-        </html>
-    `;
-
-    // Open print window
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.focus();
-
-    // Trigger print after content loads
-    setTimeout(() => {
-        printWindow.print();
-    }, 250);
-}
-
-// 1. When Location changes → update courses
-document.querySelector('select[name="location"]')?.addEventListener('change', function () {
-    const location = this.value;
-    const courseSelect = document.getElementById('filter-course');
-    const intakeSelect = document.getElementById('filter-intake');
-
-    courseSelect.innerHTML = '<option value="">All</option>';
-    intakeSelect.innerHTML = '<option value="">All</option>';
-    intakeSelect.disabled = true;
-
-    if (!location) return;
-
-    fetch("{{ route('courses.byLocation') }}", {
-        method: 'POST',
-        headers: {
-            'Content-Type':'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ location })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success && data.data.length) {
-            data.data.forEach(course => {
-                const opt = document.createElement('option');
-                opt.value = course.course_id;
-                opt.textContent = course.course_name;
-                courseSelect.appendChild(opt);
-            });
+function currentFilterParams() {
+    const form = document.getElementById('filterForm');
+    const params = new URLSearchParams(form ? new FormData(form) : undefined);
+    const perPage = document.getElementById('perPageSelect');
+    if (perPage && perPage.value) {
+        params.set('per_page', perPage.value);
+    }
+    Array.from(params.entries()).forEach(function ([key, value]) {
+        if (!String(value).trim()) {
+            params.delete(key);
         }
     });
-});
+    params.delete('page');
+    return params;
+}
 
-// 2. When Course changes → update intakes
-document.getElementById('filter-course')?.addEventListener('change', function () {
-    const courseId = this.value;
-    const location = document.querySelector('select[name="location"]').value;
+function currentListUrl() {
+    const query = currentFilterParams().toString();
+    return query ? (paymentPlanListUrl + '?' + query) : paymentPlanListUrl;
+}
+
+function updateExportLinks(url) {
+    const query = new URL(url, window.location.origin).search;
+    const excel = document.querySelector('#payment-plan-index .payment-plan-header-actions a.btn-success');
+    const pdf = document.querySelector('#payment-plan-index .payment-plan-header-actions a.btn-danger');
+    if (excel) excel.setAttribute('href', paymentPlanExcelUrl + query);
+    if (pdf) pdf.setAttribute('href', paymentPlanPdfUrl + query);
+}
+
+function syncPerPageHidden() {
+    const perPage = document.getElementById('perPageSelect');
+    const hidden = document.querySelector('#filterForm input[name="per_page"]');
+    if (perPage && hidden) {
+        hidden.value = perPage.value || '10';
+    }
+}
+
+function loadPaymentPlans(url, pushUrl) {
+    const results = document.getElementById('paymentPlanResults');
+    if (!results) return Promise.resolve();
+
+    const token = ++paymentPlanLoadToken;
+    results.classList.add('opacity-50');
+
+    return fetch(url, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: ajaxHeaders()
+    })
+    .then(function (res) {
+        if (!res.ok) throw new Error('Failed to load payment plans');
+        return res.json();
+    })
+    .then(function (payload) {
+        if (token !== paymentPlanLoadToken) return;
+        if (payload && payload.html) {
+            results.innerHTML = payload.html;
+        }
+        if (pushUrl) {
+            history.pushState({ paymentPlanAjax: true }, '', url);
+        }
+        updateExportLinks(url);
+        syncPerPageHidden();
+    })
+    .catch(function () {
+        if (token !== paymentPlanLoadToken) return;
+        window.alert('Failed to load payment plans.');
+    })
+    .finally(function () {
+        if (token === paymentPlanLoadToken) {
+            results.classList.remove('opacity-50');
+        }
+    });
+}
+
+function fillSelectOptions(select, items, valueKey, labelFn) {
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">All</option>';
+    items.forEach(function (item) {
+        const opt = document.createElement('option');
+        opt.value = item[valueKey];
+        opt.textContent = labelFn(item);
+        select.appendChild(opt);
+    });
+    if (current && Array.from(select.options).some(function (opt) { return opt.value === current; })) {
+        select.value = current;
+    }
+    select.disabled = false;
+    syncCustomSelect(select);
+}
+
+function loadCourses(location, then) {
+    const courseSelect = document.getElementById('filter-course');
     const intakeSelect = document.getElementById('filter-intake');
-
-    intakeSelect.disabled = true;
-    intakeSelect.innerHTML = '<option value="">Loading...</option>';
-
-    if (!courseId || !location) {
-        intakeSelect.innerHTML = '<option value="">All</option>';
-        intakeSelect.disabled = false;
+    if (!courseSelect || !intakeSelect) {
+        if (then) then();
         return;
     }
 
-    fetch("{{ route('intakes.byCourse') }}", {
+    intakeSelect.innerHTML = '<option value="">All</option>';
+    syncCustomSelect(intakeSelect);
+
+    fetch(paymentPlanCoursesUrl, {
         method: 'POST',
-        headers: {
-            'Content-Type':'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ course_id: courseId, location })
+        credentials: 'same-origin',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ location: location || '' })
     })
-    .then(res => res.json())
-    .then(data => {
-        console.log("Intake API response:", data);
-        intakeSelect.innerHTML = '<option value="">All</option>';
-        if (data.success && data.data.length) {
-            data.data.forEach(intake => {
-                const opt = document.createElement('option');
-                opt.value = intake.intake_id;
-                opt.textContent = intake.batch ? intake.batch : `Batch ${intake.intake_id}`;
-                intakeSelect.appendChild(opt);
-            });
-        }
-        intakeSelect.disabled = false;
+    .then(function (res) {
+        if (!res.ok) throw new Error('Failed to load courses');
+        return res.json();
     })
-    .catch(() => {
+    .then(function (payload) {
+        fillSelectOptions(courseSelect, courseListFromPayload(payload), 'course_id', function (course) {
+            return course.course_name;
+        });
+        if (then) then();
+    })
+    .catch(function () {
+        syncCustomSelect(courseSelect);
+        if (then) then();
+});
+}
+
+function loadIntakes(courseId, location, then) {
+    const intakeSelect = document.getElementById('filter-intake');
+    if (!intakeSelect) {
+        if (then) then();
+        return;
+    }
+
+    if (!courseId) {
         intakeSelect.innerHTML = '<option value="">All</option>';
         intakeSelect.disabled = false;
+        syncCustomSelect(intakeSelect);
+        if (then) then();
+        return;
+    }
+
+    intakeSelect.innerHTML = '<option value="">Loading...</option>';
+    intakeSelect.disabled = true;
+    syncCustomSelect(intakeSelect);
+
+    fetch(paymentPlanIntakesUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ course_id: courseId, location: location || '' })
+    })
+    .then(function (res) {
+        if (!res.ok) throw new Error('Failed to load intakes');
+        return res.json();
+    })
+    .then(function (data) {
+        const intakes = Array.isArray(data.data) ? data.data : [];
+        fillSelectOptions(intakeSelect, intakes, 'intake_id', function (intake) {
+            return intake.batch ? intake.batch : ('Batch ' + intake.intake_id);
+        });
+        if (then) then();
+    })
+    .catch(function () {
+        intakeSelect.innerHTML = '<option value="">All</option>';
+        intakeSelect.disabled = false;
+        syncCustomSelect(intakeSelect);
+        if (then) then();
     });
+}
+
+function resetFilters() {
+    setSelectValue(document.getElementById('filter-location'), '');
+    setSelectValue(document.getElementById('sortSelect'), 'newest');
+    const hidden = document.querySelector('#filterForm input[name="per_page"]');
+    if (hidden) hidden.value = '10';
+    const perPage = document.getElementById('perPageSelect');
+    if (perPage) setSelectValue(perPage, '10');
+    const courseSelect = document.getElementById('filter-course');
+    const intakeSelect = document.getElementById('filter-intake');
+    if (courseSelect) {
+        courseSelect.innerHTML = '<option value="">All</option>';
+        syncCustomSelect(courseSelect);
+    }
+    if (intakeSelect) {
+        intakeSelect.innerHTML = '<option value="">All</option>';
+        syncCustomSelect(intakeSelect);
+    }
+    loadCourses('');
+    loadPaymentPlans(paymentPlanListUrl, true);
+}
+
+document.getElementById('filterForm')?.addEventListener('submit', function (e) {
+    e.preventDefault();
+    loadPaymentPlans(currentListUrl(), true);
+});
+
+document.getElementById('clearFiltersBtn')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    resetFilters();
+});
+
+document.getElementById('filter-location')?.addEventListener('change', function () {
+    const courseSelect = document.getElementById('filter-course');
+    const intakeSelect = document.getElementById('filter-intake');
+    if (courseSelect) {
+        courseSelect.innerHTML = '<option value="">All</option>';
+        syncCustomSelect(courseSelect);
+    }
+    if (intakeSelect) {
+        intakeSelect.innerHTML = '<option value="">All</option>';
+        syncCustomSelect(intakeSelect);
+    }
+    loadCourses(this.value);
+});
+
+document.getElementById('filter-course')?.addEventListener('change', function () {
+    const location = document.getElementById('filter-location')?.value || '';
+    loadIntakes(this.value, location);
+});
+
+document.addEventListener('change', function (e) {
+    if (e.target.id === 'sortSelect') {
+        loadPaymentPlans(currentListUrl(), true);
+    }
+    if (e.target.id === 'perPageSelect') {
+        syncPerPageHidden();
+        loadPaymentPlans(currentListUrl(), true);
+    }
+});
+
+document.addEventListener('submit', function (e) {
+    if (e.target && e.target.id === 'perPageForm') {
+        e.preventDefault();
+        syncPerPageHidden();
+        loadPaymentPlans(currentListUrl(), true);
+    }
+});
+
+document.addEventListener('click', function (e) {
+    const link = e.target.closest('#paymentPlanResults .pagination a.page-link');
+    if (!link) return;
+
+    const href = link.getAttribute('href');
+    const item = link.closest('.page-item');
+    if (!href || href === '#' || (item && (item.classList.contains('disabled') || item.classList.contains('active')))) {
+        e.preventDefault();
+        return;
+    }
+
+    e.preventDefault();
+    loadPaymentPlans(href, true);
+});
+
+window.addEventListener('popstate', function () {
+    if (!document.getElementById('payment-plan-index')) return;
+    loadPaymentPlans(window.location.href, false);
 });
 </script>
+
+<style nonce="{{ $cspNonce }}">
+#payment-plan-index,
+#payment-plan-index .card,
+#payment-plan-index .card-body,
+#payment-plan-index .card-header {
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    height: auto;
+    transform: none !important;
+}
+body:has(#payment-plan-index) .body-wrapper > .container-fluid {
+    overflow: visible;
+}
+#payment-plan-index [class*="col-"] {
+    min-width: 0;
+}
+#payment-plan-index .form-select,
+#payment-plan-index .form-control,
+#payment-plan-index .nebula-select,
+#payment-plan-index .nebula-select-toggle {
+    width: 100%;
+    max-width: 100%;
+}
+#payment-plan-index .nebula-select-sm {
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 auto;
+}
+#payment-plan-index h2 {
+    overflow-wrap: break-word;
+}
+#paymentPlanResults {
+    transition: opacity 0.15s ease;
+}
+#paymentPlanResults.opacity-50 {
+    pointer-events: none;
+}
+#payment-plan-index .card {
+    transition: box-shadow 0.2s;
+}
+#payment-plan-index .card:hover {
+    transform: none !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+}
+.payment-plan-header-actions .btn {
+    min-width: 0;
+}
+.payment-plan-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+.payment-plan-table-scroll::-webkit-scrollbar {
+    height: 10px;
+}
+.payment-plan-table-scroll::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 8px;
+}
+.payment-plan-table-scroll::-webkit-scrollbar-thumb {
+    background: #b0b0b0;
+    border-radius: 8px;
+}
+.payment-plan-table {
+    min-width: 1280px;
+    width: 100%;
+    table-layout: auto;
+}
+.payment-plan-table th,
+.payment-plan-table td {
+    vertical-align: middle;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.payment-plan-table th {
+    white-space: nowrap;
+}
+.payment-plan-table .col-id,
+.payment-plan-table .col-num,
+.payment-plan-table .col-discount,
+.payment-plan-table .col-date,
+.payment-plan-table .col-actions,
+.payment-plan-table .col-intake {
+    white-space: nowrap;
+}
+.payment-plan-table .col-id {
+    width: 1%;
+    text-align: right;
+}
+.payment-plan-table .col-location {
+    min-width: 220px;
+    max-width: 280px;
+    white-space: normal;
+}
+.payment-plan-table .col-course {
+    min-width: 220px;
+    max-width: 320px;
+    white-space: normal;
+}
+.payment-plan-table .col-installments {
+    min-width: 150px;
+}
+.payment-plan-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+.payment-plan-page-size {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+.payment-plan-page-size select.page-size-select,
+.payment-plan-page-size .nebula-select,
+#payment-plan-index select#perPageSelect {
+    width: 5.75rem;
+    max-width: 5.75rem;
+    flex: 0 0 5.75rem;
+}
+.payment-plan-pagination {
+    min-width: 0;
+    overflow-x: auto;
+}
+.payment-plan-pagination .pagination {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-bottom: 0;
+}
+.payment-plan-results-summary,
+.payment-plan-results-count {
+    overflow-wrap: break-word;
+    word-break: normal;
+}
+.payment-plan-course-name,
+.payment-plan-fee {
+    overflow-wrap: break-word;
+    word-break: normal;
+    white-space: normal;
+}
+.payment-plan-installment-list {
+    display: grid;
+    gap: 0.65rem;
+}
+.payment-plan-installment-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    background: #fff;
+}
+.payment-plan-installment-item > div + div {
+    margin-top: 0.4rem;
+}
+.payment-plan-installment-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 2px;
+}
+#payment-plan-index .badge {
+    white-space: normal;
+    text-align: left;
+}
+@media (max-width: 767.98px) {
+    #payment-plan-index h2 {
+        font-size: 1.25rem;
+    }
+    #payment-plan-index .form-control,
+    #payment-plan-index .form-select,
+    #payment-plan-index .form-select-sm,
+    #payment-plan-index .nebula-select-toggle {
+        font-size: 16px;
+    }
+    .payment-plan-header-actions,
+    .payment-plan-header-actions .btn {
+        width: 100%;
+    }
+    .payment-plan-filter-actions {
+        width: 100%;
+    }
+    .payment-plan-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .payment-plan-pagination .pagination {
+        justify-content: center;
+    }
+    .payment-plan-installments-toggle {
+        white-space: normal;
+        min-height: 2.4rem;
+    }
+}
+</style>
 @endsection

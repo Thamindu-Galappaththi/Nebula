@@ -4,197 +4,437 @@
 
 @section('content')
 <style nonce="{{ $cspNonce }}">
-/* Success Message Styles */
-.success-message{
-  position:fixed;top:20px;right:20px;z-index:9999;background:linear-gradient(135deg,#28a745,#20c997);
-  color:#fff;padding:15px 20px;border-radius:10px;box-shadow:0 4px 15px rgba(40,167,69,.3);
-  font-weight:500;font-size:14px;max-width:400px;transform:translateX(100%);transition:transform .3s ease-in-out;border-left:4px solid #fff
-}
-.success-message.show{transform:translateX(0)}
-.success-message .success-icon{margin-right:10px;font-size:18px}
-
-/* Error Message Styles */
-.error-message{
-  position:fixed;top:20px;right:20px;z-index:9999;background:linear-gradient(135deg,#dc3545,#e74c3c);
-  color:#fff;padding:15px 20px;border-radius:10px;box-shadow:0 4px 15px rgba(220,53,69,.3);
-  font-weight:500;font-size:14px;max-width:400px;transform:translateX(100%);transition:transform .3s ease-in-out;border-left:4px solid #fff
-}
-.error-message.show{transform:translateX(0)}
-.error-message .error-icon{margin-right:10px;font-size:18px}
+    .uh-index-page,
+    .uh-index-page .card,
+    .uh-index-page .card-body {
+        min-width: 0;
+        max-width: 100%;
+        overflow: visible;
+    }
+    body:has(.uh-index-page) .body-wrapper > .container-fluid {
+        overflow: visible;
+    }
+    .uh-index-page [class*="col-"] {
+        min-width: 0;
+    }
+    .uh-index-page .form-select,
+    .uh-index-page .form-control,
+    .uh-index-page .nebula-select,
+    .uh-index-page .nebula-select-toggle {
+        width: 100%;
+        max-width: 100%;
+    }
+    .uh-index-page .table-responsive {
+        width: 100%;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+    .uh-students-table th,
+    .uh-students-table td {
+        word-break: break-word;
+        vertical-align: middle;
+    }
+    .uh-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    #studentSearch {
+        max-width: 18rem;
+    }
+    .uh-toast {
+        max-width: min(360px, calc(100vw - 1.5rem));
+    }
+    @media (max-width: 767.98px) {
+        .uh-index-page h2 {
+            font-size: 1.25rem;
+        }
+        .uh-index-page .card-body {
+            padding: 1rem 0.75rem;
+        }
+        .uh-index-page .form-control,
+        .uh-index-page .form-select,
+        .uh-index-page .nebula-select-toggle {
+            font-size: 16px;
+        }
+        .uh-index-page .col-form-label {
+            text-align: left !important;
+            padding-bottom: 0.2rem;
+        }
+        .uh-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        #studentSearch,
+        .uh-index-page .btn[type="submit"] {
+            max-width: 100%;
+            width: 100%;
+        }
+        .uh-students-table thead {
+            display: none;
+        }
+        .uh-students-table,
+        .uh-students-table tbody,
+        .uh-students-table tr,
+        .uh-students-table td {
+            display: block;
+            width: 100%;
+        }
+        .uh-students-table tbody tr[data-student-id] {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            padding: 8px 12px 12px;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+        }
+        .uh-students-table td {
+            border: 0;
+            padding: 0.45rem 0;
+        }
+        .uh-students-table td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+    }
 </style>
 
-<div class="container-fluid">
-  <div class="card">
-    <div class="card-body">
-      <h2 class="text-center mb-4">Add External Institute Student ID</h2>
-      <hr>
+<div class="container-fluid px-2 px-md-3 uh-index-page">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="text-center mb-4">Add External Institute Student ID</h2>
+            <hr>
 
-      <form id="uh-index-form">
-        <div class="row mb-3 align-items-center">
-          <label class="col-sm-3 col-form-label fw-bold">Location</label>
-          <div class="col-sm-9">
-            <select class="form-select" id="locationSelect" name="location" required>
-              <option value="">Select Location</option>
-            </select>
-          </div>
+            <div class="mb-3 row mx-0">
+                <label for="locationSelect" class="col-md-2 col-form-label fw-bold">Location<span class="text-danger">*</span></label>
+                <div class="col-md-10">
+                    <select class="form-select" id="locationSelect" name="location">
+                        <option selected disabled value="">Select a location</option>
+                        <option value="Welisara">Nebula Institute of Technology - Welisara</option>
+                        <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
+                        <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3 row mx-0">
+                <label for="courseSelect" class="col-md-2 col-form-label fw-bold">Course<span class="text-danger">*</span></label>
+                <div class="col-md-10">
+                    <select class="form-select" id="courseSelect" name="course" disabled>
+                        <option selected disabled value="">Select a course</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3 row mx-0">
+                <label for="intakeSelect" class="col-md-2 col-form-label fw-bold">Intake<span class="text-danger">*</span></label>
+                <div class="col-md-10">
+                    <select class="form-select" id="intakeSelect" name="intake" disabled>
+                        <option selected disabled value="">Select an intake</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="studentsSection" class="d-none">
+                <hr>
+                <h4 class="mb-3">Students – External Institute ID</h4>
+                <form id="uh-index-save-form">
+                    <div class="uh-toolbar">
+                        <strong id="studentCount">0 students</strong>
+                        <input type="search" class="form-control" id="studentSearch" placeholder="Search students..." autocomplete="off">
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover uh-students-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Course Registration ID</th>
+                                    <th>Name</th>
+                                    <th>NIC</th>
+                                    <th>External Institute Student ID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentsTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="d-grid mt-3">
+                        <button type="submit" class="btn btn-primary" id="saveUhIds">Save External Institute IDs</button>
+                    </div>
+                </form>
+            </div>
         </div>
-
-        <div class="row mb-3 align-items-center">
-          <label class="col-sm-3 col-form-label fw-bold">Course</label>
-          <div class="col-sm-9">
-            <select class="form-select" id="courseSelect" name="course" required disabled>
-              <option value="">Select Course</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row mb-3 align-items-center">
-          <label class="col-sm-3 col-form-label fw-bold">Intake</label>
-          <div class="col-sm-9">
-            <select class="form-select" id="intakeSelect" name="intake" required disabled>
-              <option value="">Select Intake</option>
-            </select>
-          </div>
-        </div>
-      </form>
-
-      <div id="studentsSection" style="display:none;">
-        <h4 class="mt-4">Students – External Institute ID</h4>
-        <form id="uh-index-save-form">
-          <table class="table table-bordered mt-3">
-            <thead class="table-light">
-              <tr>
-                <th>Name</th>
-                <th>Student ID</th>
-                <th style="min-width:320px">External Institute Student ID</th>
-                <th style="width:140px">Action</th>
-              </tr>
-            </thead>
-            <tbody id="studentsTableBody"></tbody>
-          </table>
-          <button type="submit" class="btn btn-primary mt-3">Save External Institute IDs</button>
-        </form>
-      </div>
-
     </div>
-  </div>
 </div>
+<div class="toast-container position-fixed top-0 end-0 p-3 uh-toast" style="z-index: 9999"></div>
+@endsection
 
+@push('scripts')
 <script nonce="{{ $cspNonce }}">
-// toast helpers
-function showSuccessMessage(msg){document.querySelectorAll('.success-message,.error-message').forEach(n=>n.remove());const d=document.createElement('div');d.className='success-message';d.innerHTML=`<i class="ti ti-check-circle success-icon"></i>${msg}`;document.body.appendChild(d);setTimeout(()=>d.classList.add('show'),100);setTimeout(()=>{d.classList.remove('show');setTimeout(()=>d.remove(),300)},4000)}
-function showErrorMessage(msg){document.querySelectorAll('.success-message,.error-message').forEach(n=>n.remove());const d=document.createElement('div');d.className='error-message';d.innerHTML=`<i class="ti ti-alert-circle error-icon"></i>${msg}`;document.body.appendChild(d);setTimeout(()=>d.classList.add('show'),100);setTimeout(()=>{d.classList.remove('show');setTimeout(()=>d.remove(),300)},5000)}
+document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+    const locationSelect = document.getElementById('locationSelect');
+    const courseSelect = document.getElementById('courseSelect');
+    const intakeSelect = document.getElementById('intakeSelect');
+    const studentsBody = document.getElementById('studentsTableBody');
+    const studentsSection = document.getElementById('studentsSection');
+    const studentSearch = document.getElementById('studentSearch');
+    const studentCount = document.getElementById('studentCount');
+    const saveBtn = document.getElementById('saveUhIds');
 
-$(function () {
-  // 1) locations (static)
-  const locations=[
-    {id:'Welisara',name:'Nebula Institute of Technology - Welisara'},
-    {id:'Moratuwa',name:'Nebula Institute of Technology - Moratuwa'},
-    {id:'Peradeniya',name:'Nebula Institute of Technology - Peradeniya'}
-  ];
-  locations.forEach(loc=>$('#locationSelect').append(`<option value="${loc.id}">${loc.name}</option>`));
+    let loadedStudents = [];
+    let inputValues = {};
 
-  // 2) courses for location
-  $('#locationSelect').on('change', function(){
-    const location=$(this).val();
-    $('#courseSelect').prop('disabled',true).html('<option value="">Select Course</option>');
-    $('#intakeSelect').prop('disabled',true).html('<option value="">Select Intake</option>');
-    $('#studentsSection').hide();
-    if(!location) return;
-
-    $.post("{{ route('uh.index.courses') }}",{location,_token:'{{ csrf_token() }}'},function(res){
-      (res.courses||[]).forEach(c=>$('#courseSelect').append(`<option value="${c.course_id}">${c.course_name}</option>`));
-      $('#courseSelect').prop('disabled',false);
-    });
-  });
-
-  // 3) intakes for course
-  $('#courseSelect').on('change', function(){
-    const course_id=$(this).val();
-    $('#intakeSelect').prop('disabled',true).html('<option value="">Select Intake</option>');
-    $('#studentsSection').hide();
-    if(!course_id) return;
-
-    $.post("{{ route('uh.index.intakes') }}",{course_id,_token:'{{ csrf_token() }}'},function(res){
-      (res.intakes||[]).forEach(i=>$('#intakeSelect').append(`<option value="${i.intake_id}">${i.batch}</option>`));
-      $('#intakeSelect').prop('disabled',false);
-    });
-  });
-
-  // 4) students for intake (ONLY Registered) + add Terminate button
-  $('#intakeSelect').on('change', function(){
-    const intake_id=$(this).val();
-    $('#studentsSection').hide();
-    if(!intake_id) return;
-
-    $.post("{{ route('uh.index.students') }}",{intake_id,_token:'{{ csrf_token() }}'},function(res){
-      const $tb=$('#studentsTableBody').empty();
-      if(res.students && res.students.length){
-        res.students.forEach(st=>{
-          $tb.append(`
-            <tr data-student-id="${st.student_id}" data-intake-id="${st.intake_id}">
-              <td>${st.name}</td>
-              <td>${st.student_id}</td>
-              <td>
-                <input type="text" class="form-control" name="external_institute_id[${st.student_id}]"
-                  value="${st.uh_index_number || ''}" placeholder="Enter Pearson/UH/Other Institute ID">
-              </td>
-              <td>
-                <button type="button" class="btn btn-outline-danger btn-sm btn-terminate">Terminate</button>
-              </td>
-            </tr>`);
+    function escapeHtml(text) {
+        const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+        return String(text ?? '').replace(/[&<>"']/g, function (match) {
+            return map[match];
         });
-      }else{
-        $tb.append('<tr><td colspan="4" class="text-center text-muted">No registered students found for this intake.</td></tr>');
-      }
-      $('#studentsSection').show();
-    }).fail(()=>showErrorMessage('Failed to load students.'));
-  });
+    }
 
-  // 4a) click Terminate (AJAX)
-  $('#studentsTableBody').on('click','.btn-terminate', function(){
-    const $tr=$(this).closest('tr');
-    const student_id=$tr.data('student-id');
-    const intake_id=$tr.data('intake-id');
-    if(!confirm('Terminate this student from the intake?')) return;
-
-    $.post("{{ route('uh.index.terminate') }}",
-      {student_id,intake_id,_token:'{{ csrf_token() }}'},
-      function(res){
-        if(res.success){
-          showSuccessMessage(res.message || 'Student terminated.');
-          $tr.remove(); // vanish row
-          if($('#studentsTableBody tr').length===0){
-            $('#studentsTableBody').append('<tr><td colspan="4" class="text-center text-muted">No registered students found for this intake.</td></tr>');
-          }
-        }else{
-          showErrorMessage(res.message || 'Termination failed.');
+    function showToast(message, type) {
+        const container = document.querySelector('.toast-container');
+        if (!container) {
+            return;
         }
-      }
-    ).fail((xhr)=>{
-      const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Termination failed.';
-      showErrorMessage(msg);
-    });
-  });
+        container.innerHTML = '';
+        const toast = document.createElement('div');
+        toast.className = 'toast show';
+        toast.setAttribute('role', 'alert');
+        const header = document.createElement('div');
+        header.className = 'toast-header bg-' + (type === 'success' ? 'success' : (type === 'warning' ? 'warning' : 'danger')) + (type === 'warning' ? ' text-dark' : ' text-white');
+        const strong = document.createElement('strong');
+        strong.className = 'me-auto';
+        strong.textContent = type === 'success' ? 'Success' : (type === 'warning' ? 'Warning' : 'Error');
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-close' + (type === 'warning' ? '' : ' btn-close-white');
+        closeBtn.setAttribute('data-bs-dismiss', 'toast');
+        header.appendChild(strong);
+        header.appendChild(closeBtn);
+        const body = document.createElement('div');
+        body.className = 'toast-body';
+        body.textContent = message;
+        toast.appendChild(header);
+        toast.appendChild(body);
+        container.appendChild(toast);
+        setTimeout(function () {
+            bootstrap.Toast.getOrCreateInstance(toast, { delay: 4000 }).hide();
+        }, 4000);
+    }
 
-  // 5) save IDs
-  $('#uh-index-save-form').on('submit', function(e){
-    e.preventDefault();
-    const students=[];
-    $('#studentsTableBody tr').each(function(){
-      const student_id=$(this).data('student-id');
-      const uh_index_number=$(this).find('input').val();
-      if(student_id) students.push({student_id, uh_index_number});
+    function resetSelect(select, placeholder) {
+        select.innerHTML = '';
+        const option = new Option(placeholder, '', true, true);
+        option.disabled = true;
+        select.add(option);
+        select.disabled = true;
+    }
+
+    function hideStudents() {
+        loadedStudents = [];
+        inputValues = {};
+        studentsBody.innerHTML = '';
+        studentsSection.classList.add('d-none');
+        studentSearch.value = '';
+    }
+
+    async function postJson(url, data) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify(data)
+        });
+        const payload = await response.json().catch(function () { return {}; });
+        if (!response.ok || payload.success === false) {
+            throw new Error(payload.message || 'Request failed.');
+        }
+        return payload;
+    }
+
+    function captureInputs() {
+        studentsBody.querySelectorAll('tr[data-student-id]').forEach(function (row) {
+            const input = row.querySelector('.external-id-input');
+            if (input) {
+                inputValues[String(row.getAttribute('data-student-id'))] = input.value;
+            }
+        });
+    }
+
+    function renderStudents() {
+        const query = (studentSearch.value || '').trim().toLowerCase();
+        const filtered = loadedStudents.filter(function (student) {
+            if (!query) {
+                return true;
+            }
+            return [student.course_registration_id, student.name, student.nic, student.uh_index_number, student.student_id]
+                .join(' ')
+                .toLowerCase()
+                .includes(query);
+        });
+
+        if (!loadedStudents.length) {
+            studentsBody.innerHTML = '<tr><td colspan="4" class="text-center">No registered students found for this intake.</td></tr>';
+            studentCount.textContent = '0 students';
+            saveBtn.disabled = true;
+            return;
+        }
+
+        if (!filtered.length) {
+            studentsBody.innerHTML = '<tr><td colspan="4" class="text-center">No students match this search.</td></tr>';
+            saveBtn.disabled = false;
+            return;
+        }
+
+        studentsBody.innerHTML = filtered.map(function (student) {
+            const id = String(student.student_id);
+            const value = Object.prototype.hasOwnProperty.call(inputValues, id)
+                ? inputValues[id]
+                : (student.uh_index_number || '');
+            return '<tr data-student-id="' + escapeHtml(id) + '">' +
+                '<td data-label="Course Registration ID">' + escapeHtml(student.course_registration_id || '-') + '</td>' +
+                '<td data-label="Name">' + escapeHtml(student.name || '') + '</td>' +
+                '<td data-label="NIC">' + escapeHtml(student.nic || '-') + '</td>' +
+                '<td data-label="External Institute Student ID"><input type="text" class="form-control external-id-input" value="' + escapeHtml(value) + '" placeholder="Enter Pearson/UH/Other Institute ID" autocomplete="off"></td>' +
+                '</tr>';
+        }).join('');
+        studentCount.textContent = loadedStudents.length + ' student' + (loadedStudents.length === 1 ? '' : 's');
+        saveBtn.disabled = false;
+    }
+
+    async function loadCourses() {
+        resetSelect(courseSelect, 'Select a course');
+        resetSelect(intakeSelect, 'Select an intake');
+        hideStudents();
+        if (!locationSelect.value) {
+            return;
+        }
+        const data = await postJson('{{ route('uh.index.courses') }}', { location: locationSelect.value });
+        const courses = data.courses || [];
+        if (!courses.length) {
+            showToast(data.message || 'No courses found for this location.', 'warning');
+            return;
+        }
+        courses.forEach(function (course) {
+            const label = (course.course_type ? course.course_type + ' - ' : '') + (course.course_name || '');
+            courseSelect.add(new Option(label, course.course_id));
+        });
+        courseSelect.disabled = false;
+    }
+
+    async function loadIntakes() {
+        resetSelect(intakeSelect, 'Select an intake');
+        hideStudents();
+        if (!locationSelect.value || !courseSelect.value) {
+            return;
+        }
+        const data = await postJson('{{ route('uh.index.intakes') }}', {
+            location: locationSelect.value,
+            course_id: courseSelect.value
+        });
+        const intakes = data.intakes || [];
+        if (!intakes.length) {
+            showToast('No intakes available for this course.', 'warning');
+            return;
+        }
+        intakes.forEach(function (intake) {
+            intakeSelect.add(new Option(intake.batch, intake.intake_id));
+        });
+        intakeSelect.disabled = false;
+    }
+
+    async function loadStudents() {
+        hideStudents();
+        if (!locationSelect.value || !courseSelect.value || !intakeSelect.value) {
+            return;
+        }
+        const data = await postJson('{{ route('uh.index.students') }}', {
+            location: locationSelect.value,
+            course_id: courseSelect.value,
+            intake_id: intakeSelect.value
+        });
+        loadedStudents = Array.isArray(data.students) ? data.students : [];
+        inputValues = {};
+        loadedStudents.forEach(function (student) {
+            inputValues[String(student.student_id)] = student.uh_index_number || '';
+        });
+        renderStudents();
+        studentsSection.classList.remove('d-none');
+    }
+
+    locationSelect.addEventListener('change', function () {
+        loadCourses().catch(function (error) {
+            showToast(error.message, 'error');
+        });
+    });
+    courseSelect.addEventListener('change', function () {
+        loadIntakes().catch(function (error) {
+            showToast(error.message, 'error');
+        });
+    });
+    intakeSelect.addEventListener('change', function () {
+        loadStudents().catch(function (error) {
+            showToast(error.message, 'error');
+        });
+    });
+    studentSearch.addEventListener('input', function () {
+        captureInputs();
+        renderStudents();
+    });
+    studentsBody.addEventListener('input', function (event) {
+        if (!event.target.classList.contains('external-id-input')) {
+            return;
+        }
+        const row = event.target.closest('tr[data-student-id]');
+        if (row) {
+            inputValues[String(row.getAttribute('data-student-id'))] = event.target.value;
+        }
     });
 
-    $.post("{{ route('uh.index.save') }}",{students,_token:'{{ csrf_token() }}'},function(res){
-      if(res.success) showSuccessMessage(res.message || 'Saved.');
-      else showErrorMessage(res.message || 'Failed to save.');
-    }).fail((xhr)=>{
-      const msg=(xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Error saving.';
-      showErrorMessage(msg);
+    document.getElementById('uh-index-save-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        captureInputs();
+        const students = loadedStudents.map(function (student) {
+            const id = String(student.student_id);
+            return {
+                student_id: student.student_id,
+                uh_index_number: Object.prototype.hasOwnProperty.call(inputValues, id) ? inputValues[id] : (student.uh_index_number || '')
+            };
+        });
+        if (!students.length) {
+            showToast('No students to save.', 'warning');
+            return;
+        }
+
+        const originalText = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        try {
+            const data = await postJson('{{ route('uh.index.save') }}', {
+                location: locationSelect.value,
+                course_id: courseSelect.value,
+                intake_id: intakeSelect.value,
+                students: students
+            });
+            showToast(data.message || 'Saved.', 'success');
+            await loadStudents();
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+        }
     });
-  });
 });
 </script>
-@endsection
+@endpush

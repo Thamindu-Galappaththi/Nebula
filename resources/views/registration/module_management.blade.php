@@ -3,83 +3,181 @@
 @section('title', 'NEBULA | Elective Module Registration')
 
 @section('content')
-<div class="container-fluid">
+<style nonce="{{ $cspNonce }}">
+    .module-management-page,
+    .module-management-page .card,
+    .module-management-page .card-body {
+        min-width: 0;
+        max-width: 100%;
+        overflow: visible;
+    }
+    body:has(.module-management-page) .body-wrapper > .container-fluid {
+        overflow: visible;
+    }
+    .module-management-page [class*="col-"] {
+        min-width: 0;
+    }
+    .module-management-page .form-select,
+    .module-management-page .form-control,
+    .module-management-page .nebula-select,
+    .module-management-page .nebula-select-toggle {
+        width: 100%;
+        max-width: 100%;
+    }
+    .module-management-page .table-responsive {
+        width: 100%;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+    .module-students-table th,
+    .module-students-table td {
+        word-break: break-word;
+        vertical-align: middle;
+    }
+    .module-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    #studentSearch {
+        max-width: 18rem;
+    }
+    .module-toast {
+        max-width: min(360px, calc(100vw - 1.5rem));
+    }
+    @media (max-width: 767.98px) {
+        .module-management-page h2 {
+            font-size: 1.25rem;
+        }
+        .module-management-page .card-body {
+            padding: 1rem 0.75rem;
+        }
+        .module-management-page .form-control,
+        .module-management-page .form-select,
+        .module-management-page .nebula-select-toggle {
+            font-size: 16px;
+        }
+        .module-management-page .col-form-label {
+            text-align: left !important;
+            padding-bottom: 0.2rem;
+        }
+        .module-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        #studentSearch,
+        .module-management-page .btn[type="submit"] {
+            max-width: 100%;
+            width: 100%;
+        }
+        .module-students-table thead {
+            display: none;
+        }
+        .module-students-table,
+        .module-students-table tbody,
+        .module-students-table tr,
+        .module-students-table td {
+            display: block;
+            width: 100%;
+        }
+        .module-students-table tbody tr[data-student-id] {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            padding: 8px 12px 12px;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+        }
+        .module-students-table td {
+            border: 0;
+            padding: 0.45rem 0;
+        }
+        .module-students-table td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .module-students-table td.student-check-cell::before {
+            display: none;
+        }
+    }
+</style>
+
+<div class="container-fluid px-2 px-md-3 module-management-page">
     <div class="card">
         <div class="card-body">
-            <h2 class="text-center mb-4">Module Registration(Elective)</h2>
+            <h2 class="text-center mb-4">Module Registration (Elective)</h2>
             <hr>
-            <!-- Filter Section for Elective Registration -->
-            <div class="mt-4">
-                <div class="mb-3 row mx-3">
-                    <label for="elective_location" class="col-sm-2 col-form-label fw-bold">Location<span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select cursor-pointer bg-white" id="elective_location" name="elective_location">
-                            <option selected disabled value="">Select a location</option>
-                            <option value="Welisara">Nebula Institute of Technology - Welisara</option>
-                            <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
-                            <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
-                        </select>
-                    </div>
+            <div class="mb-3 row mx-0">
+                <label for="elective_location" class="col-md-2 col-form-label fw-bold">Location<span class="text-danger">*</span></label>
+                <div class="col-md-10">
+                    <select class="form-select" id="elective_location" name="elective_location">
+                        <option selected disabled value="">Select a location</option>
+                        <option value="Welisara">Nebula Institute of Technology - Welisara</option>
+                        <option value="Moratuwa">Nebula Institute of Technology - Moratuwa</option>
+                        <option value="Peradeniya">Nebula Institute of Technology - Peradeniya</option>
+                    </select>
                 </div>
-                <div class="mb-3 row mx-3">
-                    <label for="elective_course" class="col-sm-2 col-form-label fw-bold">Course<span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                       <select class="form-select cursor-pointer bg-white" id="elective_course" name="elective_course">
-                             <option selected disabled value="">Select a course</option>
-
-                              
-                               @foreach($degreeCourses as $course)
-                             <option value="{{ $course->course_id }}" data-location="{{ $course->location }}">
-                               degree - {{ $course->course_name }}
-                              </option>
-                             @endforeach
-                             
-
-                               
-                              @foreach($diplomaCourses as $course)
-                              <option value="{{ $course->course_id }}" data-location="{{ $course->location }}">
-                              diploma - {{ $course->course_name }}
-                               </option>
-                               @endforeach
-                           
-                              </select>
-                    </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="elective_intake" class="col-sm-2 col-form-label fw-bold">Intake<span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select cursor-pointer bg-white" id="elective_intake" name="elective_intake" disabled>
-                            <option selected disabled value="">Select an Intake</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="elective_semester" class="col-sm-2 col-form-label fw-bold">Ongoing Semester<span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select cursor-pointer bg-white" id="elective_semester" name="elective_semester" disabled>
-                            <option selected disabled value="">Select an ongoing semester</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-3 row mx-3" id="elective_specialization_row" style="display:none;">
-                    <label for="elective_specialization" class="col-sm-2 col-form-label fw-bold">Specialization</label>
-                    <div class="col-sm-10">
-                        <select class="form-select cursor-pointer bg-white" id="elective_specialization" name="elective_specialization">
-                            <option selected disabled value="">Select Specialization</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-3 row mx-3">
-                    <label for="elective_module" class="col-sm-2 col-form-label fw-bold">Module<span class="text-danger">*</span></label>
-                    <div class="col-sm-10">
-                        <select class="form-select cursor-pointer bg-white" id="elective_module" name="elective_module" disabled>
-                            <option selected disabled value="">Select a module</option>
-                        </select>
-                    </div>
-                </div>
-                <!-- Removed buttons row -->
             </div>
-            <!-- Elective Registration Section -->
+            <div class="mb-3 row mx-0">
+                <label for="elective_course" class="col-md-2 col-form-label fw-bold">Course<span class="text-danger">*</span></label>
+                <div class="col-md-10">
+                    <select class="form-select" id="elective_course" name="elective_course" disabled>
+                        <option selected disabled value="">Select a course</option>
+                        @foreach($degreeCourses as $course)
+                            <option value="{{ $course->course_id }}" data-location="{{ $course->location }}" data-type="degree">
+                                degree - {{ $course->course_name }}
+                            </option>
+                        @endforeach
+                        @foreach($diplomaCourses as $course)
+                            <option value="{{ $course->course_id }}" data-location="{{ $course->location }}" data-type="diploma">
+                                diploma - {{ $course->course_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3 row mx-0">
+                <label for="elective_intake" class="col-md-2 col-form-label fw-bold">Intake<span class="text-danger">*</span></label>
+                <div class="col-md-10">
+                    <select class="form-select" id="elective_intake" name="elective_intake" disabled>
+                        <option selected disabled value="">Select an Intake</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3 row mx-0">
+                <label for="elective_semester" class="col-md-2 col-form-label fw-bold">Ongoing Semester<span class="text-danger">*</span></label>
+                <div class="col-md-10">
+                    <select class="form-select" id="elective_semester" name="elective_semester" disabled>
+                        <option selected disabled value="">Select an ongoing semester</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3 row mx-0" id="elective_specialization_row" style="display:none;">
+                <label for="elective_specialization" class="col-md-2 col-form-label fw-bold">Specialization</label>
+                <div class="col-md-10">
+                    <select class="form-select" id="elective_specialization" name="elective_specialization">
+                        <option selected disabled value="">Select Specialization</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3 row mx-0">
+                <label for="elective_module" class="col-md-2 col-form-label fw-bold">Module<span class="text-danger">*</span></label>
+                <div class="col-md-10">
+                    <select class="form-select" id="elective_module" name="elective_module" disabled>
+                        <option selected disabled value="">Select a module</option>
+                    </select>
+                </div>
+            </div>
+
             <div id="electiveRegistrationSection" style="display: none;">
                 <hr>
                 <h4 class="mb-3">Elective Module Registration</h4>
@@ -91,34 +189,30 @@
                     <input type="hidden" name="location" id="elective_location_hidden">
                     <input type="hidden" name="module_id" id="elective_module_hidden">
                     <input type="hidden" name="specialization" id="elective_specialization_hidden">
-                    
-                    <!-- Students List for Elective -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Available Students</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Course Registration ID</th>
-                                            <th>Name</th>
-                                            <th>Specialization</th>
-                                            <th>Email</th>
-                                            <th>NIC</th>
-                                            <th>Register</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="electiveStudentsTable">
-                                        <!-- Students will be loaded here -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+
+                    <div class="module-toolbar">
+                        <label class="d-flex align-items-center gap-2 mb-0">
+                            <input id="selectAll" type="checkbox" aria-label="Select all students">
+                            <strong id="studentCount">0 students</strong>
+                        </label>
+                        <input type="search" class="form-control" id="studentSearch" placeholder="Search students..." autocomplete="off">
                     </div>
-                    
-                    <div class="d-grid mx-3 mt-3">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover module-students-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Select</th>
+                                    <th>Course Registration ID</th>
+                                    <th>Name</th>
+                                    <th>Specialization</th>
+                                    <th>Email</th>
+                                    <th>NIC</th>
+                                </tr>
+                            </thead>
+                            <tbody id="electiveStudentsTable"></tbody>
+                        </table>
+                    </div>
+                    <div class="d-grid mt-3">
                         <button type="submit" class="btn btn-primary">Register Elective Modules</button>
                     </div>
                 </form>
@@ -126,484 +220,438 @@
         </div>
     </div>
 </div>
-<!-- Toast Container -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-</div>
+<div class="toast-container position-fixed top-0 end-0 p-3 module-toast" style="z-index: 9999"></div>
 @endsection
 
 @push('scripts')
 <script nonce="{{ $cspNonce }}">
-// Enhanced toast function for colorful messages
-function showToast(message, type = 'info') {
-    // Remove existing toasts
-    $('.toast').remove();
-    
-    let bgClass = '';
-    let icon = '';
-    
-    switch(type) {
-        case 'success':
-            bgClass = 'bg-success text-white';
-            icon = '🎉';
-            break;
-        case 'error':
-            bgClass = 'bg-danger text-white';
-            icon = '❌';
-            break;
-        case 'warning':
-            bgClass = 'bg-warning text-dark';
-            icon = '⚠️';
-            break;
-        case 'info':
-        default:
-            bgClass = 'bg-info text-white';
-            icon = 'ℹ️';
-            break;
-    }
-    
-    let toastHtml = `
-        <div class="toast show ${bgClass}" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header ${bgClass}">
-                <strong class="me-auto">${icon} ${type.charAt(0).toUpperCase() + type.slice(1)}</strong>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body">
-                ${message}
-            </div>
-        </div>
-    `;
-    
-    $('.toast-container').append(toastHtml);
-    
-    // Auto-hide after 5 seconds
-    setTimeout(function() {
-        $('.toast').fadeOut(500, function() {
-            $(this).remove();
-        });
-    }, 5000);
-}
-$(document).ready(function() {
-    // Update hidden fields when dropdowns change
-    $('#elective_location').on('change', function() {
-        $('#elective_location_hidden').val($(this).val());
-    });
-    
-    $('#elective_course').on('change', function() {
-        $('#elective_course_hidden').val($(this).val());
-    });
-    
-    $('#elective_intake').on('change', function() {
-        $('#elective_intake_hidden').val($(this).val());
-    });
-    
-    $('#elective_semester').on('change', function() {
-        $('#elective_semester_hidden').val($(this).val());
-    });
-    
-    $('#elective_module').on('change', function() {
-        $('#elective_module_hidden').val($(this).val());
+document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+    const locationSelect = document.getElementById('elective_location');
+    const courseSelect = document.getElementById('elective_course');
+    const intakeSelect = document.getElementById('elective_intake');
+    const semesterSelect = document.getElementById('elective_semester');
+    const specializationSelect = document.getElementById('elective_specialization');
+    const moduleSelect = document.getElementById('elective_module');
+    const studentsBody = document.getElementById('electiveStudentsTable');
+    const studentSearch = document.getElementById('studentSearch');
+    const selectAll = document.getElementById('selectAll');
+    const studentCount = document.getElementById('studentCount');
+    const allCourses = Array.from(courseSelect.querySelectorAll('option[data-location]')).map(function (option) {
+        return {
+            id: option.value,
+            label: option.textContent.trim(),
+            location: option.getAttribute('data-location')
+        };
     });
 
-    // Handle form submission
-    $('#electiveRegistrationForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        // Get selected students
-        let selectedStudents = [];
-        $('input[name="register_students[]"]:checked').each(function() {
-            selectedStudents.push($(this).val());
+    let loadedStudents = [];
+    let checkedIds = new Set();
+
+    function escapeHtml(text) {
+        const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+        return String(text ?? '').replace(/[&<>"']/g, function (match) {
+            return map[match];
         });
-        
-        console.log('Selected students:', selectedStudents);
-        
-        if (selectedStudents.length === 0) {
-            showToast('⚠️ Please select at least one student to register.', 'warning');
+    }
+
+    function showToast(message, type) {
+        const container = document.querySelector('.toast-container');
+        if (!container) {
             return;
         }
-        
-        // Log form data before submission
-        let formData = {
-            semester_id: $('#elective_semester_hidden').val(),
-            course_id: $('#elective_course_hidden').val(),
-            intake_id: $('#elective_intake_hidden').val(),
-            location: $('#elective_location_hidden').val(),
-            module_id: $('#elective_module_hidden').val(),
-            specialization: $('#elective_specialization_hidden').val(),
-            register_students: selectedStudents
-        };
-        
-        console.log('Form data being sent:', formData);
-        
-        // Show loading state
-        let submitBtn = $(this).find('button[type="submit"]');
-        let originalText = submitBtn.text();
-        submitBtn.prop('disabled', true).text('🔄 Registering...');
-        
-        // Submit via AJAX
-        $.ajax({
-            url: $(this).attr('action'),
-            method: 'POST',
-            data: formData,
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Show colorful success message
-                    showToast(response.message, 'success');
-                    
-                    // Reset form after successful registration
-                    setTimeout(function() {
-                        $('#electiveRegistrationForm')[0].reset();
-                        $('#electiveRegistrationSection').hide();
-                        // Uncheck all checkboxes
-                        $('input[name="register_students[]"]').prop('checked', false);
-                    }, 2000);
-                } else {
-                    showToast(response.message, 'error');
-                }
-            },
-            error: function(xhr) {
-                let errorMessage = '❌ An error occurred while registering elective modules.';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
-                }
-                showToast(errorMessage, 'error');
-            },
-            complete: function() {
-                // Reset button state
-                submitBtn.prop('disabled', false).text(originalText);
-            }
-        });
-    });
+        container.innerHTML = '';
+        const toast = document.createElement('div');
+        toast.className = 'toast show';
+        toast.setAttribute('role', 'alert');
+        const header = document.createElement('div');
+        header.className = 'toast-header bg-' + (type === 'success' ? 'success' : (type === 'warning' ? 'warning' : 'danger')) + (type === 'warning' ? ' text-dark' : ' text-white');
+        const strong = document.createElement('strong');
+        strong.className = 'me-auto';
+        strong.textContent = type === 'success' ? 'Success' : (type === 'warning' ? 'Warning' : 'Error');
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-close' + (type === 'warning' ? '' : ' btn-close-white');
+        closeBtn.setAttribute('data-bs-dismiss', 'toast');
+        header.appendChild(strong);
+        header.appendChild(closeBtn);
+        const body = document.createElement('div');
+        body.className = 'toast-body';
+        body.textContent = message;
+        toast.appendChild(header);
+        toast.appendChild(body);
+        container.appendChild(toast);
+        setTimeout(function () {
+            bootstrap.Toast.getOrCreateInstance(toast, { delay: 4000 }).hide();
+        }, 4000);
+    }
 
-    // Helper to check if all fields are selected
+    function resetSelect(select, placeholder) {
+        select.innerHTML = '';
+        const option = new Option(placeholder, '', true, true);
+        option.disabled = true;
+        select.add(option);
+        select.disabled = true;
+    }
+
+    function fillCourses(location) {
+        resetSelect(courseSelect, 'Select a course');
+        allCourses.filter(function (course) {
+            return course.location === location;
+        }).forEach(function (course) {
+            courseSelect.add(new Option(course.label, course.id));
+        });
+        courseSelect.disabled = courseSelect.options.length <= 1;
+        if (courseSelect.options.length <= 1) {
+            showToast('No degree or diploma courses found for this location.', 'warning');
+        }
+    }
+
+    function hideStudents() {
+        loadedStudents = [];
+        checkedIds = new Set();
+        studentsBody.innerHTML = '';
+        document.getElementById('electiveRegistrationSection').style.display = 'none';
+        if (studentSearch) {
+            studentSearch.value = '';
+        }
+        if (selectAll) {
+            selectAll.checked = false;
+        }
+    }
+
+    function syncHiddenFields() {
+        document.getElementById('elective_location_hidden').value = locationSelect.value || '';
+        document.getElementById('elective_course_hidden').value = courseSelect.value || '';
+        document.getElementById('elective_intake_hidden').value = intakeSelect.value || '';
+        document.getElementById('elective_semester_hidden').value = semesterSelect.value || '';
+        document.getElementById('elective_module_hidden').value = moduleSelect.value || '';
+        document.getElementById('elective_specialization_hidden').value = specializationSelect.value || '';
+    }
+
+    function specializationRequired() {
+        return document.getElementById('elective_specialization_row').style.display !== 'none';
+    }
+
     function allFieldsSelected() {
-        let basicFields = $('#elective_location').val() && $('#elective_course').val() && $('#elective_intake').val() && $('#elective_semester').val() && $('#elective_module').val();
-        let specializationVisible = $('#elective_specialization_row').is(':visible');
-        let specializationValue = $('#elective_specialization').val();
-        
-        console.log('allFieldsSelected check:', {
-            basicFields,
-            specializationVisible,
-            specializationValue,
-            result: specializationVisible ? (basicFields && specializationValue) : basicFields
-        });
-        
-        // If specialization field is visible, it must be selected
-        if (specializationVisible) {
-            return basicFields && specializationValue;
+        const basic = locationSelect.value && courseSelect.value && intakeSelect.value && semesterSelect.value && moduleSelect.value;
+        if (specializationRequired()) {
+            return basic && specializationSelect.value;
         }
-        
-        return basicFields;
+        return basic;
     }
 
-    // Event handlers for field changes
-    $('#elective_location, #elective_course').on('change', function() {
-        $('#elective_intake').val('').prop('disabled', true);
-        $('#elective_semester').val('').prop('disabled', true);
-        $('#elective_module').val('').prop('disabled', true);
-        $('#electiveRegistrationSection').hide();
-        $('#elective_specialization').empty().append('<option selected disabled value="">Select Specialization</option>');
-        $('#elective_specialization_row').hide();
-        $('#elective_specialization_hidden').val('');
-    });
-    
-    $('#elective_course').on('change', function() {
-        // Reset specialization field
-        $('#elective_specialization').empty().append('<option selected disabled value="">Select Specialization</option>');
-        $('#elective_specialization_row').hide();
-        $('#elective_specialization_hidden').val('');
-        
-        if ($('#elective_location').val() && $('#elective_course').val()) {
-            // Check if the course has specializations
-            fetch(`/api/courses/${$('#elective_course').val()}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success && data.course && data.course.specializations) {
-                        let specializations = [];
-                        if (typeof data.course.specializations === 'string') {
-                            try {
-                                specializations = JSON.parse(data.course.specializations);
-                            } catch (e) {
-                                console.error('Error parsing specializations JSON:', e);
-                                specializations = [];
-                            }
-                        } else if (Array.isArray(data.course.specializations)) {
-                            specializations = data.course.specializations;
-                        }
-                        
-                        // Filter out empty/null values
-                        specializations = specializations.filter(spec => spec && spec.trim() !== '');
-                        
-                        if (specializations.length > 0) {
-                            let options = '<option selected disabled value="">Select Specialization</option>';
-                            specializations.forEach(spec => {
-                                options += `<option value="${spec}">${spec}</option>`;
-                            });
-                            $('#elective_specialization').html(options);
-                            $('#elective_specialization_row').show();
-                        } else {
-                            $('#elective_specialization_row').hide();
-                        }
-                    } else {
-                        $('#elective_specialization_row').hide();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching course details:', error);
-                    $('#elective_specialization_row').hide();
-                });
-            
-            loadElectiveIntakes();
-        }
-    });
-    
-    $('#elective_location').on('change', function() {
-        const location = $(this).val();
-        $('#elective_course option[data-location]').each(function() {
-            $(this).toggle(!location || $(this).data('location') === location);
+    async function postForm(url, data) {
+        const body = new URLSearchParams();
+        Object.keys(data).forEach(function (key) {
+            if (data[key] !== undefined && data[key] !== null) {
+                body.append(key, data[key]);
+            }
         });
-        $('#elective_course').val('');
-    });
-    
-    $('#elective_intake').on('change', function() {
-        if ($(this).val()) {
-            loadOngoingSemesters();
-        } else {
-            $('#elective_semester').prop('disabled', true);
-            $('#elective_module').prop('disabled', true);
+        body.append('_token', csrfToken);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: body
+        });
+        const payload = await response.json().catch(function () { return {}; });
+        if (!response.ok || payload.success === false) {
+            throw new Error(payload.message || 'Request failed.');
         }
-    });
-    
-    $('#elective_semester').on('change', function() {
-        if ($(this).val()) {
-            $('#elective_specialization').empty().append('<option selected disabled value="">Select Specialization</option>');
-            $('#elective_specialization_hidden').val('');
-            $('#elective_specialization_row').hide();
-            $('#elective_module').prop('disabled', true);
-            loadElectiveModulesForSemester();
-        } else {
-            $('#elective_module').prop('disabled', true);
-            $('#electiveRegistrationSection').hide();
+        return payload;
+    }
+
+    function renderStudents() {
+        const query = (studentSearch.value || '').trim().toLowerCase();
+        const filtered = loadedStudents.filter(function (student) {
+            if (!query) {
+                return true;
+            }
+            return [student.course_registration_id, student.name, student.specialization, student.email, student.nic, student.student_id]
+                .join(' ')
+                .toLowerCase()
+                .includes(query);
+        });
+
+        if (!loadedStudents.length) {
+            studentsBody.innerHTML = '<tr><td colspan="6" class="text-center">No eligible students found.</td></tr>';
+            studentCount.textContent = '0 students';
+            return;
         }
+        if (!filtered.length) {
+            studentsBody.innerHTML = '<tr><td colspan="6" class="text-center">No students match this search.</td></tr>';
+            return;
+        }
+
+        studentsBody.innerHTML = filtered.map(function (student) {
+            const id = String(student.student_id);
+            const already = !!student.already_registered;
+            const checked = already || checkedIds.has(id);
+            return '<tr data-student-id="' + escapeHtml(id) + '">' +
+                '<td class="student-check-cell" data-label="Register"><input class="student-check" type="checkbox" name="register_students[]" value="' + escapeHtml(id) + '"' + (checked ? ' checked' : '') + (already ? ' disabled' : '') + '> ' +
+                (already ? '<small class="text-muted">Registered</small>' : '') + '</td>' +
+                '<td data-label="Course Registration ID">' + escapeHtml(student.course_registration_id || '-') + '</td>' +
+                '<td data-label="Name">' + escapeHtml(student.name || '') + '</td>' +
+                '<td data-label="Specialization">' + escapeHtml(student.specialization || '-') + '</td>' +
+                '<td data-label="Email">' + escapeHtml(student.email || '') + '</td>' +
+                '<td data-label="NIC">' + escapeHtml(student.nic || '-') + '</td>' +
+                '</tr>';
+        }).join('');
+        studentCount.textContent = loadedStudents.length + ' student' + (loadedStudents.length === 1 ? '' : 's');
+        syncSelectAll();
+    }
+
+    function visibleChecks() {
+        return Array.from(studentsBody.querySelectorAll('.student-check:not(:disabled)'));
+    }
+
+    function syncSelectAll() {
+        const boxes = visibleChecks();
+        selectAll.checked = boxes.length > 0 && boxes.every(function (box) { return box.checked; });
+    }
+
+    async function loadIntakes() {
+        resetSelect(intakeSelect, 'Select an Intake');
+        resetSelect(semesterSelect, 'Select an ongoing semester');
+        resetSelect(moduleSelect, 'Select a module');
+        hideStudents();
+        const data = await postForm('{{ route('module.management.getIntakes') }}', {
+            course_id: courseSelect.value,
+            location: locationSelect.value
+        });
+        const intakes = data.data || [];
+        if (!intakes.length) {
+            showToast('No intakes available for this course.', 'warning');
+            return;
+        }
+        intakes.forEach(function (intake) {
+            intakeSelect.add(new Option(intake.intake_name, intake.intake_id));
+        });
+        intakeSelect.disabled = false;
+    }
+
+    async function loadSemesters() {
+        resetSelect(semesterSelect, 'Select an ongoing semester');
+        resetSelect(moduleSelect, 'Select a module');
+        hideStudents();
+        const data = await postForm('{{ route('module.management.getOngoingSemesters') }}', {
+            course_id: courseSelect.value,
+            intake_id: intakeSelect.value,
+            location: locationSelect.value
+        });
+        const semesters = data.data || [];
+        if (!semesters.length) {
+            showToast('No ongoing semesters found.', 'warning');
+            return;
+        }
+        semesters.forEach(function (semester) {
+            const statusText = semester.status === 'active' ? ' (Active)' : (semester.status === 'upcoming' ? ' (Upcoming)' : '');
+            semesterSelect.add(new Option((semester.name || '') + statusText, semester.id));
+        });
+        semesterSelect.disabled = false;
+    }
+
+    async function loadModules() {
+        resetSelect(moduleSelect, 'Select a module');
+        hideStudents();
+        if (!semesterSelect.value) {
+            return;
+        }
+        const data = await postForm('{{ route('module.management.getElectiveModules') }}', {
+            semester_id: semesterSelect.value,
+            course_id: courseSelect.value,
+            specialization: specializationSelect.value || ''
+        });
+        if (!specializationSelect.value) {
+            resetSelect(specializationSelect, 'Select Specialization');
+            specializationSelect.disabled = false;
+            if (data.common_available) {
+                specializationSelect.add(new Option('Common', 'Common'));
+            }
+            (data.available_specializations || []).forEach(function (spec) {
+                specializationSelect.add(new Option(spec, spec));
+            });
+            if (data.common_available || (data.available_specializations || []).length) {
+                document.getElementById('elective_specialization_row').style.display = '';
+                if (data.common_available && !(data.available_specializations || []).length) {
+                    specializationSelect.value = 'Common';
+                    specializationSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                return;
+            }
+            document.getElementById('elective_specialization_row').style.display = 'none';
+        }
+        const modules = data.data || [];
+        if (!modules.length) {
+            showToast('No elective modules found for this selection.', 'warning');
+            return;
+        }
+        modules.forEach(function (module) {
+            moduleSelect.add(new Option(module.module_name, module.module_id));
+        });
+        moduleSelect.disabled = false;
+    }
+
+    async function loadStudents() {
+        hideStudents();
+        if (!allFieldsSelected()) {
+            return;
+        }
+        syncHiddenFields();
+        const data = await postForm('{{ route('module.management.getElectiveStudents') }}', {
+            course_id: courseSelect.value,
+            intake_id: intakeSelect.value,
+            semester_id: semesterSelect.value,
+            location: locationSelect.value,
+            specialization: specializationSelect.value || '',
+            module_id: moduleSelect.value
+        });
+        loadedStudents = Array.isArray(data.students) ? data.students : [];
+        checkedIds = new Set();
+        renderStudents();
+        document.getElementById('electiveRegistrationSection').style.display = '';
+    }
+
+    locationSelect.addEventListener('change', function () {
+        fillCourses(locationSelect.value);
+        resetSelect(intakeSelect, 'Select an Intake');
+        resetSelect(semesterSelect, 'Select an ongoing semester');
+        resetSelect(moduleSelect, 'Select a module');
+        resetSelect(specializationSelect, 'Select Specialization');
+        document.getElementById('elective_specialization_row').style.display = 'none';
+        hideStudents();
+        syncHiddenFields();
     });
-    
-    $('#elective_module').on('change', function() {
-        console.log('Module changed, checking if all fields are selected...');
-        console.log('Location:', $('#elective_location').val());
-        console.log('Course:', $('#elective_course').val());
-        console.log('Intake:', $('#elective_intake').val());
-        console.log('Semester:', $('#elective_semester').val());
-        console.log('Module:', $('#elective_module').val());
-        console.log('Specialization visible:', $('#elective_specialization_row').is(':visible'));
-        console.log('Specialization value:', $('#elective_specialization').val());
-        
+
+    courseSelect.addEventListener('change', function () {
+        resetSelect(intakeSelect, 'Select an Intake');
+        resetSelect(semesterSelect, 'Select an ongoing semester');
+        resetSelect(moduleSelect, 'Select a module');
+        resetSelect(specializationSelect, 'Select Specialization');
+        document.getElementById('elective_specialization_row').style.display = 'none';
+        hideStudents();
+        if (!locationSelect.value || !courseSelect.value) {
+            return;
+        }
+        loadIntakes().catch(function (error) {
+            showToast(error.message, 'error');
+        });
+    });
+
+    intakeSelect.addEventListener('change', function () {
+        if (!intakeSelect.value) {
+            return;
+        }
+        loadSemesters().catch(function (error) {
+            showToast(error.message, 'error');
+        });
+    });
+
+    semesterSelect.addEventListener('change', function () {
+        if (!semesterSelect.value) {
+            hideStudents();
+            return;
+        }
+        resetSelect(specializationSelect, 'Select Specialization');
+        document.getElementById('elective_specialization_row').style.display = 'none';
+        loadModules().catch(function (error) {
+            showToast(error.message, 'error');
+        });
+    });
+
+    specializationSelect.addEventListener('change', function () {
+        document.getElementById('elective_specialization_hidden').value = specializationSelect.value || '';
+        if (!semesterSelect.value) {
+            return;
+        }
+        loadModules().catch(function (error) {
+            showToast(error.message, 'error');
+        });
+    });
+
+    moduleSelect.addEventListener('change', function () {
         if (allFieldsSelected()) {
-            console.log('All fields selected, loading students...');
-            // All fields selected, load students and show section
-            loadElectiveStudents();
-            $('#electiveRegistrationSection').show();
+            loadStudents().catch(function (error) {
+                showToast(error.message, 'error');
+            });
         } else {
-            console.log('Not all fields selected, hiding section...');
-            $('#electiveRegistrationSection').hide();
+            hideStudents();
         }
     });
 
-    // Add event listener for specialization dropdown
-    $('#elective_specialization').on('change', function() {
-        $('#elective_specialization_hidden').val($(this).val());
-        $('#elective_module').val('').prop('disabled', true);
-        loadElectiveModulesForSemester();
+    studentSearch.addEventListener('input', renderStudents);
+    selectAll.addEventListener('change', function (event) {
+        visibleChecks().forEach(function (box) {
+            box.checked = event.target.checked;
+            if (event.target.checked) {
+                checkedIds.add(String(box.value));
+            } else {
+                checkedIds.delete(String(box.value));
+            }
+        });
     });
-
-    function loadElectiveIntakes() {
-        $.ajax({
-            url: '{{ route("module.management.getIntakes") }}',
-            method: 'POST',
-            data: {
-                course_id: $('#elective_course').val(),
-                location: $('#elective_location').val(),
-                _token: '{{ csrf_token() }}'
-            },
-            success: function(response) {
-                if (response.success) {
-                    $('#elective_intake').empty().append('<option selected disabled value="">Select an Intake</option>');
-                    response.data.forEach(function(intake) {
-                        $('#elective_intake').append(`<option value="${intake.intake_id}">${intake.intake_name}</option>`);
-                    });
-                    $('#elective_intake').prop('disabled', false);
-                } else {
-                    showToast('❌ ' + response.message, 'error');
-                }
-            },
-            error: function() {
-                showToast('❌ Error loading intakes. Please try again.', 'error');
-            }
-        });
-    }
-
-    function loadOngoingSemesters() {
-        $.ajax({
-            url: '{{ route("module.management.getOngoingSemesters") }}',
-            method: 'POST',
-            data: {
-                course_id: $('#elective_course').val(),
-                intake_id: $('#elective_intake').val(),
-                location: $('#elective_location').val(),
-                _token: '{{ csrf_token() }}'
-            },
-            success: function(response) {
-                if (response.success) {
-                    $('#elective_semester').empty().append('<option selected disabled value="">Select an ongoing semester</option>');
-                    response.data.forEach(function(semester) {
-                        let electiveModulesText = '';
-                        if (semester.elective_modules && semester.elective_modules.length > 0) {
-                            electiveModulesText = ' - Elective Modules: ' + semester.elective_modules.map(m => m.module_name).join(', ');
-                        }
-                        let statusText = semester.status === 'active' ? ' (Active)' : ' (Upcoming)';
-                        $('#elective_semester').append(`<option value="${semester.id}">${semester.name}${statusText}${electiveModulesText}</option>`);
-                    });
-                    $('#elective_semester').prop('disabled', false);
-                } else {
-                    showToast('❌ ' + response.message, 'error');
-                }
-            },
-            error: function() {
-                showToast('❌ Error loading ongoing semesters. Please try again.', 'error');
-            }
-        });
-    }
-
-    function loadElectiveModulesForSemester() {
-        $.ajax({
-            url: '{{ route("module.management.getElectiveModules") }}',
-            method: 'POST',
-            data: {
-                semester_id: $('#elective_semester').val(),
-                course_id: $('#elective_course').val(),
-                specialization: $('#elective_specialization').val(),
-                _token: '{{ csrf_token() }}'
-            },
-            success: function(response) {
-                if (response.success) {
-                    const $specialization = $('#elective_specialization');
-                    if (!$specialization.val()) {
-                        let options = '<option selected disabled value="">Select Specialization</option>';
-                        if (response.common_available) options += '<option value="Common">Common</option>';
-                        (response.available_specializations || []).forEach(function(spec) {
-                            options += `<option value="${spec}">${spec}</option>`;
-                        });
-                        $specialization.html(options);
-                        if (response.common_available || (response.available_specializations || []).length) {
-                            $('#elective_specialization_row').show();
-                            if (response.common_available && !(response.available_specializations || []).length) {
-                                $specialization.val('Common').trigger('change');
-                            }
-                            return;
-                        }
-                    }
-                    $('#elective_module').empty().append('<option selected disabled value="">Select a module</option>');
-                    response.data.forEach(function(module) {
-                        $('#elective_module').append(`<option value="${module.module_id}">${module.module_name}</option>`);
-                    });
-                    $('#elective_module').prop('disabled', false);
-                } else {
-                    showToast('❌ ' + response.message, 'error');
-                }
-            },
-            error: function() {
-                showToast('❌ Error loading elective modules. Please try again.', 'error');
-            }
-        });
-    }
-
-    function loadModules() {
-        $.ajax({
-            url: '{{ route("module.management.getModules") }}',
-            method: 'POST',
-            data: {
-                course_id: $('#elective_course').val(),
-                _token: '{{ csrf_token() }}'
-            },
-            success: function(response) {
-                if (response.success) {
-                    $('#elective_module').empty().append('<option selected disabled value="">Select a module</option>');
-                    // Filter to show only elective modules
-                    const electiveModules = response.data.filter(module => module.module_type === 'elective');
-                    electiveModules.forEach(function(module) {
-                        $('#elective_module').append(`<option value="${module.module_id}">${module.module_name}</option>`);
-                    });
-                    $('#elective_module').prop('disabled', false);
-                } else {
-                    showToast('❌ ' + response.message, 'error');
-                }
-            },
-            error: function() {
-                showToast('❌ Error loading modules. Please try again.', 'error');
-            }
-        });
-    }
-
-    function loadElectiveStudents() {
-        console.log('loadElectiveStudents called with data:', {
-            course_id: $('#elective_course').val(),
-            intake_id: $('#elective_intake').val(),
-            semester_id: $('#elective_semester').val(),
-            location: $('#elective_location').val(),
-            specialization: $('#elective_specialization_hidden').val()
-        });
-        
-        $.ajax({
-            url: '{{ route("module.management.getElectiveStudents") }}',
-            method: 'POST',
-            data: {
-                course_id: $('#elective_course').val(),
-                intake_id: $('#elective_intake').val(),
-                semester_id: $('#elective_semester').val(),
-                location: $('#elective_location').val(),
-                specialization: $('#elective_specialization_hidden').val(),
-                _token: '{{ csrf_token() }}'
-            },
-            success: function(response) {
-                console.log('loadElectiveStudents response:', response);
-                if (response.success) {
-                    console.log('Students found:', response.students.length);
-                    let rows = '';
-                    response.students.forEach(student => {
-                        const courseRegistrationId = student.course_registration_id || '-';
-                        rows += `<tr>
-                            <td>${courseRegistrationId}</td>
-                            <td>${student.name}</td>
-                            <td>${student.specialization || ''}</td>
-                            <td>${student.email}</td>
-                            <td>${student.nic}</td>
-                            <td><input type="checkbox" name="register_students[]" value="${student.student_id}"></td>
-                        </tr>`;
-                    });
-                    $('#electiveStudentsTable').html(rows);
-                    console.log('Student table updated with', response.students.length, 'students');
-                } else {
-                    console.log('Error in response:', response.message);
-                    showToast('❌ ' + response.message, 'error');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.log('loadElectiveStudents error:', {xhr, status, error});
-                showToast('❌ Error loading students. Please try again.', 'error');
-            }
-        });
-    }
-    
-    // Check if all fields are already selected when page loads
-    $(document).ready(function() {
-        console.log('Document ready, checking if all fields are selected...');
-        if (allFieldsSelected()) {
-            console.log('All fields already selected on page load, loading students...');
-            loadElectiveStudents();
-            $('#electiveRegistrationSection').show();
+    studentsBody.addEventListener('change', function (event) {
+        if (!event.target.classList.contains('student-check') || event.target.disabled) {
+            return;
         }
+        if (event.target.checked) {
+            checkedIds.add(String(event.target.value));
+        } else {
+            checkedIds.delete(String(event.target.value));
+        }
+        syncSelectAll();
     });
+
+    document.getElementById('electiveRegistrationForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const selectedStudents = Array.from(checkedIds);
+        if (!selectedStudents.length) {
+            showToast('Please select at least one student to register.', 'warning');
+            return;
+        }
+        syncHiddenFields();
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Registering...';
+
+        const formData = new FormData(this);
+        selectedStudents.forEach(function (id) {
+            formData.append('register_students[]', id);
+        });
+
+        fetch(this.action, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: formData
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    showToast(data.message || 'Registered successfully.', 'success');
+                    loadStudents().catch(function () {});
+                } else {
+                    showToast(data.message || 'Registration failed.', 'error');
+                }
+            })
+            .catch(function () {
+                showToast('An error occurred while registering elective modules.', 'error');
+            })
+            .finally(function () {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
+    });
+
+    resetSelect(courseSelect, 'Select a course');
 });
 </script>
 @endpush

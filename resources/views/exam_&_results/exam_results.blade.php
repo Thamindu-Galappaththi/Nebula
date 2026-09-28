@@ -3,20 +3,21 @@
 @section('title', 'NEBULA | Exam Results')
 
 @section('content')
-<div class="container-fluid">
-    <div class="card">
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
+<div class="container-fluid exam-results-page px-2 px-md-3 mt-3 mb-5">
+    <div class="card border-0 shadow-sm">
         <div class="card-body">
             <h2 class="text-center mb-4">Exam Result Management</h2>
             <hr>
 
-            <!-- Spinner and Toast containers -->
-            <div id="spinner-overlay" style="display:none;"><div class="lds-ring"><div></div><div></div><div></div><div></div></div></div>
-            <div id="toastContainer" aria-live="polite" aria-atomic="true" style="position: fixed; top: 10px; right: 10px; z-index: 1000;"></div>
+            <div id="spinner-overlay" class="exam-results-spinner" hidden>
+                <div class="lds-ring" aria-hidden="true"><div></div><div></div><div></div><div></div></div>
+                <p class="text-white mt-3 mb-0 small">Please wait…</p>
+            </div>
 
-            <!-- Tabs -->
-            <ul class="nav nav-tabs mb-4" id="examResultsTabs" role="tablist">
+            <ul class="nav nav-tabs exam-results-tabs mb-4" id="examResultsTabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="degree-tab" data-bs-toggle="tab" data-bs-target="#degree-panel" type="button" role="tab">Degree & Diploma</button>
+                    <button class="nav-link active" id="degree-tab" data-bs-toggle="tab" data-bs-target="#degree-panel" type="button" role="tab">Degree &amp; Diploma</button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="certificate-tab" data-bs-toggle="tab" data-bs-target="#certificate-panel" type="button" role="tab">Certificate</button>
@@ -26,10 +27,10 @@
             <div class="tab-content" id="examResultsTabContent">
                 <!-- Degree & Diploma Tab -->
                 <div class="tab-pane fade show active" id="degree-panel" role="tabpanel">
-                    <div id="exam-filters-bootstrap-degree" class="mb-4">
-                        <div class="mb-3 row mx-3">
-                            <label for="degree_location" class="col-sm-2 col-form-label">Location <span class="text-danger">*</span></label>
-                            <div class="col-sm-10">
+                    <div id="exam-filters-bootstrap-degree" class="exam-results-filters mb-4">
+                        <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                            <label for="degree_location" class="col-12 col-md-3 col-lg-2 col-form-label">Location <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-9 col-lg-10">
                                 <select class="form-select degree-filter" id="degree_location" name="location" required>
                                     <option value="" selected disabled>Select a Location</option>
                                     <option value="Welisara">Nebula Institute of Technology - Welisara</option>
@@ -38,9 +39,9 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="mb-3 row mx-3">
-                            <label for="degree_course_type" class="col-sm-2 col-form-label">Course Type <span class="text-danger">*</span></label>
-                            <div class="col-sm-10">
+                        <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                            <label for="degree_course_type" class="col-12 col-md-3 col-lg-2 col-form-label">Course Type <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-9 col-lg-10">
                                 <select class="form-select degree-filter" id="degree_course_type" name="course_type" required>
                                     <option value="" selected disabled>Select a Course Type</option>
                                     <option value="degree">Degree Program</option>
@@ -49,41 +50,41 @@
                             </div>
                         </div>
                         <div id="degree-fields-container">
-                            <div class="mb-3 row mx-3">
-                                <label for="degree_course" class="col-sm-2 col-form-label">Course <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                                <label for="degree_course" class="col-12 col-md-3 col-lg-2 col-form-label">Course <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9 col-lg-10">
                                     <select class="form-select degree-filter" id="degree_course" name="course_id" required>
                                         <option selected disabled value="">Select a Course</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3">
-                                <label for="degree_intake" class="col-sm-2 col-form-label">Intake <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                                <label for="degree_intake" class="col-12 col-md-3 col-lg-2 col-form-label">Intake <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9 col-lg-10">
                                     <select class="form-select degree-filter" id="degree_intake" name="intake_id" required>
                                         <option selected disabled value="">Select an Intake</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3" id="degree_specialization_row" style="display:none;">
-                                <label for="degree_specialization" class="col-sm-2 col-form-label">Specialization <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="row g-2 g-md-3 align-items-md-center mb-3" id="degree_specialization_row" hidden>
+                                <label for="degree_specialization" class="col-12 col-md-3 col-lg-2 col-form-label">Specialization</label>
+                                <div class="col-12 col-md-9 col-lg-10">
                                     <select class="form-select degree-filter" id="degree_specialization" name="specialization" disabled>
                                         <option selected disabled value="">Select a Specialization</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3">
-                                <label for="degree_semester" class="col-sm-2 col-form-label">Semester <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                                <label for="degree_semester" class="col-12 col-md-3 col-lg-2 col-form-label">Semester <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9 col-lg-10">
                                     <select class="form-select degree-filter" id="degree_semester" name="semester" required>
                                         <option selected disabled value="">Select a Semester</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3">
-                                <label for="degree_module" class="col-sm-2 col-form-label">Module <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                                <label for="degree_module" class="col-12 col-md-3 col-lg-2 col-form-label">Module <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9 col-lg-10">
                                     <select class="form-select degree-filter" id="degree_module" name="module_id" required>
                                         <option selected disabled value="">Select a Module</option>
                                     </select>
@@ -95,8 +96,8 @@
                     <hr class="my-4">
 
                     <!-- Degree Bulk Upload Section -->
-                    <div class="card mb-4" id="degreeBulkUploadSection" style="display:none;">
-                        <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="card mb-4" id="degreeBulkUploadSection" hidden>
+                        <div class="card-header exam-results-section-header">
                             <h6 class="mb-0">
                                 <i class="ti ti-upload me-2"></i>Bulk Upload Exam Results
                             </h6>
@@ -105,48 +106,43 @@
                             </button>
                         </div>
                         <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-md-8">
-                                    <input type="file" class="form-control" id="degreeBulkUploadFile" accept=".csv,.xlsx,.xls">
-                                    <small class="text-muted">Select a CSV file with exam results data. Maximum file size: 10MB</small>
-                                </div>
-                                <div class="col-md-4">
-                                    <button type="button" class="btn btn-success w-100" id="degreeUploadResultsBtn">
-                                        <i class="ti ti-upload me-1"></i>Upload Results
-                                    </button>
-                                </div>
+                            <div class="exam-results-upload-row">
+                                <input type="file" class="form-control" id="degreeBulkUploadFile" accept=".csv,.xlsx,.xls">
+                                <button type="button" class="btn btn-success exam-results-upload-btn" id="degreeUploadResultsBtn">
+                                    <i class="ti ti-upload me-1"></i>Upload Results
+                                </button>
                             </div>
+                            <small class="text-muted d-block mt-2">Select a CSV file with exam results data. Maximum file size: 10MB</small>
                         </div>
                     </div>
 
                     <!-- Degree Results Table -->
-                    <div class="mt-4" id="degreeResultsTableSection" style="display:none;">
-                        <h4 id="degreeResultsTableHeader" class="text-center mb-3" style="display: none;"></h4>
+                    <div class="mt-4" id="degreeResultsTableSection" hidden>
+                        <h4 id="degreeResultsTableHeader" class="text-center mb-3 exam-results-table-title" hidden></h4>
 
-                        <!-- Results Status Alert -->
-                        <div id="degreeResultsStatusAlert" class="alert alert-info mb-3" style="display: none;">
+                        <div id="degreeResultsStatusAlert" class="alert alert-info mb-3" hidden>
                             <i class="ti ti-info-circle"></i>
                             <strong>Exam Results Status:</strong>
                             <span id="degreeResultsStatusText"></span>
                         </div>
 
-                        <!-- Add New Student Section -->
                         <div class="card mb-3">
                             <div class="card-header">
                                 <h6 class="mb-0">Add New Student</h6>
                             </div>
                             <div class="card-body">
-                                <div class="row align-items-center">
-                                    <div class="col-md-4">
-                                        <label for="degree_new_student_id" class="form-label">Registration Number</label>
-                                        <input type="text" class="form-control" id="degree_new_student_id" placeholder="Enter Registration Number">
+                                <div class="row g-3 align-items-start">
+                                    <div class="col-12 col-md-4">
+                                        <label for="degree_new_student_id" class="form-label">Student ID / NIC</label>
+                                        <input type="text" class="form-control" id="degree_new_student_id" placeholder="Enter Student ID or NIC">
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-12 col-md-4">
                                         <label for="degree_new_student_name" class="form-label">Student Name</label>
                                         <input type="text" class="form-control" id="degree_new_student_name" placeholder="Student Name" readonly>
                                     </div>
-                                    <div class="col-md-4 d-flex align-items-end">
-                                        <button type="button" class="btn btn-success" id="degreeAddStudentBtn">
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                                        <button type="button" class="btn btn-success w-100" id="degreeAddStudentBtn">
                                             <i class="ti ti-plus"></i> Add Student
                                         </button>
                                     </div>
@@ -154,8 +150,7 @@
                             </div>
                         </div>
 
-                        <!-- Column Management Buttons -->
-                        <div class="mb-3 d-flex gap-2 justify-content-center">
+                        <div class="mb-3 exam-results-column-actions">
                             <button type="button" class="btn btn-outline-primary" id="degreeAddMarksColumnBtn">
                                 <i class="ti ti-plus"></i> Add Marks Column
                             </button>
@@ -165,18 +160,18 @@
                             <button type="button" class="btn btn-outline-info" id="degreeAddRemarksColumnBtn">
                                 <i class="ti ti-plus"></i> Add Remarks Column
                             </button>
-                            <button type="button" class="btn btn-outline-danger" id="degreeRemoveMarksColumnBtn" style="display: none;">
+                            <button type="button" class="btn btn-outline-danger" id="degreeRemoveMarksColumnBtn" hidden>
                                 <i class="ti ti-minus"></i> Remove Marks Column
                             </button>
-                            <button type="button" class="btn btn-outline-danger" id="degreeRemoveGradeColumnBtn" style="display: none;">
+                            <button type="button" class="btn btn-outline-danger" id="degreeRemoveGradeColumnBtn" hidden>
                                 <i class="ti ti-minus"></i> Remove Grade Column
                             </button>
-                            <button type="button" class="btn btn-outline-danger" id="degreeRemoveRemarksColumnBtn" style="display: none;">
+                            <button type="button" class="btn btn-outline-danger" id="degreeRemoveRemarksColumnBtn" hidden>
                                 <i class="ti ti-minus"></i> Remove Remarks Column
                             </button>
                         </div>
 
-                        <div class="table-responsive">
+                        <div class="exam-results-table-scroll">
                             <table class="table table-bordered" id="degreeResultsTable">
                                 <thead class="table-light">
                                     <tr>
@@ -185,24 +180,22 @@
                                     </tr>
                                 </thead>
                                 <tbody id="degreeResultsTableBody">
-                                    <!-- Rows will be added here dynamically -->
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- Degree Submit Button -->
-                    <div class="text-center mt-4" id="degreeSaveAllBtnSection" style="display:none;">
-                        <button type="button" id="degreeSaveAllBtn" class="btn btn-primary w-100 py-2">Save All Results</button>
+                    <div class="text-center mt-4" id="degreeSaveAllBtnSection" hidden>
+                        <button type="button" id="degreeSaveAllBtn" class="btn btn-primary exam-results-save-btn py-2">Save All Results</button>
                     </div>
                 </div>
 
                 <!-- Certificate Tab -->
                 <div class="tab-pane fade" id="certificate-panel" role="tabpanel">
-                    <div id="exam-filters-bootstrap-cert" class="mb-4">
-                        <div class="mb-3 row mx-3">
-                            <label for="cert_location" class="col-sm-2 col-form-label">Location <span class="text-danger">*</span></label>
-                            <div class="col-sm-10">
+                    <div id="exam-filters-bootstrap-cert" class="exam-results-filters mb-4">
+                        <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                            <label for="cert_location" class="col-12 col-md-3 col-lg-2 col-form-label">Location <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-9 col-lg-10">
                                 <select class="form-select cert-filter" id="cert_location" name="location" required>
                                     <option value="" selected disabled>Select a Location</option>
                                     <option value="Welisara">Nebula Institute of Technology - Welisara</option>
@@ -212,17 +205,17 @@
                             </div>
                         </div>
                         <div id="cert-fields-container">
-                            <div class="mb-3 row mx-3">
-                                <label for="cert_course" class="col-sm-2 col-form-label">Course <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                                <label for="cert_course" class="col-12 col-md-3 col-lg-2 col-form-label">Course <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9 col-lg-10">
                                     <select class="form-select cert-filter" id="cert_course" name="course_id" required>
                                         <option selected disabled value="">Select a Course</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="mb-3 row mx-3">
-                                <label for="cert_intake" class="col-sm-2 col-form-label">Intake <span class="text-danger">*</span></label>
-                                <div class="col-sm-10">
+                            <div class="row g-2 g-md-3 align-items-md-center mb-3">
+                                <label for="cert_intake" class="col-12 col-md-3 col-lg-2 col-form-label">Intake <span class="text-danger">*</span></label>
+                                <div class="col-12 col-md-9 col-lg-10">
                                     <select class="form-select cert-filter" id="cert_intake" name="intake_id" required>
                                         <option selected disabled value="">Select an Intake</option>
                                     </select>
@@ -234,112 +227,104 @@
                     <hr class="my-4">
 
                     <!-- Certificate Bulk Upload Section -->
-                    <div class="card mb-4" id="certBulkUploadSection" style="display:none;">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">
-                        <i class="ti ti-upload me-2"></i>Bulk Upload Exam Results
-                    </h6>
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="certDownloadTemplateBtn">
-                        <i class="ti ti-download me-1"></i>Download Template
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <input type="file" class="form-control" id="certBulkUploadFile" accept=".csv,.xlsx,.xls">
-                            <small class="text-muted">Select a CSV file with exam results data. Maximum file size: 10MB</small>
-                        </div>
-                        <div class="col-md-4">
-                            <button type="button" class="btn btn-success w-100" id="certUploadResultsBtn">
-                                <i class="ti ti-upload me-1"></i>Upload Results
+                    <div class="card mb-4" id="certBulkUploadSection" hidden>
+                        <div class="card-header exam-results-section-header">
+                            <h6 class="mb-0">
+                                <i class="ti ti-upload me-2"></i>Bulk Upload Exam Results
+                            </h6>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="certDownloadTemplateBtn">
+                                <i class="ti ti-download me-1"></i>Download Template
                             </button>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Certificate Results Table -->
-            <div class="mt-4" id="certResultsTableSection" style="display:none;">
-                <h4 id="certResultsTableHeader" class="text-center mb-3" style="display: none;"></h4>
-
-                <!-- Results Status Alert -->
-                <div id="certResultsStatusAlert" class="alert alert-info mb-3" style="display: none;">
-                    <i class="ti ti-info-circle"></i>
-                    <strong>Exam Results Status:</strong>
-                    <span id="certResultsStatusText"></span>
-                </div>
-
-                <!-- Add New Student Section -->
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h6 class="mb-0">Add New Student</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col-md-4">
-                                <label for="cert_new_student_id" class="form-label">Registration Number</label>
-                                <input type="text" class="form-control" id="cert_new_student_id" placeholder="Enter Registration Number">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="cert_new_student_name" class="form-label">Student Name</label>
-                                <input type="text" class="form-control" id="cert_new_student_name" placeholder="Student Name" readonly>
-                            </div>
-                            <div class="col-md-4 d-flex align-items-end">
-                                <button type="button" class="btn btn-success" id="certAddStudentBtn">
-                                    <i class="ti ti-plus"></i> Add Student
+                        <div class="card-body">
+                            <div class="exam-results-upload-row">
+                                <input type="file" class="form-control" id="certBulkUploadFile" accept=".csv,.xlsx,.xls">
+                                <button type="button" class="btn btn-success exam-results-upload-btn" id="certUploadResultsBtn">
+                                    <i class="ti ti-upload me-1"></i>Upload Results
                                 </button>
                             </div>
+                            <small class="text-muted d-block mt-2">Select a CSV file with exam results data. Maximum file size: 10MB</small>
                         </div>
                     </div>
-                </div>
 
-                <!-- Column Management Buttons -->
-                <div class="mb-3 d-flex gap-2 justify-content-center">
-                    <button type="button" class="btn btn-outline-primary" id="certAddMarksColumnBtn">
-                        <i class="ti ti-plus"></i> Add Marks Column
-                    </button>
-                    <button type="button" class="btn btn-outline-success" id="certAddGradeColumnBtn">
-                        <i class="ti ti-plus"></i> Add Grade Column
-                    </button>
-                    <button type="button" class="btn btn-outline-info" id="certAddRemarksColumnBtn">
-                        <i class="ti ti-plus"></i> Add Remarks Column
-                    </button>
-                    <button type="button" class="btn btn-outline-danger" id="certRemoveMarksColumnBtn" style="display: none;">
-                        <i class="ti ti-minus"></i> Remove Marks Column
-                    </button>
-                    <button type="button" class="btn btn-outline-danger" id="certRemoveGradeColumnBtn" style="display: none;">
-                        <i class="ti ti-minus"></i> Remove Grade Column
-                    </button>
-                    <button type="button" class="btn btn-outline-danger" id="certRemoveRemarksColumnBtn" style="display: none;">
-                        <i class="ti ti-minus"></i> Remove Remarks Column
-                    </button>
-                </div>
+                    <div class="mt-4" id="certResultsTableSection" hidden>
+                        <h4 id="certResultsTableHeader" class="text-center mb-3 exam-results-table-title" hidden></h4>
 
-                <div class="table-responsive">
-                    <table class="table table-bordered" id="certResultsTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Registration Number</th>
-                                <th>Student Name</th>
-                            </tr>
-                        </thead>
-                        <tbody id="certResultsTableBody">
-                            <!-- Rows will be added here dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                        <div id="certResultsStatusAlert" class="alert alert-info mb-3" hidden>
+                            <i class="ti ti-info-circle"></i>
+                            <strong>Exam Results Status:</strong>
+                            <span id="certResultsStatusText"></span>
+                        </div>
 
-            <!-- Certificate Submit Button -->
-            <div class="text-center mt-4" id="certSaveAllBtnSection" style="display:none;">
-                <button type="button" id="certSaveAllBtn" class="btn btn-primary w-100 py-2">Save All Results</button>
-            </div>
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">Add New Student</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3 align-items-start">
+                                    <div class="col-12 col-md-4">
+                                        <label for="cert_new_student_id" class="form-label">Student ID / NIC</label>
+                                        <input type="text" class="form-control" id="cert_new_student_id" placeholder="Enter Student ID or NIC">
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label for="cert_new_student_name" class="form-label">Student Name</label>
+                                        <input type="text" class="form-control" id="cert_new_student_name" placeholder="Student Name" readonly>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                                        <button type="button" class="btn btn-success w-100" id="certAddStudentBtn">
+                                            <i class="ti ti-plus"></i> Add Student
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 exam-results-column-actions">
+                            <button type="button" class="btn btn-outline-primary" id="certAddMarksColumnBtn">
+                                <i class="ti ti-plus"></i> Add Marks Column
+                            </button>
+                            <button type="button" class="btn btn-outline-success" id="certAddGradeColumnBtn">
+                                <i class="ti ti-plus"></i> Add Grade Column
+                            </button>
+                            <button type="button" class="btn btn-outline-info" id="certAddRemarksColumnBtn">
+                                <i class="ti ti-plus"></i> Add Remarks Column
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="certRemoveMarksColumnBtn" hidden>
+                                <i class="ti ti-minus"></i> Remove Marks Column
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="certRemoveGradeColumnBtn" hidden>
+                                <i class="ti ti-minus"></i> Remove Grade Column
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="certRemoveRemarksColumnBtn" hidden>
+                                <i class="ti ti-minus"></i> Remove Remarks Column
+                            </button>
+                        </div>
+
+                        <div class="exam-results-table-scroll">
+                            <table class="table table-bordered" id="certResultsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Registration Number</th>
+                                        <th>Student Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="certResultsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4" id="certSaveAllBtnSection" hidden>
+                        <button type="button" id="certSaveAllBtn" class="btn btn-primary exam-results-save-btn py-2">Save All Results</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     let degreeResults = [];
@@ -387,23 +372,52 @@ document.addEventListener('DOMContentLoaded', function() {
     const certRemoveGradeColumnBtn = document.getElementById('certRemoveGradeColumnBtn');
     const certRemoveRemarksColumnBtn = document.getElementById('certRemoveRemarksColumnBtn');
 
-    // Tab event listeners to ensure proper section visibility
-    const degreeTabBtn = document.getElementById('degree-tab');
-    const certTabBtn = document.getElementById('certificate-tab');
+    // Tab panes already hide inactive content. Do not force display:none on
+    // the other tab's sections or results disappear after switching back.
 
-    degreeTabBtn.addEventListener('shown.bs.tab', function() {
-        // When switching to degree tab, hide cert sections if they're visible
-        document.getElementById('certBulkUploadSection').style.display = 'none';
-        document.getElementById('certResultsTableSection').style.display = 'none';
-        document.getElementById('certSaveAllBtnSection').style.display = 'none';
-    });
+    function setHidden(el, hidden) {
+        if (!el) return;
+        el.hidden = !!hidden;
+    }
 
-    certTabBtn.addEventListener('shown.bs.tab', function() {
-        // When switching to cert tab, hide degree sections if they're visible
-        document.getElementById('degreeBulkUploadSection').style.display = 'none';
-        document.getElementById('degreeResultsTableSection').style.display = 'none';
-        document.getElementById('degreeSaveAllBtnSection').style.display = 'none';
-    });
+    function columnHeaderId(type) {
+        return getActiveTab() + '-' + type + 'ColumnHeader';
+    }
+
+    function getColumnHeader(type) {
+        return document.getElementById(columnHeaderId(type));
+    }
+
+    function notify(icon, title, text) {
+        if (typeof Swal === 'undefined') {
+            return Promise.resolve();
+        }
+        const isToast = icon === 'success' || icon === 'info';
+        return Swal.fire({
+            icon,
+            title,
+            text,
+            toast: isToast,
+            position: isToast ? 'top-end' : 'center',
+            timer: isToast ? 2500 : undefined,
+            timerProgressBar: isToast,
+            showConfirmButton: !isToast,
+            confirmButtonColor: '#0d6efd',
+        });
+    }
+
+    function showSpinner(show) {
+        const overlay = document.getElementById('spinner-overlay');
+        if (!overlay) return;
+        overlay.hidden = !show;
+    }
+
+    function showToast(title, message, type) {
+        const icon = type === 'bg-danger' || type === 'error' ? 'error'
+            : (type === 'bg-warning' || type === 'warning' ? 'warning'
+            : (type === 'success' || type === '#ccffcc' ? 'success' : 'info'));
+        return notify(icon, title, String(message || '').replace(/<br\s*\/?>/gi, '\n'));
+    }
 
     // Helper functions
     function getActiveTab() {
@@ -456,76 +470,46 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Function to reset table to base structure (only two columns)
     function resetTableStructure() {
         const { resultsTableBody, addMarksColumnBtn, addGradeColumnBtn, addRemarksColumnBtn,
-                removeMarksColumnBtn, removeGradeColumnBtn, removeRemarksColumnBtn, resultsTable } = getTabElements();
+                removeMarksColumnBtn, removeGradeColumnBtn, removeRemarksColumnBtn } = getTabElements();
 
-        // Clear existing data
-        resultsTableBody.innerHTML = '';
+        resultsTableBody.replaceChildren();
 
-        // Remove any existing dynamic columns
-        const existingMarksHeader = document.getElementById('marksColumnHeader');
-        const existingGradeHeader = document.getElementById('gradeColumnHeader');
-        const existingMarksInput = document.getElementById('marksInputCell');
-        const existingGradeInput = document.getElementById('gradeInputCell');
-        const existingRemarksHeader = document.getElementById('remarksHeaderCell');
-        const existingRemarksInput = document.getElementById('remarksInputCell');
+        ['marks', 'grade', 'remarks'].forEach(type => {
+            const header = getColumnHeader(type);
+            if (header) header.remove();
+        });
 
-        if (existingMarksHeader) existingMarksHeader.remove();
-        if (existingGradeHeader) existingGradeHeader.remove();
-        if (existingRemarksHeader) existingRemarksHeader.remove();
-        if (existingMarksInput) existingMarksInput.remove();
-        if (existingGradeInput) existingGradeInput.remove();
-        if (existingRemarksInput) existingRemarksInput.remove();
-
-        // Reset button states
-        addMarksColumnBtn.style.display = 'inline-block';
-        addGradeColumnBtn.style.display = 'inline-block';
-        addRemarksColumnBtn.style.display = 'inline-block';
-        removeMarksColumnBtn.style.display = 'none';
-        removeGradeColumnBtn.style.display = 'none';
-        removeRemarksColumnBtn.style.display = 'none';
+        setHidden(addMarksColumnBtn, false);
+        setHidden(addGradeColumnBtn, false);
+        setHidden(addRemarksColumnBtn, false);
+        setHidden(removeMarksColumnBtn, true);
+        setHidden(removeGradeColumnBtn, true);
+        setHidden(removeRemarksColumnBtn, true);
     }
 
-    // Call reset function on page load
     resetTableStructure();
 
-    // Show Add New Student section by default
-    const addStudentSection = document.querySelector('.card.mb-3');
-    if (addStudentSection) {
-        addStudentSection.style.display = 'block';
-    }
-
-    // Function to ensure table has only two columns
     function ensureTwoColumns() {
         const { resultsTableBody, addMarksColumnBtn, addGradeColumnBtn, addRemarksColumnBtn,
                 removeMarksColumnBtn, removeGradeColumnBtn, removeRemarksColumnBtn, resultsTable } = getTabElements();
 
-        // Clear all existing data rows
-        resultsTableBody.innerHTML = '';
+        resultsTableBody.replaceChildren();
 
-        // Remove any dynamic columns from header
         const tableHeader = resultsTable.querySelector('thead tr');
         if (tableHeader) {
-            const headers = tableHeader.querySelectorAll('th');
-            if (headers.length > 2) {
-                for (let i = 2; i < headers.length; i++) {
-                    headers[i].remove();
-                }
-            }
+            Array.from(tableHeader.querySelectorAll('th')).slice(2).forEach(th => th.remove());
         }
 
-        // Reset button states
-        addMarksColumnBtn.style.display = 'inline-block';
-        addGradeColumnBtn.style.display = 'inline-block';
-        addRemarksColumnBtn.style.display = 'inline-block';
-        removeMarksColumnBtn.style.display = 'none';
-        removeGradeColumnBtn.style.display = 'none';
-        removeRemarksColumnBtn.style.display = 'none';
+        setHidden(addMarksColumnBtn, false);
+        setHidden(addGradeColumnBtn, false);
+        setHidden(addRemarksColumnBtn, false);
+        setHidden(removeMarksColumnBtn, true);
+        setHidden(removeGradeColumnBtn, true);
+        setHidden(removeRemarksColumnBtn, true);
     }
 
-    // Ensure clean two-column structure on page load
     ensureTwoColumns();
 
     // Helper to reset and disable dropdowns
@@ -533,6 +517,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!select) return;
         select.innerHTML = `<option selected disabled value="">${placeholder}</option>`;
         select.disabled = true;
+    }
+
+    function explainEmptyOptions(select, message) {
+        resetAndDisable(select, message);
+        showToast('Info', message, 'info');
+    }
+
+    function optionCount(items, valueKey, textKey) {
+        return (items || []).filter(item => item && item[valueKey] && item[textKey]).length;
     }
 
     function resetSpecialization() {
@@ -543,11 +536,11 @@ document.addEventListener('DOMContentLoaded', function() {
         degreeSpecializationsLoaded = false;
         degreeSpecialization.innerHTML = '<option selected disabled value="">Select a Specialization</option>';
         degreeSpecialization.disabled = true;
-        degreeSpecializationRow.style.display = 'none';
+        setHidden(degreeSpecializationRow, true);
     }
 
     function hasDegreeSpecializationSelection() {
-        return degreeSpecializationsLoaded && (!degreeSpecializationRow || degreeSpecializationRow.style.display === 'none' || !!degreeSpecialization.value);
+        return degreeSpecializationsLoaded;
     }
 
     function fetchDegreeSpecializations() {
@@ -563,16 +556,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 const specializations = data.success && Array.isArray(data.specializations) ? data.specializations.filter(Boolean) : [];
 
                 if (specializations.length > 0) {
-                    degreeSpecialization.innerHTML = '<option selected disabled value="">Select a Specialization</option>';
+                    degreeSpecialization.innerHTML = '';
+                    degreeSpecialization.add(new Option('All', ''));
                     specializations.forEach(spec => {
-                        degreeSpecialization.add(new Option(spec, spec));
+                        const label = String(spec || '').trim();
+                        if (label && label.toLowerCase() !== 'all') {
+                            degreeSpecialization.add(new Option(label, label));
+                        }
                     });
+                    degreeSpecialization.value = '';
                     degreeSpecialization.disabled = false;
-                    degreeSpecializationRow.style.display = '';
+                    setHidden(degreeSpecializationRow, false);
                     degreeSpecializationsLoaded = true;
                 } else {
                     resetSpecialization();
                     degreeSpecializationsLoaded = true;
+                }
+
+                if (allDegreeFilled()) {
+                    fetchDegreeStudentsForResultEntry();
                 }
             })
             .catch(() => {
@@ -635,7 +637,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     degreeModule.addEventListener('change', function() {
         ensureTwoColumns();
-        if (degreeSaveAllBtnSection) degreeSaveAllBtnSection.style.display = 'none';
+        setHidden(degreeSaveAllBtnSection, true);
         if (allDegreeFilled()) {
             fetchDegreeStudentsForResultEntry();
         }
@@ -643,14 +645,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     degreeSpecialization.addEventListener('change', function() {
-        // Re-fetch modules filtered by the newly selected specialization
-        resetAndDisable(degreeModule, 'Select a Module');
+        const previousModuleId = degreeModule.value;
+        ensureTwoColumns();
+        setHidden(degreeSaveAllBtnSection, true);
         if (degreeSemester.value && degreeIntake.value && degreeCourse.value && degreeLocation.value) {
             degreeModule.disabled = false;
-            handleDegreeModuleFetch();
+            handleDegreeModuleFetch(previousModuleId);
+            return;
         }
-        ensureTwoColumns();
-        if (degreeSaveAllBtnSection) degreeSaveAllBtnSection.style.display = 'none';
         updateDegreeResultsHeader();
     });
 
@@ -673,7 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     certIntake.addEventListener('change', function() {
         ensureTwoColumns();
-        if (certSaveAllBtnSection) certSaveAllBtnSection.style.display = 'none';
+        setHidden(certSaveAllBtnSection, true);
         if (allCertFilled()) {
             fetchCertStudentsForResultEntry();
         }
@@ -725,14 +727,15 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`/exam-results/get-intakes/${degreeCourse.value}/${degreeLocation.value}`)
             .then(response => response.json())
             .then(data => {
-                if (data.error) {
-                    resetAndDisable(degreeIntake, 'Select an Intake');
-                } else {
-                    populateDropdown(degreeIntake, data.intakes, 'intake_id', 'batch', 'Intake');
+                const intakes = !data.error && Array.isArray(data.intakes) ? data.intakes : [];
+                if (optionCount(intakes, 'intake_id', 'batch') > 0) {
+                    populateDropdown(degreeIntake, intakes, 'intake_id', 'batch', 'Intake');
                     degreeIntake.disabled = false;
+                    return;
                 }
+                explainEmptyOptions(degreeIntake, 'No intakes are included for this course and location.');
             })
-            .catch(() => resetAndDisable(degreeIntake, 'Select an Intake'))
+            .catch(() => explainEmptyOptions(degreeIntake, 'Unable to load intakes for this course and location.'))
             .finally(() => showSpinner(false));
     }
 
@@ -741,18 +744,19 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`/exam-results/get-semesters?course_id=${encodeURIComponent(courseId)}&intake_id=${encodeURIComponent(intakeId)}`)
             .then(response => response.json())
             .then(data => {
-                if (data.semesters && data.semesters.length > 0) {
-                    populateDropdown(degreeSemester, data.semesters, 'id', 'display_name', 'Semester');
+                const semesters = Array.isArray(data.semesters) ? data.semesters : [];
+                if (optionCount(semesters, 'id', 'display_name') > 0) {
+                    populateDropdown(degreeSemester, semesters, 'id', 'display_name', 'Semester');
                     degreeSemester.disabled = false;
-                } else {
-                    resetAndDisable(degreeSemester, 'Select a Semester');
+                    return;
                 }
+                explainEmptyOptions(degreeSemester, 'No semesters are included for this course and intake.');
             })
-            .catch(() => resetAndDisable(degreeSemester, 'Select a Semester'))
+            .catch(() => explainEmptyOptions(degreeSemester, 'Unable to load semesters for this course and intake.'))
             .finally(() => showSpinner(false));
     }
 
-    function handleDegreeModuleFetch() {
+    function handleDegreeModuleFetch(restoreModuleId) {
         const data = {
             location: degreeLocation.value,
             course_id: degreeCourse.value,
@@ -768,14 +772,24 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            if (data.modules) {
-                populateDropdown(degreeModule, data.modules, 'module_id', 'module_name', 'Module');
+            const modules = Array.isArray(data.modules) ? data.modules : [];
+            if (optionCount(modules, 'module_id', 'module_name') > 0) {
+                populateDropdown(degreeModule, modules, 'module_id', 'module_name', 'Module');
                 degreeModule.disabled = false;
-            } else {
-                resetAndDisable(degreeModule, 'Select a Module');
+                if (restoreModuleId && Array.from(degreeModule.options).some(option => option.value === String(restoreModuleId))) {
+                    degreeModule.value = restoreModuleId;
+                    degreeModule.dispatchEvent(new Event('change', { bubbles: true }));
+                    return;
+                }
+                updateDegreeResultsHeader();
+                return;
             }
+            const context = degreeSpecialization.value
+                ? 'semester and specialization'
+                : 'semester';
+            explainEmptyOptions(degreeModule, `No modules are included for this ${context}.`);
         })
-        .catch(() => resetAndDisable(degreeModule, 'Select a Module'))
+        .catch(() => explainEmptyOptions(degreeModule, 'Unable to load modules for this semester.'))
         .finally(() => showSpinner(false));
     }
 
@@ -801,14 +815,15 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`/exam-results/get-intakes/${certCourse.value}/${certLocation.value}`)
             .then(response => response.json())
             .then(data => {
-                if (data.error) {
-                    resetAndDisable(certIntake, 'Select an Intake');
-                } else {
-                    populateDropdown(certIntake, data.intakes, 'intake_id', 'batch', 'Intake');
+                const intakes = !data.error && Array.isArray(data.intakes) ? data.intakes : [];
+                if (optionCount(intakes, 'intake_id', 'batch') > 0) {
+                    populateDropdown(certIntake, intakes, 'intake_id', 'batch', 'Intake');
                     certIntake.disabled = false;
+                    return;
                 }
+                explainEmptyOptions(certIntake, 'No intakes are included for this certificate course and location.');
             })
-            .catch(() => resetAndDisable(certIntake, 'Select an Intake'))
+            .catch(() => explainEmptyOptions(certIntake, 'Unable to load intakes for this certificate course and location.'))
             .finally(() => showSpinner(false));
     }
 
@@ -817,15 +832,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const courseName = degreeCourse.options[degreeCourse.selectedIndex].text;
         const moduleName = degreeModule.options[degreeModule.selectedIndex].text;
         const semesterName = degreeSemester.options[degreeSemester.selectedIndex].text;
-        degreeResultsTableHeader.innerHTML = `Exam Results for: ${courseName} - ${semesterName} (${moduleName})`;
-        degreeResultsTableHeader.style.display = 'block';
+        degreeResultsTableHeader.textContent = `Exam Results for: ${courseName} - ${semesterName} (${moduleName})`;
+        setHidden(degreeResultsTableHeader, false);
     }
 
     function updateCertResultsHeader() {
         const courseName = certCourse.options[certCourse.selectedIndex].text;
         const intakeName = certIntake.options[certIntake.selectedIndex].text;
-        certResultsTableHeader.innerHTML = `Exam Results for: ${courseName} - ${intakeName}`;
-        certResultsTableHeader.style.display = 'block';
+        certResultsTableHeader.textContent = `Exam Results for: ${courseName} - ${intakeName}`;
+        setHidden(certResultsTableHeader, false);
     }
 
 
@@ -835,12 +850,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const { resultsTable, addMarksColumnBtn, removeMarksColumnBtn } = getTabElements();
         const tableHeader = resultsTable.querySelector('thead tr');
         const marksHeader = document.createElement('th');
-        marksHeader.id = 'marksColumnHeader';
+        marksHeader.id = columnHeaderId('marks');
         marksHeader.textContent = 'Marks';
         tableHeader.appendChild(marksHeader);
 
-        addMarksColumnBtn.style.display = 'none';
-        removeMarksColumnBtn.style.display = 'inline-block';
+        setHidden(addMarksColumnBtn, true);
+        setHidden(removeMarksColumnBtn, false);
 
         updateExistingRows();
     });
@@ -849,34 +864,34 @@ document.addEventListener('DOMContentLoaded', function() {
         const { resultsTable, addMarksColumnBtn, removeMarksColumnBtn } = getTabElements();
         const tableHeader = resultsTable.querySelector('thead tr');
         const marksHeader = document.createElement('th');
-        marksHeader.id = 'marksColumnHeader';
+        marksHeader.id = columnHeaderId('marks');
         marksHeader.textContent = 'Marks';
         tableHeader.appendChild(marksHeader);
 
-        addMarksColumnBtn.style.display = 'none';
-        removeMarksColumnBtn.style.display = 'inline-block';
+        setHidden(addMarksColumnBtn, true);
+        setHidden(removeMarksColumnBtn, false);
 
         updateExistingRows();
     });
 
     degreeRemoveMarksColumnBtn.addEventListener('click', function() {
         const { addMarksColumnBtn, removeMarksColumnBtn } = getTabElements();
-        const marksHeader = document.getElementById('marksColumnHeader');
+        const marksHeader = getColumnHeader('marks');
         if (marksHeader) marksHeader.remove();
 
-        addMarksColumnBtn.style.display = 'inline-block';
-        removeMarksColumnBtn.style.display = 'none';
+        setHidden(addMarksColumnBtn, false);
+        setHidden(removeMarksColumnBtn, true);
 
         updateExistingRows();
     });
 
     certRemoveMarksColumnBtn.addEventListener('click', function() {
         const { addMarksColumnBtn, removeMarksColumnBtn } = getTabElements();
-        const marksHeader = document.getElementById('marksColumnHeader');
+        const marksHeader = getColumnHeader('marks');
         if (marksHeader) marksHeader.remove();
 
-        addMarksColumnBtn.style.display = 'inline-block';
-        removeMarksColumnBtn.style.display = 'none';
+        setHidden(addMarksColumnBtn, false);
+        setHidden(removeMarksColumnBtn, true);
 
         updateExistingRows();
     });
@@ -885,12 +900,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const { resultsTable, addGradeColumnBtn, removeGradeColumnBtn } = getTabElements();
         const tableHeader = resultsTable.querySelector('thead tr');
         const gradeHeader = document.createElement('th');
-        gradeHeader.id = 'gradeColumnHeader';
+        gradeHeader.id = columnHeaderId('grade');
         gradeHeader.textContent = 'Grade';
         tableHeader.appendChild(gradeHeader);
 
-        addGradeColumnBtn.style.display = 'none';
-        removeGradeColumnBtn.style.display = 'inline-block';
+        setHidden(addGradeColumnBtn, true);
+        setHidden(removeGradeColumnBtn, false);
 
         updateExistingRows();
     });
@@ -899,34 +914,34 @@ document.addEventListener('DOMContentLoaded', function() {
         const { resultsTable, addGradeColumnBtn, removeGradeColumnBtn } = getTabElements();
         const tableHeader = resultsTable.querySelector('thead tr');
         const gradeHeader = document.createElement('th');
-        gradeHeader.id = 'gradeColumnHeader';
+        gradeHeader.id = columnHeaderId('grade');
         gradeHeader.textContent = 'Grade';
         tableHeader.appendChild(gradeHeader);
 
-        addGradeColumnBtn.style.display = 'none';
-        removeGradeColumnBtn.style.display = 'inline-block';
+        setHidden(addGradeColumnBtn, true);
+        setHidden(removeGradeColumnBtn, false);
 
         updateExistingRows();
     });
 
     degreeRemoveGradeColumnBtn.addEventListener('click', function() {
         const { addGradeColumnBtn, removeGradeColumnBtn } = getTabElements();
-        const gradeHeader = document.getElementById('gradeColumnHeader');
+        const gradeHeader = getColumnHeader('grade');
         if (gradeHeader) gradeHeader.remove();
 
-        addGradeColumnBtn.style.display = 'inline-block';
-        removeGradeColumnBtn.style.display = 'none';
+        setHidden(addGradeColumnBtn, false);
+        setHidden(removeGradeColumnBtn, true);
 
         updateExistingRows();
     });
 
     certRemoveGradeColumnBtn.addEventListener('click', function() {
         const { addGradeColumnBtn, removeGradeColumnBtn } = getTabElements();
-        const gradeHeader = document.getElementById('gradeColumnHeader');
+        const gradeHeader = getColumnHeader('grade');
         if (gradeHeader) gradeHeader.remove();
 
-        addGradeColumnBtn.style.display = 'inline-block';
-        removeGradeColumnBtn.style.display = 'none';
+        setHidden(addGradeColumnBtn, false);
+        setHidden(removeGradeColumnBtn, true);
 
         updateExistingRows();
     });
@@ -936,12 +951,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const { resultsTable, addRemarksColumnBtn, removeRemarksColumnBtn } = getTabElements();
         const tableHeader = resultsTable.querySelector('thead tr');
         const remarksHeader = document.createElement('th');
-        remarksHeader.id = 'remarksColumnHeader';
+        remarksHeader.id = columnHeaderId('remarks');
         remarksHeader.textContent = 'Remarks';
         tableHeader.appendChild(remarksHeader);
 
-        addRemarksColumnBtn.style.display = 'none';
-        removeRemarksColumnBtn.style.display = 'inline-block';
+        setHidden(addRemarksColumnBtn, true);
+        setHidden(removeRemarksColumnBtn, false);
 
         updateExistingRows();
     });
@@ -950,12 +965,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const { resultsTable, addRemarksColumnBtn, removeRemarksColumnBtn } = getTabElements();
         const tableHeader = resultsTable.querySelector('thead tr');
         const remarksHeader = document.createElement('th');
-        remarksHeader.id = 'remarksColumnHeader';
+        remarksHeader.id = columnHeaderId('remarks');
         remarksHeader.textContent = 'Remarks';
         tableHeader.appendChild(remarksHeader);
 
-        addRemarksColumnBtn.style.display = 'none';
-        removeRemarksColumnBtn.style.display = 'inline-block';
+        setHidden(addRemarksColumnBtn, true);
+        setHidden(removeRemarksColumnBtn, false);
 
         updateExistingRows();
     });
@@ -963,66 +978,124 @@ document.addEventListener('DOMContentLoaded', function() {
     // Remove Remarks Column Event Handler
     degreeRemoveRemarksColumnBtn.addEventListener('click', function() {
         const { addRemarksColumnBtn, removeRemarksColumnBtn } = getTabElements();
-        const remarksHeader = document.getElementById('remarksColumnHeader');
+        const remarksHeader = getColumnHeader('remarks');
         if (remarksHeader) remarksHeader.remove();
 
-        addRemarksColumnBtn.style.display = 'inline-block';
-        removeRemarksColumnBtn.style.display = 'none';
+        setHidden(addRemarksColumnBtn, false);
+        setHidden(removeRemarksColumnBtn, true);
 
         updateExistingRows();
     });
 
     certRemoveRemarksColumnBtn.addEventListener('click', function() {
         const { addRemarksColumnBtn, removeRemarksColumnBtn } = getTabElements();
-        const remarksHeader = document.getElementById('remarksColumnHeader');
+        const remarksHeader = getColumnHeader('remarks');
         if (remarksHeader) remarksHeader.remove();
 
-        addRemarksColumnBtn.style.display = 'inline-block';
-        removeRemarksColumnBtn.style.display = 'none';
+        setHidden(addRemarksColumnBtn, false);
+        setHidden(removeRemarksColumnBtn, true);
 
         updateExistingRows();
     });
 
     // Function to update existing rows when columns are added/removed
+    function appendInputCell(row, className, input, onChange) {
+        const cell = document.createElement('td');
+        cell.className = className;
+        input.className = 'form-control';
+        input.addEventListener('change', function () {
+            onChange(this.value);
+        });
+        cell.appendChild(input);
+        row.appendChild(cell);
+    }
+
+    function appendResultRow(tbody, result, index) {
+        const row = document.createElement('tr');
+        const idCell = document.createElement('td');
+        idCell.textContent = result.registration_id || '';
+        const nameCell = document.createElement('td');
+        nameCell.textContent = result.name || '';
+        row.appendChild(idCell);
+        row.appendChild(nameCell);
+
+        if (getColumnHeader('marks')) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.max = '100';
+            input.step = '0.01';
+            input.placeholder = 'Marks';
+            input.value = result.marks ?? '';
+            appendInputCell(row, 'marks-cell', input, value => updateResultMark(index, value));
+        }
+
+        if (getColumnHeader('grade')) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.maxLength = 5;
+            input.placeholder = 'Grade';
+            input.value = result.grade ?? '';
+            appendInputCell(row, 'grade-cell', input, value => updateResultGrade(index, value));
+        }
+
+        if (getColumnHeader('remarks')) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.maxLength = 255;
+            input.placeholder = 'Remarks';
+            input.value = result.remarks ?? '';
+            appendInputCell(row, 'remarks-cell', input, value => updateResultRemarks(index, value));
+        }
+
+        tbody.appendChild(row);
+    }
+
     function updateExistingRows() {
         const { resultsTableBody } = getTabElements();
-        const rows = resultsTableBody.querySelectorAll('tr');
-        rows.forEach((row, rowIndex) => {
-            // Remove any extra cells beyond the first two
-            const cells = row.querySelectorAll('td');
-            if (cells.length > 2) {
-                for (let i = 2; i < cells.length; i++) {
-                    cells[i].remove();
-                }
-            }
+        const results = getCurrentResults();
+        resultsTableBody.replaceChildren();
+        if (!results.length) {
+            const empty = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 2;
+            cell.className = 'text-center';
+            cell.textContent = 'No students found for these filters.';
+            empty.appendChild(cell);
+            resultsTableBody.appendChild(empty);
+            return;
+        }
+        results.forEach((result, index) => appendResultRow(resultsTableBody, result, index));
+    }
 
-            // Add Marks column if it exists
-            const marksVisible = document.getElementById('marksColumnHeader') !== null;
-            if (marksVisible) {
-                const marksCell = document.createElement('td');
-                marksCell.className = 'marks-cell';
-                marksCell.innerHTML = `<input type="number" class="form-control" min="0" max="100" step="0.01" placeholder="Marks" onchange="updateResultMark(${rowIndex}, this.value)">`;
-                row.appendChild(marksCell);
-            }
+    function renderTable() {
+        updateExistingRows();
+    }
 
-            // Add Grade column if it exists
-            const gradeVisible = document.getElementById('gradeColumnHeader') !== null;
-            if (gradeVisible) {
-                const gradeCell = document.createElement('td');
-                gradeCell.className = 'grade-cell';
-                gradeCell.innerHTML = `<input type="text" class="form-control" maxlength="5" placeholder="Grade" onchange="updateResultGrade(${rowIndex}, this.value)">`;
-                row.appendChild(gradeCell);
-            }
+    function renderEditableResultsTable(students) {
+        const results = students.map(s => ({
+            registration_id: s.registration_id || s.registration_number || s.student_id,
+            student_id: s.student_id,
+            name: s.name || s.name_with_initials,
+            marks: s.marks || '',
+            grade: s.grade || '',
+            remarks: s.remarks || ''
+        }));
+        setCurrentResults(results);
+        updateExistingRows();
+    }
 
-            // Add Remarks column if it exists
-            const remarksVisible = document.getElementById('remarksColumnHeader') !== null;
-            if (remarksVisible) {
-                const remarksCell = document.createElement('td');
-                remarksCell.className = 'remarks-cell';
-                remarksCell.innerHTML = `<input type="text" class="form-control" maxlength="255" placeholder="Remarks" data-field="remarks" onchange="updateResultRemarks(${rowIndex}, this.value)">`;
-                row.appendChild(remarksCell);
-            }
-        });
+    function setResultsStatus(prefix, exists) {
+        const alertEl = document.getElementById(prefix + 'ResultsStatusAlert');
+        const textEl = document.getElementById(prefix + 'ResultsStatusText');
+        if (!alertEl || !textEl) return;
+        if (exists) {
+            textEl.textContent = ' Results already exist for this selection. Saving will update existing records.';
+            setHidden(alertEl, false);
+        } else {
+            textEl.textContent = ' No saved results yet for this selection.';
+            setHidden(alertEl, false);
+        }
     }
 
 
@@ -1036,6 +1109,105 @@ document.addEventListener('DOMContentLoaded', function() {
     certAddStudentBtn.addEventListener('click', handleAddStudent);
     degreeSaveAllBtn.addEventListener('click', handleSaveAll);
     certSaveAllBtn.addEventListener('click', handleSaveAll);
+
+    let studentLookupTimer = null;
+    let studentLookupAbort = null;
+
+    function getStudentLookupFields() {
+        const activeTab = getActiveTab();
+        return {
+            idInput: document.getElementById(activeTab === 'degree' ? 'degree_new_student_id' : 'cert_new_student_id'),
+            nameInput: document.getElementById(activeTab === 'degree' ? 'degree_new_student_name' : 'cert_new_student_name')
+        };
+    }
+
+    function lookupExamStudent(studentId, { fillName = true, signal = null } = {}) {
+        const { nameInput } = getStudentLookupFields();
+        const lookup = String(studentId || '').trim();
+        if (!lookup) {
+            if (fillName && nameInput) {
+                nameInput.value = '';
+            }
+            return Promise.resolve(null);
+        }
+
+        const context = getAddStudentContext();
+        const request = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                student_id: lookup,
+                course_id: context.course_id,
+                intake_id: context.intake_id,
+                location: context.location
+            })
+        };
+        if (signal) {
+            request.signal = signal;
+        }
+
+        return fetch('{{ route("get.student.name") }}', request)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.success) {
+                if (fillName && nameInput) {
+                    nameInput.value = data.name || '';
+                }
+                return data;
+            }
+            if (fillName && nameInput) {
+                nameInput.value = '';
+            }
+            return data || { success: false };
+        })
+        .catch(error => {
+            if (error.name === 'AbortError') {
+                return null;
+            }
+            if (fillName && nameInput) {
+                nameInput.value = '';
+            }
+            return { success: false };
+        });
+    }
+
+    function scheduleStudentNameLookup(value) {
+        clearTimeout(studentLookupTimer);
+        const lookup = String(value || '').trim();
+        if (!lookup) {
+            lookupExamStudent('');
+            return;
+        }
+        studentLookupTimer = setTimeout(function () {
+            if (studentLookupAbort) {
+                studentLookupAbort.abort();
+            }
+            studentLookupAbort = new AbortController();
+            lookupExamStudent(lookup, { fillName: true, signal: studentLookupAbort.signal });
+        }, 300);
+    }
+
+    ['degree_new_student_id', 'cert_new_student_id'].forEach(function (fieldId) {
+        const input = document.getElementById(fieldId);
+        if (!input) {
+            return;
+        }
+        input.addEventListener('input', function () {
+            scheduleStudentNameLookup(this.value);
+        });
+        input.addEventListener('blur', function () {
+            clearTimeout(studentLookupTimer);
+            if (studentLookupAbort) {
+                studentLookupAbort.abort();
+            }
+            studentLookupAbort = new AbortController();
+            lookupExamStudent(this.value.trim(), { fillName: true, signal: studentLookupAbort.signal });
+        });
+    });
 
     // Bulk upload elements
     const degreeDownloadTemplateBtn = document.getElementById('degreeDownloadTemplateBtn');
@@ -1055,39 +1227,46 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleAddStudent() {
         const activeTab = getActiveTab();
         const studentIdField = activeTab === 'degree' ? 'degree_new_student_id' : 'cert_new_student_id';
-        const studentNameField = activeTab === 'degree' ? 'degree_new_student_name' : 'cert_new_student_name';
-
         const studentId = document.getElementById(studentIdField).value.trim();
         const results = getCurrentResults();
 
         // Validate required fields
         if (!studentId) {
-            showToast('Warning', 'Please enter Student ID.', 'bg-warning');
+            showToast('Warning', 'Please enter Student ID or NIC.', 'warning');
             return;
         }
 
-        if (results.some(r => r.student_id === studentId)) {
-            showToast('Warning', 'This student has already been added.', 'bg-warning');
+        if (results.some(r => String(r.student_id) === studentId || String(r.registration_id) === studentId)) {
+            showToast('Warning', 'This student has already been added.', 'warning');
             return;
         }
 
+        clearTimeout(studentLookupTimer);
+        if (studentLookupAbort) {
+            studentLookupAbort.abort();
+        }
         showSpinner(true);
-        fetch('{{ route("get.student.name") }}', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-            body: JSON.stringify({ student_id: studentId })
-        })
-        .then(response => response.json())
+        lookupExamStudent(studentId, { fillName: true })
         .then(data => {
+            if (!data) {
+                return;
+            }
             if (data.success) {
                 const results = getCurrentResults();
-                const studentData = { student_id: studentId, name: data.name };
+                const resolvedId = data.student_id || studentId;
+                if (results.some(r => String(r.student_id) === String(resolvedId))) {
+                    showToast('Warning', 'This student has already been added.', 'warning');
+                    return;
+                }
+                const studentData = {
+                    student_id: resolvedId,
+                    registration_id: data.registration_id || '',
+                    name: data.name
+                };
                 results.push(studentData);
                 setCurrentResults(results);
                 renderTable();
                 clearInputFields();
-                // Update the student name field
-                document.getElementById(studentNameField).value = data.name;
             } else {
                 showToast('Error', data.message || 'Could not find student.', 'bg-danger');
             }
@@ -1135,14 +1314,10 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(async response => {
             const data = await response.json().catch(() => null);
 
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
-            console.log('Response data:', data);
-
             if (!response.ok) {
                 let errorMsg = data?.message || `HTTP error! status: ${response.status}`;
                 if (data?.errors) {
-                    errorMsg = Object.values(data.errors).flat().join('<br>');
+                    errorMsg = Object.values(data.errors).flat().join(' ');
                 }
                 throw new Error(errorMsg);
             }
@@ -1151,13 +1326,12 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             if (data.success) {
-                showToast('Success', data.message, '#ccffcc');
+                showToast('Success', data.message, 'success');
                 setTimeout(function() {
                     location.reload();
                 }, 1500);
                 setCurrentResults([]);
                 renderTable();
-                // Clear the form fields
                 const activeTab = getActiveTab();
                 const studentIdField = activeTab === 'degree' ? 'degree_new_student_id' : 'cert_new_student_id';
                 const studentNameField = activeTab === 'degree' ? 'degree_new_student_name' : 'cert_new_student_name';
@@ -1167,17 +1341,32 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 let errorMsg = data.message || 'An error occurred.';
                 if(data.errors) {
-                    errorMsg = Object.values(data.errors).flat().join('<br>');
+                    errorMsg = Object.values(data.errors).flat().join(' ');
                 }
-                showToast('Error', errorMsg, 'bg-danger');
+                showToast('Error', errorMsg, 'error');
             }
         })
         .catch(error => {
-            console.error('Save error:', error);
-            console.error('Error details:', error.message);
-            showToast('Error', error.message || 'An error occurred while saving results.', 'bg-danger');
+            showToast('Error', error.message || 'An error occurred while saving results.', 'error');
         })
         .finally(() => showSpinner(false));
+    }
+
+    function getAddStudentContext() {
+        const activeTab = getActiveTab();
+        if (activeTab === 'degree') {
+            return {
+                location: degreeLocation.value,
+                course_id: degreeCourse.value,
+                intake_id: degreeIntake.value
+            };
+        }
+
+        return {
+            location: certLocation.value,
+            course_id: certCourse.value,
+            intake_id: certIntake.value
+        };
     }
 
     function getFilterData() {
@@ -1189,50 +1378,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 course_id: degreeCourse.value,
                 intake_id: degreeIntake.value,
                 semester: degreeSemester.value,
-                module_id: degreeModule.value
+                module_id: degreeModule.value,
+                specialization: degreeSpecialization.value || ''
             };
-            return Object.values(data).some(v => !v) ? null : data;
-        } else {
-            const data = {
-                location: certLocation.value,
-                course_type: 'certificate',
-                course_id: certCourse.value,
-                intake_id: certIntake.value,
-                semester: null,
-                module_id: null
-            };
-            return Object.values(data).filter(v => v !== null).some(v => !v) ? null : data;
+            if (!data.location || !data.course_type || !data.course_id || !data.intake_id || !data.semester || !data.module_id) {
+                return null;
+            }
+            if (!hasDegreeSpecializationSelection()) {
+                return null;
+            }
+            return data;
         }
-    }
 
-    function renderTable() {
-        const { resultsTableBody } = getTabElements();
-        const results = getCurrentResults();
-        resultsTableBody.innerHTML = '';
-        results.forEach((result, index) => {
-            const marksVisible = document.getElementById('marksColumnHeader') !== null;
-            const gradeVisible = document.getElementById('gradeColumnHeader') !== null;
-            const remarksVisible = document.getElementById('remarksColumnHeader') !== null;
-
-            let row = `<tr>
-                <td>${result.student_id}</td>
-                <td>${result.name}</td>`;
-
-            if (marksVisible) {
-                row += `<td class="marks-cell"><input type="number" class="form-control" min="0" max="100" step="0.01" placeholder="Marks" value="${result.marks || ''}" onchange="updateResultMark(${index}, this.value)"></td>`;
-            }
-
-            if (gradeVisible) {
-                row += `<td class="grade-cell"><input type="text" class="form-control" maxlength="5" placeholder="Grade" value="${result.grade || ''}" onchange="updateResultGrade(${index}, this.value)"></td>`;
-            }
-
-            if (remarksVisible) {
-                row += `<td class="remarks-cell"><input type="text" class="form-control" maxlength="255" placeholder="Remarks" value="${result.remarks || ''}" onchange="updateResultRemarks(${index}, this.value)"></td>`;
-            }
-
-            row += `</tr>`;
-            resultsTableBody.insertAdjacentHTML('beforeend', row);
-        });
+        const data = {
+            location: certLocation.value,
+            course_type: 'certificate',
+            course_id: certCourse.value,
+            intake_id: certIntake.value
+        };
+        return Object.values(data).some(v => !v) ? null : data;
     }
 
     function clearInputFields() {
@@ -1254,26 +1418,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function showSpinner(show) {
-        document.getElementById('spinner-overlay').style.display = show ? 'flex' : 'none';
-    }
-
-    function showToast(title, message, bgColor) {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.style.backgroundColor = bgColor;
-        toast.innerHTML = `
-            <div class="toast-header"><strong class="me-auto">${title}</strong><button type="button" class="btn-close" data-bs-dismiss="toast"></button></div>
-            <div class="toast-body">${message}</div>
-        `;
-        container.appendChild(toast);
-        new bootstrap.Toast(toast).show();
-        toast.addEventListener('hidden.bs.toast', () => toast.remove());
-    }
-
-
-
     function fetchDegreeStudentsForResultEntry() {
         const data = {
             location: degreeLocation.value,
@@ -1292,36 +1436,23 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Degree students response:', data);
-
-            // Show bulk upload section when all filters are filled
-            document.getElementById('degreeBulkUploadSection').style.display = 'block';
+            setHidden(document.getElementById('degreeBulkUploadSection'), false);
+            setHidden(document.getElementById('degreeResultsTableSection'), false);
+            setResultsStatus('degree', !!data.results_exist);
 
             if (data.success && data.students && data.students.length > 0) {
-                // Map students to include all necessary fields
-                degreeResults = data.students.map(s => ({
-                    registration_id: s.registration_id || s.registration_number,
-                    student_id: s.student_id,
-                    name: s.name || s.name_with_initials,
-                    marks: s.marks || '',
-                    grade: s.grade || '',
-                    remarks: s.remarks || ''
-                }));
-
                 renderEditableResultsTable(data.students);
-                document.getElementById('degreeResultsTableSection').style.display = '';
-                document.getElementById('degreeSaveAllBtnSection').style.display = '';
+                setHidden(document.getElementById('degreeSaveAllBtnSection'), false);
             } else {
                 degreeResults = [];
-                degreeResultsTableBody.innerHTML = '<tr><td colspan="2" class="text-center">No students found for these filters.</td></tr>';
-                document.getElementById('degreeResultsTableSection').style.display = '';
-                document.getElementById('degreeSaveAllBtnSection').style.display = 'none';
+                updateExistingRows();
+                setHidden(document.getElementById('degreeSaveAllBtnSection'), true);
+                if (data.message) {
+                    showToast('Error', data.message, 'error');
+                }
             }
         })
-        .catch(error => {
-            console.error('Error fetching degree students:', error);
-            showToast('Error', 'Failed to fetch students.', 'bg-danger');
-        })
+        .catch(() => showToast('Error', 'Failed to fetch students.', 'error'))
         .finally(() => showSpinner(false));
     }
 
@@ -1342,72 +1473,24 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Certificate students response:', data);
-
-            // Show bulk upload section when all filters are filled
-            document.getElementById('certBulkUploadSection').style.display = 'block';
+            setHidden(document.getElementById('certBulkUploadSection'), false);
+            setHidden(document.getElementById('certResultsTableSection'), false);
+            setResultsStatus('cert', !!data.results_exist);
 
             if (data.success && data.students && data.students.length > 0) {
-                // Map students to include all necessary fields
-                certResults = data.students.map(s => ({
-                    registration_id: s.registration_id || s.registration_number,
-                    student_id: s.student_id,
-                    name: s.name || s.name_with_initials,
-                    marks: s.marks || '',
-                    grade: s.grade || '',
-                    remarks: s.remarks || ''
-                }));
-
                 renderEditableResultsTable(data.students);
-                document.getElementById('certResultsTableSection').style.display = '';
-                document.getElementById('certSaveAllBtnSection').style.display = '';
+                setHidden(document.getElementById('certSaveAllBtnSection'), false);
             } else {
                 certResults = [];
-                certResultsTableBody.innerHTML = '<tr><td colspan="2" class="text-center">No students found for these filters.</td></tr>';
-                document.getElementById('certResultsTableSection').style.display = '';
-                document.getElementById('certSaveAllBtnSection').style.display = 'none';
+                updateExistingRows();
+                setHidden(document.getElementById('certSaveAllBtnSection'), true);
+                if (data.message) {
+                    showToast('Error', data.message, 'error');
+                }
             }
         })
-        .catch(error => {
-            console.error('Error fetching certificate students:', error);
-            showToast('Error', 'Failed to fetch students.', 'bg-danger');
-        })
+        .catch(() => showToast('Error', 'Failed to fetch students.', 'error'))
         .finally(() => showSpinner(false));
-    }
-
-
-
-    // Render table with only two columns
-    function renderEditableResultsTable(students) {
-        const activeTab = getActiveTab();
-        const resultsTableBody = activeTab === 'degree' ? degreeResultsTableBody : certResultsTableBody;
-
-        const results = students.map(s => ({
-            registration_id: s.registration_id || s.registration_number,
-            student_id: s.student_id,
-            name: s.name || s.name_with_initials,
-            marks: s.marks || '',
-            grade: s.grade || '',
-            remarks: s.remarks || ''
-        }));
-        setCurrentResults(results);
-        resultsTableBody.innerHTML = '';
-        results.forEach((result, index) => {
-            const row = `<tr>
-                <td>${result.registration_id}</td>
-                <td>${result.name}</td>
-            </tr>`;
-            resultsTableBody.insertAdjacentHTML('beforeend', row);
-        });
-
-        // If Marks, Grade, or Remarks columns are visible, update them with existing data
-        const marksVisible = document.getElementById('marksColumnHeader') !== null;
-        const gradeVisible = document.getElementById('gradeColumnHeader') !== null;
-        const remarksVisible = document.getElementById('remarksColumnHeader') !== null;
-
-        if (marksVisible || gradeVisible || remarksVisible) {
-            updateExistingRows();
-        }
     }
 
     window.updateResultMark = function(index, value) {
@@ -1434,64 +1517,80 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     // Bulk upload functions
-    function handleDownloadTemplate() {
+    function downloadFile(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function safeFilenamePart(value) {
+        return String(value || 'file').replace(/[^\w\-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    }
+
+    async function handleDownloadTemplate() {
         const filterData = getFilterData();
         if (!filterData) {
-            showToast('Warning', 'Please select all filters first to download the template.', 'bg-warning');
+            showToast('Warning', 'Please select all filters first to download the template.', 'warning');
             return;
         }
 
         showSpinner(true);
+        try {
+            const response = await fetch('{{ route("download.exam.results.template") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/csv, application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(filterData)
+            });
 
-        // Call the backend to download template with actual student data
-        fetch('{{ route("download.exam.results.template") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify(filterData)
-        })
-        .then(response => {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.message || data.error || 'Unable to download the template.');
+            }
+
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                throw new Error('Unable to download the template.');
             }
-            return response.blob();
-        })
-        .then(blob => {
-            // Get the selected values for the filename
+
+            const blob = await response.blob();
+            if (!blob || blob.size === 0 || (blob.type && blob.type.includes('text/html'))) {
+                throw new Error('Unable to download the template.');
+            }
+
             const activeTab = getActiveTab();
-            let courseName, moduleName, intakeName;
+            const courseName = activeTab === 'degree'
+                ? degreeCourse.options[degreeCourse.selectedIndex]?.text
+                : certCourse.options[certCourse.selectedIndex]?.text;
+            const moduleName = activeTab === 'degree'
+                ? degreeModule.options[degreeModule.selectedIndex]?.text
+                : 'Certificate';
+            const intakeName = activeTab === 'degree'
+                ? degreeIntake.options[degreeIntake.selectedIndex]?.text
+                : certIntake.options[certIntake.selectedIndex]?.text;
+            const cd = response.headers.get('Content-Disposition') || '';
+            const match = cd.match(/filename="?([^"]+)"?/i);
+            const filename = match
+                ? match[1]
+                : `exam_results_template_${safeFilenamePart(courseName)}_${safeFilenamePart(moduleName)}_${safeFilenamePart(intakeName)}.csv`;
 
-            if (activeTab === 'degree') {
-                courseName = degreeCourse.options[degreeCourse.selectedIndex].text;
-                moduleName = degreeModule.options[degreeModule.selectedIndex].text;
-                intakeName = degreeIntake.options[degreeIntake.selectedIndex].text;
-            } else {
-                courseName = certCourse.options[certCourse.selectedIndex].text;
-                moduleName = 'Certificate';
-                intakeName = certIntake.options[certIntake.selectedIndex].text;
-            }
-
-            // Create and download file
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `exam_results_template_${courseName.replace(/\s+/g, '_')}_${moduleName.replace(/\s+/g, '_')}_${intakeName.replace(/\s+/g, '_')}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-
-            showToast('Success', 'Template downloaded successfully with actual student data!', '#ccffcc');
-        })
-        .catch(error => {
-            console.error('Error downloading template:', error);
-            showToast('Error', 'Failed to download template. Please try again.', 'bg-danger');
-        })
-        .finally(() => {
+            downloadFile(blob, filename);
+            showToast('Success', 'Template downloaded successfully.', 'success');
+        } catch (error) {
+            showToast('Error', error.message || 'Failed to download template. Please try again.', 'error');
+        } finally {
             showSpinner(false);
-        });
+        }
     }
 
     function handleBulkUpload() {
@@ -1571,36 +1670,111 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style nonce="{{ $cspNonce }}">
-    .lds-ring { display: inline-block; position: relative; width: 80px; height: 80px; }
-    .lds-ring div { box-sizing: border-box; display: block; position: absolute; width: 64px; height: 64px; margin: 8px; border: 8px solid #fff; border-radius: 50%; animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite; border-color: #fff transparent transparent transparent; }
-    .lds-ring div:nth-child(1) { animation-delay: -0.45s; }
-    .lds-ring div:nth-child(2) { animation-delay: -0.3s; }
-    .lds-ring div:nth-child(3) { animation-delay: -0.15s; }
-    @keyframes lds-ring { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    #spinner-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-    #exam-filters-bootstrap .form-label {
-        font-size: 1rem;
-        font-weight: 500;
-        color: #222;
-        margin-bottom: 0;
-        letter-spacing: 0.01em;
-        text-align: left;
+.exam-results-page [class*="col-"] {
+    min-width: 0;
+}
+.exam-results-page .form-select,
+.exam-results-page .form-control,
+.exam-results-page .nebula-select {
+    max-width: 100%;
+}
+.exam-results-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    overflow: visible;
+}
+.exam-results-tabs .nav-item {
+    flex: 0 0 auto;
+}
+.exam-results-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: space-between;
+    align-items: center;
+}
+.exam-results-column-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+.exam-results-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.exam-results-table-scroll table {
+    min-width: 640px;
+    margin-bottom: 0;
+}
+.exam-results-table-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.exam-results-upload-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+.exam-results-upload-row .form-control {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.exam-results-upload-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+.exam-results-save-btn {
+    width: 100%;
+    max-width: 28rem;
+}
+.exam-results-spinner {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10900;
+}
+.exam-results-spinner[hidden] {
+    display: none !important;
+}
+.exam-results-filters .form-label {
+    font-weight: 500;
+}
+.lds-ring { display: inline-block; position: relative; width: 80px; height: 80px; }
+.lds-ring div { box-sizing: border-box; display: block; position: absolute; width: 64px; height: 64px; margin: 8px; border: 8px solid #fff; border-radius: 50%; animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite; border-color: #fff transparent transparent transparent; }
+.lds-ring div:nth-child(1) { animation-delay: -0.45s; }
+.lds-ring div:nth-child(2) { animation-delay: -0.3s; }
+.lds-ring div:nth-child(3) { animation-delay: -0.15s; }
+@keyframes lds-ring { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@media (max-width: 767.98px) {
+    .exam-results-page .card-body {
+        padding: 1rem 0.75rem;
     }
-    #exam-filters-bootstrap .form-select, #exam-filters-bootstrap .form-control {
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;
-        background: #fff;
-        font-size: 0.875rem;
-        padding: 0.35rem 0.75rem;
-        box-shadow: none;
-        transition: border-color 0.2s;
-        min-height: 32px;
+    .exam-results-page h2 {
+        font-size: 1.25rem;
+    }
+    .exam-results-page .form-control,
+    .exam-results-page .form-select,
+    .exam-results-page .nebula-select-toggle {
+        font-size: 16px;
+    }
+    .exam-results-column-actions .btn,
+    .exam-results-section-header .btn,
+    .exam-results-save-btn,
+    .exam-results-upload-btn {
         width: 100%;
     }
-    #exam-filters-bootstrap .form-select:focus, #exam-filters-bootstrap .form-control:focus {
-        border-color: #a3a3ff;
-        outline: none;
-        box-shadow: 0 0 0 2px #e0e7ff;
+    .exam-results-upload-row {
+        flex-wrap: wrap;
     }
+}
 </style>
 @endsection

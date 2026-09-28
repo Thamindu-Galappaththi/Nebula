@@ -37,7 +37,7 @@ class LoginController extends Controller
             if (!($result['success'] ?? false)) {
                 return $this->failedLoginResponse(
                     $request,
-                    ['email' => $result['message'] ?? 'Invalid username or password.'],
+                    ['login' => $result['message'] ?? 'Invalid username or password. Please try again.'],
                     422
                 );
             }
@@ -55,7 +55,7 @@ class LoginController extends Controller
 
             return $this->failedLoginResponse(
                 $request,
-                ['email' => 'An error occurred during login. Please try again.'],
+                ['login' => 'An error occurred during login. Please try again.'],
                 500
             );
         }

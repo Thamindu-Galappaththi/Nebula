@@ -20,6 +20,7 @@ class SidebarMenuTest extends TestCase
 
         $html = (string) view('components.sidebar-menu')->render();
         $this->assertStringContainsString('UH Index Numbers', $html);
+        $this->assertStringContainsString('Audit Log', $html);
     }
 
     public function test_program_admin_sees_create_user()
@@ -34,5 +35,6 @@ class SidebarMenuTest extends TestCase
 
         $html = (string) view('components.sidebar-menu')->render();
         $this->assertStringContainsString('Create User', $html);
+        $this->assertStringNotContainsString('Audit Log', $html);
     }
 }

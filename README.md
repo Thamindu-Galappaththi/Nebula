@@ -1,56 +1,128 @@
-# Nebula Institute Management System
+# Nebula Institute of Technology
 
-## Payment Plan Validation
+Staff management system for student records, academic operations, payments, and campus clearances across Welisara, Moratuwa, and Peradeniya.
 
-The payment plan system now includes comprehensive validation for installment plans to ensure data integrity and accuracy.
+The application is a Laravel 12 / PHP 8.2 web app. Staff sign in with a username and password. Access is role-based, so each person only sees the menus and pages they are allowed to use.
 
-### Installment Validation Features
+Detailed notes live in [`docs/`](docs/).
 
-#### 1. Real-time Validation
-- **Client-side validation**: As users enter installment amounts, the system calculates totals and compares them against the course fees
-- **Visual feedback**: The table footer shows running totals and required amounts
-- **Mismatch indicators**: Clear warnings when installment totals don't match course fees
+## Stack
 
-#### 2. Server-side Validation
-- **Backend validation**: All installment data is validated on the server before saving
-- **Detailed error messages**: Specific error messages showing the difference between totals and required amounts
-- **Floating-point precision**: Uses tolerance of 0.01 for floating-point comparisons
+- PHP 8.2 and Laravel 12
+- MySQL
+- Blade, Bootstrap 5, Vite
+- Excel import/export, PDF generation, QR codes for badges
+- Intervention Image for profile photos
 
-#### 3. Auto-completion Feature
-- **Smart suggestions**: When the remaining amount is less than 10% of the total fee, an auto-complete button appears
-- **One-click completion**: Automatically distributes remaining amounts to the last non-empty installment
-- **User-friendly**: Helps users quickly complete installment plans without manual calculations
+## What it covers
 
-#### 4. Validation Rules
-- **Local amounts**: Sum of local installment amounts must equal the local course fee
-- **International amounts**: Sum of international installment amounts must equal the franchise payment amount
-- **Currency support**: Supports different currencies for international payments
-- **Tax application**: Individual tax settings can be applied to each installment
+**Students.** Register students, keep extra details, search and export lists, open a full student profile (personal data, results, attendance, payments, certificates), track terminations and reinstatements.
 
-### Usage
+**Academic.** Courses, intakes, modules, semesters, specializations, eligibility checks, course registration, course changes, UH index numbers, exam results, repeat students, attendance, and timetables.
 
-1. **Create Payment Plan**: Navigate to the Payment Plan page
-2. **Select Course/Intake**: Choose the course and intake to get fee information
-3. **Enable Installments**: Select "Yes" for installment plan
-4. **Add Installments**: Enter the number of installments and click "Add"
-5. **Enter Amounts**: Fill in the installment amounts in the table
-6. **Real-time Feedback**: Watch the totals update and validation messages appear
-7. **Auto-complete**: Use the auto-complete button if available for remaining amounts
-8. **Submit**: The form will validate on submission and show detailed error messages if needed
+**Payments.** Payment plans (including installment totals that must match course fees), discounts and SLT loan, student payments and slips, miscellaneous payments, late fees and approvals, payment summaries and analytics, payment clearance.
 
-### Error Handling
+**Clearances.** Library, hostel, project, and payment clearance, plus an all-clearance view for administrators.
 
-- **Client-side**: Immediate feedback with visual indicators and detailed error messages
-- **Server-side**: Comprehensive validation with specific error messages showing differences
-- **User-friendly**: Clear instructions on how to correct validation errors
+**Approvals and badges.** Special approval for students who do not meet standard entry rules. Course completion badges with a public verification link (`/verify-badge/{code}`).
 
-### Technical Implementation
+**Staff and system.** User management, profile and settings, role-based dashboards, audit log (Developer), scheduled pruning of old audit rows.
 
-- **Frontend**: JavaScript validation with real-time calculations and user feedback
-- **Backend**: PHP validation in PaymentPlanController with detailed error reporting
-- **Database**: Proper data types and constraints for financial data
-- **Security**: CSRF protection and input sanitization
+A public spreadsheet attendance page is also available at `/spreadsheet` (no login).
 
-## Installation and Setup
+## Roles
 
-[Previous installation instructions remain the same...]
+Users can hold more than one role. Menus and routes are gated through `RoleHelper` and the `role` middleware.
+
+| Role | Typical work |
+| --- | --- |
+| Developer | Full access, including audit log and diagnostics |
+| DGM | Dashboards, special approvals, student overview, termination tracking |
+| Program Administrator (level 01) | User management, academic setup, students, clearances, reporting |
+| Program Administrator (level 02) | Academic operations, registrations, results, attendance, timetable |
+| Program Administrator (level 02) Trainee | Limited L2 dashboard and academic views |
+| Student Counselor | Registration, eligibility, payments |
+| Student Counselor Trainee | Limited counselor dashboard and related views |
+| Marketing Manager | Marketing dashboard, payment plans, badges |
+| Bursar | Payments, discounts, late fees, bursar dashboard |
+| Project Tutor | Project clearance and related attendance |
+| Librarian | Library clearance |
+| Hostel Manager | Hostel clearance |
+
+See [`docs/ROLE_BASED_ACCESS_CONTROL.md`](docs/ROLE_BASED_ACCESS_CONTROL.md) for older permission notes. Route-level access in `routes/web.php` is the source of truth.
+
+## Setup
+
+Requirements: PHP 8.2+, Composer, Node.js, and MySQL.
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+```
+
+Set these in `.env`:
+
+```
+APP_NAME="Nebula Institute of Technology"
+APP_URL=http://localhost:8189
+DB_DATABASE=nebula
+DB_USERNAME=root
+DB_PASSWORD=
+
+AUDIT_LOGGING=true
+AUDIT_LOG_RETENTION_DAYS=7
+```
+
+Then:
+
+```bash
+php artisan migrate
+php artisan db:seed
+php artisan storage:link
+npm install
+```
+
+Local development (Vite on port 9283, Laravel on 8189):
+
+```bash
+npm run dev
+```
+
+Production front-end build:
+
+```bash
+npm run build
+```
+
+Tests:
+
+```bash
+php artisan test
+```
+
+## Audit log retention
+
+Developers can browse `/audit-log`. New rows can be turned off with `AUDIT_LOGGING=false`.
+
+Old rows are deleted by `php artisan audit:prune`, scheduled daily at 01:15. Retention is `AUDIT_LOG_RETENTION_DAYS` in `.env` (default 7). After changing `.env`, run `php artisan config:clear`.
+
+One-off run, for example keep only 3 days:
+
+```bash
+php artisan audit:prune --days=3
+```
+
+On the server, run the Laravel scheduler every minute:
+
+```
+* * * * * cd /path/to/Nebula && php artisan schedule:run >> /dev/null 2>&1
+```
+
+## Campuses
+
+Staff locations are stored as:
+
+- Nebula Institute of Technology – Welisara
+- Nebula Institute of Technology – Moratuwa
+- Nebula Institute of Technology – Peradeniya

@@ -3,326 +3,438 @@
 @section('title', 'NEBULA | User Profile')
 
 @section('content')
- <style>
-  .nav-tabs .nav-link.active {
-    background-color: #6c8cff !important;
-    color: #fff !important;
-    border-color: #6c8cff #6c8cff #fff !important;
-    font-weight: 500;
-  }
-  .nav-tabs .nav-link {
-    color: #6c8cff;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-bottom: none;
-    margin-right: 5px;
-    border-radius: 4px 4px 0 0;
-    padding: 10px 20px;
-    transition: all 0.3s ease;
-  }
-  .nav-tabs .nav-link:not(.active) {
-    background-color: #f8f9fa !important;
-    color: #6c8cff !important;
-    border-color: #dee2e6 #dee2e6 #fff !important;
-  }
-  .cursor-pointer { cursor: pointer; }
- </style>
+<style nonce="{{ $cspNonce }}">
+    .body-wrapper > .container-fluid {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    .user-profile-page {
+        max-width: 920px;
+        width: 100%;
+        min-width: 0;
+        margin: 0 auto;
+    }
+    .user-profile-card {
+        border-radius: 18px;
+        box-shadow: 0 4px 24px 0 rgba(60, 72, 100, 0.08);
+        background: #fff;
+        padding: 2rem 1.5rem 1.5rem;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+    }
+    .user-profile-page .nav-tabs {
+        flex-wrap: wrap;
+        gap: 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .user-profile-page .nav-tabs .nav-item {
+        margin: 0;
+    }
+    .user-profile-page .nav-tabs .nav-link {
+        color: #6c8cff;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        margin: 0;
+        border-radius: 4px 4px 0 0;
+        padding: 0.65rem 1rem;
+        white-space: nowrap;
+    }
+    .user-profile-page .nav-tabs .nav-link.active {
+        background-color: #6c8cff !important;
+        color: #fff !important;
+        border-color: #6c8cff #6c8cff #fff !important;
+        font-weight: 500;
+    }
+    .user-profile-avatar {
+        width: 150px;
+        height: 150px;
+        border: 2px solid #ccc;
+        border-radius: 50%;
+        overflow: hidden;
+        margin: 0 auto 0.85rem;
+    }
+    .user-profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .user-profile-preview {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 1px solid #dbe3ef;
+        display: none;
+        margin: 0.75rem auto 0;
+    }
+    .user-profile-preview.is-visible {
+        display: block;
+    }
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    @media (max-width: 767.98px) {
+        .user-profile-card {
+            padding: 1.1rem 0.85rem 1rem;
+            border-radius: 12px;
+        }
+        .user-profile-page .nav-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+        .user-profile-page .nav-tabs .nav-link {
+            flex: 0 0 auto;
+        }
+        .user-profile-page .col-form-label {
+            margin-bottom: 0.25rem;
+            padding-top: 0;
+        }
+        .modal-dialog {
+            margin: 0.5rem;
+        }
+    }
+</style>
 
-<div class="container mt-5">
-    <div class="p-4 rounded shadow w-100 bg-white mt-4">
-        <h2 class="text-center mb-4">User Profile</h2>
-        <hr style="margin-bottom: 30px;">
+<div class="container-fluid px-2 px-md-3">
+    <div class="user-profile-page">
+        <div class="user-profile-card">
+            <h2 class="text-center mb-3 mb-md-4">User Profile</h2>
+            <hr class="mb-4">
 
-        <!-- Profile Picture Section -->
-        <div class="mb-3 text-center position-relative">
-            <div class="d-flex justify-content-end">
-                <div class="rounded-circle overflow-hidden mx-auto mb-3 position-relative" style="width: 150px; height: 150px; border: 2px solid #ccc;">
-                    <img src="{{ !empty($userData['user_profile']) ? asset('storage/' . $userData['user_profile']) : asset('images/profile/user-1.jpg') }}" alt="User Profile" class="w-100 h-100 object-cover" id="profilePictureImg">
+            <div class="text-center mb-4">
+                <div class="user-profile-avatar">
+                    <img src="{{ !empty($userData['user_profile']) ? asset('storage/' . $userData['user_profile']) : asset('images/profile/user-1.jpg') }}" alt="User Profile" id="profilePictureImg">
                 </div>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editPictureModal">Edit Picture</button>
             </div>
-            <!-- hidden input removed; handled via modal form -->
-            <div class="d-flex justify-content-end mx-4">
-                <button type="button" class="btn btn-sm btn-primary align-self-end" data-bs-toggle="modal" data-bs-target="#editPictureModal">Edit Picture</button>
-            </div>
-        </div>
 
-        <!-- Edit Picture Modal -->
-        <div class="modal fade" id="editPictureModal" tabindex="-1" role="dialog" aria-labelledby="editPictureModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="editPictureModalLabel">Edit Profile Picture</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="profilePictureForm" method="POST" action="{{ route('user.updateProfilePicture') }}" enctype="multipart/form-data">
-                            @csrf
-                            <div class="mb-3">
-                                <label for="newProfilePicture" class="form-label fw-bold">New Profile Picture</label>
-                                <input type="file" class="form-control" id="newProfilePicture" name="profile_picture" accept="image/*" required>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" form="profilePictureForm" class="btn btn-primary" id="saveProfilePictureBtn">Save changes</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tabs Section -->
-        <div class="container mt-5">
-            <ul class="nav nav-tabs" id="myTab" role="tablist">
-                <li class="nav-item">
-                    <a class="nav-link" id="profile-tab" data-bs-toggle="tab" href="#profile" role="tab" aria-controls="profile" aria-selected="true">Profile</a>
+            <ul class="nav nav-tabs" id="userProfileTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="true">Profile</button>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" id="settings-tab" data-bs-toggle="tab" href="#settings" role="tab" aria-controls="settings" aria-selected="false">Settings</a>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab" aria-controls="settings" aria-selected="false">Settings</button>
                 </li>
             </ul>
-            <div class="tab-content" id="myTabContent">
 
-                <!-- Profile Tab -->
-                <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
-                    <div class="mb-3 row align-items-center mx-3 mt-4">
-                        <label for="adminEmail" class="col-sm-2 col-form-label fw-bold">Email</label>
-                        <div class="col-sm-10">
+            <div class="tab-content pt-3" id="userProfileTabContent">
+                <div class="tab-pane fade show active" id="profile" role="tabpanel" aria-labelledby="profile-tab" tabindex="0">
+                    <div class="row g-2 mb-3 align-items-center">
+                        <label for="adminEmail" class="col-12 col-md-3 col-form-label fw-bold">Email</label>
+                        <div class="col-12 col-md-9">
                             <input type="email" class="form-control" value="{{ $userData['email'] }}" id="adminEmail" placeholder="User email" readonly>
                         </div>
                     </div>
-                    <div class="mb-3 row align-items-center mx-3">
-                        <label for="employeeId" class="col-sm-2 col-form-label fw-bold">Employee ID</label>
-                        <div class="col-sm-10">
+                    <div class="row g-2 mb-3 align-items-center">
+                        <label for="employeeId" class="col-12 col-md-3 col-form-label fw-bold">Employee ID</label>
+                        <div class="col-12 col-md-9">
                             <input type="text" class="form-control" id="employeeId" value="{{ $userData['employee_id'] ?? '' }}" placeholder="Employee ID" readonly>
                         </div>
                     </div>
-                    <div class="mb-3 row align-items-center mx-3">
-                        <label for="userName" class="col-sm-2 col-form-label fw-bold">User Name</label>
-                        <div class="col-sm-10">
+                    <div class="row g-2 mb-3 align-items-center">
+                        <label for="userName" class="col-12 col-md-3 col-form-label fw-bold">User Name</label>
+                        <div class="col-12 col-md-9">
                             <input type="text" class="form-control" id="userName" value="{{ $userData['user_name'] ?? '' }}" placeholder="User Name" readonly>
                         </div>
                     </div>
-                    <div class="mb-3 row align-items-center mx-3">
-                        <label for="userRole" class="col-sm-2 col-form-label fw-bold">User Role</label>
-                        <div class="col-sm-10">
+                    <div class="row g-2 mb-3 align-items-center">
+                        <label for="userRole" class="col-12 col-md-3 col-form-label fw-bold">User Role</label>
+                        <div class="col-12 col-md-9">
                             <input type="text" class="form-control" id="userRole" value="{{ $userData['user_role'] ?? '' }}" placeholder="User Role" readonly>
                         </div>
                     </div>
-                    <div class="mb-3 row align-items-center mx-3">
-                        <label for="userLocation" class="col-sm-2 col-form-label fw-bold">User Location</label>
-                        <div class="col-sm-10">
+                    <div class="row g-2 mb-3 align-items-center">
+                        <label for="userLocation" class="col-12 col-md-3 col-form-label fw-bold">User Location</label>
+                        <div class="col-12 col-md-9">
                             <input type="text" class="form-control" id="userLocation" value="{{ $userData['user_location'] ?? '' }}" placeholder="User Location" readonly>
                         </div>
                     </div>
-                    <div class="mb-3 row align-items-center mx-3">
-                        <label for="userStatus" class="col-sm-2 col-form-label fw-bold">Status</label>
-                        <div class="col-sm-10">
+                    <div class="row g-2 mb-3 align-items-center">
+                        <label for="userStatus" class="col-12 col-md-3 col-form-label fw-bold">Status</label>
+                        <div class="col-12 col-md-9">
                             <input type="text" class="form-control" id="userStatus" value="{{ $userData['status'] }}" placeholder="User status" readonly>
                         </div>
                     </div>
                 </div>
 
-                <!-- Settings Tab -->
-                <div class="tab-pane fade" id="settings" role="tabpanel" aria-labelledby="settings-tab">
-                    <div class="card mt-4">
-                        <div class="card-body">
+                <div class="tab-pane fade" id="settings" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
+                    <div class="card mt-2 border-0 shadow-sm">
+                        <div class="card-body px-2 px-md-3">
                             <h4 class="mb-3 text-center">Change Password</h4>
-                            <form id="changePasswordForm" method="POST" action="{{ route('user.changePassword') }}">
+                            <form id="changePasswordForm" method="POST" action="{{ route('user.changePassword') }}" autocomplete="off">
                                 @csrf
-
-<!-- Current Password -->
-<div class="mb-3">
-  <label for="current_password" class="form-label">
-    Current Password <span class="text-danger">*</span>
-  </label>
-  <div class="input-group">
-    <input type="password" class="form-control" id="current_password" name="current_password" required>
-    <span class="input-group-text cursor-pointer" onclick="togglePassword('current_password')">
-      <i class="bi bi-eye" id="current_password_icon"></i>
-    </span>
-  </div>
-</div>
-
-
-<!-- New Password -->
-<div class="mb-3">
-  <label for="new_password" class="form-label">New Password</label>
-  <div class="input-group">
-    <input type="password" class="form-control" id="new_password" name="new_password" required minlength="6">
-    <span class="input-group-text cursor-pointer" onclick="togglePassword('new_password')">
-      <i class="bi bi-eye" id="new_password_icon"></i>
-    </span>
-  </div>
-</div>
-
-<!-- Confirm New Password -->
-<div class="mb-3">
-  <label for="new_password_confirmation" class="form-label">Confirm New Password</label>
-  <div class="input-group">
-    <input type="password" class="form-control" id="new_password_confirmation" name="new_password_confirmation" required minlength="6">
-    <span class="input-group-text cursor-pointer" onclick="togglePassword('new_password_confirmation')">
-      <i class="bi bi-eye" id="new_password_confirmation_icon"></i>
-    </span>
-  </div>
-</div>
-
-<script>
-function togglePassword(fieldId) {
-    const input = document.getElementById(fieldId);
-    const icon = document.getElementById(fieldId + '_icon');
-    if (input.type === "password") {
-        input.type = "text";
-        icon.classList.remove('bi-eye');
-        icon.classList.add('bi-eye-slash');
-    } else {
-        input.type = "password";
-        icon.classList.remove('bi-eye-slash');
-        icon.classList.add('bi-eye');
-    }
-}
-</script>
-
-
-                                <button type="submit" class="btn btn-primary w-100">Change Password</button>
+                                <div class="mb-3">
+                                    <label for="current_password" class="form-label">Current Password <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control password-toggle" id="current_password" name="current_password" required autocomplete="current-password">
+                                        <button class="btn btn-outline-secondary toggle-password" type="button" tabindex="-1" title="Show password">
+                                            <i class="ti ti-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="new_password" class="form-label">New Password <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control password-toggle" id="new_password" name="new_password" required minlength="6" autocomplete="new-password">
+                                        <button class="btn btn-outline-secondary toggle-password" type="button" tabindex="-1" title="Show password">
+                                            <i class="ti ti-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="new_password_confirmation" class="form-label">Confirm New Password <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control password-toggle" id="new_password_confirmation" name="new_password_confirmation" required minlength="6" autocomplete="new-password">
+                                        <button class="btn btn-outline-secondary toggle-password" type="button" tabindex="-1" title="Show password">
+                                            <i class="ti ti-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100" id="changePasswordBtn">Change Password</button>
                             </form>
                         </div>
                     </div>
-
-                    <!-- Toast Notifications -->
-                    <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
-
-                    <script>
-                    function togglePassword(fieldId) {
-                        const input = document.getElementById(fieldId);
-                        const icon = document.getElementById(fieldId + '_icon');
-                        if (input.type === "password") {
-                            input.type = "text";
-                            icon.classList.remove('bi-eye');
-                            icon.classList.add('bi-eye-slash');
-                        } else {
-                            input.type = "password";
-                            icon.classList.remove('bi-eye-slash');
-                            icon.classList.add('bi-eye');
-                        }
-                    }
-
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const pwdForm = document.getElementById('changePasswordForm');
-                        const pictureForm = document.getElementById('profilePictureForm');
-                        const profileImg = document.getElementById('profilePictureImg');
-
-                        function showToast(message, type) {
-                            const container = document.querySelector('.toast-container') || (function(){
-                                const el = document.createElement('div');
-                                el.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-                                document.body.appendChild(el);
-                                return el;
-                            })();
-
-                            const toastHtml = `
-                              <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                                <div class="d-flex">
-                                  <div class="toast-body">${message}</div>
-                                  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                                </div>
-                              </div>`;
-                            container.insertAdjacentHTML('beforeend', toastHtml);
-                            const toastEl = document.querySelector('.toast-container .toast:last-child');
-                            const toast = new bootstrap.Toast(toastEl, { delay: 2500 });
-                            toast.show();
-                            return toast;
-                        }
-
-                        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
-
-                        if (pwdForm) {
-                            pwdForm.addEventListener('submit', function(e) {
-                                e.preventDefault();
-                                const formData = new FormData(pwdForm);
-                                fetch(pwdForm.action, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': csrf,
-                                        'Accept': 'application/json',
-                                    },
-                                    body: formData
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        showToast(data.message, 'success');
-                                        pwdForm.reset();
-                                    } else {
-                                        showToast(data.message || 'Error changing password', 'danger');
-                                    }
-                                })
-                                .catch(error => {
-                                    showToast('Error: ' + error.message, 'danger');
-                                });
-                            });
-                        }
-
-                        if (pictureForm) {
-                            pictureForm.addEventListener('submit', function(e) {
-                                e.preventDefault();
-                                const formData = new FormData(pictureForm);
-                                fetch(pictureForm.action, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': csrf,
-                                        'Accept': 'application/json',
-                                    },
-                                    body: formData
-                                })
-                                .then(resp => resp.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        if (profileImg && data.url) {
-                                            profileImg.src = data.url + '?' + Date.now(); // bust cache
-                                        }
-                                        // update header avatar too if present
-                                        const headerAvatar = document.getElementById('headerAvatar');
-                                        if (headerAvatar && data.url) {
-                                            headerAvatar.src = data.url + '?' + Date.now();
-                                        }
-                                        const modalEl = document.getElementById('editPictureModal');
-                                        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-                                        modal.hide();
-                                        showToast(data.message, 'success');
-                                        pictureForm.reset();
-                                    } else {
-                                        showToast(data.message || 'Error updating profile picture', 'danger');
-                                    }
-                                })
-                                .catch(err => showToast('Error: ' + err.message, 'danger'));
-                            });
-                        }
-                    });
-                    </script>
                 </div>
             </div>
-
-            <!-- Tabs Activation -->
-            <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                var triggerTabList = [].slice.call(document.querySelectorAll('#myTab a'));
-                triggerTabList.forEach(function(triggerEl) {
-                    var tabTrigger = new bootstrap.Tab(triggerEl);
-                    triggerEl.addEventListener('click', function(event) {
-                        event.preventDefault();
-                        tabTrigger.show();
-                    });
-                });
-                // Activate the first tab by default
-                bootstrap.Tab.getOrCreateInstance(document.querySelector('#myTab a')).show();
-            });
-            </script>
         </div>
     </div>
 </div>
 
-<!-- Bootstrap Icons -->
-<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" integrity="sha384-Ay26V7L8bsJTsX9Sxclnvsn+hkdiwRnrjZJXqKmkIDobPgIIWBOVguEcQQLDuhfN" crossorigin="anonymous">
+<div class="modal fade" id="editPictureModal" tabindex="-1" aria-labelledby="editPictureModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editPictureModalLabel">Edit Profile Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="profilePictureForm" method="POST" action="{{ route('user.updateProfilePicture') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body">
+                    <label for="newProfilePicture" class="form-label fw-bold">New Profile Picture</label>
+                    <input type="file" class="form-control" id="newProfilePicture" name="profile_picture" accept="image/jpeg,image/png,image/jpg,image/webp" required>
+                    <img src="" alt="Selected profile preview" id="profilePicturePreview" class="user-profile-preview">
+                    <small class="text-muted d-block mt-2">JPEG, PNG or WebP. Maximum 4 MB.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary" id="saveProfilePictureBtn">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
+<script nonce="{{ $cspNonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+    const pwdForm = document.getElementById('changePasswordForm');
+    const pictureForm = document.getElementById('profilePictureForm');
+    const profileImg = document.getElementById('profilePictureImg');
+    const pictureInput = document.getElementById('newProfilePicture');
+    const picturePreview = document.getElementById('profilePicturePreview');
+    const savePictureBtn = document.getElementById('saveProfilePictureBtn');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+    function showToast(message, type) {
+        const container = document.querySelector('.toast-container') || (function () {
+            const el = document.createElement('div');
+            el.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(el);
+            return el;
+        })();
+
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body"></div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = container.querySelector('.toast:last-child');
+        toastEl.querySelector('.toast-body').textContent = message;
+        const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+        toast.show();
+        return toast;
+    }
+
+    async function parseJsonResponse(response) {
+        const data = await response.json().catch(function () {
+            return {};
+        });
+
+        if (!response.ok || data.success === false) {
+            const error = new Error(data.message || 'Request failed.');
+            error.payload = data;
+            throw error;
+        }
+
+        return data;
+    }
+
+    function resetPasswordFields() {
+        if (!pwdForm) {
+            return;
+        }
+
+        pwdForm.reset();
+        pwdForm.querySelectorAll('.password-toggle').forEach(function (input) {
+            input.value = '';
+            input.setAttribute('type', 'password');
+        });
+        pwdForm.querySelectorAll('.toggle-password').forEach(function (button) {
+            const icon = button.querySelector('i');
+            if (icon) {
+                icon.classList.remove('ti-eye-off');
+                icon.classList.add('ti-eye');
+            }
+            button.setAttribute('title', 'Show password');
+        });
+    }
+
+    const settingsTabButton = document.getElementById('settings-tab');
+    if (settingsTabButton) {
+        settingsTabButton.addEventListener('hide.bs.tab', resetPasswordFields);
+    }
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') {
+            resetPasswordFields();
+        }
+    });
+
+    window.addEventListener('pagehide', resetPasswordFields);
+
+    document.querySelectorAll('.toggle-password').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const input = this.parentElement.querySelector('input');
+            const icon = this.querySelector('i');
+            if (!input) {
+                return;
+            }
+
+            if (input.getAttribute('type') === 'password') {
+                input.setAttribute('type', 'text');
+                if (icon) {
+                    icon.classList.remove('ti-eye');
+                    icon.classList.add('ti-eye-off');
+                }
+                this.setAttribute('title', 'Hide password');
+            } else {
+                input.setAttribute('type', 'password');
+                if (icon) {
+                    icon.classList.remove('ti-eye-off');
+                    icon.classList.add('ti-eye');
+                }
+                this.setAttribute('title', 'Show password');
+            }
+        });
+    });
+
+    if (pictureInput && picturePreview) {
+        pictureInput.addEventListener('change', function () {
+            const file = this.files && this.files[0];
+            if (!file) {
+                picturePreview.src = '';
+                picturePreview.classList.remove('is-visible');
+                return;
+            }
+
+            picturePreview.src = URL.createObjectURL(file);
+            picturePreview.classList.add('is-visible');
+        });
+    }
+
+    if (pwdForm) {
+        pwdForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('changePasswordBtn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+
+            fetch(pwdForm.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json',
+                },
+                body: new FormData(pwdForm)
+            })
+            .then(parseJsonResponse)
+            .then(function (data) {
+                showToast(data.message, 'success');
+                resetPasswordFields();
+            })
+            .catch(function (error) {
+                showToast(error.message || 'Error changing password', 'danger');
+            })
+            .finally(function () {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+    }
+
+    if (pictureForm) {
+        pictureForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (!pictureInput || !pictureInput.files || !pictureInput.files[0]) {
+                showToast('Please choose an image to upload.', 'danger');
+                return;
+            }
+
+            if (savePictureBtn) {
+                savePictureBtn.disabled = true;
+                savePictureBtn.textContent = 'Uploading...';
+            }
+
+            fetch(pictureForm.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json',
+                },
+                body: new FormData(pictureForm)
+            })
+            .then(parseJsonResponse)
+            .then(function (data) {
+                const nextUrl = data.url ? (data.url + (data.url.indexOf('?') === -1 ? '?' : '&') + Date.now()) : '';
+                if (profileImg && nextUrl) {
+                    profileImg.src = nextUrl;
+                }
+                const headerAvatar = document.getElementById('headerAvatar');
+                if (headerAvatar && nextUrl) {
+                    headerAvatar.src = nextUrl;
+                }
+
+                const modalEl = document.getElementById('editPictureModal');
+                const modal = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.hide();
+                pictureForm.reset();
+                if (picturePreview) {
+                    picturePreview.src = '';
+                    picturePreview.classList.remove('is-visible');
+                }
+                showToast(data.message, 'success');
+            })
+            .catch(function (error) {
+                showToast(error.message || 'Error updating profile picture', 'danger');
+            })
+            .finally(function () {
+                if (savePictureBtn) {
+                    savePictureBtn.disabled = false;
+                    savePictureBtn.textContent = 'Save changes';
+                }
+            });
+        });
+    }
+});
+</script>
 @endsection

@@ -59,6 +59,7 @@ use App\Http\Controllers\{
     BursarDashboardController,
     LibrarianDashboardController,
     DeveloperDashboardController,
+    AuditLogController,
     PaymentClearanceController,
     RepeatStudentPaymentController,
     AcademicDetailsController,
@@ -167,7 +168,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     });
 
     // Student List
-    Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Bursar,Marketing Manager,Developer'])->group(function () {
+    Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Bursar,Marketing Manager,Project Tutor,Librarian,Developer'])->group(function () {
         Route::get('/student/list', [StudentListController::class, 'showStudentList'])->name('student_management.list');
         Route::get('/student/list/get-intakes/{courseId}/{location}', [StudentListController::class, 'getIntakesForCourseAndLocation'])->name('student.list.getIntakes');
         Route::post('/get-student-list-data', [StudentListController::class, 'getStudentListData'])->name('student.getListData');
@@ -179,12 +180,16 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::post('/import-student-list', [StudentListController::class, 'importStudentList'])->name('import.student.list');
         Route::get('/student-list-excel', [StudentListController::class, 'downloadExcel'])->name('student.list.excel');
         Route::get('/student/blacklist-check', [StudentListController::class, 'checkBlacklistStatus'])->name('student.blacklist.check');
+        Route::get('/api/course/{courseId}/specializations', [StudentProfileController::class, 'getCourseSpecializations']);
+        Route::get('/course-registration/get-courses-by-location/{location}', [CourseRegistraionController::class, 'getCoursesByLocation'])->name('course.registration.courses.by.location');
     });
 
     // Student View (All Students)
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Bursar,Marketing Manager,Developer'])->group(function () {
         Route::get('/students/view', [StudentViewController::class, 'index'])->name('student_management.view');
         Route::post('/students/filter', [StudentViewController::class, 'filter'])->name('student_management.filter');
+        Route::post('/students/view/export-excel', [StudentViewController::class, 'exportExcel'])->name('student_management.view.export.excel');
+        Route::post('/students/view/export-pdf', [StudentViewController::class, 'exportPdf'])->name('student_management.view.export.pdf');
         Route::get('/students/courses', [StudentViewController::class, 'getStudentCourses'])->name('student_management.courses');
         Route::get('/students/intakes', [StudentViewController::class, 'getCourseIntakes'])->name('student_management.intakes');
     });
@@ -213,9 +218,9 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/api/student/{studentId}/clearances', [StudentProfileController::class, 'getStudentClearances']);
         Route::get('/api/student/{studentId}/status-history', [StudentProfileController::class, 'getStudentStatusHistory']);
         Route::get('/student/{studentId}/certificates', [StudentProfileController::class, 'getStudentCertificates']);
+        Route::get('/api/student/{studentId}/certificates', [StudentProfileController::class, 'getStudentCertificates']);
         Route::post('/student/{studentId}/upload-ol-certificate', [StudentProfileController::class, 'uploadOLCertificate'])->name('student.uploadOLCertificate');
         Route::post('/student/{studentId}/upload-al-certificate', [StudentProfileController::class, 'uploadALCertificate'])->name('student.uploadALCertificate');
-        Route::get('/api/course/{courseId}/specializations', [StudentProfileController::class, 'getCourseSpecializations']);
         Route::post('/api/course-registration/{id}/update-grade', [StudentProfileController::class, 'updateCourseRegistrationGrade']);
         Route::get('/api/student/{studentId}/course/{courseId}/intakes', [StudentProfileController::class, 'getIntakesForCourse'])->name('student.intakes.for.course');
         Route::get('/api/student/{studentId}/course/{courseId}/intake/{intake}/payment-details', [StudentProfileController::class, 'getPaymentDetails'])->name('student.payment.details');
@@ -232,8 +237,12 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Developer'])->group(function () {
         Route::get('/course-management', [CourseManagementController::class, 'showCourseManagement'])->name('course.management');
+        Route::get('/course-management/export', [CourseManagementController::class, 'export'])->name('course.export');
         Route::post('/store-course-data', [CourseManagementController::class, 'storeCourseData'])->name('course.store');
-        Route::get('/api/courses/{courseId}', [CourseManagementController::class, 'getCourseById']);
+        Route::get('/api/courses/{courseId}', [CourseManagementController::class, 'getCourseById'])->name('course.show');
+        Route::post('/courses/bulk-delete', [CourseManagementController::class, 'bulkDestroy'])->name('course.bulkDestroy');
+        Route::post('/courses/{id}/update', [CourseManagementController::class, 'updateCourseData'])->name('course.update');
+        Route::delete('/courses/{id}', [CourseManagementController::class, 'deleteCourse'])->name('course.destroy');
     });
 
     // ========================================================================
@@ -241,7 +250,6 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Bursar,Marketing Manager,Developer'])->group(function () {
         Route::get('/course-registration', [CourseRegistraionController::class, 'showCourseRegistration'])->name('course.registration');
-        Route::get('/course-registration/get-courses-by-location/{location}', [CourseRegistraionController::class, 'getCoursesByLocation'])->name('course.registration.courses.by.location');
         Route::get('/course-registration/get-intakes/{courseName}/{location}', [CourseRegistraionController::class, 'getIntakesForCourseAndLocation'])->name('course.registration.intakes.by.course.location');
         Route::post('/check-student-exists', [CourseRegistraionController::class, 'checkStudentExists'])->name('check.student.exists');
         Route::post('/store-course-registration', [CourseRegistraionController::class, 'storeCourseRegistration'])->name('store.course.registration');
@@ -331,9 +339,12 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Developer'])->group(function () {
         Route::get('/intake-creation', [IntakeCreationController::class, 'create'])->name('intake.create');
+        Route::get('/intake-creation/export', [IntakeCreationController::class, 'export'])->name('intake.export');
         Route::post('/intake-creation', [IntakeCreationController::class, 'store'])->name('intake.store');
+        Route::post('/intake-creation/bulk-delete', [IntakeCreationController::class, 'bulkDestroy'])->name('intake.bulkDestroy');
         Route::get('/intake-creation/{id}/edit', [IntakeCreationController::class, 'edit'])->name('intake.edit');
         Route::put('/intake-creation/{id}', [IntakeCreationController::class, 'update'])->name('intake.update');
+        Route::delete('/intake-creation/{id}', [IntakeCreationController::class, 'destroy'])->name('intake.destroy');
         Route::post('/get-payment-plan-details', [IntakeCreationController::class, 'getPaymentPlanDetails'])->name('get.payment.plan.details');
     });
 
@@ -366,8 +377,10 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
 
         // Module Creation
         Route::get('/module-creation', [ModuleCreationController::class, 'create'])->name('module.creation');
+        Route::get('/module-creation/export', [ModuleCreationController::class, 'export'])->name('module.export');
         Route::post('/module-store', [ModuleCreationController::class, 'store'])->name('module.store');
-        Route::patch('/modules/{id}', [ModuleCreationController::class, 'update']);
+        Route::post('/modules/bulk-delete', [ModuleCreationController::class, 'bulkDestroy'])->name('module.bulkDestroy');
+        Route::patch('/modules/{id}', [ModuleCreationController::class, 'update'])->name('module.update');
         Route::delete('/modules/{id}', [ModuleCreationController::class, 'destroy'])->name('module.destroy');
     });
 
@@ -596,12 +609,14 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         // Repeat Student Payment Routes
         Route::get('/repeat-student-payment', [RepeatStudentPaymentController::class, 'index'])
             ->name('repeat.payment.index');
-
-        Route::get('/api/repeat-payment-plan/{student_id}/{course_id}', [RepeatStudentPaymentController::class, 'getArchivedPaymentPlan']);
-
-        Route::post('/repeat-student-payment/save', [RepeatStudentPaymentController::class, 'saveNewPaymentPlan']);
-
-        Route::get('/api/repeat-created-plans/{student_id}/{course_id}', [RepeatStudentPaymentController::class, 'getCreatedPaymentPlans']);
+        Route::post('/repeat-student-payment/search', [RepeatStudentPaymentController::class, 'searchStudent'])
+            ->name('repeat.payment.search');
+        Route::get('/api/repeat-payment-plan/{student_id}/{course_id}', [RepeatStudentPaymentController::class, 'getArchivedPaymentPlan'])
+            ->name('repeat.payment.plan');
+        Route::post('/repeat-student-payment/save', [RepeatStudentPaymentController::class, 'saveNewPaymentPlan'])
+            ->name('repeat.payment.save');
+        Route::get('/api/repeat-created-plans/{student_id}/{course_id}', [RepeatStudentPaymentController::class, 'getCreatedPaymentPlans'])
+            ->name('repeat.payment.created');
     });
 
     // ========================================================================
@@ -668,7 +683,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     });
 
     // Special Approval Rejected List
-    Route::middleware(['auth', 'role:DGM,Developer'])->group(function () {
+    Route::middleware(['auth', 'role:DGM,Developer,Student Counselor,Program Administrator (level 01)'])->group(function () {
         Route::get('/get-special-approval-rejected', [EligibilityCheckingAndRegistrationController::class, 'getSpecialApprovalRejectedList'])->name('special.approval.rejected');
     });
 
@@ -695,6 +710,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     Route::middleware(['auth', 'role:Bursar,Marketing Manager,Developer,Program Administrator (level 01),Program Administrator (level 02),Student Counselor,Student Counselor Trainee'])->group(function () {
         Route::get('/payment-plans', [PaymentPlanController::class, 'index'])->name('payment.plan.index');
+        Route::get('/payment-plans/export/excel', [PaymentPlanController::class, 'exportExcel'])->name('payment.plan.export.excel');
+        Route::get('/payment-plans/export/pdf', [PaymentPlanController::class, 'exportPdf'])->name('payment.plan.export.pdf');
         Route::get('/payment-plan', [PaymentPlanController::class, 'create'])->name('payment.plan');
         Route::get('/payment-plan/create', [PaymentPlanController::class, 'create'])->name('payment.plan.create');
         Route::post('/payment-plan/store', [PaymentPlanController::class, 'store'])->name('payment.plan.store');
@@ -727,7 +744,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::middleware(['auth', 'role:DGM,Bursar,Marketing Manager,Developer,Student Counselor,Program Administrator (level 01),Program Administrator (level 02)'])->group(function () {
         Route::get('/misc-payment', [MiscPaymentController::class, 'index'])->name('misc.payment.index');
         Route::post('/misc-payment/store', [MiscPaymentController::class, 'store'])->name('misc.payment.store');
-        Route::get('/misc-payment/fetch/{studentId}', [MiscPaymentController::class, 'fetchByStudent']);
+        Route::get('/misc-payment/fetch/{studentId}', [MiscPaymentController::class, 'fetchByStudent'])->name('misc.payment.fetch');
     });
 
     // ========================================================================
@@ -753,9 +770,10 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // BADGES
     // ========================================================================
     Route::middleware(['auth', 'role:DGM,Marketing Manager,Developer,Student Counselor,Program Administrator (level 01),Program Administrator (level 02)'])->group(function () {
-        Route::get('/badges', [BadgeController::class, 'index'])->name('badges.index');
-        Route::post('/badges/search', [BadgeController::class, 'searchStudent'])->name('badges.search');
-        Route::post('/badges/search-by-course', [BadgeController::class, 'searchByCourse'])->name('badges.searchByCourse');
+        Route::get('/badges', [BadgeController::class, 'index'])->name('badges.generate');
+        Route::post('/badges/search', [BadgeController::class, 'search'])->name('badges.search');
+        Route::post('/badges/search-by-course', [BadgeController::class, 'search'])->name('badges.searchByCourse');
+        Route::get('/badges/intakes', [BadgeController::class, 'getCourseIntakes'])->name('badges.intakes');
         Route::post('/badges/complete', [BadgeController::class, 'completeCourse'])->name('badges.complete');
         Route::delete('/badges/cancel', [BadgeController::class, 'cancelBadge'])->name('badges.cancel');
         Route::get('/badges/details/{code}', [BadgeController::class, 'details'])->name('badges.details');
@@ -927,6 +945,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/api/program-admin-l2/overview', [ProgramAdminL2DashboardController::class, 'getOverviewMetrics'])->name('api.program.admin.l2.overview');
         Route::get('/api/program-admin-l2/pending-approvals', [ProgramAdminL2DashboardController::class, 'getPendingApprovals'])->name('api.program.admin.l2.pending.approvals');
         Route::get('/api/program-admin-l2/active-semesters', [ProgramAdminL2DashboardController::class, 'getActiveSemesters'])->name('api.program.admin.l2.active.semesters');
+        Route::get('/api/program-admin-l2/courses-by-location', [ProgramAdminL2DashboardController::class, 'getCoursesByLocation'])->name('api.program.admin.l2.courses.by.location');
+        Route::get('/api/program-admin-l2/intakes', [ProgramAdminL2DashboardController::class, 'getIntakes'])->name('api.program.admin.l2.intakes');
         Route::get('/api/program-admin-l2/modules-by-course', [ProgramAdminL2DashboardController::class, 'getModulesByCourse'])->name('api.program.admin.l2.modules.by.course');
         Route::get('/api/program-admin-l2/academic-performance', [ProgramAdminL2DashboardController::class, 'getAcademicPerformance'])->name('api.program.admin.l2.academic.performance');
         Route::get('/api/program-admin-l2/attendance-overview', [ProgramAdminL2DashboardController::class, 'getAttendanceOverview'])->name('api.program.admin.l2.attendance.overview');
@@ -934,6 +954,8 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/api/program-admin-l2/payment-overview', [ProgramAdminL2DashboardController::class, 'getPaymentOverview'])->name('api.program.admin.l2.payment.overview');
         Route::post('/api/program-admin-l2/approve-registration/{id}', [ProgramAdminL2DashboardController::class, 'approveRegistration'])->name('api.program.admin.l2.approve.registration');
         Route::post('/api/program-admin-l2/reject-registration/{id}', [ProgramAdminL2DashboardController::class, 'rejectRegistration'])->name('api.program.admin.l2.reject.registration');
+        Route::post('/api/program-admin-l2/approve-all', [ProgramAdminL2DashboardController::class, 'approveAllPending'])->name('api.program.admin.l2.approve.all');
+        Route::post('/api/program-admin-l2/reject-all', [ProgramAdminL2DashboardController::class, 'rejectAllPending'])->name('api.program.admin.l2.reject.all');
     });
 
     // Admin L2 Trainee Dashboard
@@ -980,6 +1002,13 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // Developer Dashboard
     Route::middleware(['role:Developer', 'restrict.debug'])->group(function () {
         Route::get('/developer-dashboard', [DeveloperDashboardController::class, 'index'])->name('developer.dashboard');
+    });
+
+    // Audit Log (Developer only)
+    Route::middleware(['role:Developer'])->group(function () {
+        Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit.log');
+        Route::post('/audit-log/bulk-delete', [AuditLogController::class, 'bulkDestroy'])->name('audit.bulkDestroy');
+        Route::delete('/audit-log/{id}', [AuditLogController::class, 'destroy'])->name('audit.destroy');
     });
 
     // System Diagnostics (Admin & Developer only)

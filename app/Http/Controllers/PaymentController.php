@@ -156,8 +156,8 @@ class PaymentController extends Controller
                     ->where('intake_id', $registration->intake_id)
                     ->first();
 
-                $franchiseSsclTax = (float) ($franchisePlan->sscl_tax ?? optional($registration->intake)->sscl_tax ?? 0);
-                $franchiseBankCharges = (float) ($franchisePlan->bank_charges ?? optional($registration->intake)->bank_charges ?? 0);
+                $franchiseSsclTax = (float) (optional($franchisePlan)->sscl_tax ?? optional($registration->intake)->sscl_tax ?? 0);
+                $franchiseBankCharges = (float) (optional($franchisePlan)->bank_charges ?? optional($registration->intake)->bank_charges ?? 0);
 
                 $franchiseInstallments = \App\Models\PaymentInstallment::whereHas('paymentPlan', function($q) use ($student, $request) {
                         $q->where('student_id', $student->student_id)
@@ -191,13 +191,11 @@ class PaymentController extends Controller
                             'status'             => $status,
                             'paid_date'          => $paidDate,
                             'receipt_no'         => $receiptNo,
-                            'currency'           => $paymentDetail->foreign_currency_code ?? $ins->international_currency ?: 'USD',
-                            'conversion_rate'    => $paymentDetail ? (float) $paymentDetail->conversion_rate : null,
+                            'currency'           => optional($paymentDetail)->foreign_currency_code ?? $ins->international_currency ?: 'USD',
+                            'conversion_rate'    => $this->resolveFranchiseConversionRate($paymentDetail),
                             'lkr_amount'         => $paymentDetail ? (float) $paymentDetail->amount : null,
                             'apply_tax'          => false,
-                            'sscl_tax'           => $paymentDetail ? (float) $paymentDetail->sscl_tax_amount : $franchiseSsclTax,
-                            'bank_charges'       => $paymentDetail ? (float) $paymentDetail->bank_charges : $franchiseBankCharges,
-                        ];
+                        ] + $this->franchiseChargeFields($paymentDetail, $franchiseSsclTax, $franchiseBankCharges);
                     }
 
                     break;
@@ -244,13 +242,15 @@ class PaymentController extends Controller
                             'status'             => $status,
                             'paid_date'          => $paidDate,
                             'receipt_no'         => $receiptNo,
-                            'currency'           => $paymentDetail->foreign_currency_code ?? $plan->international_currency ?: 'USD',
-                            'conversion_rate'    => $paymentDetail ? (float) $paymentDetail->conversion_rate : null,
+                            'currency'           => optional($paymentDetail)->foreign_currency_code ?? $plan->international_currency ?: 'USD',
+                            'conversion_rate'    => $this->resolveFranchiseConversionRate($paymentDetail),
                             'lkr_amount'         => $paymentDetail ? (float) $paymentDetail->amount : null,
                             'apply_tax'          => (bool)($item['apply_tax'] ?? false),
-                            'sscl_tax'           => $paymentDetail ? (float) $paymentDetail->sscl_tax_amount : (float)($plan->sscl_tax ?? 0),
-                            'bank_charges'       => $paymentDetail ? (float) $paymentDetail->bank_charges : (float)($plan->bank_charges ?? 0),
-                        ];
+                        ] + $this->franchiseChargeFields(
+                            $paymentDetail,
+                            (float) ($plan->sscl_tax ?? 0),
+                            (float) ($plan->bank_charges ?? 0)
+                        );
                     }
                 }
 
@@ -590,20 +590,27 @@ class PaymentController extends Controller
                 ]);
             }
 
-            // Find student by NIC
-            $student = Student::where('id_value', $studentNic)->first();
-            
+            $student = Student::query()
+                ->where(function ($query) use ($studentNic) {
+                    $query->where('id_value', $studentNic)
+                        ->orWhere('student_id', $studentNic);
+                })
+                ->first();
+
             if (!$student) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Student not found with the provided NIC.',
+                    'message' => 'Student not found with the provided NIC or Student ID.',
                     'courses' => []
                 ]);
             }
 
-            // Get courses that the student is registered for and approved by manager or DGM
+            // Courses this student is registered for (skip rejected applications)
             $courses = CourseRegistration::where('student_id', $student->student_id)
-                ->whereIn('approval_status', ['Approved by manager', 'DGM'])
+                ->where(function ($query) {
+                    $query->whereNull('approval_status')
+                        ->orWhereRaw("LOWER(TRIM(approval_status)) <> 'rejected'");
+                })
                 ->with('course')
                 ->get()
                 ->map(function ($registration) {
@@ -614,7 +621,7 @@ class PaymentController extends Controller
                     return [
                         'course_id' => $registration->course->course_id,
                         'course_name' => $registration->course->course_name,
-                        'registration_date' => $registration->registration_date,
+                        'registration_date' => $this->formatSriLankaDate($registration->registration_date),
                         'status' => $registration->status,
                         'approval_status' => $registration->approval_status,
                     ];
@@ -1336,6 +1343,7 @@ public function generatePaymentSlip(Request $request)
             }
 
             $franchiseFee = $amount; // base franchise fee in LKR
+            $ssclPercent = 0;
 
             // 🔹 Get student payment plan
             $studentPlan = \App\Models\StudentPaymentPlan::where('student_id', $student->student_id)
@@ -1358,9 +1366,16 @@ public function generatePaymentSlip(Request $request)
         }
     }
 
-    // ✅ Always prefer manually entered frontend values (if provided)
+    // Prefer manually entered SSCL LKR, but never treat a percent leak / LKR-as-% as the tax amount.
     if ($request->filled('sscl_tax_amount')) {
-        $ssclTaxAmount = (float) $request->sscl_tax_amount;
+        $incomingSscl = (float) $request->sscl_tax_amount;
+        if ($franchiseFee > 0 && $incomingSscl > $franchiseFee) {
+            $ssclTaxAmount = $ssclPercent > 0
+                ? round($franchiseFee * ($ssclPercent / 100), 2)
+                : 0;
+        } else {
+            $ssclTaxAmount = $incomingSscl;
+        }
     }
 
     if ($request->filled('bank_charges')) {
@@ -1627,7 +1642,7 @@ if ($existingPayment) {
             'partial_payments'  => json_encode([]), // ensures proper JSON
             'foreign_currency_code'  => $foreignCurrency,
             'foreign_currency_amount'=> $foreignAmount,
-            'conversion_rate'        => $paymentType === 'franchise_fee' ? $conversionRate : null,
+            'conversion_rate'        => $paymentType === 'franchise_fee' && $conversionRate > 0 ? $conversionRate : null,
             'installment_type'           => $installmentType,
             // Actual payment date supplied by staff; drives late-fee calculations
             'payment_effective_date'     => $request->payment_effective_date ?: null,
@@ -2012,6 +2027,11 @@ public function getPaymentRecords(Request $request)
         'payment_type'       => $paymentType,
         'installment_number' => $payment->installment_number,
         'amount'             => $baseAmount,
+        'conversion_rate'    => $paymentType === 'franchise_fee'
+            ? $this->resolveFranchiseConversionRate($payment)
+            : ($payment->conversion_rate !== null ? (float) $payment->conversion_rate : null),
+        'sscl_tax_amount'    => $ssclTaxAmount,
+        'bank_charges'       => $bankCharges,
         'late_fee'           => $lateFee,
         'approved_late_fee'  => $approvedLateFee,
         'total_fee'          => $storedTotalFee,
@@ -3077,33 +3097,36 @@ private function buildSlipDataFromPaymentDetail(\App\Models\PaymentDetail $payme
     /**
      * Generate and download the Payment Statement as PDF.
      */
-/**
- * Generate and download the Payment Statement as PDF.
- */
-public function downloadPaymentStatement(Request $request)
-{
-    try {
-        $studentNic = $request->input('student_nic');
-        $courseId   = $request->input('course_id');
+    public function downloadPaymentStatement(Request $request)
+    {
+        try {
+            $request->validate([
+                'student_nic' => 'required|string',
+                'course_id' => 'required|integer|exists:courses,course_id',
+            ]);
 
-        // 🔹 Find student
-        $student = \App\Models\Student::where('id_value', $studentNic)
-            ->orWhere('student_id', $studentNic)
-            ->first();
+            $studentNic = trim((string) $request->input('student_nic'));
+            $courseId = $request->input('course_id');
 
-        if (!$student) {
-            return back()->with('error', 'Student not found');
-        }
+            $student = Student::query()
+                ->where(function ($query) use ($studentNic) {
+                    $query->where('id_value', $studentNic)
+                        ->orWhere('student_id', $studentNic);
+                })
+                ->first();
 
-        // 🔹 Find course registration
-        $registration = \App\Models\CourseRegistration::where('student_id', $student->student_id)
-            ->where('course_id', $courseId)
-            ->with(['course', 'intake'])
-            ->first();
+            if (!$student) {
+                return $this->statementDownloadError($request, 'Student not found with the provided NIC or Student ID.', Response::HTTP_NOT_FOUND);
+            }
 
-        if (!$registration) {
-            return back()->with('error', 'Course registration not found');
-        }
+            $registration = CourseRegistration::where('student_id', $student->student_id)
+                ->where('course_id', $courseId)
+                ->with(['course', 'intake'])
+                ->first();
+
+            if (!$registration) {
+                return $this->statementDownloadError($request, 'Student is not registered for this course.', Response::HTTP_NOT_FOUND);
+            }
 
         // 🔹 Fetch actual payments
         $payments = \App\Models\PaymentDetail::where('student_id', $student->student_id)
@@ -3167,8 +3190,7 @@ public function downloadPaymentStatement(Request $request)
                 : json_decode($coursePlan->installments, true);
         }
 
-        // 🔹 Prepare data for PDF
-        $data = [
+            $data = [
             'student' => [
                 'name' => $student->full_name,
                 'id'   => $student->student_id,
@@ -3176,9 +3198,9 @@ public function downloadPaymentStatement(Request $request)
             ],
             'course' => [
                 'name'              => optional($registration->course)->course_name,
-                'code'              => optional($registration->course)->course_code,
+                'code'              => optional($registration->course)->course_name,
                 'intake'            => optional($registration->intake)->batch,
-                'registration_date' => $registration->registration_date,
+                'registration_date' => optional($registration->registration_date)?->format('Y-m-d'),
             ],
             'payments' => $paymentDetails,
             'totals' => [
@@ -3187,24 +3209,38 @@ public function downloadPaymentStatement(Request $request)
                 'total_remaining' => $totalRemaining,
             ],
             'generated_date'     => now()->format('Y-m-d H:i:s'),
-            'paymentPlan'        => $paymentPlan,        // Student-specific installments
-            'coursePlan'         => $coursePlan,         // Course-level plan
-            'courseInstallments' => $courseInstallments, // Master installments
+            'paymentPlan'        => $paymentPlan,
+            'coursePlan'         => $coursePlan,
+            'courseInstallments' => $courseInstallments,
+            'cspNonce'           => $request->attributes->get('cspNonce') ?? base64_encode(random_bytes(16)),
         ];
 
-        // 🔹 Generate PDF
-        $pdf = \PDF::loadView('payments.payment_statement', $data);
+            $courseLabel = preg_replace('/[^A-Za-z0-9_\-]+/', '_', optional($registration->course)->course_name ?? 'Course');
+            $filename = "Payment_Statement_{$student->student_id}_{$courseLabel}.pdf";
 
-        $filename = "Payment_Statement_{$student->student_id}_"
-            . (optional($registration->course)->course_code ?? 'Course') . ".pdf";
+            $pdf = Pdf::loadView('payments.payment_statement', $data)
+                ->setPaper('A4', 'portrait');
 
-        return $pdf->download($filename);
-
-    } catch (\Exception $e) {
-        \Log::error('Payment Statement PDF Error: ' . $e->getMessage());
-        return back()->with('error', 'Error generating statement: '.$e->getMessage());
+            return $pdf->download($filename);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Payment Statement PDF Error: ' . $e->getMessage());
+            return $this->statementDownloadError($request, 'Error generating statement. Please try again.', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
-}
+
+    private function statementDownloadError(Request $request, string $message, int $status)
+    {
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], $status);
+        }
+
+        return back()->with('error', $message)->withInput();
+    }
 
 
 /**
@@ -3219,7 +3255,67 @@ private function getPaymentDescription($payment)
     } elseif ($payment->installment_type === 'registration_fee') {
         return "Registration Fee";
     }
-    return ucfirst(str_replace('_', ' ', $payment->installment_type));
+    return ucfirst(str_replace('_', ' ', $payment->installment_type ?? 'payment'));
 }
+
+    private function formatSriLankaDate($value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        return \Carbon\Carbon::parse($value)
+            ->timezone(config('app.timezone', 'Asia/Colombo'))
+            ->format('Y-m-d');
+    }
+
+    /**
+     * Stored FX rate, or LKR amount / foreign amount when older slips have no rate.
+     */
+    private function resolveFranchiseConversionRate(?PaymentDetail $paymentDetail): ?float
+    {
+        if (!$paymentDetail) {
+            return null;
+        }
+
+        $stored = $paymentDetail->conversion_rate !== null ? (float) $paymentDetail->conversion_rate : 0.0;
+        if ($stored > 0) {
+            return $stored;
+        }
+
+        $foreign = (float) ($paymentDetail->foreign_currency_amount ?? 0);
+        $lkr = (float) ($paymentDetail->amount ?? 0);
+        if ($foreign > 0 && $lkr > 0) {
+            return round($lkr / $foreign, 6);
+        }
+
+        return null;
+    }
+
+    /**
+     * Keep SSCL percent (e.g. 2.56) separate from stored SSCL LKR on a slip.
+     */
+    private function franchiseChargeFields(?PaymentDetail $paymentDetail, float $planSsclPercent, float $planBankCharges): array
+    {
+        $ssclPercent = $planSsclPercent > 0 ? $planSsclPercent : 0.0;
+        $ssclAmount = $paymentDetail ? (float) $paymentDetail->sscl_tax_amount : null;
+        $lkrBase = $paymentDetail ? (float) $paymentDetail->amount : 0.0;
+
+        if ($ssclPercent <= 0 && $lkrBase > 0 && $ssclAmount > 0 && $ssclAmount <= $lkrBase) {
+            $ssclPercent = round(($ssclAmount / $lkrBase) * 100, 4);
+        }
+
+        // Guard: older refresh bugs stored LKR-as-percent back into sscl_tax_amount.
+        if ($ssclAmount !== null && $lkrBase > 0 && $ssclAmount > $lkrBase && $ssclPercent > 0) {
+            $ssclAmount = round($lkrBase * $ssclPercent / 100, 2);
+        }
+
+        return [
+            'sscl_tax' => $ssclPercent,
+            'sscl_percent' => $ssclPercent,
+            'sscl_tax_amount' => $ssclAmount,
+            'bank_charges' => $paymentDetail ? (float) $paymentDetail->bank_charges : $planBankCharges,
+        ];
+    }
 
 }

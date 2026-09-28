@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Student;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 class StudentRegistrationRequest extends FormRequest
@@ -217,7 +220,7 @@ class StudentRegistrationRequest extends FormRequest
             'gender.required' => 'Please select a gender.',
             'identificationType.required' => 'Please select an identification type.',
             'idValue.required' => 'ID value is required.',
-            'idValue.unique' => 'This ID value is already registered.',
+            'idValue.unique' => 'This ID value is already registered. Open the existing Student Profile instead of creating a new record.',
             'address.required' => 'Address is required.',
             'district.required' => 'Please select a district.',
             'district.in' => 'Please select a valid district in Sri Lanka.',
@@ -309,8 +312,49 @@ class StudentRegistrationRequest extends FormRequest
     /**
      * Handle a failed validation attempt.
      */
-    protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
+    protected function failedValidation(Validator $validator)
     {
-        throw new \Illuminate\Validation\ValidationException($validator);
+        $existing = $this->existingStudentPayload();
+        if ($existing) {
+            $validator->errors()->forget('idValue');
+            $validator->errors()->add('idValue', $existing['message']);
+        }
+
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => $validator->errors()->first() ?: 'Validation failed.',
+            'errors' => $validator->errors(),
+            'existing_student' => $existing,
+        ], 422));
+    }
+
+    private function existingStudentPayload(): ?array
+    {
+        $idValue = trim((string) $this->input('idValue', ''));
+        if ($idValue === '') {
+            return null;
+        }
+
+        $student = Student::where('id_value', $idValue)->first();
+        if (!$student) {
+            return null;
+        }
+
+        $status = strtolower((string) ($student->academic_status ?: 'active'));
+        $statusLabel = $status === 'terminated' ? 'Terminated' : ucfirst($status);
+        $name = $student->full_name ?: $student->name_with_initials ?: 'this student';
+
+        return [
+            'student_id' => $student->student_id,
+            'name' => $name,
+            'academic_status' => $student->academic_status,
+            'profile_url' => route('student_management.profile', ['studentId' => $student->student_id]),
+            'message' => sprintf(
+                'This ID is already registered as %s (Student ID %s, status: %s). Do not create a new student. Open the existing Student Profile to re-register, process clearance, or continue termination.',
+                $name,
+                $student->student_id,
+                $statusLabel
+            ),
+        ];
     }
 }

@@ -17,6 +17,8 @@ class RoleHelperTest extends TestCase
         
         // Test that Librarian does not have permission to access student registration
         $this->assertFalse(RoleHelper::hasPermission('Librarian', 'student.registration'));
+        $this->assertFalse(RoleHelper::hasPermission('Librarian', 'audit.log'));
+        $this->assertFalse(RoleHelper::hasPermission('Program Administrator (level 01)', 'audit.log'));
         
         // Test that Librarian has permission to access library clearance
         $this->assertTrue(RoleHelper::hasPermission('Librarian', 'library.clearance'));
@@ -66,6 +68,7 @@ class RoleHelperTest extends TestCase
         $this->assertTrue(RoleHelper::hasPermission('Developer', 'payment.clearance'));
         $this->assertTrue(RoleHelper::hasPermission('Developer', 'reporting.dashboard'));
         $this->assertTrue(RoleHelper::hasPermission('Developer', 'data.export.import'));
+        $this->assertTrue(RoleHelper::hasPermission('Developer', 'audit.log'));
     }
 
     public function test_developer_role_can_access_all_management_features()

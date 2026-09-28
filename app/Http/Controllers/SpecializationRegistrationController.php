@@ -19,7 +19,17 @@ class SpecializationRegistrationController extends Controller
         }
 
         return is_array($specializations)
-            ? array_values(array_filter($specializations, fn ($value) => is_string($value) && trim($value) !== ''))
+            ? array_values(array_filter(array_map(function ($value) {
+                if (is_string($value)) {
+                    $trimmed = trim($value);
+                    return $trimmed === '' ? null : $trimmed;
+                }
+                if (is_array($value)) {
+                    $label = trim((string) ($value['name'] ?? $value['title'] ?? $value['specialization'] ?? ''));
+                    return $label === '' ? null : $label;
+                }
+                return null;
+            }, $specializations)))
             : [];
     }
 
@@ -32,16 +42,39 @@ class SpecializationRegistrationController extends Controller
 
     public function courses(Request $request)
     {
-        return response()->json(['courses' => Course::where('location', $request->location)
+        $data = $request->validate([
+            'location' => 'required|in:Welisara,Moratuwa,Peradeniya',
+        ]);
+
+        $courses = Course::where('location', $data['location'])
             ->whereIn('course_type', ['degree', 'diploma'])
-            ->orderBy('course_name')->get(['course_id', 'course_name', 'specializations'])]);
+            ->orderBy('course_name')
+            ->get(['course_id', 'course_name', 'specializations']);
+
+        return response()->json([
+            'success' => true,
+            'courses' => $courses,
+        ]);
     }
 
     public function intakes(Request $request)
     {
-        $course = Course::findOrFail($request->course_id);
-        return response()->json(['intakes' => Intake::forCourse($course, $request->location)
-            ->orderBy('batch')->get(['intake_id', 'batch'])]);
+        $data = $request->validate([
+            'course_id' => 'required|exists:courses,course_id',
+            'location' => 'required|in:Welisara,Moratuwa,Peradeniya',
+        ]);
+
+        $course = Course::find($data['course_id']);
+        if (!$course) {
+            return response()->json(['success' => false, 'intakes' => [], 'message' => 'Course not found.']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'intakes' => Intake::forCourse($course, $data['location'])
+                ->orderBy('batch')
+                ->get(['intake_id', 'batch']),
+        ]);
     }
 
     public function students(Request $request)
@@ -49,7 +82,7 @@ class SpecializationRegistrationController extends Controller
         $data = $request->validate([
             'course_id' => 'required|exists:courses,course_id',
             'intake_id' => 'required|exists:intakes,intake_id',
-            'location' => 'required|string',
+            'location' => 'required|in:Welisara,Moratuwa,Peradeniya',
         ]);
 
         $registrations = CourseRegistration::query()
@@ -67,7 +100,7 @@ class SpecializationRegistrationController extends Controller
                 ->where('status', 'registered')
                 ->whereIn('student_id', $registrations->pluck('student_id')->all())
                 ->get()
-                ->keyBy('student_id');
+                ->keyBy(fn ($assignment) => (int) $assignment->student_id);
         }
 
         $students = $registrations->map(function ($registration) use ($assignmentsByStudentId) {
@@ -76,18 +109,22 @@ class SpecializationRegistrationController extends Controller
                     return null;
                 }
 
-                $assignment = $assignmentsByStudentId->get($registration->student_id);
+                $assignment = $assignmentsByStudentId->get((int) $registration->student_id);
+                $specialization = $assignment && $assignment->status === 'registered'
+                    ? trim((string) $assignment->specialization)
+                    : null;
 
                 return [
-                    'student_id' => $registration->student_id,
+                    'student_id' => (int) $registration->student_id,
                     'course_registration_id' => $registration->course_registration_id,
                     'name' => $student->name_with_initials,
                     'email' => $student->email,
                     'nic' => $student->id_value ?? $student->nic ?? null,
-                    'specialization' => $assignment?->status === 'registered' ? $assignment->specialization : null,
+                    'specialization' => $specialization !== '' ? $specialization : null,
                 ];
             })
             ->filter()
+            ->unique('student_id')
             ->values();
 
         return response()->json(['success' => true, 'students' => $students]);
@@ -98,16 +135,31 @@ class SpecializationRegistrationController extends Controller
         $data = $request->validate([
             'course_id' => 'required|exists:courses,course_id',
             'intake_id' => 'required|exists:intakes,intake_id',
-            'location' => 'required|string',
+            'location' => 'required|in:Welisara,Moratuwa,Peradeniya',
             'specialization' => 'required|string|max:255',
             'student_ids' => 'required|array|min:1',
             'student_ids.*' => 'integer|exists:students,student_id',
         ]);
 
-        $course = Course::findOrFail($data['course_id']);
-        abort_unless(in_array($course->course_type, ['degree', 'diploma'], true), 422, 'Specialization registration is only for degree and diploma courses.');
-        abort_unless(in_array($data['specialization'], $this->courseSpecializations($course), true), 422, 'Invalid specialization for this course.');
-        abort_if(!Schema::hasTable('specialization_registrations'), 422, 'Specialization assignments table is missing. Please run pending migrations.');
+        $course = Course::find($data['course_id']);
+        if (!$course || !in_array($course->course_type, ['degree', 'diploma'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Specialization registration is only for degree and diploma courses.',
+            ], 422);
+        }
+        if (!in_array($data['specialization'], $this->courseSpecializations($course), true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid specialization for this course.',
+            ], 422);
+        }
+        if (!Schema::hasTable('specialization_registrations')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Specialization assignments table is missing. Please run pending migrations.',
+            ], 422);
+        }
 
         $eligibleIds = CourseRegistration::where('course_id', $data['course_id'])->where('intake_id', $data['intake_id'])
             ->where('location', $data['location'])->whereIn('student_id', $data['student_ids'])

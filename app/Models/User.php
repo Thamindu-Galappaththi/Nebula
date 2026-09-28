@@ -8,6 +8,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens; // Add this line
 use App\Traits\UserTracking;
+use Carbon\Carbon;
 
 class User extends Authenticatable
 {
@@ -95,5 +96,28 @@ class User extends Authenticatable
     public function hasAssignedRoles(): bool
     {
         return !empty($this->getRoleList());
+    }
+
+    public function createdAtSriLanka(): ?Carbon
+    {
+        return $this->toSriLankaTime($this->created_at);
+    }
+
+    public function updatedAtSriLanka(): ?Carbon
+    {
+        return $this->toSriLankaTime($this->updated_at);
+    }
+
+    private function toSriLankaTime($value): ?Carbon
+    {
+        if (!$value) {
+            return null;
+        }
+
+        $carbon = $value instanceof Carbon
+            ? $value->copy()
+            : Carbon::parse($value, config('app.timezone'));
+
+        return $carbon->timezone('Asia/Colombo');
     }
 }

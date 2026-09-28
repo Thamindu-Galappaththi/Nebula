@@ -22,7 +22,7 @@ class ProjectClearanceController extends Controller
     public function showProjectClearanceFormManagement(Request $request)
     {
         if (Auth::check() && Auth::user()->status) {
-            return view('clearance.project_clearance', $this->clearancePageData($request, ClearanceRequest::TYPE_PROJECT));
+            return $this->clearancePageResponse($request, ClearanceRequest::TYPE_PROJECT, 'clearance.project_clearance');
         }
         else {
         // Log unauthorized access attempt

@@ -23,7 +23,7 @@ class StudentCounselorDashboardController extends Controller
     // Get overview metrics
     public function getOverviewMetrics(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
         $previousRange = $this->getPreviousDateRange($dateRange['start'], $dateRange['end']);
@@ -33,28 +33,23 @@ class StudentCounselorDashboardController extends Controller
         $totalRegisteredStudents = CourseRegistration::count();
         $activeRegisteredStudents = CourseRegistration::where('status', 'Registered')->count();
         $totalUniqueStudents = CourseRegistration::distinct('student_id')->count('student_id');
-        $pendingRegistrations = CourseRegistration::where('status', 'Pending')->count();
-        $todayRegistrations = CourseRegistration::whereDate('registration_date', Carbon::today())->count();
-        $thisWeekRegistrations = CourseRegistration::whereBetween('registration_date', [
-            Carbon::now()->startOfWeek()->toDateString(),
-            Carbon::now()->endOfWeek()->toDateString(),
-        ])->count();
+        $pendingRegistrations = $this->pendingRegistrationsQuery()->count();
+        $todayRegistrations = $this->registrationsInRange(Carbon::today(), Carbon::today()->endOfDay())->count();
+        $thisWeekRegistrations = $this->registrationsInRange(
+            Carbon::now()->startOfWeek()->startOfDay(),
+            Carbon::now()->endOfWeek()->endOfDay()
+        )->count();
 
-        $periodRegistrations = CourseRegistration::whereBetween('registration_date', [
-            $dateRange['start']->toDateString(),
-            $dateRange['end']->toDateString(),
-        ])->count();
+        $periodRegistrations = $this->registrationsInRange($dateRange['start'], $dateRange['end'])->count();
 
-        $periodPendingRegistrations = CourseRegistration::where('status', 'Pending')
-            ->whereBetween('registration_date', [
+        $periodPendingRegistrations = $this->pendingRegistrationsQuery()
+            ->whereRaw($this->registrationDateSql() . ' BETWEEN ? AND ?', [
                 $dateRange['start']->toDateString(),
                 $dateRange['end']->toDateString(),
-            ])->count();
+            ])
+            ->count();
 
-        $previousPeriodRegistrations = CourseRegistration::whereBetween('registration_date', [
-            $previousRange['start']->toDateString(),
-            $previousRange['end']->toDateString(),
-        ])->count();
+        $previousPeriodRegistrations = $this->registrationsInRange($previousRange['start'], $previousRange['end'])->count();
 
         $growthPercentage = 0;
         if ($previousPeriodRegistrations > 0) {
@@ -82,20 +77,24 @@ class StudentCounselorDashboardController extends Controller
     // Get recent registrations
     public function getRecentRegistrations(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $filter = strtolower($request->input('filter', 'all'));
         $search = trim((string) $request->input('search', ''));
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 10;
         $dateRange = $this->getDateRange($period, $customDate);
 
-        $query = CourseRegistration::with(['student', 'course', 'intake'])
-            ->whereBetween('registration_date', [
-                $dateRange['start']->toDateString(),
-                $dateRange['end']->toDateString(),
-            ]);
+        $query = CourseRegistration::with(['student', 'course', 'intake']);
+        $this->applyRegistrationDateFilter($query, $dateRange);
 
-        if ($filter !== 'all') {
-            $query->where('status', ucfirst($filter));
+        if ($filter === 'pending') {
+            $query->where(function ($q) {
+                $q->whereRaw("LOWER(COALESCE(course_registration.status, '')) = 'pending'")
+                    ->orWhereRaw("LOWER(COALESCE(course_registration.approval_status, '')) = 'pending'");
+            });
+        } elseif ($filter === 'registered') {
+            $query->whereRaw("LOWER(COALESCE(course_registration.status, '')) = 'registered'");
         }
 
         if ($search !== '') {
@@ -114,33 +113,39 @@ class StudentCounselorDashboardController extends Controller
             });
         }
 
-        $recentRegistrations = $query->orderBy('registration_date', 'desc')
+        $paginator = $query->orderByRaw($this->registrationDateSql() . ' DESC')
             ->orderBy('id', 'desc')
-            ->take(25)
-            ->get()
-            ->map(function ($registration) {
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $rows = $paginator->getCollection()->map(function ($registration) {
                 return [
                     'id' => $registration->id,
                     'student_id' => $registration->student_id,
                     'student_name' => $registration->student->name_with_initials ?? $registration->student->full_name ?? 'N/A',
                     'email' => $registration->student->email ?? '',
                     'course_name' => $registration->course->course_name ?? 'N/A',
-                    'registration_date' => $registration->registration_date ? Carbon::parse($registration->registration_date)->format('Y-m-d') : 'N/A',
+                    'registration_date' => $registration->registration_date ? Carbon::parse($registration->registration_date)->format('Y-m-d') : ($registration->created_at ? Carbon::parse($registration->created_at)->format('Y-m-d') : 'N/A'),
                     'registration_time' => $registration->created_at ? Carbon::parse($registration->created_at)->format('H:i') : '',
                     'status' => $registration->status,
                     'location' => $registration->location ?? 'N/A',
                     'counselor_name' => $registration->counselor_name ?? 'N/A',
-                    'marketing_source' => $registration->student->marketing_survey ?? 'Direct'
+                    'marketing_source' => $registration->student->marketing_survey ?? 'Direct',
+                    'mobile' => $registration->student->mobile_phone ?? '',
                 ];
-            });
+            })->values();
 
-        return response()->json($recentRegistrations);
+        return response()->json([
+            'data' => $rows,
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'total' => $paginator->total(),
+        ]);
     }
 
     // Get marketing survey data
     public function getMarketingSurveyData(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
 
@@ -148,7 +153,7 @@ class StudentCounselorDashboardController extends Controller
             ->select('students.marketing_survey', DB::raw('COUNT(*) as count'))
             ->whereNotNull('students.marketing_survey')
             ->where('students.marketing_survey', '!=', '')
-            ->whereBetween('course_registration.registration_date', [
+            ->whereRaw($this->registrationDateSql() . ' BETWEEN ? AND ?', [
                 $dateRange['start']->toDateString(),
                 $dateRange['end']->toDateString(),
             ])
@@ -195,15 +200,15 @@ class StudentCounselorDashboardController extends Controller
     // Get daily registration trend
     public function getDailyRegistrationTrend(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
 
         [$groupSql, $labelSql] = match ($period) {
-            'quarter' => ['DATE_FORMAT(registration_date, "%Y-%m-01")', 'DATE_FORMAT(registration_date, "%b %Y")'],
-            'month' => ['DATE(registration_date)', 'DATE_FORMAT(registration_date, "%d %b")'],
-            'today', 'custom' => ['DATE(registration_date)', 'DATE_FORMAT(registration_date, "%d %b")'],
-            default => ['DATE(registration_date)', 'DATE_FORMAT(registration_date, "%a %d")'],
+            'quarter' => ['DATE_FORMAT(' . $this->registrationDateSql() . ', "%Y-%m-01")', 'DATE_FORMAT(' . $this->registrationDateSql() . ', "%b %Y")'],
+            'month' => ['DATE(' . $this->registrationDateSql() . ')', 'DATE_FORMAT(' . $this->registrationDateSql() . ', "%d %b")'],
+            'today', 'custom' => ['DATE(' . $this->registrationDateSql() . ')', 'DATE_FORMAT(' . $this->registrationDateSql() . ', "%d %b")'],
+            default => ['DATE(' . $this->registrationDateSql() . ')', 'DATE_FORMAT(' . $this->registrationDateSql() . ', "%a %d")'],
         };
 
         $trendData = CourseRegistration::select(
@@ -211,7 +216,7 @@ class StudentCounselorDashboardController extends Controller
                 DB::raw("{$labelSql} as date"),
                 DB::raw('COUNT(*) as count')
             )
-            ->whereBetween('registration_date', [
+            ->whereRaw($this->registrationDateSql() . ' BETWEEN ? AND ?', [
                 $dateRange['start']->toDateString(),
                 $dateRange['end']->toDateString(),
             ])
@@ -225,13 +230,13 @@ class StudentCounselorDashboardController extends Controller
     // Get registrations by location
     public function getRegistrationsByLocation(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
 
         $locationData = CourseRegistration::select('location', DB::raw('COUNT(*) as count'))
             ->whereNotNull('location')
-            ->whereBetween('registration_date', [
+            ->whereRaw($this->registrationDateSql() . ' BETWEEN ? AND ?', [
                 $dateRange['start']->toDateString(),
                 $dateRange['end']->toDateString(),
             ])
@@ -273,14 +278,14 @@ class StudentCounselorDashboardController extends Controller
     // Get counselor performance data
     public function getCounselorPerformanceData(Request $request)
     {
-        $period = $request->input('period', 'week');
+        $period = $request->input('period', 'month');
         $customDate = $request->input('date');
         $dateRange = $this->getDateRange($period, $customDate);
 
         $performanceData = CourseRegistration::select('counselor_name', DB::raw('COUNT(*) as student_count'))
             ->whereNotNull('counselor_name')
             ->where('counselor_name', '!=', '')
-            ->whereBetween('registration_date', [
+            ->whereRaw($this->registrationDateSql() . ' BETWEEN ? AND ?', [
                 $dateRange['start']->toDateString(),
                 $dateRange['end']->toDateString(),
             ])
@@ -292,7 +297,7 @@ class StudentCounselorDashboardController extends Controller
         return response()->json($performanceData);
     }
 
-    private function getDateRange(string $period = 'week', ?string $customDate = null): array
+    private function getDateRange(string $period = 'month', ?string $customDate = null): array
     {
         return match ($period) {
             'today' => [
@@ -326,5 +331,34 @@ class StudentCounselorDashboardController extends Controller
             'start' => $start->copy()->subDays($days)->startOfDay(),
             'end' => $start->copy()->subDay()->endOfDay(),
         ];
+    }
+
+    private function registrationDateSql(): string
+    {
+        return 'COALESCE(course_registration.registration_date, DATE(course_registration.created_at))';
+    }
+
+    private function applyRegistrationDateFilter($query, array $dateRange)
+    {
+        return $query->whereRaw($this->registrationDateSql() . ' BETWEEN ? AND ?', [
+            $dateRange['start']->toDateString(),
+            $dateRange['end']->toDateString(),
+        ]);
+    }
+
+    private function registrationsInRange(Carbon $start, Carbon $end)
+    {
+        return CourseRegistration::query()->whereRaw($this->registrationDateSql() . ' BETWEEN ? AND ?', [
+            $start->toDateString(),
+            $end->toDateString(),
+        ]);
+    }
+
+    private function pendingRegistrationsQuery()
+    {
+        return CourseRegistration::query()->where(function ($q) {
+            $q->whereRaw("LOWER(COALESCE(course_registration.status, '')) = 'pending'")
+                ->orWhereRaw("LOWER(COALESCE(course_registration.approval_status, '')) = 'pending'");
+        });
     }
 }

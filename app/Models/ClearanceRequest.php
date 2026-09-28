@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\UserTracking;
+use Carbon\Carbon;
 
 class ClearanceRequest extends Model
 {
@@ -190,5 +191,28 @@ class ClearanceRequest extends Model
             self::STATUS_APPROVED => 'success',
             self::STATUS_REJECTED => 'danger'
         ][$this->status] ?? 'secondary';
+    }
+
+    public function processedAtSriLanka(): ?Carbon
+    {
+        return $this->toSriLankaTime($this->approved_at ?? $this->updated_at);
+    }
+
+    public function requestedAtSriLanka(): ?Carbon
+    {
+        return $this->toSriLankaTime($this->requested_at ?? $this->created_at);
+    }
+
+    private function toSriLankaTime($value): ?Carbon
+    {
+        if (!$value) {
+            return null;
+        }
+
+        $carbon = $value instanceof Carbon
+            ? $value->copy()
+            : Carbon::parse($value, config('app.timezone'));
+
+        return $carbon->timezone('Asia/Colombo');
     }
 }

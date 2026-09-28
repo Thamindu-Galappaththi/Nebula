@@ -33,8 +33,14 @@
                     <strong>Location:</strong> {{ $locationText }}<br>
                     <strong>Course:</strong> {{ $courseText }}<br>
                     <strong>Batch:</strong> {{ $intakeText }}<br>
+                    @if(!empty($showSpecializationColumn) && !empty($specializationText) && $specializationText !== 'All')
+                        <strong>Specialization:</strong> {{ $specializationText }}<br>
+                    @endif
                         <strong>View:</strong>
-                    @if(($status ?? 'all') === 'all') All @else {{ ucfirst($status) }} @endif
+                    @if(($status ?? 'all') === 'all') All
+                    @elseif(($status ?? '') === 'terminated') Not Eligible
+                    @else {{ ucfirst($status) }}
+                    @endif
                 </div>
 
                 <div class="mt-4">
@@ -45,7 +51,9 @@
                                 <th>Course Registration ID</th>
                                 <th>Student ID</th>
                                 <th>Student Name</th>
-                                <th>Specialization</th>
+                                @if(!empty($showSpecializationColumn))
+                                    <th>Specialization</th>
+                                @endif
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -56,14 +64,24 @@
                                     <td style="text-align:center;">{{ $st->course_registration_id }}</td>
                                     <td style="text-align:center;">{{ $st->student_id }}</td>
                                     <td>{{ $st->name }}</td>
-                                    <td style="text-align:center;">{{ $st->specialization ?: '-' }}</td>
+                                    @if(!empty($showSpecializationColumn))
+                                        <td style="text-align:center;">{{ $st->specialization }}</td>
+                                    @endif
                                     <td style="text-align:center;">
-                                        <span class="status-chip">{{ $st->status }}</span>
+                                        <span class="status-chip">
+                                            @if(!empty($st->status_label))
+                                                {{ $st->status_label }}
+                                            @elseif(($st->status ?? '') === 'terminated')
+                                                Not Eligible - Termination
+                                            @else
+                                                {{ ucfirst($st->status) }}
+                                            @endif
+                                        </span>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" style="text-align:center;">No students found</td>
+                                    <td colspan="{{ !empty($showSpecializationColumn) ? 6 : 5 }}" style="text-align:center;">No students found</td>
                                 </tr>
                             @endforelse
                         </tbody>

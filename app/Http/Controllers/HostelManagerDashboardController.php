@@ -29,59 +29,61 @@ class HostelManagerDashboardController extends Controller
         return $query;
     }
 
-    public function showDashboard()
+    public function showDashboard(Request $request)
     {
-        $courses = Course::orderBy('course_name')->get();
+        $pendingList = $this->pendingList($request);
 
-        $intakes = Intake::orderByDesc('intake_id')->get();
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('dashboards.partials.hostel_pending_list', compact('pendingList'))->render(),
+            ]);
+        }
 
-        $pendingCount = $this->applyLocationScope(
-            ClearanceRequest::where('clearance_type', 'hostel')
-        )
-            ->where('status', 'pending')
+        $pendingCount = $this->hostelQuery()
+            ->where('status', ClearanceRequest::STATUS_PENDING)
             ->count();
 
-        $approvedCount = $this->applyLocationScope(
-            ClearanceRequest::where('clearance_type', 'hostel')
-        )
-            ->where('status', 'approved')
+        $approvedCount = $this->hostelQuery()
+            ->where('status', ClearanceRequest::STATUS_APPROVED)
             ->whereMonth('approved_at', now()->month)
             ->whereYear('approved_at', now()->year)
             ->count();
 
-        $rejectedCount = $this->applyLocationScope(
-            ClearanceRequest::where('clearance_type', 'hostel')
-        )
-            ->where('status', 'rejected')
+        $rejectedCount = $this->hostelQuery()
+            ->where('status', ClearanceRequest::STATUS_REJECTED)
             ->whereMonth('approved_at', now()->month)
             ->whereYear('approved_at', now()->year)
             ->count();
 
-        $pendingList = $this->applyLocationScope(
-            ClearanceRequest::with(['student', 'course', 'intake'])
-                ->where('clearance_type', 'hostel')
-        )
-            ->where('status', 'pending')
-            ->orderBy('requested_at', 'asc')
-            ->get();
-
-        $recent = $this->applyLocationScope(
-            ClearanceRequest::with(['student', 'course', 'intake'])
-                ->where('clearance_type', 'hostel')
-        )
-            ->orderBy('updated_at', 'desc')
+        $recent = $this->hostelQuery()
+            ->with(['student', 'course', 'intake'])
+            ->whereIn('status', [
+                ClearanceRequest::STATUS_APPROVED,
+                ClearanceRequest::STATUS_REJECTED,
+            ])
+            ->orderByRaw('COALESCE(approved_at, updated_at) DESC')
+            ->orderByDesc('id')
             ->limit(10)
             ->get();
-        
+
         return view('dashboards.hostel_manager', compact(
-            'courses',
-            'intakes',
             'pendingCount',
             'approvedCount',
             'rejectedCount',
             'pendingList',
             'recent'
         ));
+    }
+
+    private function pendingList(Request $request)
+    {
+        return $this->hostelQuery()
+            ->with(['student', 'course', 'intake'])
+            ->where('status', ClearanceRequest::STATUS_PENDING)
+            ->orderByRaw('COALESCE(requested_at, created_at) ASC')
+            ->orderBy('id', 'asc')
+            ->paginate(10, ['*'], 'pending_page')
+            ->withQueryString();
     }
 
     public function getOverviewMetrics(Request $request)
@@ -309,18 +311,21 @@ class HostelManagerDashboardController extends Controller
 
     public function getRecentHostelClearances()
     {
-        $requests = $this->applyLocationScope(
-            ClearanceRequest::where('clearance_type', 'hostel')
-        )
+        $requests = $this->hostelQuery()
             ->with(['student', 'course'])
-            ->latest()
+            ->whereIn('status', [
+                ClearanceRequest::STATUS_APPROVED,
+                ClearanceRequest::STATUS_REJECTED,
+            ])
+            ->orderByRaw('COALESCE(approved_at, updated_at) DESC')
+            ->orderByDesc('id')
             ->take(10)
             ->get()
             ->map(function ($request) {
-                $request->processing_time = $request->approved_at 
+                $request->processing_time = $request->approved_at
                     ? Carbon::parse($request->requested_at)->diffInHours(Carbon::parse($request->approved_at)) . 'h'
                     : 'N/A';
-                    
+
                 return $request;
             });
 
@@ -600,6 +605,13 @@ class HostelManagerDashboardController extends Controller
         return response()->stream($callback, 200, $headers);
     }
     
+    private function hostelQuery()
+    {
+        return $this->applyLocationScope(
+            ClearanceRequest::query()->where('clearance_type', ClearanceRequest::TYPE_HOSTEL)
+        );
+    }
+
     private function getDateRange($range, $year, $month, $request = null)
     {
         switch ($range) {

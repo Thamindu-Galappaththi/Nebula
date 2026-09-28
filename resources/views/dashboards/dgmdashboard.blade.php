@@ -36,12 +36,12 @@
     <script src="{{ asset('js/jquery-3.6.0.min.js') }}"></script>
     <script src="{{ asset('js/tailwindcss.js') }}"></script>
     <script src="{{ asset('libs/chartjs/chart.min.js') }}"></script>
-    <div id="pageContent" class="bg-gray-50">
+    <div id="pageContent" class="bg-gray-50 dgm-dashboard-page">
 
         <!-- Navigation Tabs -->
         <nav class="bg-white shadow-sm">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex space-x-1 py-3">
+                <div class="dgm-tab-bar flex gap-1 py-3">
                     <button data-tab="overview" id="tab-overview"
                         class="px-4 py-2 rounded-lg text-sm font-medium tab-active">
                         <i class="fas fa-chart-line mr-2"></i>Overview
@@ -70,8 +70,8 @@
             <!-- Overview Tab -->
             <div id="content-overview" class="tab-content active">
                 <!-- Key Metrics Cards -->
-                <div class="flex gap-10">
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-sky-500">
+                <div class="dgm-kpi-grid">
+                    <div class="stat-card bg-white p-3 rounded-xl shadow-sm border-4 border-sky-500">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Total Students</p>
@@ -81,7 +81,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-green-500">
+                    <div class="stat-card bg-white p-3 rounded-xl shadow-sm border-4 border-green-500">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Yearly Revenue</p>
@@ -91,7 +91,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2 rounded-xl shadow-sm border-4 border-orange-500">
+                    <div class="stat-card bg-white p-3 rounded-xl shadow-sm border-4 border-orange-500">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Due this year</p>
@@ -100,7 +100,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white p-2  rounded-xl shadow-sm border-4 border-red-500">
+                    <div class="stat-card bg-white p-3 rounded-xl shadow-sm border-4 border-red-500">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-sm text-gray-600">Outstanding</p>
@@ -108,22 +108,20 @@
                             </div>
                         </div>
                     </div>
-
-
                 </div>
 
                 <!-- Quick Charts Grid -->
-                <div class="grid gap-6">
+                <div class="grid gap-6 mt-6">
                     <div class="bg-white p-6 rounded-xl shadow-sm">
                         <h3 class="text-lg font-semibold mb-4">Students by Location</h3>
-                        <div style="height: 300px;">
+                        <div class="dgm-chart-box">
                             <canvas id="studentsLocationChart"></canvas>
                         </div>
                     </div>
                 </div>
 
                 <!-- Revenue Summary Table -->
-                <div class="bg-white p-6 rounded-xl shadow-sm">
+                <div class="bg-white p-6 rounded-xl shadow-sm mt-6">
                     <h3 class="text-lg font-semibold mb-4">Revenue Summary</h3>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -212,52 +210,98 @@
                                         </label>
                                     </div>
 
-                                    <!-- Compare year fields -->
-                                    <div class="flex flex-row gap-2 mb-2" id="compareFields">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">From</label>
-                                            <select id="fromYearSelect"
-                                                class="w-full border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
-                                                disabled>
-                                                @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
-                                                @endfor
-                                            </select>
+                                    <!-- Compare year+month fields -->
+                                    <div class="flex flex-col gap-1 mb-2" id="compareFields" style="display:none;">
+                                        <div class="flex flex-row flex-wrap gap-2">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">From Year</label>
+                                                <select id="fromYearSelect"
+                                                    class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
+                                                    disabled>
+                                                    @for($y = date('Y'); $y >= 2010; $y--)
+                                                        <option value="{{ $y }}" @selected($y == date('Y') - 1)>{{ $y }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">From Month</label>
+                                                <select id="fromMonthSelect"
+                                                    class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
+                                                    disabled>
+                                                    @for($m = 1; $m <= 12; $m++)
+                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m === 1)>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">To Year</label>
+                                                <select id="toYearSelect"
+                                                    class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
+                                                    disabled>
+                                                    @for($y = date('Y'); $y >= 2010; $y--)
+                                                        <option value="{{ $y }}" @selected($y == date('Y'))>{{ $y }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">To Month</label>
+                                                <select id="toMonthSelect"
+                                                    class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
+                                                    disabled>
+                                                    @for($m = 1; $m <= 12; $m++)
+                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m == (int) date('n'))>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
-                                            <select id="toYearSelect"
-                                                class="w-full border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
-                                                disabled>
-                                                @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
-                                                @endfor
-                                            </select>
-                                        </div>
+                                        <div id="compareRangeError" class="text-red-500 text-xs hidden">⚠ "From" must be earlier than "To"</div>
                                     </div>
 
-                                    <!-- Range year fields -->
-                                    <div class="flex flex-row gap-2 mb-2" id="rangeFields" style="display:none;">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Year</label>
-                                            <select id="rangeStartYearSelect"
-                                                class="w-full border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
-                                                disabled>
-                                                @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
-                                                @endfor
-                                            </select>
+                                    <!-- Range year+month fields -->
+                                    <div class="flex flex-col gap-1 mb-2" id="rangeFields" style="display:none;">
+                                        <div class="flex flex-row flex-wrap gap-2">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Start Year</label>
+                                                <select id="rangeStartYearSelect"
+                                                    class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
+                                                    disabled>
+                                                    @for($y = date('Y'); $y >= 2010; $y--)
+                                                        <option value="{{ $y }}" @selected($y == date('Y') - 1)>{{ $y }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Start Month</label>
+                                                <select id="rangeStartMonthSelect"
+                                                    class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
+                                                    disabled>
+                                                    @for($m = 1; $m <= 12; $m++)
+                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m === 1)>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">End Year</label>
+                                                <select id="rangeEndYearSelect"
+                                                    class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
+                                                    disabled>
+                                                    @for($y = date('Y'); $y >= 2010; $y--)
+                                                        <option value="{{ $y }}" @selected($y == date('Y'))>{{ $y }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">End Month</label>
+                                                <select id="rangeEndMonthSelect"
+                                                    class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
+                                                    disabled>
+                                                    @for($m = 1; $m <= 12; $m++)
+                                                        <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m == (int) date('n'))>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">End Year</label>
-                                            <select id="rangeEndYearSelect"
-                                                class="w-full border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
-                                                disabled>
-                                                @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
-                                                @endfor
-                                            </select>
-                                        </div>
+                                        <div id="rangeRangeError" class="text-red-500 text-xs hidden">⚠ "Start" must be earlier than "End"</div>
                                     </div>
 
                                 </div>
@@ -285,8 +329,12 @@
                             </div>
 
                         </div>
-                        <div class="mt-4 flex justify-end">
-                            <button onclick="loadStudentsData()"
+                        <div class="dashboard-filter-actions">
+                            <button type="button" id="clearStudentFiltersBtn"
+                                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm font-medium">
+                                Clear Filters
+                            </button>
+                            <button type="button" id="applyStudentFiltersBtn" onclick="loadStudentsData()"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
                                 Apply Filters
                             </button>
@@ -316,13 +364,13 @@
 
                 <div class="bg-white p-6 rounded-xl shadow-sm mb-6">
                     <h3 class="text-lg font-semibold mb-4">Students by Location and Course</h3>
-                    <div class="relative" style="height: 700px;">
+                    <div class="relative dgm-chart-box dgm-chart-box-tall">
                         <canvas id="chartCombined"></canvas>
                     </div>
                 </div>
 
                 <!-- Students Tab Upload/Download -->
-                <div class="flex gap-2 mb-4">
+                <div class="flex flex-wrap gap-2 mb-4">
                     <button class="px-3 py-2 bg-green-600 text-white rounded" onclick="downloadStudentTemplate()">Download
                         Student Excel Template</button>
                     <button class="px-3 py-2 bg-blue-600 text-white rounded"
@@ -395,51 +443,97 @@
                                             <span class="text-sm font-medium text-gray-700">Range</span>
                                         </label>
                                     </div>
-                                    <!-- Compare year fields -->
-                                    <div class="flex flex-row gap-2 mb-2" id="revenueCompareFields" style="display:none;">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">From</label>
+                                    <!-- Compare year+month fields -->
+                                    <div class="flex flex-col gap-1 mb-2" id="revenueCompareFields" style="display:none;">
+                                        <div class="flex flex-row flex-wrap gap-2">
+                                            <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">From Year</label>
                                             <select id="revenueFromYearSelect"
-                                                class="w-full border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
+                                                class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                 disabled>
                                                 @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                    <option value="{{ $y }}" @selected($y == date('Y') - 1)>{{ $y }}</option>
                                                 @endfor
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">From Month</label>
+                                            <select id="revenueFromMonthSelect"
+                                                class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
+                                                disabled>
+                                                @for($m = 1; $m <= 12; $m++)
+                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m === 1)>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">To Year</label>
                                             <select id="revenueToYearSelect"
-                                                class="w-full border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
+                                                class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                 disabled>
                                                 @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                    <option value="{{ $y }}" @selected($y == date('Y'))>{{ $y }}</option>
                                                 @endfor
                                             </select>
                                         </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">To Month</label>
+                                            <select id="revenueToMonthSelect"
+                                                class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
+                                                disabled>
+                                                @for($m = 1; $m <= 12; $m++)
+                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m == (int) date('n'))>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+                                        </div>
+                                        <div id="revenueCompareRangeError" class="text-red-500 text-xs hidden">⚠ "From" must be earlier than "To"</div>
                                     </div>
-                                    <!-- Range year fields -->
-                                    <div class="flex flex-row gap-2 mb-2" id="revenueRangeFields" style="display:none;">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Year</label>
+                                    <!-- Range year+month fields -->
+                                    <div class="flex flex-col gap-1 mb-2" id="revenueRangeFields" style="display:none;">
+                                        <div class="flex flex-row flex-wrap gap-2">
+                                            <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Start Year</label>
                                             <select id="revenueRangeStartYearSelect"
-                                                class="w-full border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
+                                                class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
                                                 disabled>
                                                 @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                    <option value="{{ $y }}" @selected($y == date('Y') - 1)>{{ $y }}</option>
                                                 @endfor
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">End Year</label>
-                                            <select id="revenueRangeEndYearSelect"
-                                                class="w-full border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Start Month</label>
+                                            <select id="revenueRangeStartMonthSelect"
+                                                class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
                                                 disabled>
-                                                @for($y = date('Y'); $y >= 2010; $y--)
-                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                @for($m = 1; $m <= 12; $m++)
+                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m === 1)>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
                                                 @endfor
                                             </select>
                                         </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">End Year</label>
+                                            <select id="revenueRangeEndYearSelect"
+                                                class="border border-gray-300 rounded-md px-2 py-1 bg-white text-sm"
+                                                disabled>
+                                                @for($y = date('Y'); $y >= 2010; $y--)
+                                                    <option value="{{ $y }}" @selected($y == date('Y'))>{{ $y }}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">End Month</label>
+                                            <select id="revenueRangeEndMonthSelect"
+                                                class="border border-gray-300 rounded-md px-2 py-1 bg-white text-xs"
+                                                disabled>
+                                                @for($m = 1; $m <= 12; $m++)
+                                                    <option value="{{ str_pad($m, 2, '0', STR_PAD_LEFT) }}" @selected($m == (int) date('n'))>{{ date('M', mktime(0,0,0,$m,1)) }}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+                                        </div>
+                                        <div id="revenueRangeRangeError" class="text-red-500 text-xs hidden">⚠ "Start" must be earlier than "End"</div>
                                     </div>
                                 </div>
                             </div>
@@ -464,8 +558,12 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="mt-4 flex justify-end">
-                            <button onclick="loadRevenueData()"
+                        <div class="dashboard-filter-actions">
+                            <button type="button" id="clearRevenueFiltersBtn"
+                                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm font-medium">
+                                Clear Filters
+                            </button>
+                            <button type="button" id="applyRevenueFiltersBtn" onclick="loadRevenueData()"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
                                 Apply Filters
                             </button>
@@ -475,19 +573,19 @@
                 <div class="grid  mb-6 gap-4">
                     <div class="bg-white p-6 rounded-xl shadow-sm">
                         <h3 class="text-lg font-semibold mb-4">Revenue</h3>
-                        <div style="height: 500px;">
+                        <div class="dgm-chart-box dgm-chart-box-tall">
                             <canvas id="revenueYearChart"></canvas>
                         </div>
                     </div>
                     <div class="bg-white p-6 rounded-xl shadow-sm">
                         <h3 class="text-lg font-semibold mb-4">Outstanding</h3>
-                        <div style="height: 300px;">
+                        <div class="dgm-chart-box">
                             <canvas id="outstandingYearChart"></canvas>
                         </div>
                     </div>
                 </div>
                 <!-- Revenues Tab Upload/Download -->
-                <div class="flex gap-2 mb-4">
+                <div class="flex flex-wrap gap-2 mb-4">
                     <button class="px-3 py-2 bg-green-600 text-white rounded" onclick="downloadRevenueTemplate()">Download
                         Revenue Excel Template</button>
                     <button class="px-3 py-2 bg-blue-600 text-white rounded"
@@ -538,8 +636,12 @@
                             </div>
                         </div>
 
-                        <div class="mt-4 flex justify-end">
-                            <button onclick="loadOutstandingTabData()"
+                        <div class="dashboard-filter-actions">
+                            <button type="button" id="clearOutstandingFiltersBtn"
+                                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm font-medium">
+                                Clear Filters
+                            </button>
+                            <button type="button" id="applyOutstandingFiltersBtn" onclick="loadOutstandingTabData()"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
                                 Apply Filters
                             </button>
@@ -550,7 +652,7 @@
                 <div class="grid gap-6 mb-6">
                     <div class="bg-white p-6 rounded-xl shadow-sm">
                         <h3 class="text-lg font-semibold mb-4">Outstanding by Location</h3>
-                        <div style="height: 400px;">
+                        <div class="dgm-chart-box">
                             <canvas id="outstandingTabChart"></canvas>
                         </div>
                     </div>
@@ -582,7 +684,7 @@
 
                 <div class="bg-white p-6 rounded-xl shadow-sm">
                     <h3 class="text-lg font-semibold mb-4">Marketing Survey Analysis</h3>
-                    <div style="height: 400px;">
+                    <div class="dgm-chart-box dgm-chart-box-tall">
                         <canvas id="marketingSurveyChart"></canvas>
                     </div>
                 </div>
@@ -607,10 +709,98 @@
 
         .stat-card {
             transition: all 0.3s ease;
+            min-width: 0;
+            width: 100%;
         }
 
         .stat-card:hover {
             transform: translateY(-2px);
+        }
+
+        body:has(.dgm-dashboard-page) .body-wrapper > .container-fluid {
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .dgm-dashboard-page {
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+
+        .dgm-dashboard-page .max-w-7xl {
+            width: 100%;
+            max-width: min(80rem, 100%);
+            box-sizing: border-box;
+        }
+
+        .dgm-dashboard-page .tab-content,
+        .dgm-dashboard-page .grid,
+        .dgm-dashboard-page .flex,
+        .dgm-dashboard-page .bg-white {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .dgm-tab-bar {
+            flex-wrap: wrap;
+        }
+
+        .dgm-kpi-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 1rem;
+            min-width: 0;
+        }
+
+        .dgm-chart-box {
+            position: relative;
+            width: 100%;
+            min-width: 0;
+            height: 280px;
+            overflow: hidden;
+        }
+
+        .dgm-chart-box-tall {
+            height: 360px;
+        }
+
+        .dgm-dashboard-page canvas {
+            display: block;
+            max-width: 100% !important;
+        }
+
+        .dgm-chart-box canvas {
+            position: absolute;
+            inset: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .dgm-dashboard-page .overflow-x-auto {
+            min-width: 0;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .dgm-dashboard-page .overflow-x-auto table {
+            width: 100%;
+            min-width: 100%;
+            table-layout: fixed;
+        }
+
+        .dgm-dashboard-page h3,
+        .dgm-dashboard-page .stat-card p {
+            overflow-wrap: anywhere;
+        }
+
+        .dgm-dashboard-page .w-96 {
+            width: min(24rem, calc(100vw - 2rem));
+            max-width: 100%;
         }
 
         .filter-card {
@@ -621,13 +811,99 @@
             border: 1px solid #e5e7eb;
             width: 100%;
         }
+        .dashboard-filter-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        @media (min-width: 640px) {
+            .dgm-kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .dgm-kpi-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+            .dgm-chart-box {
+                height: 300px;
+            }
+            .dgm-chart-box-tall {
+                height: 420px;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .dgm-tab-bar {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+            }
+            .dgm-tab-bar button {
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+            body:has(.dgm-dashboard-page) .body-wrapper > .container-fluid {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+            .dgm-dashboard-page .max-w-7xl {
+                padding-left: 0;
+                padding-right: 0;
+            }
+            .dgm-dashboard-page .py-8 {
+                padding-top: 1rem;
+                padding-bottom: 1rem;
+            }
+            .dgm-dashboard-page .p-6 {
+                padding: 1rem;
+            }
+            .dgm-chart-box {
+                height: 240px;
+            }
+            .dgm-chart-box-tall {
+                height: 280px;
+            }
+            .stat-card:hover {
+                transform: none;
+            }
+            .stat-card .text-2xl {
+                font-size: 1.35rem;
+            }
+            .dgm-dashboard-page .overflow-x-auto table {
+                min-width: 36rem;
+                table-layout: auto;
+            }
+            .dgm-dashboard-page table th,
+            .dgm-dashboard-page table td {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+                white-space: nowrap;
+            }
+            .dgm-dashboard-page .flex-wrap > button {
+                flex: 1 1 100%;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .dashboard-filter-actions {
+                flex-direction: column;
+            }
+            .dashboard-filter-actions button {
+                width: 100%;
+            }
+        }
 
         .tab-content {
-            display: none;
+            display: none !important;
         }
 
         .tab-content.active {
-            display: block;
+            display: block !important;
         }
 
         select:disabled {
@@ -680,6 +956,18 @@
         let currentCharts = {};
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
+        function dgmLegendOptions(position) {
+            const isMobile = window.innerWidth < 768;
+            return {
+                position: position,
+                labels: {
+                    boxWidth: isMobile ? 10 : 12,
+                    font: { size: isMobile ? 11 : 12 },
+                    padding: isMobile ? 8 : 12
+                }
+            };
+        }
+
         function downloadStudentTemplate() {
             window.location.href = "{{ route('bulk.student.template') }}";
         }
@@ -707,6 +995,19 @@
 
             setTimeout(() => initializeChartsForTab(tabName), 100);
         }
+
+        function resizeDashboardCharts() {
+            Object.values(currentCharts).forEach(function (chart) {
+                if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            });
+        }
+
+        window.addEventListener('resize', function () {
+            clearTimeout(window._dgmChartResizeTimer);
+            window._dgmChartResizeTimer = setTimeout(resizeDashboardCharts, 150);
+        });
 
         function showModal(id) {
             const modal = document.getElementById(id);
@@ -739,7 +1040,6 @@
                     break;
                 case 'revenues':
                     loadRevenueData();
-                    loadOutstandingData();
                     break;
                 case 'outstanding':
                     loadOutstandingTabData();
@@ -858,7 +1158,7 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { position: 'bottom' }
+                                legend: dgmLegendOptions('bottom')
                             }
                         }
                     });
@@ -905,18 +1205,85 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { position: 'bottom' }
+                                legend: dgmLegendOptions('bottom')
                             }
                         }
                     });
+                    requestAnimationFrame(resizeDashboardCharts);
                 }
             } catch (error) {
                 console.error('Error loading location breakdown:', error);
             }
         }
 
+        const MONTH_SHORT_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        function formatPeriodKey(year, month) {
+            if (month) {
+                return String(year) + '-' + String(parseInt(month, 10)).padStart(2, '0');
+            }
+            return String(year);
+        }
+
+        function formatPeriodLabel(year, month) {
+            if (month) {
+                return MONTH_SHORT_NAMES[parseInt(month, 10) - 1] + ' ' + year;
+            }
+            return String(year);
+        }
+
+        function rowPeriodKey(row) {
+            return row.period || formatPeriodKey(row.year, row.month);
+        }
+
+        /** Build x-axis periods from the active Compare / Range / Year filter. */
+        function buildChartPeriods(params) {
+            if (params.compare && params.from_year && params.to_year) {
+                return [
+                    { period: formatPeriodKey(params.from_year, params.from_month), label: formatPeriodLabel(params.from_year, params.from_month) },
+                    { period: formatPeriodKey(params.to_year, params.to_month), label: formatPeriodLabel(params.to_year, params.to_month) }
+                ];
+            }
+
+            if (params.range && params.range_start_year && params.range_end_year) {
+                const startY = parseInt(params.range_start_year, 10);
+                const endY = parseInt(params.range_end_year, 10);
+                const startM = params.range_start_month ? parseInt(params.range_start_month, 10) : null;
+                const endM = params.range_end_month ? parseInt(params.range_end_month, 10) : null;
+                const periods = [];
+
+                if (startM || endM) {
+                    let y = startY;
+                    let m = startM || 1;
+                    const lastM = endM || 12;
+                    while (y < endY || (y === endY && m <= lastM)) {
+                        periods.push({ period: formatPeriodKey(y, m), label: formatPeriodLabel(y, m) });
+                        m += 1;
+                        if (m > 12) {
+                            m = 1;
+                            y += 1;
+                        }
+                    }
+                    return periods;
+                }
+
+                for (let y = startY; y <= endY; y++) {
+                    periods.push({ period: String(y), label: String(y) });
+                }
+                return periods;
+            }
+
+            return [{
+                period: formatPeriodKey(params.year, params.month),
+                label: formatPeriodLabel(params.year, params.month)
+            }];
+        }
+
         // Load Students Data
         async function loadStudentsData() {
+            if (window.validateStudentFilters && !window.validateStudentFilters()) {
+                return; // block API call if date range is invalid
+            }
             const params = getFilterParams();
 
             try {
@@ -932,19 +1299,8 @@
                 document.getElementById('MoratuwaStudents').textContent = Math.round(Moratuwa);
                 document.getElementById('peradeniyaStudents').textContent = Math.round(peradeniya);
 
-                // Years for labels
-                let years = [...new Set(data.map(d => d.year))].sort((a, b) => a - b);
-
-                // Respect compare/range selections if provided in params
-                const paramsObj = params;
-                if (paramsObj.compare && paramsObj.from_year && paramsObj.to_year) {
-                    years = [parseInt(paramsObj.from_year), parseInt(paramsObj.to_year)].sort((a, b) => a - b);
-                } else if (paramsObj.range && paramsObj.range_start_year && paramsObj.range_end_year) {
-                    const start = parseInt(paramsObj.range_start_year);
-                    const end = parseInt(paramsObj.range_end_year);
-                    years = [];
-                    for (let y = start; y <= end; y++) years.push(y);
-                }
+                const periods = buildChartPeriods(params);
+                const labels = periods.map(p => p.label);
 
                 const locations = [...new Set(data.map(d => d.institute_location))].length ? [...new Set(data.map(d => d.institute_location))] : ['Welisara', 'Moratuwa', 'Peradeniya'];
                 const coursesFromData = [...new Set(data.map(d => d.course_name))].filter(Boolean);
@@ -976,14 +1332,18 @@
                 // If course filter selected, only keep those course names; otherwise use courses from server payload
                 const courses = selectedCourseNames.length ? selectedCourseNames : coursesFromData;
 
+                const valueFor = (period, loc, courseName) => {
+                    const found = courseName
+                        ? data.find(d => rowPeriodKey(d) === period.period && d.institute_location === loc && d.course_name === courseName)
+                        : data.find(d => rowPeriodKey(d) === period.period && d.institute_location === loc);
+                    return Math.round(found ? Number(found.count) || 0 : 0);
+                };
+
                 // Fallback if no courses in payload -> per-location datasets
                 if (courses.length === 0) {
                     const simpleDatasets = locations.map((loc, idx) => ({
                         label: loc,
-                        data: years.map(year => {
-                            const found = data.find(d => d.year == year && d.institute_location === loc);
-                            return Math.round(found ? Number(found.count) || 0 : 0);
-                        }),
+                        data: periods.map(period => valueFor(period, loc, null)),
                         backgroundColor: ['#3B82F6', '#10B981', '#F59E0B'][idx % 3]
                     }));
 
@@ -993,7 +1353,7 @@
                         if (currentCharts.combined) currentCharts.combined.destroy();
                         currentCharts.combined = new Chart(ctx, {
                             type: 'bar',
-                            data: { labels: years, datasets: simpleDatasets },
+                            data: { labels: labels, datasets: simpleDatasets },
                             options: {
                                 responsive: true,
                                 maintainAspectRatio: false,
@@ -1025,24 +1385,19 @@
                     courses.forEach((course) => combos.push({ loc, course }));
                 });
 
-                // Build datasets; round counts to integers to avoid decimal axis ticks
                 const datasets = combos.map((combo, idx) => ({
                     label: `${combo.course} (${combo.loc})`,
-                    data: years.map(year => {
-                        const found = data.find(d => String(d.year) == String(year) && d.institute_location === combo.loc && d.course_name === combo.course);
-                        return Math.round(found ? Number(found.count) || 0 : 0);
-                    }),
+                    data: periods.map(period => valueFor(period, combo.loc, combo.course)),
                     backgroundColor: colors[idx % colors.length]
                 }));
 
-                // If a specific course was selected, hide any other legend entries by restricting datasets (already done)
                 const canvas = document.getElementById('chartCombined');
                 if (canvas) {
                     const ctx = canvas.getContext('2d');
                     if (currentCharts.combined) currentCharts.combined.destroy();
                     currentCharts.combined = new Chart(ctx, {
                         type: 'bar',
-                        data: { labels: years, datasets: datasets },
+                        data: { labels: labels, datasets: datasets },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
@@ -1066,26 +1421,17 @@
 
         // Load Revenue Data
         async function loadRevenueData() {
+            if (window.validateRevenueFilters && !window.validateRevenueFilters()) {
+                return; // block API call if date range is invalid
+            }
             const params = getRevenueFilterParams();
 
             try {
                 const res = await fetch(`/api/dashboard/revenue-by-year-course?${new URLSearchParams(params)}`);
                 const data = await res.json(); // [{year, location, course_name, revenue}, ...]
 
-                // Get all years in data
-                let years = [...new Set(data.map(d => d.year))].sort();
-
-                // Filter years for compare/range
-                if (params.compare && params.from_year && params.to_year) {
-                    // Only show the two selected years
-                    years = [parseInt(params.from_year), parseInt(params.to_year)].sort();
-                } else if (params.range && params.range_start_year && params.range_end_year) {
-                    // Show all years in the range
-                    const start = parseInt(params.range_start_year);
-                    const end = parseInt(params.range_end_year);
-                    years = [];
-                    for (let y = start; y <= end; y++) years.push(y);
-                }
+                const periods = buildChartPeriods(params);
+                const labels = periods.map(p => p.label);
 
                 // Get all locations and courses
                 const locations = [...new Set(data.map(d => d.location))];
@@ -1102,18 +1448,14 @@
                     });
                 });
 
-                // Build datasets: one per course+location, data for each year
                 const datasets = combos.map((combo, idx) => ({
                     label: `${combo.course} (${combo.loc})`,
-                    data: years.map(year => {
-                        const found = data.find(d => d.year == year && d.location === combo.loc && d.course_name === combo.course);
+                    data: periods.map(period => {
+                        const found = data.find(d => rowPeriodKey(d) === period.period && d.location === combo.loc && d.course_name === combo.course);
                         return found ? found.revenue : 0;
                     }),
                     backgroundColor: colors[idx % colors.length]
                 }));
-
-                // Chart labels: years
-                const labels = years;
 
                 // Draw chart
                 const canvas = document.getElementById('revenueYearChart');
@@ -1148,6 +1490,8 @@
                 }
             } catch (error) {
                 console.error('Error loading revenue data:', error);
+            } finally {
+                await loadOutstandingData();
             }
         }
 
@@ -1211,35 +1555,45 @@
             }
         }
 
+        function getSelectedRevenueLocations() {
+            const allLocations = ['Welisara', 'Moratuwa', 'Peradeniya'];
+            const sel = document.getElementById('revenueLocationSelect');
+            if (!sel) return allLocations;
+            const concrete = Array.from(sel.selectedOptions)
+                .map(opt => opt.value)
+                .filter(v => v && v !== 'all');
+            if (!concrete.length) return allLocations;
+            return allLocations.filter(loc => concrete.includes(loc));
+        }
+
         async function loadOutstandingData() {
             const params = getRevenueFilterParams();
 
             try {
                 const res = await fetch(`/api/dashboard/outstanding-by-year-course?${new URLSearchParams(params)}`);
                 const data = await res.json(); // [{year, location, outstanding}, ...]
+                const rows = Array.isArray(data) ? data : [];
 
-                // Get all years in data
-                let years = [...new Set(data.map(d => d.year))].sort();
+                let years = [...new Set(rows.map(d => Number(d.year)))].filter(Boolean).sort((a, b) => a - b);
 
-                // Filter years for compare/range
                 if (params.compare && params.from_year && params.to_year) {
-                    years = [parseInt(params.from_year), parseInt(params.to_year)].sort();
+                    years = [...new Set([parseInt(params.from_year, 10), parseInt(params.to_year, 10)])].sort((a, b) => a - b);
                 } else if (params.range && params.range_start_year && params.range_end_year) {
-                    const start = parseInt(params.range_start_year);
-                    const end = parseInt(params.range_end_year);
+                    const start = parseInt(params.range_start_year, 10);
+                    const end = parseInt(params.range_end_year, 10);
                     years = [];
                     for (let y = start; y <= end; y++) years.push(y);
+                } else if (params.year) {
+                    years = [parseInt(params.year, 10)];
                 }
 
-                // Get all locations
-                const locations = ['Welisara', 'Moratuwa', 'Peradeniya'];
+                const locations = getSelectedRevenueLocations();
                 const colors = ['#EF4444', '#6366F1', '#10B981'];
 
-                // Sum outstanding for each location across selected years
                 const locationOutstanding = locations.map(loc => {
-                    return data
-                        .filter(d => years.includes(d.year) && d.location === loc)
-                        .reduce((sum, d) => sum + (d.outstanding || 0), 0);
+                    return rows
+                        .filter(d => years.includes(Number(d.year)) && d.location === loc)
+                        .reduce((sum, d) => sum + (Number(d.outstanding) || 0), 0);
                 });
 
                 // Draw pie chart
@@ -1286,13 +1640,21 @@
                     if (currentCharts.marketingSurvey) {
                         currentCharts.marketingSurvey.destroy();
                     }
+                    const labels = Array.isArray(data.labels) ? data.labels : [];
+                    const counts = Array.isArray(data.counts) ? data.counts : [];
+                    const rows = labels.map(function (label, index) {
+                        return {
+                            name: String(label || 'Unknown').trim() || 'Unknown',
+                            value: Number(counts[index]) || 0
+                        };
+                    });
                     currentCharts.marketingSurvey = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: data.labels,
+                            labels: rows.map(function (row) { return row.name; }),
                             datasets: [{
-                                label: 'Responses',
-                                data: data.counts,
+                                label: 'Students',
+                                data: rows.map(function (row) { return row.value; }),
                                 backgroundColor: [
                                     '#1877F2', '#E4405F', '#F59E0B', '#EF4444', '#6366F1', '#10B981', '#A3E635'
                                 ],
@@ -1310,13 +1672,31 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { display: false }
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function (items) {
+                                            return items[0] ? String(items[0].label) : '';
+                                        },
+                                        label: function (item) {
+                                            return 'Students: ' + item.parsed.y;
+                                        }
+                                    }
+                                }
                             },
                             scales: {
+                                x: {
+                                    ticks: {
+                                        autoSkip: false,
+                                        maxRotation: 45,
+                                        minRotation: 0
+                                    }
+                                },
                                 y: {
                                     beginAtZero: true,
                                     ticks: {
-                                        stepSize: 1
+                                        stepSize: 1,
+                                        precision: 0
                                     }
                                 }
                             }
@@ -1328,23 +1708,31 @@
             }
         }
 
+        function getSelectedOutstandingLocations() {
+            const allLocations = ['Welisara', 'Moratuwa', 'Peradeniya'];
+            const sel = document.getElementById('outstandingLocationSelect');
+            if (!sel) return allLocations;
+            const concrete = Array.from(sel.selectedOptions)
+                .map(opt => opt.value)
+                .filter(v => v && v !== 'all');
+            if (!concrete.length) return allLocations;
+            return allLocations.filter(loc => concrete.includes(loc));
+        }
+
         async function loadOutstandingTabData() {
             const params = getOutstandingFilterParams();
             try {
                 const res = await fetch(`/api/dashboard/outstanding-by-year-course?${new URLSearchParams(params)}`);
                 const data = await res.json(); // [{year, location, course_name, outstanding}, ...]
 
-                // Build unique lists of courses and locations from payload
+                const locations = getSelectedOutstandingLocations();
                 const coursesSet = new Set();
-                const locationsSet = new Set();
-                data.forEach(item => {
-                    const course = item.course_name || item.course || 'Unknown';
-                    const loc = item.location || item.institute_location || 'Unknown';
-                    coursesSet.add(course);
-                    locationsSet.add(loc);
+                (Array.isArray(data) ? data : []).forEach(item => {
+                    const loc = item.location || item.institute_location || '';
+                    if (locations.length && loc && !locations.includes(loc)) return;
+                    coursesSet.add(item.course_name || item.course || 'Unknown');
                 });
                 const courses = Array.from(coursesSet).sort();
-                const locations = Array.from(locationsSet).length ? Array.from(locationsSet) : ['Welisara', 'Moratuwa', 'Peradeniya'];
 
                 // Aggregate outstanding per location (for summary table) and prepare datasets per course by location
                 const locationTotals = {};
@@ -1468,9 +1856,9 @@
                 return {
                     range: true,
                     range_start_year: document.getElementById('rangeStartYearSelect').value,
+                    range_start_month: document.getElementById('rangeStartMonthSelect').value,
                     range_end_year: document.getElementById('rangeEndYearSelect').value,
-                    month: document.getElementById('studentMonthSelect').value,
-                    date: document.getElementById('studentDaySelect').value,
+                    range_end_month: document.getElementById('rangeEndMonthSelect').value,
                     location: locationParam,
                     course: courseParam
                 };
@@ -1478,9 +1866,9 @@
                 return {
                     compare: true,
                     from_year: document.getElementById('fromYearSelect').value,
+                    from_month: document.getElementById('fromMonthSelect').value,
                     to_year: document.getElementById('toYearSelect').value,
-                    month: document.getElementById('studentMonthSelect').value,
-                    date: document.getElementById('studentDaySelect').value,
+                    to_month: document.getElementById('toMonthSelect').value,
                     location: locationParam,
                     course: courseParam
                 };
@@ -1501,12 +1889,13 @@
             const revenueCourseSelect = document.getElementById('revenueCourseSelect');
             const revenueLocationSelect = document.getElementById('revenueLocationSelect');
 
-            // Get selected courses
             const selectedCourses = Array.from(revenueCourseSelect.selectedOptions).map(opt => opt.value);
-            const courseParam = selectedCourses.length === 0 || selectedCourses.includes('all') ? 'all' : selectedCourses.join(',');
+            const concreteCourses = selectedCourses.filter(v => v && v !== 'all');
+            const courseParam = concreteCourses.length ? concreteCourses.join(',') : 'all';
 
             const selectedLocations = Array.from(revenueLocationSelect.selectedOptions).map(opt => opt.value);
-            const locationParam = selectedLocations.length === 0 || selectedLocations.includes('all') ? 'all' : selectedLocations.join(',');
+            const concreteLocations = selectedLocations.filter(v => v && v !== 'all');
+            const locationParam = concreteLocations.length ? concreteLocations.join(',') : 'all';
 
             if (rangeToggle) {
                 return {
@@ -1514,7 +1903,9 @@
                     course: courseParam,
                     range: true,
                     range_start_year: document.getElementById('revenueRangeStartYearSelect').value,
-                    range_end_year: document.getElementById('revenueRangeEndYearSelect').value
+                    range_start_month: document.getElementById('revenueRangeStartMonthSelect').value,
+                    range_end_year: document.getElementById('revenueRangeEndYearSelect').value,
+                    range_end_month: document.getElementById('revenueRangeEndMonthSelect').value
                 };
             } else if (compareToggle) {
                 return {
@@ -1522,7 +1913,9 @@
                     course: courseParam,
                     compare: true,
                     from_year: document.getElementById('revenueFromYearSelect').value,
-                    to_year: document.getElementById('revenueToYearSelect').value
+                    from_month: document.getElementById('revenueFromMonthSelect').value,
+                    to_year: document.getElementById('revenueToYearSelect').value,
+                    to_month: document.getElementById('revenueToMonthSelect').value
                 };
             } else {
                 return {
@@ -1541,10 +1934,12 @@
             const courseSelect = document.getElementById('outstandingCourseSelect');
 
             const selectedLocations = Array.from(locationSelect.selectedOptions).map(opt => opt.value);
-            const locationParam = selectedLocations.length === 0 || selectedLocations.includes('all') ? 'all' : selectedLocations.join(',');
+            const concreteLocations = selectedLocations.filter(v => v && v !== 'all');
+            const locationParam = concreteLocations.length ? concreteLocations.join(',') : 'all';
 
             const selectedCourses = Array.from(courseSelect.selectedOptions).map(opt => opt.value);
-            const courseParam = selectedCourses.length === 0 || selectedCourses.includes('all') ? 'all' : selectedCourses.join(',');
+            const concreteCourses = selectedCourses.filter(v => v && v !== 'all');
+            const courseParam = concreteCourses.length ? concreteCourses.join(',') : 'all';
 
             return {
                 year: new Date().getFullYear(),
@@ -1571,9 +1966,16 @@
             const compareFields = document.getElementById('compareFields');
             const rangeFields = document.getElementById('rangeFields');
             const fromYearSelect = document.getElementById('fromYearSelect');
+            const fromMonthSelect = document.getElementById('fromMonthSelect');
             const toYearSelect = document.getElementById('toYearSelect');
+            const toMonthSelect = document.getElementById('toMonthSelect');
             const rangeStartYearSelect = document.getElementById('rangeStartYearSelect');
+            const rangeStartMonthSelect = document.getElementById('rangeStartMonthSelect');
             const rangeEndYearSelect = document.getElementById('rangeEndYearSelect');
+            const rangeEndMonthSelect = document.getElementById('rangeEndMonthSelect');
+            const compareRangeError = document.getElementById('compareRangeError');
+            const rangeRangeError = document.getElementById('rangeRangeError');
+
             const revenueCompareToggle = document.getElementById('revenueCompareToggle');
             const revenueRangeToggle = document.getElementById('revenueRangeSelectorToggle');
             const revenueYearSelect = document.getElementById('revenueYearSelect');
@@ -1582,9 +1984,80 @@
             const revenueCompareFields = document.getElementById('revenueCompareFields');
             const revenueRangeFields = document.getElementById('revenueRangeFields');
             const revenueFromYearSelect = document.getElementById('revenueFromYearSelect');
+            const revenueFromMonthSelect = document.getElementById('revenueFromMonthSelect');
             const revenueToYearSelect = document.getElementById('revenueToYearSelect');
+            const revenueToMonthSelect = document.getElementById('revenueToMonthSelect');
             const revenueRangeStartYearSelect = document.getElementById('revenueRangeStartYearSelect');
+            const revenueRangeStartMonthSelect = document.getElementById('revenueRangeStartMonthSelect');
             const revenueRangeEndYearSelect = document.getElementById('revenueRangeEndYearSelect');
+            const revenueRangeEndMonthSelect = document.getElementById('revenueRangeEndMonthSelect');
+            const revenueCompareRangeError = document.getElementById('revenueCompareRangeError');
+            const revenueRangeRangeError = document.getElementById('revenueRangeRangeError');
+
+            /**
+             * Show an error only when From/Start is the same as or later than To/End.
+             */
+            function isValidComparePeriod(fy, fm, ty, tm) {
+                if (!fy || !ty || !fm || !tm) return true;
+                const fv = parseInt(fy, 10) * 100 + parseInt(fm, 10);
+                const tv = parseInt(ty, 10) * 100 + parseInt(tm, 10);
+                return fv < tv;
+            }
+
+            function isValidRangePeriod(sy, sm, ey, em) {
+                if (!sy || !ey || !sm || !em) return true;
+                const sv = parseInt(sy, 10) * 100 + parseInt(sm, 10);
+                const ev = parseInt(ey, 10) * 100 + parseInt(em, 10);
+                return sv < ev;
+            }
+
+            function validateStudentCompare() {
+                const valid = isValidComparePeriod(
+                    fromYearSelect.value, fromMonthSelect.value,
+                    toYearSelect.value, toMonthSelect.value
+                );
+                compareRangeError.classList.toggle('hidden', valid);
+                return valid;
+            }
+
+            function validateStudentRange() {
+                const valid = isValidRangePeriod(
+                    rangeStartYearSelect.value, rangeStartMonthSelect.value,
+                    rangeEndYearSelect.value, rangeEndMonthSelect.value
+                );
+                rangeRangeError.classList.toggle('hidden', valid);
+                return valid;
+            }
+
+            function validateRevenueCompare() {
+                const valid = isValidComparePeriod(
+                    revenueFromYearSelect.value, revenueFromMonthSelect.value,
+                    revenueToYearSelect.value, revenueToMonthSelect.value
+                );
+                revenueCompareRangeError.classList.toggle('hidden', valid);
+                return valid;
+            }
+
+            function validateRevenueRange() {
+                const valid = isValidRangePeriod(
+                    revenueRangeStartYearSelect.value, revenueRangeStartMonthSelect.value,
+                    revenueRangeEndYearSelect.value, revenueRangeEndMonthSelect.value
+                );
+                revenueRangeRangeError.classList.toggle('hidden', valid);
+                return valid;
+            }
+
+            // Expose validators so loadStudentsData / loadRevenueData can call them
+            window.validateStudentFilters = function() {
+                if (compareToggle.checked) return validateStudentCompare();
+                if (rangeToggle.checked) return validateStudentRange();
+                return true;
+            };
+            window.validateRevenueFilters = function() {
+                if (revenueCompareToggle.checked) return validateRevenueCompare();
+                if (revenueRangeToggle.checked) return validateRevenueRange();
+                return true;
+            };
 
             function updateSelectors() {
                 if (rangeToggle.checked) {
@@ -1594,9 +2067,15 @@
                     compareFields.style.display = 'none';
                     rangeFields.style.display = 'flex';
                     rangeStartYearSelect.disabled = false;
+                    rangeStartMonthSelect.disabled = false;
                     rangeEndYearSelect.disabled = false;
+                    rangeEndMonthSelect.disabled = false;
                     fromYearSelect.disabled = true;
+                    fromMonthSelect.disabled = true;
                     toYearSelect.disabled = true;
+                    toMonthSelect.disabled = true;
+                    compareRangeError.classList.add('hidden');
+                    validateStudentRange();
                 } else if (compareToggle.checked) {
                     yearSelect.disabled = true;
                     studentMonthSelect.disabled = true;
@@ -1604,9 +2083,15 @@
                     compareFields.style.display = 'flex';
                     rangeFields.style.display = 'none';
                     fromYearSelect.disabled = false;
+                    fromMonthSelect.disabled = false;
                     toYearSelect.disabled = false;
+                    toMonthSelect.disabled = false;
                     rangeStartYearSelect.disabled = true;
+                    rangeStartMonthSelect.disabled = true;
                     rangeEndYearSelect.disabled = true;
+                    rangeEndMonthSelect.disabled = true;
+                    rangeRangeError.classList.add('hidden');
+                    validateStudentCompare();
                 } else {
                     yearSelect.disabled = false;
                     studentMonthSelect.disabled = false;
@@ -1614,9 +2099,15 @@
                     compareFields.style.display = 'none';
                     rangeFields.style.display = 'none';
                     fromYearSelect.disabled = true;
+                    fromMonthSelect.disabled = true;
                     toYearSelect.disabled = true;
+                    toMonthSelect.disabled = true;
                     rangeStartYearSelect.disabled = true;
+                    rangeStartMonthSelect.disabled = true;
                     rangeEndYearSelect.disabled = true;
+                    rangeEndMonthSelect.disabled = true;
+                    compareRangeError.classList.add('hidden');
+                    rangeRangeError.classList.add('hidden');
                 }
             }
 
@@ -1629,6 +2120,14 @@
                 updateSelectors();
             });
 
+            // Re-validate on any year/month change
+            [fromYearSelect, fromMonthSelect, toYearSelect, toMonthSelect].forEach(el => {
+                el.addEventListener('change', validateStudentCompare);
+            });
+            [rangeStartYearSelect, rangeStartMonthSelect, rangeEndYearSelect, rangeEndMonthSelect].forEach(el => {
+                el.addEventListener('change', validateStudentRange);
+            });
+
             updateSelectors();
 
             function updateRevenueSelectors() {
@@ -1639,9 +2138,15 @@
                     revenueCompareFields.style.display = 'none';
                     revenueRangeFields.style.display = 'flex';
                     revenueRangeStartYearSelect.disabled = false;
+                    revenueRangeStartMonthSelect.disabled = false;
                     revenueRangeEndYearSelect.disabled = false;
+                    revenueRangeEndMonthSelect.disabled = false;
                     revenueFromYearSelect.disabled = true;
+                    revenueFromMonthSelect.disabled = true;
                     revenueToYearSelect.disabled = true;
+                    revenueToMonthSelect.disabled = true;
+                    revenueCompareRangeError.classList.add('hidden');
+                    validateRevenueRange();
                 } else if (revenueCompareToggle.checked) {
                     revenueYearSelect.disabled = true;
                     revenueMonthSelect.disabled = true;
@@ -1649,9 +2154,15 @@
                     revenueCompareFields.style.display = 'flex';
                     revenueRangeFields.style.display = 'none';
                     revenueFromYearSelect.disabled = false;
+                    revenueFromMonthSelect.disabled = false;
                     revenueToYearSelect.disabled = false;
+                    revenueToMonthSelect.disabled = false;
                     revenueRangeStartYearSelect.disabled = true;
+                    revenueRangeStartMonthSelect.disabled = true;
                     revenueRangeEndYearSelect.disabled = true;
+                    revenueRangeEndMonthSelect.disabled = true;
+                    revenueRangeRangeError.classList.add('hidden');
+                    validateRevenueCompare();
                 } else {
                     revenueYearSelect.disabled = false;
                     revenueMonthSelect.disabled = false;
@@ -1659,9 +2170,15 @@
                     revenueCompareFields.style.display = 'none';
                     revenueRangeFields.style.display = 'none';
                     revenueFromYearSelect.disabled = true;
+                    revenueFromMonthSelect.disabled = true;
                     revenueToYearSelect.disabled = true;
+                    revenueToMonthSelect.disabled = true;
                     revenueRangeStartYearSelect.disabled = true;
+                    revenueRangeStartMonthSelect.disabled = true;
                     revenueRangeEndYearSelect.disabled = true;
+                    revenueRangeEndMonthSelect.disabled = true;
+                    revenueCompareRangeError.classList.add('hidden');
+                    revenueRangeRangeError.classList.add('hidden');
                 }
             }
 
@@ -1674,6 +2191,14 @@
                 updateRevenueSelectors();
             });
 
+            // Re-validate on any revenue year/month change
+            [revenueFromYearSelect, revenueFromMonthSelect, revenueToYearSelect, revenueToMonthSelect].forEach(el => {
+                el.addEventListener('change', validateRevenueCompare);
+            });
+            [revenueRangeStartYearSelect, revenueRangeStartMonthSelect, revenueRangeEndYearSelect, revenueRangeEndMonthSelect].forEach(el => {
+                el.addEventListener('change', validateRevenueRange);
+            });
+
             updateRevenueSelectors();
 
             // wire month/year change events to populate days and enable/disable day select
@@ -1684,6 +2209,7 @@
             });
             yearSelect.addEventListener('change', () => {
                 populateDays('studentDaySelect', 'yearSelect', 'studentMonthSelect');
+                syncMonthToYear('studentMonthSelect', 'yearSelect');
             });
 
             revenueMonthSelect.addEventListener('change', () => {
@@ -1692,11 +2218,131 @@
             });
             revenueYearSelect.addEventListener('change', () => {
                 populateDays('revenueDaySelect', 'revenueYearSelect', 'revenueMonthSelect');
+                syncMonthToYear('revenueMonthSelect', 'revenueYearSelect');
             });
+
+            // Sync future-month disabling for all compare/range year↔month pairs
+            const yearMonthPairs = [
+                ['fromYearSelect',               'fromMonthSelect'],
+                ['toYearSelect',                 'toMonthSelect'],
+                ['rangeStartYearSelect',         'rangeStartMonthSelect'],
+                ['rangeEndYearSelect',           'rangeEndMonthSelect'],
+                ['revenueFromYearSelect',        'revenueFromMonthSelect'],
+                ['revenueToYearSelect',          'revenueToMonthSelect'],
+                ['revenueRangeStartYearSelect',  'revenueRangeStartMonthSelect'],
+                ['revenueRangeEndYearSelect',    'revenueRangeEndMonthSelect'],
+            ];
+            yearMonthPairs.forEach(([yId, mId]) => {
+                const yEl = document.getElementById(yId);
+                const mEl = document.getElementById(mId);
+                if (yEl && mEl) {
+                    yEl.addEventListener('change', () => {
+                        updateMonthOptions(mEl, yEl.value);
+                        // Re-run month listeners so errors reflect the month after future dates are disabled
+                        mEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                }
+            });
+
+            function syncDashboardSelect(select) {
+                if (!select) return;
+                const selected = select.options[select.selectedIndex];
+                const wrap = select.closest('.nebula-select');
+                const toggle = wrap ? wrap.querySelector('.nebula-select-toggle') : null;
+                if (toggle) {
+                    toggle.textContent = selected ? selected.text : '';
+                    toggle.title = toggle.textContent;
+                    toggle.disabled = !!select.disabled;
+                    wrap.classList.toggle('is-disabled', !!select.disabled);
+                }
+            }
+
+            function setDashboardSelect(select, value) {
+                if (!select) return;
+                select.value = String(value);
+                if (select.value !== String(value)) {
+                    select.selectedIndex = 0;
+                }
+                syncDashboardSelect(select);
+            }
+
+            function resetDashboardMultiSelect(select) {
+                if (!select) return;
+                Array.from(select.options).forEach(function (opt) {
+                    opt.selected = opt.value === 'all';
+                });
+            }
+
+            function padDashboardMonth(value) {
+                return String(value).padStart(2, '0');
+            }
+
+            function clearStudentFilters() {
+                const year = String(new Date().getFullYear());
+                const lastYear = String(new Date().getFullYear() - 1);
+                const month = padDashboardMonth(new Date().getMonth() + 1);
+                compareToggle.checked = false;
+                rangeToggle.checked = false;
+                setDashboardSelect(yearSelect, year);
+                setDashboardSelect(studentMonthSelect, '');
+                setDashboardSelect(studentDaySelect, '');
+                setDashboardSelect(fromYearSelect, lastYear);
+                setDashboardSelect(fromMonthSelect, '01');
+                setDashboardSelect(toYearSelect, year);
+                setDashboardSelect(toMonthSelect, month);
+                setDashboardSelect(rangeStartYearSelect, lastYear);
+                setDashboardSelect(rangeStartMonthSelect, '01');
+                setDashboardSelect(rangeEndYearSelect, year);
+                setDashboardSelect(rangeEndMonthSelect, month);
+                resetDashboardMultiSelect(document.getElementById('locationSelect'));
+                resetDashboardMultiSelect(document.getElementById('courseSelect'));
+                updateSelectors();
+                populateDays('studentDaySelect', 'yearSelect', 'studentMonthSelect');
+                loadStudentsData();
+            }
+
+            function clearRevenueFilters() {
+                const year = String(new Date().getFullYear());
+                const lastYear = String(new Date().getFullYear() - 1);
+                const month = padDashboardMonth(new Date().getMonth() + 1);
+                revenueCompareToggle.checked = false;
+                revenueRangeToggle.checked = false;
+                setDashboardSelect(revenueYearSelect, year);
+                setDashboardSelect(revenueMonthSelect, '');
+                setDashboardSelect(revenueDaySelect, '');
+                setDashboardSelect(revenueFromYearSelect, lastYear);
+                setDashboardSelect(revenueFromMonthSelect, '01');
+                setDashboardSelect(revenueToYearSelect, year);
+                setDashboardSelect(revenueToMonthSelect, month);
+                setDashboardSelect(revenueRangeStartYearSelect, lastYear);
+                setDashboardSelect(revenueRangeStartMonthSelect, '01');
+                setDashboardSelect(revenueRangeEndYearSelect, year);
+                setDashboardSelect(revenueRangeEndMonthSelect, month);
+                resetDashboardMultiSelect(document.getElementById('revenueLocationSelect'));
+                resetDashboardMultiSelect(document.getElementById('revenueCourseSelect'));
+                updateRevenueSelectors();
+                populateDays('revenueDaySelect', 'revenueYearSelect', 'revenueMonthSelect');
+                loadRevenueData();
+            }
+
+            function clearOutstandingFilters() {
+                resetDashboardMultiSelect(document.getElementById('outstandingLocationSelect'));
+                resetDashboardMultiSelect(document.getElementById('outstandingCourseSelect'));
+                loadOutstandingTabData();
+            }
+
+            document.getElementById('clearStudentFiltersBtn')?.addEventListener('click', clearStudentFilters);
+            document.getElementById('clearRevenueFiltersBtn')?.addEventListener('click', clearRevenueFilters);
+            document.getElementById('clearOutstandingFiltersBtn')?.addEventListener('click', clearOutstandingFilters);
 
             // populate on load (will disable day selects if no month)
             populateDays('studentDaySelect', 'yearSelect', 'studentMonthSelect');
             populateDays('revenueDaySelect', 'revenueYearSelect', 'revenueMonthSelect');
+
+            // Disable future months on load for every month select
+            syncMonthToYear('studentMonthSelect', 'yearSelect');
+            syncMonthToYear('revenueMonthSelect', 'revenueYearSelect');
+            yearMonthPairs.forEach(([yId, mId]) => syncMonthToYear(mId, yId));
 
         });
 
@@ -1725,6 +2371,48 @@
                 // No month selected -> disable day selector
                 daySelect.disabled = true;
             }
+        }
+
+        /**
+         * Disable future month options in a month <select> based on the selected year.
+         * If year === current year: disable months > current month.
+         * If year > current year: disable all months.
+         * If year < current year: enable all months.
+         * Also resets the selected value if it is now disabled.
+         */
+        function updateMonthOptions(monthSelectEl, year) {
+            if (!monthSelectEl) return;
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1; // 1–12
+            const selectedYear = parseInt(year) || currentYear;
+
+            Array.from(monthSelectEl.options).forEach(opt => {
+                if (!opt.value) return;
+                const m = parseInt(opt.value, 10);
+                const isFuture = (selectedYear > currentYear) ||
+                                 (selectedYear === currentYear && m > currentMonth);
+                opt.disabled = isFuture;
+                opt.style.color = isFuture ? '#9CA3AF' : '';
+            });
+
+            const selected = monthSelectEl.options[monthSelectEl.selectedIndex];
+            if (selected && selected.disabled) {
+                const allOpt = Array.from(monthSelectEl.options).find(opt => !opt.value);
+                if (allOpt) {
+                    monthSelectEl.value = '';
+                } else {
+                    const firstEnabled = Array.from(monthSelectEl.options).find(opt => opt.value && !opt.disabled);
+                    monthSelectEl.value = firstEnabled ? firstEnabled.value : '';
+                }
+            }
+        }
+
+        /** Convenience: update by element id and a companion year-select id */
+        function syncMonthToYear(monthSelectId, yearSelectId) {
+            const m = document.getElementById(monthSelectId);
+            const y = document.getElementById(yearSelectId);
+            if (m && y) updateMonthOptions(m, y.value);
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -1832,7 +2520,7 @@
             }
 
             bindUpload('studentUploadForm', 'studentUploadModal', () => loadStudentsData());
-            bindUpload('revenueUploadForm', 'revenueUploadModal', () => { loadRevenueData(); loadOutstandingData(); });
+            bindUpload('revenueUploadForm', 'revenueUploadModal', () => { loadRevenueData(); });
         });
 
         // Download exports (actual uploaded table data)

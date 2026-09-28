@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'failed' => 'Invalid username or password.',
+    'failed' => 'Invalid username or password. Please try again.',
     'password' => 'The provided password is incorrect.',
     'throttle' => 'Too many login attempts. Please try again in :seconds seconds.',
     
@@ -24,7 +24,7 @@ return [
     'logout_success' => 'You have been successfully logged out.',
     'session_expired' => 'Your session has expired. Please log in again.',
     'unauthorized' => 'Unauthorized access. Please log in.',
-    'invalid_credentials' => 'Invalid username or password.',
+    'invalid_credentials' => 'Invalid username or password. Please try again.',
     'too_many_attempts' => 'Too many login attempts. Please try again later.',
     'account_locked' => 'Your account has been temporarily locked due to multiple failed login attempts.',
     'login_required' => 'Please log in to access this page.',

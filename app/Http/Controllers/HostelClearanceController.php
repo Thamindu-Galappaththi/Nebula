@@ -21,7 +21,7 @@ class HostelClearanceController extends Controller
 
     public function showHostelClearanceFormManagement(Request $request)
     {
-        return view('clearance.hostel_clearance', $this->clearancePageData($request, ClearanceRequest::TYPE_HOSTEL));
+        return $this->clearancePageResponse($request, ClearanceRequest::TYPE_HOSTEL, 'clearance.hostel_clearance');
     }
 
     public function store(Request $request)

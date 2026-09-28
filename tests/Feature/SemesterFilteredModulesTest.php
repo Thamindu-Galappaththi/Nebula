@@ -227,4 +227,89 @@ class SemesterFilteredModulesTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    public function test_create_mode_loads_course_modules_by_semester_number(): void
+    {
+        $semesterOneModuleId = DB::table('modules')->insertGetId([
+            'module_name' => 'Programming Fundamentals',
+            'module_code' => 'CS100',
+            'module_type' => 'core',
+            'credits'     => 3,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+        $semesterTwoModuleId = DB::table('modules')->insertGetId([
+            'module_name' => 'Databases',
+            'module_code' => 'CS200',
+            'module_type' => 'core',
+            'credits'     => 3,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+
+        DB::table('course_modules')->insert([
+            [
+                'course_id'  => $this->courseId,
+                'module_id'  => $semesterOneModuleId,
+                'semester'   => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'course_id'  => $this->courseId,
+                'module_id'  => $semesterTwoModuleId,
+                'semester'   => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $response = $this->postFiltered([
+            'semester' => 1,
+            'creating' => true,
+        ]);
+
+        $response->assertOk();
+        $moduleIds = collect($response->json('modules'))->pluck('module_id');
+
+        $this->assertContains($semesterOneModuleId, $moduleIds);
+        $this->assertNotContains($semesterTwoModuleId, $moduleIds);
+        $this->assertNotContains($this->otherModuleId, $moduleIds);
+    }
+
+    public function test_create_mode_rejects_semester_number_beyond_course_length(): void
+    {
+        $response = $this->postFiltered([
+            'semester' => 99,
+            'creating' => true,
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertEmpty($response->json('modules'));
+    }
+
+    public function test_create_mode_falls_back_to_degree_catalog_when_course_modules_empty(): void
+    {
+        $certificateModuleId = DB::table('modules')->insertGetId([
+            'module_name'      => 'Certificate Unit',
+            'module_code'      => 'CERT001',
+            'module_category'  => 'certificate',
+            'module_type'      => 'core',
+            'credits'          => 0,
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
+
+        $response = $this->postFiltered([
+            'semester' => 1,
+            'creating' => true,
+        ]);
+
+        $response->assertOk();
+        $moduleIds = collect($response->json('modules'))->pluck('module_id');
+
+        $this->assertContains($this->moduleId, $moduleIds);
+        $this->assertContains($this->otherModuleId, $moduleIds);
+        $this->assertNotContains($certificateModuleId, $moduleIds);
+    }
 }

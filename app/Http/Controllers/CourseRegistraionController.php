@@ -394,10 +394,8 @@ class CourseRegistraionController extends Controller
                 ->latest('id')
                 ->first();
 
-            $isTerminated = false;
-            if ($latestSemReg && strtolower($latestSemReg->status) === 'terminated') {
-                $isTerminated = true;
-            }
+            $isTerminated = $student->academic_status === Student::ACADEMIC_TERMINATED
+                || ($latestSemReg && strtolower((string) $latestSemReg->status) === 'terminated');
 
             // Get student exam details
             $studentExam = StudentExam::where('student_id', $student->student_id)->first();
@@ -408,7 +406,7 @@ class CourseRegistraionController extends Controller
                 $ol_exams[] = [
                     'exam_type' => ['exam_type' => $studentExam->ol_exam_type],
                     'exam_year' => $studentExam->ol_exam_year,
-                    'subjects'  => $studentExam->ol_exam_subjects ? json_decode($studentExam->ol_exam_subjects, true) : []
+                    'subjects'  => $this->decodeExamSubjects($studentExam->ol_exam_subjects),
                 ];
             }
 
@@ -420,7 +418,7 @@ class CourseRegistraionController extends Controller
                     'exam_year' => $studentExam->al_exam_year,
                     'stream'    => ['stream' => $studentExam->al_exam_stream],
                     'z_score'   => $studentExam->z_score_value,
-                    'subjects'  => $studentExam->al_exam_subjects ? json_decode($studentExam->al_exam_subjects, true) : []
+                    'subjects'  => $this->decodeExamSubjects($studentExam->al_exam_subjects),
                 ];
             }
 
@@ -431,12 +429,13 @@ class CourseRegistraionController extends Controller
                     'name_with_initials' => $student->name_with_initials,
                     'id_value'          => $student->id_value,
                     'registration_id'   => $student->student_id, // kept for compatibility
-                    // include academic/status from students table for frontend display
                     'status'            => $student->academic_status ?? $student->status ?? null,
+                    'blacklisted'       => (bool) $student->blacklisted,
                 ],
                 'ol_exams' => $ol_exams,
                 'al_exams' => $al_exams,
                 'is_terminated' => $isTerminated,
+                'is_blacklisted' => (bool) $student->blacklisted,
                 'latest_semester_registration' => $latestSemReg
             ]);
         } catch (\Exception $e) {
@@ -475,13 +474,20 @@ class CourseRegistraionController extends Controller
     public function getIntakesForCourseAndLocation($courseName, $location)
     {
         try {
-            $course = \App\Models\Course::where('course_name', $courseName)
-                ->where('location', $location)
-                ->first();
+            $course = null;
+            if (is_numeric($courseName)) {
+                $course = Course::where('course_id', $courseName)
+                    ->where('location', $location)
+                    ->first()
+                    ?? Course::where('course_id', $courseName)->first();
+            } else {
+                $course = Course::where('course_name', $courseName)
+                    ->where('location', $location)
+                    ->first();
 
-            if (!$course) {
-                // Fallback for older data inconsistencies.
-                $course = \App\Models\Course::where('course_name', $courseName)->first();
+                if (!$course) {
+                    $course = Course::where('course_name', $courseName)->first();
+                }
             }
 
             if ($course) {
@@ -815,5 +821,34 @@ class CourseRegistraionController extends Controller
         }
 
         return response()->json(['success' => true, 'student' => $student]);
+    }
+
+    private function decodeExamSubjects(mixed $value): array
+    {
+        if (is_array($value)) {
+            $subjects = $value;
+        } elseif (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+            if (is_string($decoded)) {
+                $decoded = json_decode($decoded, true);
+            }
+            $subjects = is_array($decoded) ? $decoded : [];
+        } else {
+            $subjects = [];
+        }
+
+        return array_values(array_map(function ($subject) {
+            if (!is_array($subject)) {
+                return [
+                    'subject' => (string) $subject,
+                    'result' => 'N/A',
+                ];
+            }
+
+            return [
+                'subject' => $subject['subject'] ?? $subject['name'] ?? $subject['title'] ?? 'N/A',
+                'result' => $subject['result'] ?? $subject['grade'] ?? $subject['mark'] ?? 'N/A',
+            ];
+        }, $subjects));
     }
 }
