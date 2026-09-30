@@ -51,6 +51,7 @@
             {{-- STUDENT MANAGEMENT --}}
             @if(
                 RoleHelper::hasPermission($role, 'student.registration') ||
+                RoleHelper::hasPermission($role, 'missing.data.restore') ||
                 RoleHelper::hasPermission($role, 'student.other.information') ||
                 RoleHelper::hasPermission($role, 'student.list') ||
                 RoleHelper::hasPermission($role, 'student.view') ||
@@ -67,6 +68,14 @@
                     <a class="sidebar-link {{ Route::currentRouteName() == 'student_management.registration' ? 'active' : '' }}" href="{{ route('student_management.registration') }}">
                         <span><i class="ti ti-user"></i></span>
                         <span class="hide-menu">Student Registration</span>
+                    </a>
+                </li>
+            @endif
+            @if(RoleHelper::hasPermission($role, 'missing.data.restore'))
+                <li class="sidebar-item">
+                    <a class="sidebar-link {{ request()->routeIs('missing.data.restore*') ? 'active' : '' }}" href="{{ route('missing.data.restore') }}">
+                        <span><i class="ti ti-file-upload"></i></span>
+                        <span class="hide-menu">Restore Missing Data</span>
                     </a>
                 </li>
             @endif

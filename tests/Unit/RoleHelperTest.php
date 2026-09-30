@@ -57,6 +57,10 @@ class RoleHelperTest extends TestCase
         $this->assertTrue(RoleHelper::hasPermission('Developer', 'module.management'));
         $this->assertTrue(RoleHelper::hasPermission('Developer', 'course.management'));
         $this->assertTrue(RoleHelper::hasPermission('Developer', 'student.registration'));
+        $this->assertTrue(RoleHelper::hasPermission('Developer', 'missing.data.restore'));
+        $this->assertFalse(RoleHelper::hasPermission('Program Administrator (level 01)', 'missing.data.restore'));
+        $this->assertFalse(RoleHelper::hasPermission('DGM', 'missing.data.restore'));
+        $this->assertFalse(RoleHelper::hasPermission('Librarian', 'missing.data.restore'));
         $this->assertTrue(RoleHelper::hasPermission('Developer', 'course.registration'));
         $this->assertTrue(RoleHelper::hasPermission('Developer', 'attendance'));
         $this->assertTrue(RoleHelper::hasPermission('Developer', 'special.approval'));

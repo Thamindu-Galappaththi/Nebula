@@ -83,10 +83,7 @@ class SemesterCreationController extends Controller
                 $request->merge($data);
             }
 
-            // Map the form field 'semester' to 'name' for the database
-            if ($request->has('semester')) {
-                $request->merge(['name' => (string) $request->semester]);
-            }
+            $this->mergeCanonicalSemesterName($request);
 
             $validated = $request->validate([
                 'name' => [
@@ -194,10 +191,7 @@ class SemesterCreationController extends Controller
                 $request->merge($data);
             }
 
-            // Map the form field 'semester' to 'name' for the database
-            if ($request->has('semester')) {
-                $request->merge(['name' => (string) $request->semester]);
-            }
+            $this->mergeCanonicalSemesterName($request);
 
             $validated = $request->validate([
                 'name' => [
@@ -660,6 +654,27 @@ class SemesterCreationController extends Controller
                     ->orWhere('modules.module_category', '!=', 'certificate');
             })
             ->get();
+    }
+
+    private function mergeCanonicalSemesterName(Request $request): void
+    {
+        $course = Course::find($request->input('course_id'));
+        if (!$course) {
+            return;
+        }
+
+        $raw = (string) ($request->input('semester') ?? $request->input('name') ?? '');
+        $slot = Semester::slotFromInput($raw, $course);
+        if ($slot === null) {
+            if ($raw === '') {
+                return;
+            }
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'semester' => 'Select a valid semester number or letter for this course.',
+            ]);
+        }
+
+        $request->merge(['name' => Semester::labelForSlot($slot, $course->semester_format)]);
     }
 
     private function assignSemesterSequenceNumbers($semesters): void

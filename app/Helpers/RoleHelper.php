@@ -394,6 +394,7 @@ class RoleHelper
             'student.profile',         
             'termination.tracking',
             'course.change',
+            'missing.data.restore',
             
             // REGISTRATIONS
             'course.registration',
@@ -578,7 +579,8 @@ class RoleHelper
             'eligibility.registration',
             'student.other.information',
             'student.exam.result.management',
-            'student.list'
+            'student.list',
+            'missing.data.restore',
         ];
 
         foreach ($studentManagementRoutes as $route) {

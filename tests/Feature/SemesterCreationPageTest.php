@@ -116,4 +116,108 @@ class SemesterCreationPageTest extends TestCase
             'module_id' => $moduleId,
         ]);
     }
+
+    public function test_store_saves_letter_name_for_alphabetical_courses(): void
+    {
+        $course = Course::forceCreate([
+            'course_name'         => 'B.Eng. EEE',
+            'course_type'         => 'degree',
+            'location'            => 'Welisara',
+            'no_of_semesters'     => 6,
+            'semester_format'     => 'alphabetical',
+            'duration'            => '4 years',
+            'min_credits'         => 120,
+            'course_medium'       => 'English',
+            'entry_qualification' => 'A/L or equivalent',
+            'conducted_by'        => 0,
+        ]);
+
+        $intake = Intake::forceCreate([
+            'location'          => 'Welisara',
+            'course_id'         => $course->course_id,
+            'course_name'       => $course->course_name,
+            'batch'             => '2025-JUl-B09-EEE',
+            'batch_size'        => 30,
+            'intake_mode'       => 'Physical',
+            'intake_type'       => 'Fulltime',
+            'registration_fee'  => '5000',
+            'franchise_payment' => '0',
+            'course_fee'        => '50000',
+            'start_date'        => now()->subMonth()->toDateString(),
+            'end_date'          => now()->addYears(2)->toDateString(),
+        ]);
+
+        $moduleId = DB::table('modules')->insertGetId([
+            'module_name' => 'Engineering Mathematics',
+            'module_code' => '4FTC2100',
+            'module_type' => 'core',
+            'credits'     => 15,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+
+        $this->actingAs($this->actor)->postJson(route('semesters.store'), [
+            'location'   => 'Welisara',
+            'course_id'  => $course->course_id,
+            'intake_id'  => $intake->intake_id,
+            'semester'   => 1,
+            'start_date' => now()->toDateString(),
+            'end_date'   => now()->addMonths(4)->toDateString(),
+            'modules'    => [
+                ['module_id' => $moduleId],
+            ],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('semesters', [
+            'name'      => 'A',
+            'course_id' => $course->course_id,
+            'intake_id' => $intake->intake_id,
+        ]);
+        $this->assertDatabaseMissing('semesters', [
+            'intake_id' => $intake->intake_id,
+            'name'      => '1',
+        ]);
+    }
+
+    public function test_store_rejects_database_id_as_semester_name(): void
+    {
+        $course = Course::forceCreate([
+            'course_name'         => 'BTEC Computing',
+            'course_type'         => 'degree',
+            'location'            => 'Welisara',
+            'no_of_semesters'     => 4,
+            'duration'            => '4 years',
+            'min_credits'         => 120,
+            'course_medium'       => 'English',
+            'entry_qualification' => 'A/L or equivalent',
+            'conducted_by'        => 0,
+        ]);
+
+        $intake = Intake::forceCreate([
+            'location'          => 'Welisara',
+            'course_id'         => $course->course_id,
+            'course_name'       => $course->course_name,
+            'batch'             => '2024-JUL-B08',
+            'batch_size'        => 30,
+            'intake_mode'       => 'Physical',
+            'intake_type'       => 'Fulltime',
+            'registration_fee'  => '5000',
+            'franchise_payment' => '0',
+            'course_fee'        => '50000',
+            'start_date'        => now()->subMonth()->toDateString(),
+            'end_date'          => now()->addYears(2)->toDateString(),
+        ]);
+
+        $this->actingAs($this->actor)->postJson(route('semesters.store'), [
+            'location'   => 'Welisara',
+            'course_id'  => $course->course_id,
+            'intake_id'  => $intake->intake_id,
+            'semester'   => 38,
+            'start_date' => now()->toDateString(),
+            'end_date'   => now()->addMonths(4)->toDateString(),
+            'modules'    => [
+                ['module_id' => 1],
+            ],
+        ])->assertStatus(422);
+    }
 }

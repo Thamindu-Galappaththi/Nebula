@@ -559,20 +559,21 @@ class SemesterRegistrationController extends Controller
             $semesterQuery->where('intake_id', $intakeId);
         }
 
-        // Cast to string so numeric names (e.g., "1") compare consistently against the loop counter
-        $createdSemesterNames = $semesterQuery
-            ->pluck('name')
-            ->map(function ($name) {
-                return (string) $name;
-            })
-            ->toArray();
+        $created = $semesterQuery->get();
+        $usedSlots = [];
+        foreach ($created as $semester) {
+            $semester->setRelation('course', $course);
+            $usedSlots[$semester->resolvedSlotNumber()] = true;
+        }
 
         $allPossibleSemesters = [];
         for ($i = 1; $i <= $course->no_of_semesters; $i++) {
-            if (!in_array((string) $i, $createdSemesterNames, true)) {
+            if (!isset($usedSlots[$i])) {
                 $allPossibleSemesters[] = [
                     'semester_id'   => $i,
-                    'semester_name' => 'Semester ' . $i
+                    'semester_name' => $course->semester_format === 'alphabetical'
+                        ? 'Semester '.chr(64 + $i)
+                        : 'Semester '.$i,
                 ];
             }
         }
