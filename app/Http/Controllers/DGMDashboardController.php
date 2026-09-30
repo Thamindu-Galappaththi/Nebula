@@ -43,7 +43,7 @@ class DGMDashboardController extends Controller
         // Total Students
         $studentsQuery = Student::query();
         if ($location !== 'all') {
-            $studentsQuery->where('institute_location', $location);
+            $this->constrainStudentCampus($studentsQuery, $location);
         }
         $totalStudents = $studentsQuery->count();
 
@@ -53,7 +53,7 @@ class DGMDashboardController extends Controller
             ->where('year', $year);
 
         if ($location !== 'all') {
-            $bulkRevenueQuery->where('location', $location);
+            $this->constrainCampusColumn($bulkRevenueQuery, 'location', $location);
         }
         if ($course !== 'all') {
             $bulkRevenueQuery->where('course', $course);
@@ -71,9 +71,7 @@ class DGMDashboardController extends Controller
         $paymentBaseQuery = PaymentDetail::query();
 
         if ($location !== 'all') {
-            $paymentBaseQuery->whereHas('student', function ($q) use ($location) {
-                $q->where('institute_location', $location);
-            });
+            $this->constrainPaymentToCampus($paymentBaseQuery, $location);
         }
         if ($course !== 'all') {
             $paymentBaseQuery->whereHas('registration.course', function ($q) use ($course) {
@@ -94,13 +92,15 @@ class DGMDashboardController extends Controller
         // Calculate Previous Year Revenue
 
         // 1. Previous year bulk revenue
-        $prevBulkRevenue = DB::table('bulk_revenue_uploads')
+        $prevBulkRevenueQuery = DB::table('bulk_revenue_uploads')
             ->where('year', $prevYear)
-            ->when($location !== 'all', fn($q) => $q->where('location', $location))
             ->when($course !== 'all', fn($q) => $q->where('course', $course))
             ->when($month, fn($q) => $q->where('month', $month))
-            ->when($day, fn($q) => $q->where('day', $day))
-            ->sum('revenue');
+            ->when($day, fn($q) => $q->where('day', $day));
+        if ($location !== 'all') {
+            $this->constrainCampusColumn($prevBulkRevenueQuery, 'location', $location);
+        }
+        $prevBulkRevenue = $prevBulkRevenueQuery->sum('revenue');
 
         // 2. Previous year partial payments
         $prevPartialPaymentsRevenue = 0.0;
@@ -115,43 +115,35 @@ class DGMDashboardController extends Controller
             ? round((($yearlyRevenue - $prevYearRevenue) / $prevYearRevenue) * 100, 1)
             : 0;
 
-        // Outstanding Amount calculations remain the same
-        $outstanding = 0;
-        $planQuery = PaymentPlan::query();
-        if ($location !== 'all') {
-            $planQuery->whereHas('student', function ($q) use ($location) {
-                $q->where('institute_location', $location);
-            });
-        }
-        if ($course !== 'all') {
-            $planQuery->whereHas('registration.course', function ($q) use ($course) {
-                $q->where('course_id', $course);
-            });
-        }
-
-        $plans = $planQuery->get();
-
-        foreach ($plans as $plan) {
-            if (is_array($plan->installments)) {
-                foreach ($plan->installments as $inst) {
-                    $dueDate = Carbon::parse($inst['due_date']);
-                    if ($dueDate->isAfter(Carbon::now())) {
-                        $outstanding += ($inst['local_amount'] ?? 0);
-                    }
-                }
-            }
-        }
+        $outstanding = $this->unpaidInstallmentTotal($location, $course);
 
         $outstandingCurrentYear = 0.0;
         try {
-            // total scheduled for this year (sum of installment amounts whose due_date is in the target year)
-            $pendingCurrentYear = PaymentInstallment::when($year, fn($q) => $q->whereYear('due_date', $year))
-                ->sum('final_amount');
+            // Remaining amounts still owed on installments due in the selected year.
+            // Do not subtract yearly collections: those include payments for other years
+            // and already-paid rows, which made this KPI go negative.
+            $dueQuery = PaymentInstallment::query()
+                ->whereYear('due_date', $year)
+                ->whereIn('status', ['pending', 'overdue']);
 
-            $outstandingCurrentYear = $pendingCurrentYear - $partialPaymentsRevenue;
+            if ($month) {
+                $dueQuery->whereMonth('due_date', $month);
+            }
+            if ($day) {
+                $dueQuery->whereDay('due_date', $day);
+            }
+            if ($location !== 'all') {
+                $dueQuery->whereHas('paymentPlan.student', function ($q) use ($location) {
+                    $this->constrainStudentCampus($q, $location);
+                });
+            }
+            if ($course !== 'all') {
+                $dueQuery->whereHas('paymentPlan', function ($q) use ($course) {
+                    $q->where('course_id', $course);
+                });
+            }
 
-            // sum of partial payments that actually happened in the same year
-
+            $outstandingCurrentYear = (float) $dueQuery->sum(DB::raw('COALESCE(final_amount, amount)'));
         } catch (\Throwable $ex) {
             Log::warning('Could not compute outstandingCurrentYear: ' . $ex->getMessage());
             $outstandingCurrentYear = 0.0;
@@ -162,50 +154,37 @@ class DGMDashboardController extends Controller
         $locationSummary = [];
 
         foreach ($locations as $loc) {
-            // Current year bulk revenue
-            $currBulkRev = DB::table('bulk_revenue_uploads')
+            $currBulkQuery = DB::table('bulk_revenue_uploads')
                 ->where('year', $year)
-                ->where('location', $loc)
                 ->when($course !== 'all', fn($q) => $q->where('course', $course))
-                ->sum('revenue');
+                ->when($month, fn($q) => $q->where('month', $month))
+                ->when($day, fn($q) => $q->where('day', $day));
+            $this->constrainCampusColumn($currBulkQuery, 'location', $loc);
+            $currBulkRev = $currBulkQuery->sum('revenue');
 
-            // Current year partial payments
+            $locPaymentsQuery = PaymentDetail::query();
+            $this->constrainPaymentToCampus($locPaymentsQuery, $loc);
+            if ($course !== 'all') {
+                $locPaymentsQuery->whereHas('registration.course', fn($qq) => $qq->where('course_id', $course));
+            }
+            $locPayments = $locPaymentsQuery->get();
+
             $currPartialRev = 0.0;
-            $locPayments = PaymentDetail::whereHas('student', fn($q) => $q->where('institute_location', $loc))
-                ->when($course !== 'all', fn($q) => $q->whereHas('registration.course', fn($qq) => $qq->where('course_id', $course)))
-                ->get();
-
             foreach ($locPayments as $p) {
                 $currPartialRev += $this->getPaymentContributionForPeriod($p, $dateFilter['start'], $dateFilter['end']);
             }
 
-            // Previous year calculations
-            $prevBulkRev = DB::table('bulk_revenue_uploads')
+            $prevBulkQuery = DB::table('bulk_revenue_uploads')
                 ->where('year', $prevYear)
-                ->where('location', $loc)
                 ->when($course !== 'all', fn($q) => $q->where('course', $course))
-                ->sum('revenue');
+                ->when($month, fn($q) => $q->where('month', $month))
+                ->when($day, fn($q) => $q->where('day', $day));
+            $this->constrainCampusColumn($prevBulkQuery, 'location', $loc);
+            $prevBulkRev = $prevBulkQuery->sum('revenue');
 
             $prevPartialRev = 0.0;
             foreach ($locPayments as $p) {
                 $prevPartialRev += $this->getPaymentContributionForPeriod($p, $prevDateFilter['start'], $prevDateFilter['end']);
-            }
-
-            // Outstanding from payment_plans
-            $outstandingtable = 0;
-            $locPlans = PaymentPlan::where('location', $loc)
-                ->when($course !== 'all', fn($q) => $q->where('course_id', $course))
-                ->get();
-
-            foreach ($locPlans as $plan) {
-                if (is_array($plan->installments)) {
-                    foreach ($plan->installments as $inst) {
-                        $dueDate = Carbon::parse($inst['due_date']);
-                        if ($dueDate->isAfter(Carbon::now())) {
-                            $outstandingtable += ($inst['local_amount'] ?? 0);
-                        }
-                    }
-                }
             }
 
             $currTotal = $currBulkRev + $currPartialRev;
@@ -217,7 +196,7 @@ class DGMDashboardController extends Controller
                 'current_year' => number_format($currTotal, 2),
                 'previous_year' => number_format($prevTotal, 2),
                 'growth' => $growth,
-                'outstanding' => number_format($outstandingtable, 2),
+                'outstanding' => number_format($this->unpaidInstallmentTotal($loc, $course), 2),
             ];
         }
 
@@ -253,11 +232,6 @@ class DGMDashboardController extends Controller
         $location = $request->input('location', 'all');
         $course = $request->input('course', 'all');
 
-        $locationsArray = [];
-        if ($location !== 'all' && !empty($location)) {
-            $locationsArray = array_filter(array_map('trim', explode(',', $location)));
-        }
-
         $periodBuckets = $this->buildPeriodBuckets($request);
 
         $coursesSelected = [];
@@ -285,7 +259,7 @@ class DGMDashboardController extends Controller
             }
         }
 
-        $locations = empty($locationsArray) ? ['Welisara', 'Moratuwa', 'Peradeniya'] : $locationsArray;
+        $locations = $this->requestedCampuses($location);
         $aggregate = [];
 
         // 1) bulk rows + 2) registrations, scoped to each compare/range/single period
@@ -299,50 +273,51 @@ class DGMDashboardController extends Controller
             $month = $bucket['month'];
             $day = $bucket['day'];
 
-            $bulkQuery = DB::table('bulk_student_uploads')
-                ->where('year', $y)
-                ->whereIn('location', $locations);
+            foreach ($locations as $loc) {
+                $bulkQuery = DB::table('bulk_student_uploads')->where('year', $y);
+                $this->constrainCampusColumn($bulkQuery, 'location', $loc);
 
-            if ($month) {
-                $bulkQuery->where('month', $month);
-            }
-            if ($day) {
-                $bulkQuery->where('day', $day);
-            }
-
-            if ($course !== 'all') {
-                $bulkQuery->where(function ($q) use ($course, $courseNameForMatch, $courseIds, $courseNames) {
-                    if (!empty($courseIds)) {
-                        $q->whereIn('course', $courseIds);
-                    }
-                    if (!empty($courseNames)) {
-                        $q->orWhereIn('course', $courseNames);
-                    }
-                    $q->orWhere('course', $course);
-                    if ($courseNameForMatch) {
-                        $q->orWhere('course', $courseNameForMatch);
-                    }
-                });
-            }
-
-            foreach ($bulkQuery->get() as $row) {
-                $c = $row->course ?? ($course !== 'all' ? $course : 'all');
-                if (empty($c)) {
-                    $c = 'all';
+                if ($month) {
+                    $bulkQuery->where('month', $month);
                 }
-                $key = "{$bucket['period']}|{$row->location}|{$c}";
-                if (!isset($aggregate[$key])) {
-                    $aggregate[$key] = [
-                        'year' => $y,
-                        'month' => $month,
-                        'period' => $bucket['period'],
-                        'label' => $bucket['label'],
-                        'institute_location' => $row->location,
-                        'course' => $c,
-                        'count' => 0
-                    ];
+                if ($day) {
+                    $bulkQuery->where('day', $day);
                 }
-                $aggregate[$key]['count'] += (int) ($row->student_count ?? 0);
+
+                if ($course !== 'all') {
+                    $bulkQuery->where(function ($q) use ($course, $courseNameForMatch, $courseIds, $courseNames) {
+                        if (!empty($courseIds)) {
+                            $q->whereIn('course', $courseIds);
+                        }
+                        if (!empty($courseNames)) {
+                            $q->orWhereIn('course', $courseNames);
+                        }
+                        $q->orWhere('course', $course);
+                        if ($courseNameForMatch) {
+                            $q->orWhere('course', $courseNameForMatch);
+                        }
+                    });
+                }
+
+                foreach ($bulkQuery->get() as $row) {
+                    $c = $row->course ?? ($course !== 'all' ? $course : 'all');
+                    if (empty($c)) {
+                        $c = 'all';
+                    }
+                    $key = "{$bucket['period']}|{$loc}|{$c}";
+                    if (!isset($aggregate[$key])) {
+                        $aggregate[$key] = [
+                            'year' => $y,
+                            'month' => $month,
+                            'period' => $bucket['period'],
+                            'label' => $bucket['label'],
+                            'institute_location' => $loc,
+                            'course' => $c,
+                            'count' => 0
+                        ];
+                    }
+                    $aggregate[$key]['count'] += (int) ($row->student_count ?? 0);
+                }
             }
 
             foreach ($locations as $loc) {
@@ -387,11 +362,12 @@ class DGMDashboardController extends Controller
                     $courseId = $cInfo['id'];
                     $courseName = $cInfo['name'];
 
-                    $regQuery = Student::where('institute_location', $loc)
-                        ->whereHas('courseRegistrations', function ($q) use ($courseId, $bucket) {
-                            $q->where('course_id', $courseId)
-                                ->whereBetween('created_at', [$bucket['periodStart'], $bucket['periodEnd']]);
-                        });
+                    $regQuery = Student::query();
+                    $this->constrainStudentCampus($regQuery, $loc);
+                    $regQuery->whereHas('courseRegistrations', function ($q) use ($courseId, $bucket) {
+                        $q->where('course_id', $courseId)
+                            ->whereBetween('created_at', [$bucket['periodStart'], $bucket['periodEnd']]);
+                    });
 
                     $count = $regQuery->distinct()->count('students.student_id');
 
@@ -451,52 +427,19 @@ class DGMDashboardController extends Controller
      */
     public function getRevenueByYearCourse(Request $request)
     {
-        $location = $request->input('location', 'all');
-        $course = $request->input('course', 'all');
-
-        $locationsArray = [];
-        if ($location !== 'all' && !empty($location)) {
-            $locationsArray = array_filter(array_map('trim', explode(',', $location)));
-        }
-
-        $courseIds = [];
-        if ($course !== 'all' && !empty($course)) {
-            $courseIds = array_filter(explode(',', $course));
-            $courseIds = array_map('intval', $courseIds);
-        }
-
-        $locations = empty($locationsArray) ? ['Welisara', 'Moratuwa', 'Peradeniya'] : $locationsArray;
-
-        // Build courses list to iterate (key => id) where key is course_name, value is course_id
-        if ($course === 'all') {
-            $courses = Course::pluck('course_id', 'course_name')->toArray();
-        } else {
-            // If multiple courses passed, fetch all of them
-            $coursesQuery = Course::query();
-            if (!empty($courseIds)) {
-                $coursesQuery->whereIn('course_id', $courseIds);
-            } else {
-                $coursesQuery->where('course_id', $course);
-            }
-            $courses = $coursesQuery->pluck('course_id', 'course_name')->toArray();
-        }
-
-        $aggregate = [];
-
-        // Pre-resolve numeric course id -> name mapping for bulk matching
+        $locations = $this->requestedCampuses($request->input('location', 'all'));
+        $courseIds = $this->requestedCourseIds($request->input('course', 'all'));
         $courseIdToName = Course::pluck('course_name', 'course_id')->toArray();
         $periodBuckets = $this->buildPeriodBuckets($request);
+        $aggregate = [];
 
         foreach ($periodBuckets as $bucket) {
-            $y = $bucket['year'];
             $periodStart = $bucket['periodStart'];
             $periodEnd = $bucket['periodEnd'];
 
             foreach ($locations as $loc) {
-                // --- 1) Bulk revenue rows for this period/location ---
-                $bulkQ = DB::table('bulk_revenue_uploads')
-                    ->where('year', $y)
-                    ->where('location', $loc);
+                $bulkQ = DB::table('bulk_revenue_uploads')->where('year', $bucket['year']);
+                $this->constrainCampusColumn($bulkQ, 'location', $loc);
 
                 if ($bucket['month']) {
                     $bulkQ->where('month', $bucket['month']);
@@ -504,99 +447,47 @@ class DGMDashboardController extends Controller
                 if ($bucket['day']) {
                     $bulkQ->where('day', $bucket['day']);
                 }
+                $this->constrainBulkCourseColumn($bulkQ, $courseIds, $courseIdToName);
 
-                // If frontend requested specific course, match either stored id or stored name
-                if ($course !== 'all') {
-                    $bulkQ->where(function ($q) use ($course, $courseIdToName) {
-                        $q->where('course', $course);
-                        $name = $courseIdToName[$course] ?? null;
-                        if ($name)
-                            $q->orWhere('course', $name);
-                    });
-                }
-
-                $bulkRows = $bulkQ->get();
-
-                foreach ($bulkRows as $r) {
+                foreach ($bulkQ->get() as $r) {
                     $bulkCourseRaw = $r->course;
-                    $courseNameOut = null;
-
                     if (is_numeric($bulkCourseRaw)) {
-                        $courseNameOut = $courseIdToName[intval($bulkCourseRaw)] ?? (string) $bulkCourseRaw;
+                        $courseNameOut = $courseIdToName[(int) $bulkCourseRaw] ?? (string) $bulkCourseRaw;
                     } elseif ($bulkCourseRaw) {
                         $courseNameOut = (string) $bulkCourseRaw;
                     } else {
-                        if ($course !== 'all') {
-                            $courseNameOut = Course::where('course_id', $course)->value('course_name') ?? (string) $course;
-                        } else {
-                            $courseNameOut = 'all';
-                        }
+                        $courseNameOut = !empty($courseIds)
+                            ? ($courseIdToName[$courseIds[0]] ?? 'all')
+                            : 'all';
                     }
 
-                    if ($course !== 'all') {
-                        $requestedCourseName = Course::where('course_id', $course)->value('course_name') ?? (string) $course;
-                        if ($courseNameOut !== $requestedCourseName && (string) $r->course !== (string) $course) {
-                            continue;
-                        }
-                    }
-
-                    $key = "{$bucket['period']}|{$loc}|{$courseNameOut}";
-
-                    if (!isset($aggregate[$key])) {
-                        $aggregate[$key] = [
-                            'year' => $y,
-                            'month' => $bucket['month'],
-                            'period' => $bucket['period'],
-                            'label' => $bucket['label'],
-                            'location' => $loc,
-                            'course_name' => $courseNameOut,
-                            'revenue' => 0.0
-                        ];
-                    }
-
-                    $aggregate[$key]['revenue'] += floatval($r->revenue ?? 0);
+                    $this->addPeriodAggregate($aggregate, $bucket, $loc, $courseNameOut, (float) ($r->revenue ?? 0));
                 }
 
-                // --- 2) PaymentDetail partials for this period/location/course ---
-                foreach ($courses as $courseName => $courseId) {
-                    $paymentQ = PaymentDetail::whereHas('student', function ($q) use ($loc) {
-                        $q->where('institute_location', $loc);
+                $paymentQ = PaymentDetail::query()->with(['registration.course']);
+                $this->constrainPaymentToCampus($paymentQ, $loc);
+                if (!empty($courseIds)) {
+                    $paymentQ->whereHas('registration', function ($q) use ($courseIds) {
+                        $q->whereIn('course_id', $courseIds);
                     });
-
-                    $paymentQ->whereHas('registration', function ($q) use ($courseId) {
-                        $q->where('course_id', $courseId);
-                    });
-
-                    $payments = $paymentQ->get();
-
-                    foreach ($payments as $p) {
-                        $contribution = $this->getPaymentContributionForPeriod($p, $periodStart, $periodEnd);
-                        if ($contribution <= 0) {
-                            continue;
-                        }
-
-                        $key = "{$bucket['period']}|{$loc}|{$courseName}";
-                        if (!isset($aggregate[$key])) {
-                            $aggregate[$key] = [
-                                'year' => $y,
-                                'month' => $bucket['month'],
-                                'period' => $bucket['period'],
-                                'label' => $bucket['label'],
-                                'location' => $loc,
-                                'course_name' => $courseName,
-                                'revenue' => 0.0
-                            ];
-                        }
-                        $aggregate[$key]['revenue'] += $contribution;
-                    }
                 }
 
+                foreach ($paymentQ->get() as $p) {
+                    $contribution = $this->getPaymentContributionForPeriod($p, $periodStart, $periodEnd);
+                    if ($contribution <= 0) {
+                        continue;
+                    }
+
+                    $courseNameOut = optional(optional($p->registration)->course)->course_name
+                        ?: 'Miscellaneous';
+
+                    $this->addPeriodAggregate($aggregate, $bucket, $loc, $courseNameOut, $contribution);
+                }
             }
         }
 
-        // Normalize output: ensure revenue rounded, and include entries for combinations with zero if needed
         $result = array_values(array_map(function ($item) {
-            $item['revenue'] = round(floatval($item['revenue'] ?? 0), 2);
+            $item['revenue'] = round((float) ($item['revenue'] ?? 0), 2);
             return $item;
         }, $aggregate));
 
@@ -608,12 +499,30 @@ class DGMDashboardController extends Controller
      */
     public function getStudentsByLocation(Request $request)
     {
-        $year = $request->input('year', date('Y'));
+        $year = $request->input('year');
+        $query = Student::query();
 
-        $data = Student::select('institute_location', DB::raw('count(*) as count'))
-            ->whereYear('created_at', $year)
+        if (!empty($year) && $year !== 'all' && is_numeric($year)) {
+            $query->whereYear('created_at', $year);
+        }
+
+        $counts = ['Welisara' => 0, 'Moratuwa' => 0, 'Peradeniya' => 0];
+        foreach ($query->select('institute_location', DB::raw('count(*) as count'))
             ->groupBy('institute_location')
-            ->get();
+            ->get() as $row) {
+            $campus = $this->campusShortName((string) $row->institute_location);
+            if (isset($counts[$campus])) {
+                $counts[$campus] += (int) $row->count;
+            }
+        }
+
+        $data = [];
+        foreach ($counts as $loc => $count) {
+            $data[] = [
+                'institute_location' => $loc,
+                'count' => $count,
+            ];
+        }
 
         return response()->json($data);
     }
@@ -624,127 +533,45 @@ class DGMDashboardController extends Controller
 
     public function getOutstandingByYearCourse(Request $request)
     {
-        $year = $request->input('year');
-        $month = $request->input('month');
-        $day = $request->input('date');
-        $location = $request->input('location', 'all');
+        $locations = $this->requestedCampuses($request->input('location', 'all'));
+        $courseIds = $this->requestedCourseIds($request->input('course', 'all'));
 
-        // new: accept course filter (comma separated ids or names)
-        $course = $request->input('course', 'all');
-        $courseIds = [];
-        if ($course !== 'all' && !empty($course)) {
-            $parts = array_filter(array_map('trim', explode(',', $course)));
-            foreach ($parts as $p) {
-                if (is_numeric($p)) {
-                    $courseIds[] = (int) $p;
-                } else {
-                    // attempt to resolve name -> id
-                    $id = Course::where('course_name', $p)->value('course_id');
-                    if ($id)
-                        $courseIds[] = (int) $id;
-                }
-            }
+        $query = PaymentInstallment::query()
+            ->whereIn('status', ['pending', 'overdue'])
+            ->with(['paymentPlan.student', 'paymentPlan.course']);
+
+        if (!empty($courseIds)) {
+            $query->whereHas('paymentPlan', function ($q) use ($courseIds) {
+                $q->whereIn('course_id', $courseIds);
+            });
         }
 
-        $fromYear = $request->input('from_year');
-        $toYear = $request->input('to_year');
-        $range = $request->input('range');
-        $rangeStart = $request->input('range_start_year');
-        $rangeEnd = $request->input('range_end_year');
-
-        // Determine years to fetch
-        if ($range && $rangeStart && $rangeEnd) {
-            $years = range($rangeStart, $rangeEnd);
-        } elseif ($fromYear && $toYear) {
-            $years = range($fromYear, $toYear);
-        } elseif ($year) {
-            $years = [$year];
-        } else {
-            $years = [date('Y')];
-        }
-
-        // If range_start provided but not range_end (e.g. "future"), cap a sensible end
-        if ($range && $rangeStart && empty($rangeEnd)) {
-            $start = (int) $rangeStart;
-            $end = $start + 20; // configurable horizon
-            $years = range($start, $end);
-        }
-
-        $allLocations = ['Welisara', 'Moratuwa', 'Peradeniya'];
-        $locations = ($location === 'all' || $location === null || $location === '')
-            ? $allLocations
-            : array_values(array_filter(
-                array_map('trim', explode(',', $location)),
-                fn ($loc) => $loc !== '' && $loc !== 'all' && in_array($loc, $allLocations, true)
-            ));
-        if (empty($locations)) {
-            $locations = $allLocations;
-        }
-
-        // We'll aggregate outstanding by year|location|course_name
         $aggregate = [];
-
-        foreach ($years as $y) {
-            foreach ($locations as $loc) {
-                $query = PaymentPlan::whereYear('created_at', $y)
-                    ->where('location', $loc);
-
-                if ($month) {
-                    $query->whereMonth('created_at', $month);
-                }
-                if ($day) {
-                    $query->whereDay('created_at', $day);
-                }
-
-                // apply course filter if provided
-                if (!empty($courseIds)) {
-                    $query->whereIn('course_id', $courseIds);
-                }
-
-                $plans = $query->get();
-
-                foreach ($plans as $plan) {
-                    // determine course name for this plan (via course_id)
-                    $courseName = 'Unknown';
-                    try {
-                        $courseName = Course::where('course_id', $plan->course_id)->value('course_name') ?? (string) $plan->course_id;
-                    } catch (\Throwable $ex) {
-                        // swallow and keep 'Unknown'
-                    }
-
-                    // compute outstanding from future installments
-                    $outstanding = 0;
-                    if (is_array($plan->installments)) {
-                        foreach ($plan->installments as $inst) {
-                            $dueDate = Carbon::parse($inst['due_date']);
-                            if ($dueDate->isAfter(Carbon::now())) {
-                                $outstanding += ($inst['local_amount'] ?? 0);
-                            }
-                        }
-                    }
-
-                    // Respect course filter: if frontend passed course names/ids but course couldn't be resolved skip
-                    if (!empty($courseIds)) {
-                        if (!in_array((int) $plan->course_id, $courseIds, true)) {
-                            continue;
-                        }
-                    }
-
-                    $key = "{$y}|{$loc}|{$courseName}";
-                    if (!isset($aggregate[$key])) {
-                        $aggregate[$key] = [
-                            'year' => (int) $y,
-                            'location' => $loc,
-                            'course_name' => $courseName,
-                            'outstanding' => 0.0
-                        ];
-                    }
-                    $aggregate[$key]['outstanding'] += $outstanding;
-                }
+        foreach ($query->get() as $installment) {
+            $plan = $installment->paymentPlan;
+            if (!$plan) {
+                continue;
             }
+
+            $campus = $this->campusShortName((string) optional($plan->student)->institute_location);
+            if (!in_array($campus, $locations, true)) {
+                continue;
+            }
+
+            $courseName = optional($plan->course)->course_name ?: 'Unknown';
+            $key = "{$campus}|{$courseName}";
+            if (!isset($aggregate[$key])) {
+                $aggregate[$key] = [
+                    'year' => (int) ($installment->due_date?->format('Y') ?? date('Y')),
+                    'location' => $campus,
+                    'course_name' => $courseName,
+                    'outstanding' => 0.0,
+                ];
+            }
+
+            $aggregate[$key]['outstanding'] += (float) ($installment->final_amount ?? $installment->amount ?? 0);
         }
 
-        // Convert aggregate to response array (round outstanding)
         $data = [];
         foreach ($aggregate as $item) {
             $data[] = [
@@ -772,7 +599,9 @@ class DGMDashboardController extends Controller
             foreach ($partials as $partial) {
                 $dateValue = $partial['date'] ?? $partial['payment_date'] ?? $partial['paid_at'] ?? null;
                 if (!$dateValue) {
-                    $dateValue = $payment->payment_effective_date ?? $payment->created_at;
+                    $dateValue = $payment->payment_effective_date
+                        ?? $payment->payment_date
+                        ?? $payment->created_at;
                 }
 
                 try {
@@ -791,9 +620,10 @@ class DGMDashboardController extends Controller
             }
         }
 
-        $referenceDate = $payment->payment_effective_date
-            ? Carbon::parse($payment->payment_effective_date)
-            : ($payment->created_at ? Carbon::parse($payment->created_at) : null);
+        $referenceDateValue = $payment->payment_effective_date
+            ?? $payment->payment_date
+            ?? $payment->created_at;
+        $referenceDate = $referenceDateValue ? Carbon::parse($referenceDateValue) : null;
 
         if ($referenceDate && $referenceDate->between($periodStart, $periodEnd)) {
             return (float) ($payment->amount ?? $payment->total_fee ?? 0);
@@ -804,24 +634,200 @@ class DGMDashboardController extends Controller
 
     private function buildDateFilter($year, $month = null, $day = null)
     {
-        $date = Carbon::create($year, $month ?: 1, $day ?: 1);
+        $date = Carbon::create((int) $year, $month ? (int) $month : 1, $day ? (int) $day : 1);
 
+        // Carbon is mutable: startOf*/endOf* would otherwise both point at the
+        // same instance, collapsing a year filter to Dec 31 and zeroing revenue.
         if ($day) {
             return [
-                'start' => $date->startOfDay(),
-                'end' => $date->endOfDay()
-            ];
-        } elseif ($month) {
-            return [
-                'start' => $date->startOfMonth(),
-                'end' => $date->endOfMonth()
-            ];
-        } else {
-            return [
-                'start' => $date->startOfYear(),
-                'end' => $date->endOfYear()
+                'start' => $date->copy()->startOfDay(),
+                'end' => $date->copy()->endOfDay(),
             ];
         }
+
+        if ($month) {
+            return [
+                'start' => $date->copy()->startOfMonth(),
+                'end' => $date->copy()->endOfMonth(),
+            ];
+        }
+
+        return [
+            'start' => $date->copy()->startOfYear(),
+            'end' => $date->copy()->endOfYear(),
+        ];
+    }
+
+    private function campusShortName(string $location): string
+    {
+        $value = trim(str_replace(
+            ['Nebula Institute of Technology – ', 'Nebula Institute of Technology - '],
+            '',
+            $location
+        ));
+
+        foreach (['Welisara', 'Moratuwa', 'Peradeniya'] as $campus) {
+            if (stripos($value, $campus) !== false) {
+                return $campus;
+            }
+        }
+
+        return $value !== '' ? $value : $location;
+    }
+
+    private function campusLocationValues(string $location): array
+    {
+        $short = $this->campusShortName($location);
+
+        return array_values(array_unique(array_filter([
+            $short,
+            'Nebula Institute of Technology - ' . $short,
+            'Nebula Institute of Technology – ' . $short,
+            $location,
+        ])));
+    }
+
+    private function constrainCampusColumn($query, string $column, string $campus): void
+    {
+        $values = $this->campusLocationValues($campus);
+        $short = $this->campusShortName($campus);
+
+        $query->where(function ($q) use ($column, $values, $short) {
+            $q->whereIn($column, $values)
+                ->orWhere($column, 'like', '%' . $short . '%');
+        });
+    }
+
+    private function constrainStudentCampus($query, string $campus): void
+    {
+        $this->constrainCampusColumn($query, 'institute_location', $campus);
+    }
+
+    private function constrainPaymentToCampus($query, string $campus): void
+    {
+        $values = $this->campusLocationValues($campus);
+        $short = $this->campusShortName($campus);
+
+        $query->where(function ($q) use ($values, $short) {
+            $q->whereHas('student', function ($s) use ($values, $short) {
+                $s->where(function ($inner) use ($values, $short) {
+                    $inner->whereIn('institute_location', $values)
+                        ->orWhere('institute_location', 'like', '%' . $short . '%');
+                });
+            })->orWhereHas('registration', function ($r) use ($values, $short) {
+                $r->where(function ($inner) use ($values, $short) {
+                    $inner->whereIn('location', $values)
+                        ->orWhere('location', 'like', '%' . $short . '%');
+                });
+            });
+        });
+    }
+
+    private function unpaidInstallmentTotal(string $location = 'all', string $course = 'all'): float
+    {
+        $query = PaymentInstallment::query()->whereIn('status', ['pending', 'overdue']);
+
+        if ($location !== 'all') {
+            $query->whereHas('paymentPlan.student', function ($q) use ($location) {
+                $this->constrainStudentCampus($q, $location);
+            });
+        }
+
+        if ($course !== 'all') {
+            $query->whereHas('paymentPlan', function ($q) use ($course) {
+                $q->where('course_id', $course);
+            });
+        }
+
+        return (float) $query->sum(DB::raw('COALESCE(final_amount, amount)'));
+    }
+
+    private function requestedCampuses($location): array
+    {
+        $all = ['Welisara', 'Moratuwa', 'Peradeniya'];
+        if ($location === 'all' || $location === null || $location === '') {
+            return $all;
+        }
+
+        $resolved = [];
+        foreach (array_filter(array_map('trim', explode(',', (string) $location))) as $part) {
+            if ($part === '' || $part === 'all') {
+                continue;
+            }
+            $short = $this->campusShortName($part);
+            if (in_array($short, $all, true)) {
+                $resolved[] = $short;
+            }
+        }
+
+        return empty($resolved) ? $all : array_values(array_unique($resolved));
+    }
+
+    private function requestedCourseIds($course): array
+    {
+        if ($course === 'all' || $course === null || $course === '') {
+            return [];
+        }
+
+        $ids = [];
+        foreach (array_filter(array_map('trim', explode(',', (string) $course))) as $part) {
+            if (is_numeric($part)) {
+                $ids[] = (int) $part;
+                continue;
+            }
+            $id = Course::where('course_name', $part)->value('course_id');
+            if ($id) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    private function constrainBulkCourseColumn($query, array $courseIds, array $courseIdToName): void
+    {
+        if (empty($courseIds)) {
+            return;
+        }
+
+        $names = [];
+        $idStrings = [];
+        foreach ($courseIds as $id) {
+            $idStrings[] = (string) $id;
+            if (!empty($courseIdToName[$id])) {
+                $names[] = $courseIdToName[$id];
+            }
+        }
+
+        $query->where(function ($q) use ($courseIds, $idStrings, $names) {
+            $q->whereIn('course', $courseIds)
+                ->orWhereIn('course', $idStrings);
+            if ($names) {
+                $q->orWhereIn('course', $names);
+            }
+        });
+    }
+
+    private function addPeriodAggregate(array &$aggregate, array $bucket, string $location, string $courseName, float $amount): void
+    {
+        if ($amount == 0.0) {
+            return;
+        }
+
+        $key = "{$bucket['period']}|{$location}|{$courseName}";
+        if (!isset($aggregate[$key])) {
+            $aggregate[$key] = [
+                'year' => $bucket['year'],
+                'month' => $bucket['month'],
+                'period' => $bucket['period'],
+                'label' => $bucket['label'],
+                'location' => $location,
+                'course_name' => $courseName,
+                'revenue' => 0.0,
+            ];
+        }
+
+        $aggregate[$key]['revenue'] += $amount;
     }
 
     public function getMarketingData(Request $request)
@@ -1184,22 +1190,19 @@ class DGMDashboardController extends Controller
         
         $data = [];
         foreach ($locations as $location) {
-            // Bulk revenue
-            $bulkRevenue = DB::table('bulk_revenue_uploads')
-                ->where('year', $year)
-                ->where('location', $location)
-                ->sum('revenue');
-            
-            // Partial payments
-            $partialRevenue = 0.0;
-            $payments = PaymentDetail::whereHas('student', function ($q) use ($location) {
-                $q->where('institute_location', $location);
-            })
-            ->whereYear('created_at', $year)
-            ->get();
+            $bulkQuery = DB::table('bulk_revenue_uploads')->where('year', $year);
+            $this->constrainCampusColumn($bulkQuery, 'location', $location);
+            $bulkRevenue = $bulkQuery->sum('revenue');
 
+            $partialRevenue = 0.0;
+            $paymentsQuery = PaymentDetail::query();
+            $this->constrainPaymentToCampus($paymentsQuery, $location);
+            $payments = $paymentsQuery->get();
+
+            $periodStart = Carbon::create($year, 1, 1)->startOfYear();
+            $periodEnd = Carbon::create($year, 12, 31)->endOfYear();
             foreach ($payments as $payment) {
-                $partialRevenue += $this->getPaymentContributionForPeriod($payment, Carbon::create($year, 1, 1)->startOfYear(), Carbon::create($year, 12, 31)->endOfYear());
+                $partialRevenue += $this->getPaymentContributionForPeriod($payment, $periodStart, $periodEnd);
             }
             
             $data[] = [
