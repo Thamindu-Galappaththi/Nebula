@@ -1113,30 +1113,15 @@
                 }
 
                 // Fetch students by location and show in chart + numbers
-                const studentsResponse = await fetch(`/api/dashboard/students-by-location?year=${params.year}`);
+                const studentsResponse = await fetch('/api/dashboard/students-by-location');
                 const studentsData = await studentsResponse.json();
 
-                // Show numbers below chart (add these spans in your blade if you want)
-                // Example:
-                // <div class="flex gap-4 mt-2 justify-center">
-                //   <span id="studentsWelisara"></span>
-                //   <span id="studentsMoratuwa"></span>
-                //   <span id="studentsPeradeniya"></span>
-                // </div>
-                if (document.getElementById('studentsWelisara')) {
-                    document.getElementById('studentsWelisara').textContent =
-                        `Welisara: ${studentsData.find(d => d.institute_location === 'Welisara')?.count ?? 0}`;
-                }
-                if (document.getElementById('studentsMoratuwa')) {
-                    document.getElementById('studentsMoratuwa').textContent =
-                        `Moratuwa: ${studentsData.find(d => d.institute_location === 'Moratuwa')?.count ?? 0}`;
-                }
-                if (document.getElementById('studentsPeradeniya')) {
-                    document.getElementById('studentsPeradeniya').textContent =
-                        `Peradeniya: ${studentsData.find(d => d.institute_location === 'Peradeniya')?.count ?? 0}`;
-                }
+                const allLocations = ['Welisara', 'Moratuwa', 'Peradeniya'];
+                const chartData = allLocations.map(loc => {
+                    const found = (Array.isArray(studentsData) ? studentsData : []).find(d => d.institute_location === loc);
+                    return found ? Number(found.count) || 0 : 0;
+                });
 
-                // Draw chart
                 const canvas = document.getElementById('studentsLocationChart');
                 if (canvas) {
                     const ctx = canvas.getContext('2d');
@@ -1146,9 +1131,9 @@
                     currentCharts.studentsLocation = new Chart(ctx, {
                         type: 'doughnut',
                         data: {
-                            labels: studentsData.map(d => d.institute_location),
+                            labels: allLocations,
                             datasets: [{
-                                data: studentsData.map(d => d.count),
+                                data: chartData,
                                 backgroundColor: ['#3B82F6', '#10B981', '#F59E0B'],
                                 borderWidth: 2,
                                 borderColor: '#fff'
@@ -1163,8 +1148,6 @@
                         }
                     });
                 }
-
-                loadLocationBreakdown();
             } catch (error) {
                 console.error('Error loading overview data:', error);
             }
@@ -1573,26 +1556,12 @@
                 const res = await fetch(`/api/dashboard/outstanding-by-year-course?${new URLSearchParams(params)}`);
                 const data = await res.json(); // [{year, location, outstanding}, ...]
                 const rows = Array.isArray(data) ? data : [];
-
-                let years = [...new Set(rows.map(d => Number(d.year)))].filter(Boolean).sort((a, b) => a - b);
-
-                if (params.compare && params.from_year && params.to_year) {
-                    years = [...new Set([parseInt(params.from_year, 10), parseInt(params.to_year, 10)])].sort((a, b) => a - b);
-                } else if (params.range && params.range_start_year && params.range_end_year) {
-                    const start = parseInt(params.range_start_year, 10);
-                    const end = parseInt(params.range_end_year, 10);
-                    years = [];
-                    for (let y = start; y <= end; y++) years.push(y);
-                } else if (params.year) {
-                    years = [parseInt(params.year, 10)];
-                }
-
                 const locations = getSelectedRevenueLocations();
                 const colors = ['#EF4444', '#6366F1', '#10B981'];
 
                 const locationOutstanding = locations.map(loc => {
                     return rows
-                        .filter(d => years.includes(Number(d.year)) && d.location === loc)
+                        .filter(d => d.location === loc)
                         .reduce((sum, d) => sum + (Number(d.outstanding) || 0), 0);
                 });
 
@@ -1942,7 +1911,6 @@
             const courseParam = concreteCourses.length ? concreteCourses.join(',') : 'all';
 
             return {
-                year: new Date().getFullYear(),
                 location: locationParam,
                 course: courseParam
             };
