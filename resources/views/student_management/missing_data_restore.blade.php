@@ -38,6 +38,7 @@
                     <select id="restoreType" class="form-select nebula-select">
                         <option value="students">Students + course registration</option>
                         <option value="modules">Modules</option>
+                        <option value="semesters">Semester calendar rows</option>
                         <option value="semester_modules">Semester module links</option>
                     </select>
                 </div>
@@ -81,8 +82,9 @@
             <p class="small text-muted mt-3 mb-0">
                 Developer role only. Use the prepared files in
                 <code>docs/Student details B 7 8 9/restore_uploads</code>
-                — do not upload the original staff workbooks.
+                - do not upload the original staff workbooks.
                 For an existing student, NIC/passport is enough: the page adds only the missing registration.
+                Semester dates use type Semester calendar rows. Existing semester dates are never overwritten.
             </p>
         </div>
     </div>
@@ -136,7 +138,7 @@
     function syncTypeUi() {
         const type = currentType();
         document.querySelectorAll('.student-only').forEach((el) => {
-            el.classList.toggle('d-none', type === 'modules');
+            el.classList.toggle('d-none', type === 'modules' || type === 'semesters');
         });
         semesterWrap.classList.toggle('d-none', type !== 'semester_modules');
         templateLink.href = @json(url('/missing-data/restore/template')) + '?type=' + encodeURIComponent(type);
@@ -200,10 +202,10 @@
     }
 
     function rowKey(row) {
-        return row.id_value || row.module_code || '';
+        return row.id_value || row.module_code || row.intake || '';
     }
     function rowName(row) {
-        return row.full_name || row.module_name || row.specialization || '';
+        return row.full_name || row.module_name || row.specialization || row.name || row.semester || '';
     }
 
     previewBtn.addEventListener('click', function () {
