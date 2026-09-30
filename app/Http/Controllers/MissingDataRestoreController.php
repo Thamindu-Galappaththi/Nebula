@@ -40,6 +40,11 @@ class MissingDataRestoreController extends Controller
                 ['module_code', 'module_name', 'module_type', 'module_category', 'module_cordinator', 'credits'],
                 ['6FTC1162', 'Satellite And Terrestrial Communication Systems', 'core', 'degree', 'Darshana Bandara', '15'],
             ],
+            MissingDataRestoreService::TYPE_SEMESTERS => [
+                'restore_semesters_template.xlsx',
+                ['intake', 'semester', 'start', 'end'],
+                ['2024-JUl-B08-DS', 'A', '2025-07-21', '2025-10-17'],
+            ],
             MissingDataRestoreService::TYPE_SEMESTER_MODULES => [
                 'restore_semester_modules_template.xlsx',
                 ['module_code', 'specialization'],
@@ -66,7 +71,7 @@ class MissingDataRestoreController extends Controller
     public function preview(Request $request)
     {
         $validated = $request->validate([
-            'type' => 'required|in:students,modules,semester_modules',
+            'type' => 'required|in:students,modules,semesters,semester_modules',
             'file' => 'required|file|max:10240',
             'intake_id' => 'required_if:type,students|nullable|integer',
             'semester_id' => 'required_if:type,semester_modules|nullable|integer',
@@ -109,7 +114,7 @@ class MissingDataRestoreController extends Controller
             'token' => $token,
             'rows' => $preview['rows'],
             'counts' => [
-                'insert' => ($counts['insert_student'] ?? 0) + ($counts['insert_registration'] ?? 0) + ($counts['insert_module'] ?? 0) + ($counts['insert_link'] ?? 0),
+                'insert' => ($counts['insert_student'] ?? 0) + ($counts['insert_registration'] ?? 0) + ($counts['insert_module'] ?? 0) + ($counts['insert_semester'] ?? 0) + ($counts['insert_link'] ?? 0),
                 'skip' => $counts['skip'] ?? 0,
                 'error' => $counts['error'] ?? 0,
             ],

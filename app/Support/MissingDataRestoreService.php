@@ -20,6 +20,7 @@ class MissingDataRestoreService
 {
     public const TYPE_STUDENTS = 'students';
     public const TYPE_MODULES = 'modules';
+    public const TYPE_SEMESTERS = 'semesters';
     public const TYPE_SEMESTER_MODULES = 'semester_modules';
 
     public function preview(UploadedFile $file, string $type, array $context): array
@@ -29,6 +30,7 @@ class MissingDataRestoreService
         return match ($type) {
             self::TYPE_STUDENTS => $this->previewStudents($rows, $context),
             self::TYPE_MODULES => $this->previewModules($rows),
+            self::TYPE_SEMESTERS => $this->previewSemesters($rows),
             self::TYPE_SEMESTER_MODULES => $this->previewSemesterModules($rows, $context),
             default => throw new \InvalidArgumentException('Unknown import type.'),
         };
@@ -76,6 +78,10 @@ class MissingDataRestoreService
                 'module_cordinator' => $row['module_cordinator'] ?: null,
                 'credits' => $row['credits'] !== '' ? $row['credits'] : null,
             ]);
+            return;
+        }
+        if ($type === self::TYPE_SEMESTERS) {
+            $this->commitSemesterRow($row);
             return;
         }
 
@@ -264,6 +270,169 @@ class MissingDataRestoreService
         }
 
         return ['type' => self::TYPE_MODULES, 'rows' => $out];
+    }
+
+    private function previewSemesters(array $rows): array
+    {
+        $out = [];
+        foreach ($rows as $index => $raw) {
+            $mapped = $this->mapSemester($raw);
+            $line = $index + 2;
+            if ($mapped['intake'] === '' && $mapped['semester'] === '' && $mapped['start_date'] === '') {
+                continue;
+            }
+
+            $intake = $this->findIntakeByBatch($mapped['intake']);
+            if (!$intake) {
+                $out[] = $mapped + [
+                    'row' => $line,
+                    'action' => 'error',
+                    'message' => 'No intake matches "'.$mapped['intake'].'".',
+                ];
+                continue;
+            }
+
+            $course = Course::find($intake->course_id);
+            if (!$course) {
+                $out[] = $mapped + [
+                    'row' => $line,
+                    'action' => 'error',
+                    'message' => 'Intake '.$intake->batch.' has no course.',
+                ];
+                continue;
+            }
+
+            $slot = Semester::slotFromInput($mapped['semester'], $course);
+            if ($slot === null) {
+                $out[] = $mapped + [
+                    'row' => $line,
+                    'action' => 'error',
+                    'message' => 'Invalid semester "'.$mapped['semester'].'" for this course.',
+                ];
+                continue;
+            }
+
+            if ($mapped['start_date'] === '' || $mapped['end_date'] === '') {
+                $out[] = $mapped + [
+                    'row' => $line,
+                    'action' => 'error',
+                    'message' => 'Start and end dates are required.',
+                ];
+                continue;
+            }
+
+            if ($mapped['start_date'] > $mapped['end_date']) {
+                $out[] = $mapped + [
+                    'row' => $line,
+                    'action' => 'error',
+                    'message' => 'Start date is after end date.',
+                ];
+                continue;
+            }
+
+            $name = Semester::labelForSlot($slot, $course->semester_format);
+            $mapped['name'] = $name;
+            $mapped['intake_id'] = $intake->intake_id;
+            $mapped['course_id'] = $course->course_id;
+            $mapped['status'] = $this->statusFromDates($mapped['start_date'], $mapped['end_date']);
+
+            $existing = $this->existingSemesterForSlot($intake, $course, $slot);
+            if ($existing) {
+                $existingStart = Carbon::parse($existing->start_date)->toDateString();
+                $existingEnd = Carbon::parse($existing->end_date)->toDateString();
+                $sameDates = $existingStart === $mapped['start_date']
+                    && $existingEnd === $mapped['end_date'];
+                $out[] = $mapped + [
+                    'row' => $line,
+                    'action' => 'skip',
+                    'message' => $sameDates
+                        ? 'Already exists as semester '.$existing->name.' (id '.$existing->id.').'
+                        : 'Already exists as id '.$existing->id.' with '.$existingStart
+                            .' to '.$existingEnd
+                            .'. Restore will not overwrite. Edit that semester if these dates should replace it.',
+                ];
+                continue;
+            }
+
+            $out[] = $mapped + [
+                'row' => $line,
+                'action' => 'insert_semester',
+                'message' => 'Will create '.$intake->batch.' semester '.$name.' ('.$mapped['start_date'].' to '.$mapped['end_date'].')',
+            ];
+        }
+
+        return ['type' => self::TYPE_SEMESTERS, 'rows' => $out];
+    }
+
+    private function commitSemesterRow(array $row): void
+    {
+        $exists = Semester::query()
+            ->where('intake_id', $row['intake_id'])
+            ->where('name', $row['name'])
+            ->exists();
+        if ($exists) {
+            return;
+        }
+
+        Semester::create([
+            'name' => $row['name'],
+            'course_id' => $row['course_id'],
+            'intake_id' => $row['intake_id'],
+            'start_date' => $row['start_date'],
+            'end_date' => $row['end_date'],
+            'status' => $row['status'] ?? $this->statusFromDates($row['start_date'], $row['end_date']),
+        ]);
+    }
+
+    private function mapSemester(array $raw): array
+    {
+        return [
+            'intake' => $this->val($raw, ['intake', 'batch', 'intake_batch']),
+            'semester' => $this->val($raw, ['semester', 'name', 'semester_name']),
+            'start_date' => $this->parseDate($this->val($raw, ['start', 'start_date', 'start date'])),
+            'end_date' => $this->parseDate($this->val($raw, ['end', 'end_date', 'end date'])),
+        ];
+    }
+
+    private function findIntakeByBatch(string $batch): ?Intake
+    {
+        $batch = trim($batch);
+        if ($batch === '') {
+            return null;
+        }
+
+        return Intake::query()
+            ->whereRaw('LOWER(TRIM(batch)) = ?', [strtolower($batch)])
+            ->first();
+    }
+
+    private function existingSemesterForSlot(Intake $intake, Course $course, int $slot): ?Semester
+    {
+        $semesters = Semester::query()
+            ->where('intake_id', $intake->intake_id)
+            ->get();
+
+        foreach ($semesters as $semester) {
+            $semester->setRelation('course', $course);
+            if ($semester->resolvedSlotNumber() === $slot) {
+                return $semester;
+            }
+        }
+
+        return null;
+    }
+
+    private function statusFromDates(string $start, string $end): string
+    {
+        $today = now()->toDateString();
+        if ($start > $today) {
+            return 'upcoming';
+        }
+        if ($end >= $today) {
+            return 'active';
+        }
+
+        return 'completed';
     }
 
     private function previewSemesterModules(array $rows, array $context): array

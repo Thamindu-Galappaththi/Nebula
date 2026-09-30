@@ -331,6 +331,63 @@ class MissingDataRestoreTest extends TestCase
         $this->assertSame(2, SemesterModule::where('semester_id', $semester->id)->count());
     }
 
+    public function test_semesters_insert_missing_and_skip_existing_without_overwriting_dates(): void
+    {
+        $this->course->semester_format = 'alphabetical';
+        $this->course->no_of_semesters = 6;
+        $this->course->save();
+
+        $existing = Semester::forceCreate([
+            'name'       => 'A',
+            'course_id'  => $this->course->course_id,
+            'intake_id'  => $this->intake->intake_id,
+            'start_date' => '2026-02-02',
+            'end_date'   => '2026-05-29',
+            'status'     => 'completed',
+        ]);
+
+        $file = $this->spreadsheetFile(
+            ['intake', 'semester', 'start', 'end'],
+            [
+                ['2024-JUl-B08-DS', 'A', '2026-07-14', '2026-10-17'],
+                ['2024-JUl-B08-DS', 'B', '2025-11-10', '2026-02-20'],
+                ['UNKNOWN-BATCH', 'A', '2025-07-21', '2025-10-17'],
+            ]
+        );
+
+        $preview = $this->actingAs($this->actor)
+            ->post(route('missing.data.restore.preview'), [
+                'type' => 'semesters',
+                'file' => $file,
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('counts.insert', 1)
+            ->assertJsonPath('counts.skip', 1)
+            ->assertJsonPath('counts.error', 1)
+            ->json();
+
+        $this->actingAs($this->actor)
+            ->postJson(route('missing.data.restore.commit'), ['token' => $preview['token']])
+            ->assertOk()
+            ->assertJsonPath('inserted', 1);
+
+        $this->assertTrue(
+            Semester::where('intake_id', $this->intake->intake_id)
+                ->where('name', 'B')
+                ->whereDate('start_date', '2025-11-10')
+                ->whereDate('end_date', '2026-02-20')
+                ->exists()
+        );
+        $this->assertTrue(
+            Semester::where('id', $existing->id)
+                ->where('name', 'A')
+                ->whereDate('start_date', '2026-02-02')
+                ->whereDate('end_date', '2026-05-29')
+                ->exists()
+        );
+        $this->assertSame(1, Semester::where('intake_id', $this->intake->intake_id)->where('name', 'A')->count());
+    }
+
     private function spreadsheetFile(array $headers, array $rows): UploadedFile
     {
         $spreadsheet = new Spreadsheet();
