@@ -63,7 +63,8 @@ use App\Http\Controllers\{
     PaymentClearanceController,
     RepeatStudentPaymentController,
     AcademicDetailsController,
-    TerminationTrackingController
+    TerminationTrackingController,
+    MissingDataRestoreController
 };
 
 /*
@@ -157,6 +158,15 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::post('/student/register', [StudentRegistraionController::class, 'register'])->name('student_management.register');
         Route::get('/student/subjects/{examTypeId}', [StudentRegistraionController::class, 'getSubjectsByExamType']);
         Route::get('/student/streams/{examTypeId}', [StudentRegistraionController::class, 'getStreamsByExamType']);
+    });
+
+    // Restore missing students / modules (insert-only, Developer only)
+    Route::middleware(['role:Developer'])->group(function () {
+        Route::get('/missing-data/restore', [MissingDataRestoreController::class, 'index'])->name('missing.data.restore');
+        Route::get('/missing-data/restore/template', [MissingDataRestoreController::class, 'template'])->name('missing.data.restore.template');
+        Route::get('/missing-data/restore/semesters', [MissingDataRestoreController::class, 'semesters'])->name('missing.data.restore.semesters');
+        Route::post('/missing-data/restore/preview', [MissingDataRestoreController::class, 'preview'])->name('missing.data.restore.preview');
+        Route::post('/missing-data/restore/commit', [MissingDataRestoreController::class, 'commit'])->name('missing.data.restore.commit');
     });
 
     // Student Other Information

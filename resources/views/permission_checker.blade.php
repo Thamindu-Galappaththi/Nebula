@@ -279,6 +279,7 @@ const permissions = {
     ],
     studentManagement: [
         { name: 'student.registration', url: '/student-registration', description: 'Student Registration' },
+        { name: 'missing.data.restore', url: '/missing-data/restore', description: 'Restore Missing Data' },
         { name: 'course.badge', url: '/badges', description: 'Course Badges' },
         { name: 'student.other.information', url: '/student-other-information', description: 'Student Other Information' },
         { name: 'student.list', url: '/student-list', description: 'Student List' },

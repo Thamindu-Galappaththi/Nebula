@@ -21,6 +21,7 @@ return [
             'title' => 'STUDENT MANAGEMENT',
             'items' => [
                 ['label' => 'Student Registration', 'route' => 'student.registration', 'icon' => 'ti ti-user', 'permission' => 'student.registration'],
+                ['label' => 'Restore Missing Data', 'route' => 'missing.data.restore', 'icon' => 'ti ti-file-upload', 'permission' => 'missing.data.restore'],
                 ['label' => 'Other Information', 'route' => 'student.other.information', 'icon' => 'ti ti-layout', 'permission' => 'student.other.information'],
                 ['label' => 'Student Lists', 'route' => 'student_management.list', 'icon' => 'ti ti-menu', 'permission' => 'student.list'],
                 ['label' => 'All Students View', 'route' => 'students.view', 'icon' => 'ti ti-users'],

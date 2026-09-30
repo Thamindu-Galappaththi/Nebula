@@ -77,14 +77,63 @@ class Semester extends Model
      */
     public function displayName(): string
     {
-        $number = $this->resolvedSlotNumber();
-        $format = optional($this->course)->semester_format ?? 'numerical';
+        return self::labelForSlot(
+            $this->resolvedSlotNumber(),
+            optional($this->course)->semester_format
+        );
+    }
 
+    public static function labelForSlot(int $number, ?string $format): string
+    {
         if ($format === 'alphabetical' && $number >= 1 && $number <= 26) {
             return chr(64 + $number);
         }
 
         return (string) $number;
+    }
+
+    /**
+     * True when name is the auto-increment id (31, 37, 38) instead of A/B/1/2.
+     */
+    public function nameLooksLikeRowId(): bool
+    {
+        $name = trim((string) $this->name);
+        if ($name === '' || !preg_match('/^\d+$/', $name)) {
+            return false;
+        }
+
+        $number = (int) $name;
+        $max = (int) (optional($this->course)->no_of_semesters ?? 0);
+
+        if ($max > 0) {
+            return $number > $max;
+        }
+
+        return $number === (int) $this->id;
+    }
+
+    public static function slotFromInput(string $raw, Course $course): ?int
+    {
+        $raw = trim($raw);
+        $max = (int) $course->no_of_semesters;
+
+        if (preg_match('/^Semester\s+([A-Za-z])$/i', $raw, $matches) || preg_match('/^([A-Za-z])$/', $raw, $matches)) {
+            $offset = ord(strtoupper($matches[1])) - 64;
+            if ($offset >= 1 && $offset <= 26 && ($max === 0 || $offset <= $max)) {
+                return $offset;
+            }
+
+            return null;
+        }
+
+        if (preg_match('/^(?:Semester\s+)?(\d+)$/i', $raw, $matches)) {
+            $number = (int) $matches[1];
+            if ($number >= 1 && ($max === 0 || $number <= $max)) {
+                return $number;
+            }
+        }
+
+        return null;
     }
 
     public function resolvedSlotNumber(): int
