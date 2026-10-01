@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens; // Add this line
@@ -12,7 +13,7 @@ use Carbon\Carbon;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasApiTokens, UserTracking; // Add HasApiTokens here
+    use HasFactory, Notifiable, HasApiTokens, UserTracking, SoftDeletes; // Add HasApiTokens here
 
     protected $table = 'users'; // Set the table name
 
@@ -44,6 +45,7 @@ class User extends Authenticatable
     protected $dates = [
         'created_at',
         'updated_at',
+        'deleted_at',
     ];
 
     public function getRoleList(): array

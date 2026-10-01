@@ -69,6 +69,37 @@ class UserManagementPageTest extends TestCase
             ->assertJsonPath('user.user_location_key', 'Welisara');
     }
 
+    public function test_delete_user_soft_deletes_and_hides_from_management_list(): void
+    {
+        $user = User::forceCreate([
+            'name'          => 'Soft Delete User',
+            'email'         => 'soft-delete@nebula.lk',
+            'password'      => Hash::make('password'),
+            'user_role'     => 'Librarian',
+            'status'        => '1',
+            'user_location' => 'Nebula Institute of Technology – Welisara',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->postJson(route('user.delete'), ['user_id' => $user->user_id])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertSoftDeleted('users', [
+            'user_id' => $user->user_id,
+            'email' => 'soft-delete@nebula.lk',
+        ]);
+        $this->assertNotNull($user->fresh()->deleted_at);
+        $this->assertNull(User::find($user->user_id));
+        $this->assertNotNull(User::withTrashed()->find($user->user_id));
+
+        $this->actingAs($this->actor)
+            ->get(route('dgm.user.management'))
+            ->assertOk()
+            ->assertDontSee('Soft Delete User')
+            ->assertDontSee('soft-delete@nebula.lk');
+    }
+
     public function test_user_list_shows_full_campus_location_name(): void
     {
         User::forceCreate([
