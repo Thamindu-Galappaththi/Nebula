@@ -83,7 +83,6 @@ class UserProfileController extends Controller
         return response()->json(['success' => false, 'message' => 'User not found.']);
     }
 
-    // Perform actual deletion or soft delete
     $user->delete();
 
     return response()->json(['success' => true, 'message' => 'User deleted successfully.']);

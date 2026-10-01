@@ -613,7 +613,7 @@ function showDeleteAlert(title, text, icon) {
 
 function deleteUser(userId, userName) {
     const name = userName || 'this user';
-    confirmDeleteUser('Delete user?', 'Delete "' + name + '"? This cannot be undone.').then(function (ok) {
+    confirmDeleteUser('Delete user?', 'Delete "' + name + '"? The user will be removed from this list and will no longer be able to sign in.').then(function (ok) {
         if (!ok) {
             return;
         }
