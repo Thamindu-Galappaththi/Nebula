@@ -6,6 +6,7 @@
 <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 @php
     $student = $documentRequest->student;
+    $idTypeLabel = str_ireplace(' id', ' ID', $student->id_type ?? 'National ID');
     $statusLabel = match ($documentRequest->status) {
         'pending' => 'Awaiting upload',
         'submitted' => 'Submitted',
@@ -193,7 +194,7 @@
             </div>
             <div class="doc-info-tile">
                 <div class="doc-info-label">Identification</div>
-                <div class="doc-info-value">{{ $student->id_type ?? 'ID' }} {{ $student->id_value ?? '—' }}</div>
+                <div class="doc-info-value">{{ $idTypeLabel }} : {{ $student->id_value ?? '—' }}</div>
             </div>
             <div class="doc-info-tile">
                 <div class="doc-info-label">Link sent by</div>

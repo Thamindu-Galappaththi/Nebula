@@ -236,6 +236,7 @@ class StudentDocumentCollectionTest extends TestCase
             ->get(route('student.documents.show', $request))
             ->assertOk()
             ->assertSee('Alpha Student')
+            ->assertSee('National ID : 200012345678')
             ->assertSee('Mark as reviewed')
             ->assertSee('doc-show-hero', false)
             ->assertSee('doc-info-grid', false)
