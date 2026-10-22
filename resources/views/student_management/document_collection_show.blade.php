@@ -3,6 +3,7 @@
 @section('title', 'NEBULA | Document Submission')
 
 @section('content')
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 @php
     $student = $documentRequest->student;
     $statusLabel = match ($documentRequest->status) {
@@ -129,6 +130,28 @@
         .doc-show-actions .btn,
         .doc-file-actions .btn { width: 100%; }
     }
+    .doc-share-box {
+        border-radius: 16px;
+        background: #eef4ff;
+        border: 1px solid #d7e3ff;
+        padding: 1rem 1.1rem;
+        margin-top: 1rem;
+    }
+    .doc-share-url {
+        word-break: break-all;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.85rem;
+        color: #23408e;
+        background: #fff;
+        border-radius: 8px;
+        padding: 0.55rem 0.7rem;
+        margin-bottom: 0.85rem;
+    }
+    .doc-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
 </style>
 
 <div class="container-fluid px-2 px-md-3">
@@ -207,7 +230,31 @@
         @if($documentRequest->status === 'purged')
             <div class="doc-callout is-warning">Uploaded files and temporary submission details were automatically deleted after the 7-day retention period.</div>
         @elseif($documentRequest->status === 'pending')
-            <div class="doc-callout is-info">The student has not submitted documents yet. Share the unique link and wait for the upload.</div>
+            <div class="doc-callout is-info">The student has not submitted documents yet. Share the unique link and wait for the upload. Clicking the student again on the collection page will reuse this same link unless you replace it.</div>
+            <div class="doc-share-box" id="pendingShareBox" data-request-id="{{ $documentRequest->id }}" data-student-id="{{ $documentRequest->student_id }}" data-email="{{ $student->email ?? '' }}" data-url="{{ $submissionUrl ?? '' }}">
+                @if($submissionUrl)
+                    <div class="doc-info-label mb-2">Active submission link</div>
+                    <div class="doc-share-url" id="showLinkUrl">{{ $submissionUrl }}</div>
+                    <div class="doc-actions">
+                        <button type="button" class="btn btn-dark" id="copyShowLinkBtn">Copy link</button>
+                        @if(!empty($share['whatsapp']))
+                            <a class="btn btn-success" href="{{ $share['whatsapp'] }}" target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
+                        @endif
+                        <button type="button" class="btn btn-outline-primary" id="emailShowLinkBtn" {{ empty($student->email) ? 'disabled' : '' }}>Send email to student</button>
+                        <button type="button" class="btn btn-outline-danger" id="replaceShowLinkBtn">Create a new link</button>
+                    </div>
+                    <small class="d-block mt-3 text-muted">
+                        @if(!empty($student->email))
+                            Email will be sent to {{ $student->email }}.
+                        @else
+                            This student has no email on file. Copy the link instead.
+                        @endif
+                    </small>
+                @else
+                    <p class="mb-3">The original URL cannot be shown because this link was created before recovery was enabled. Create a replacement only if the student no longer has the previous link.</p>
+                    <button type="button" class="btn btn-outline-danger" id="replaceShowLinkBtn">Create a replacement link</button>
+                @endif
+            </div>
         @endif
 
         @if($documentRequest->documentsAreAvailable())
@@ -234,4 +281,109 @@
         @endif
     </div>
 </div>
+@if($documentRequest->status === 'pending')
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
+<script nonce="{{ $cspNonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+    const box = document.getElementById('pendingShareBox');
+    if (!box) {
+        return;
+    }
+
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const generateUrl = @json(route('student.documents.generate'));
+    const emailUrl = @json(route('student.documents.email', $documentRequest));
+
+    function notice(message, icon) {
+        return Swal.fire({
+            icon: icon || 'info',
+            title: icon === 'success' ? 'Done' : 'Please note',
+            text: message,
+            confirmButtonColor: '#23408e'
+        });
+    }
+
+    const copyBtn = document.getElementById('copyShowLinkBtn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function () {
+            const url = box.dataset.url || '';
+            if (!url) {
+                return;
+            }
+            navigator.clipboard.writeText(url).then(function () {
+                notice('Link copied. Send it to the student.', 'success');
+            }).catch(function () {
+                notice('Copy the link from the box above.', 'error');
+            });
+        });
+    }
+
+    const emailBtn = document.getElementById('emailShowLinkBtn');
+    if (emailBtn) {
+        emailBtn.addEventListener('click', function () {
+            if (!box.dataset.email) {
+                notice('This student has no email on file. Copy the link instead.', 'info');
+                return;
+            }
+            emailBtn.disabled = true;
+            fetch(emailUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrf
+                }
+            })
+                .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+                .then(function (result) {
+                    emailBtn.disabled = false;
+                    notice(result.data.message || (result.ok ? 'Email sent.' : 'The email could not be sent.'), result.ok ? 'success' : 'error');
+                })
+                .catch(function () {
+                    emailBtn.disabled = false;
+                    notice('The email could not be sent. Copy the link and share it another way.', 'error');
+                });
+        });
+    }
+
+    const replaceBtn = document.getElementById('replaceShowLinkBtn');
+    if (replaceBtn) {
+        replaceBtn.addEventListener('click', function () {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Replace the existing link?',
+                text: 'The link already sent to this student will stop working immediately. Only do this if they lost the previous link.',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, create a new link',
+                cancelButtonText: 'Keep existing link',
+                confirmButtonColor: '#c2410c'
+            }).then(function (result) {
+                if (!result.isConfirmed) {
+                    return;
+                }
+                fetch(generateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrf
+                    },
+                    body: JSON.stringify({ student_id: Number(box.dataset.studentId), force_new: true })
+                })
+                    .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+                    .then(function (result) {
+                        if (!result.ok || !result.data.url) {
+                            notice(result.data.message || 'Unable to create a replacement link.', 'error');
+                            return;
+                        }
+                        window.location.reload();
+                    })
+                    .catch(function () {
+                        notice('Unable to create a replacement link right now.', 'error');
+                    });
+            });
+        });
+    }
+});
+</script>
+@endif
 @endsection

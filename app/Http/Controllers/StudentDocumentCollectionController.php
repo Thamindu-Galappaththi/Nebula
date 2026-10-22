@@ -57,34 +57,72 @@ class StudentDocumentCollectionController extends Controller
     {
         $request->validate([
             'student_id' => ['required', 'integer', 'exists:students,student_id'],
+            'force_new' => ['sometimes', 'boolean'],
         ]);
 
         $student = Student::findOrFail($request->input('student_id'));
-        $result = $this->documents->generateLink($student, Auth::user());
+        $result = $this->documents->generateLink($student, Auth::user(), $request->boolean('force_new'));
+        $ok = !($result['blocked'] ?? false) && !($result['needs_replace'] ?? false);
 
         return response()->json([
-            'success' => $result['created'],
+            'success' => $ok,
+            'created' => $result['created'],
+            'reused' => $result['reused'] ?? false,
+            'replaced' => $result['replaced'] ?? false,
+            'blocked' => $result['blocked'] ?? false,
+            'needs_replace' => $result['needs_replace'] ?? false,
             'message' => $result['message'],
             'url' => $result['url'],
             'share' => $result['share'],
+            'can_email' => filled($student->email),
             'request_id' => $result['request']?->id,
-            'expires_at' => optional($result['request']?->link_expires_at)?->timezone('Asia/Colombo')->format('Y-m-d H:i'),
+            'expires_at' => $result['request']?->link_expires_at
+                ? $result['request']->link_expires_at->copy()->timezone('Asia/Colombo')->format('Y-m-d H:i')
+                : null,
             'student' => [
                 'student_id' => $student->student_id,
                 'full_name' => $student->full_name,
                 'email' => $student->email,
                 'phone' => $student->whatsapp_phone ?: $student->mobile_phone,
             ],
-        ], $result['created'] ? 200 : 409);
+        ], $ok ? 200 : 409);
+    }
+
+    public function email(StudentDocumentRequest $documentRequest)
+    {
+        $documentRequest->load('student');
+
+        try {
+            $this->documents->sendLinkEmail($documentRequest);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The email could not be sent. Copy the link and share it another way.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Email sent to ' . $documentRequest->student->email . '.',
+        ]);
     }
 
     public function show(StudentDocumentRequest $documentRequest)
     {
         $documentRequest->load(['student', 'creator', 'reviewer', 'files']);
+        $submissionUrl = $this->documents->urlForRequest($documentRequest);
+        $student = $documentRequest->student;
 
         return view('student_management.document_collection_show', [
             'documentRequest' => $documentRequest,
             'types' => config('student_documents.document_types', []),
+            'submissionUrl' => $submissionUrl,
+            'share' => $submissionUrl && $student ? $this->documents->shareLinks($student, $submissionUrl) : null,
         ]);
     }
 

@@ -18,7 +18,7 @@
                             <div class="doc-student-name">{{ $item->student->full_name ?? 'Unknown student' }}</div>
                             <div class="doc-student-meta">ID {{ $item->student_id }}@if($item->student?->id_value) · {{ $item->student->id_value }}@endif</div>
                         </td>
-                        <td>{{ $item->creator->name ?? 'Staff' }}</td>
+                        <td class="doc-sent-by">{{ $item->creator->name ?? 'Staff' }}</td>
                         <td>
                             <span @class([
                                 'doc-status',

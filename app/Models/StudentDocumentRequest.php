@@ -22,8 +22,14 @@ class StudentDocumentRequest extends Model
     public const DELETION_RETAINED = 'retained';
     public const DELETION_PURGED = 'purged';
 
+    protected $hidden = [
+        'token_hash',
+        'access_token',
+    ];
+
     protected $fillable = [
         'token_hash',
+        'access_token',
         'student_id',
         'created_by',
         'updated_by',
@@ -46,6 +52,7 @@ class StudentDocumentRequest extends Model
     ];
 
     protected $casts = [
+        'access_token' => 'encrypted',
         'link_expires_at' => 'datetime',
         'submitted_at' => 'datetime',
         'retention_expires_at' => 'datetime',

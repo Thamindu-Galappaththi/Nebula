@@ -3,10 +3,11 @@
 @section('title', 'NEBULA | Document Collection')
 
 @section('content')
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
     .doc-page {
         min-width: 0;
-        max-width: 1120px;
+        max-width: 1180px;
         margin: 0 auto;
     }
     .doc-page [class*="col-"] { min-width: 0; }
@@ -22,6 +23,33 @@
         padding: 1.5rem 1.4rem 1.35rem;
         background: linear-gradient(135deg, #f4f7ff 0%, #ffffff 58%);
         margin-bottom: 1rem;
+    }
+    .doc-hero-inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+        gap: 1.1rem 1.25rem;
+        align-items: center;
+    }
+    .doc-hero-art {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        min-height: 210px;
+    }
+    .doc-hero-art svg {
+        width: 100%;
+        max-width: 270px;
+        height: auto;
+    }
+    .doc-hero-art-caption {
+        margin-top: 0.35rem;
+        color: #6b7a99;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-align: center;
     }
     .doc-kicker {
         color: #4c6bd8;
@@ -40,12 +68,11 @@
         display: flex;
         gap: 0.5rem;
         align-items: center;
-        max-width: 34rem;
+        max-width: 100%;
     }
     .doc-search-row .form-control {
         flex: 1 1 auto;
         min-width: 0;
-        max-width: 22rem;
     }
     .doc-search-row .btn {
         flex: 0 0 auto;
@@ -148,14 +175,21 @@
         font-weight: 600;
         border: 0;
         white-space: nowrap;
-        padding: 0.65rem 0.7rem;
+        padding: 0.7rem 0.75rem;
         font-size: 0.9rem;
+        vertical-align: middle;
+        line-height: 1.2;
     }
     .doc-list td {
-        padding: 0.7rem;
+        padding: 0.75rem;
         border-color: #edf1f7;
-        vertical-align: middle;
+        vertical-align: top;
         font-size: 0.93rem;
+        line-height: 1.35;
+    }
+    .doc-list tbody td:not(:first-child) {
+        padding-top: 0.82rem;
+        white-space: nowrap;
     }
     .doc-student-name { font-weight: 700; color: #1b2c5b; }
     .doc-student-meta { color: #6b7a99; font-size: 0.84rem; margin-top: 0.15rem; }
@@ -196,14 +230,15 @@
         margin: 0;
         flex-wrap: wrap;
     }
+    @media (max-width: 1199.98px) {
+        .doc-hero-inner { grid-template-columns: minmax(0, 1fr) 200px; }
+    }
+    @media (max-width: 991.98px) {
+        .doc-hero-inner { grid-template-columns: 1fr; }
+        .doc-hero-art { display: none; }
+    }
     @media (max-width: 767.98px) {
         .doc-hero, .doc-panel .card-body { padding: 1rem; }
-        .doc-search-row {
-            max-width: 100%;
-        }
-        .doc-search-row .form-control {
-            max-width: none;
-        }
         .doc-search-row .btn {
             min-width: 6.5rem;
         }
@@ -222,23 +257,54 @@
 <div class="container-fluid px-2 px-md-3">
     <div class="doc-page">
         <div class="doc-hero">
-            <div class="doc-kicker">Student management</div>
-            <h3>Document Collection</h3>
-            <p class="text-muted mb-4">Create a unique link, share it with the student, then review uploaded files for {{ $retentionDays }} days.</p>
+            <div class="doc-hero-inner">
+                <div class="doc-hero-copy">
+                    <div class="doc-kicker">Student management</div>
+                    <h3>Document Collection</h3>
+                    <p class="text-muted mb-4">Create a unique link, share it with the student, then review uploaded files for {{ $retentionDays }} days.</p>
 
-            @if(session('success'))
-                <div class="alert alert-success">{{ session('success') }}</div>
-            @endif
-            @if(session('error'))
-                <div class="alert alert-danger">{{ session('error') }}</div>
-            @endif
+                    @if(session('success'))
+                        <div class="alert alert-success">{{ session('success') }}</div>
+                    @endif
+                    @if(session('error'))
+                        <div class="alert alert-danger">{{ session('error') }}</div>
+                    @endif
 
-            <label for="studentSearch" class="form-label fw-semibold">Find a student</label>
-            <div class="doc-search-row">
-                <input type="search" id="studentSearch" class="form-control" placeholder="Search by name, NIC, email or student ID" autocomplete="off">
-                <button type="button" class="btn btn-primary" id="studentSearchBtn">Search</button>
+                    <label for="studentSearch" class="form-label fw-semibold">Find a student</label>
+                    <div class="doc-search-row">
+                        <input type="search" id="studentSearch" class="form-control" placeholder="Search by name, NIC, email or student ID" autocomplete="off">
+                        <button type="button" class="btn btn-primary" id="studentSearchBtn">Search</button>
+                    </div>
+                    <div id="studentSearchResults" class="list-group mt-3"></div>
+                </div>
+
+                <div class="doc-hero-art" aria-hidden="true">
+                    <svg viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <ellipse cx="148" cy="196" rx="88" ry="14" fill="#dbe6ff"/>
+                        <rect x="86" y="58" width="128" height="122" rx="16" fill="#e8efff"/>
+                        <rect x="98" y="74" width="104" height="14" rx="7" fill="#c5d4f5"/>
+                        <rect x="98" y="98" width="78" height="10" rx="5" fill="#d7e2fb"/>
+                        <rect x="98" y="116" width="90" height="10" rx="5" fill="#d7e2fb"/>
+                        <rect x="98" y="134" width="62" height="10" rx="5" fill="#d7e2fb"/>
+                        <rect x="46" y="38" width="92" height="118" rx="12" fill="#fff" stroke="#23408e" stroke-width="3"/>
+                        <rect x="62" y="58" width="60" height="8" rx="4" fill="#c5d4f5"/>
+                        <rect x="62" y="74" width="48" height="8" rx="4" fill="#e0e8f8"/>
+                        <rect x="62" y="90" width="54" height="8" rx="4" fill="#e0e8f8"/>
+                        <circle cx="74" cy="122" r="10" fill="#d9f7e6"/>
+                        <path d="M69 122.5l3.2 3.2 7-7" stroke="#0f7a45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <rect x="158" y="28" width="84" height="108" rx="12" fill="#23408e"/>
+                        <rect x="174" y="48" width="52" height="8" rx="4" fill="#9bb4f0"/>
+                        <rect x="174" y="64" width="40" height="8" rx="4" fill="#6e8fe0"/>
+                        <rect x="174" y="80" width="46" height="8" rx="4" fill="#6e8fe0"/>
+                        <circle cx="196" cy="112" r="16" fill="#fff"/>
+                        <path d="M196 104v16M188 112h16" stroke="#23408e" stroke-width="2.4" stroke-linecap="round"/>
+                        <circle cx="232" cy="46" r="18" fill="#4c6bd8"/>
+                        <path d="M226 46h7.5a4.5 4.5 0 110 9H229" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                        <path d="M232 40v4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                    </svg>
+                    <div class="doc-hero-art-caption">Secure unique links · {{ $retentionDays }}-day retention</div>
+                </div>
             </div>
-            <div id="studentSearchResults" class="list-group mt-3"></div>
 
             <div id="generatedLinkBox" class="doc-share-box mt-3 d-none">
                 <div class="fw-semibold mb-2" id="generatedStudentName"></div>
@@ -246,7 +312,7 @@
                 <div class="doc-actions">
                     <button type="button" class="btn btn-dark" id="copyLinkBtn">Copy link</button>
                     <a class="btn btn-success" id="whatsappShareBtn" target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
-                    <a class="btn btn-outline-primary" id="emailShareBtn">Share by email</a>
+                    <button type="button" class="btn btn-outline-primary" id="emailShareBtn">Send email to student</button>
                 </div>
                 <small class="d-block mt-3 text-muted" id="generatedExpiry"></small>
             </div>
@@ -275,6 +341,7 @@
     </div>
 </div>
 
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
 document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('studentSearch');
@@ -282,14 +349,37 @@ document.addEventListener('DOMContentLoaded', function () {
     const results = document.getElementById('studentSearchResults');
     const generatedBox = document.getElementById('generatedLinkBox');
     const listWrap = document.getElementById('docListWrap');
+    const emailShareBtn = document.getElementById('emailShareBtn');
     const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     const indexUrl = @json(route('student.documents.index'));
+    const generateUrl = @json(route('student.documents.generate'));
+    const showBaseUrl = @json(url('/student-documents'));
+    const emailUrlTemplate = @json(url('/student-documents/__ID__/email'));
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+        });
+    }
 
     function showToast(message, type) {
-        const html = '<div class="toast align-items-center text-white bg-' + type + ' border-0" role="alert"><div class="d-flex"><div class="toast-body">' + message + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div></div>';
-        document.querySelector('.toast-container').insertAdjacentHTML('beforeend', html);
-        const toastEl = document.querySelector('.toast-container .toast:last-child');
+        const container = document.querySelector('.toast-container');
+        if (!container) {
+            return;
+        }
+        const html = '<div class="toast align-items-center text-white bg-' + type + ' border-0" role="alert"><div class="d-flex"><div class="toast-body">' + escapeHtml(message) + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div></div>';
+        container.insertAdjacentHTML('beforeend', html);
+        const toastEl = container.querySelector('.toast:last-child');
         new bootstrap.Toast(toastEl, { delay: 3000 }).show();
+    }
+
+    function showNotice(message, icon) {
+        return Swal.fire({
+            icon: icon || 'info',
+            title: icon === 'success' ? 'Done' : 'Please note',
+            text: message,
+            confirmButtonColor: '#23408e'
+        });
     }
 
     function setActiveTab(status) {
@@ -332,6 +422,19 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    function statusLabel(status) {
+        if (status === 'pending') {
+            return 'Active link already sent';
+        }
+        if (status === 'submitted') {
+            return 'Documents already submitted';
+        }
+        if (status === 'expired') {
+            return 'Previous link expired';
+        }
+        return status || '';
+    }
+
     function searchStudents() {
         const query = searchInput.value.trim();
         if (query.length < 2) {
@@ -357,10 +460,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 results.innerHTML = data.students.map(function (student) {
-                    const extra = student.existing_status ? ' · ' + student.existing_status : '';
-                    return '<button type="button" class="list-group-item list-group-item-action doc-search-result" data-student-id="' + student.student_id + '">' +
-                        '<div class="fw-semibold">' + student.full_name + '</div>' +
-                        '<small class="text-muted">ID ' + student.student_id + ' · ' + (student.id_value || 'No NIC') + extra + '</small>' +
+                    const extra = student.existing_status ? ' · ' + statusLabel(student.existing_status) : '';
+                    return '<button type="button" class="list-group-item list-group-item-action doc-search-result" data-student="' + encodeURIComponent(JSON.stringify(student)) + '">' +
+                        '<div class="fw-semibold">' + escapeHtml(student.full_name) + '</div>' +
+                        '<small class="text-muted">ID ' + escapeHtml(student.student_id) + ' · ' + escapeHtml(student.id_value || 'No NIC') + extra + '</small>' +
                         '</button>';
                 }).join('');
             })
@@ -369,39 +472,134 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
-    function generateLink(studentId) {
-        fetch(@json(route('student.documents.generate')), {
+    function showLinkBox(data) {
+        document.getElementById('generatedStudentName').textContent = data.student.full_name;
+        document.getElementById('generatedLinkUrl').textContent = data.url;
+        const emailNote = data.can_email
+            ? ' Email will be sent to ' + data.student.email + '.'
+            : ' This student has no email on file, so send the link another way.';
+        document.getElementById('generatedExpiry').textContent = (data.reused
+            ? 'Existing link is still valid until '
+            : 'Link expires on ') + (data.expires_at || 'the configured date') + '.' + emailNote;
+        document.getElementById('whatsappShareBtn').href = data.share.whatsapp;
+        generatedBox.dataset.url = data.url;
+        generatedBox.dataset.requestId = data.request_id || '';
+        generatedBox.dataset.email = data.student.email || '';
+        generatedBox.dataset.mailto = (data.share && data.share.email) ? data.share.email : '';
+        emailShareBtn.disabled = !data.can_email;
+        generatedBox.classList.remove('d-none');
+        generatedBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        loadTab('pending');
+    }
+
+    function generateLink(studentId, forceNew) {
+        fetch(generateUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': csrf
             },
-            body: JSON.stringify({ student_id: studentId })
+            body: JSON.stringify({ student_id: studentId, force_new: !!forceNew })
         })
             .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
             .then(function (result) {
-                if (!result.ok || !result.data.url) {
-                    showToast(result.data.message || 'Unable to generate a new link.', 'danger');
-                    if (result.data.request_id) {
-                        window.location.href = @json(url('/student-documents')) + '/' + result.data.request_id;
-                    }
+                if (result.data && result.data.blocked && result.data.request_id) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Documents already submitted',
+                        text: result.data.message,
+                        confirmButtonText: 'Open record',
+                        showCancelButton: true,
+                        confirmButtonColor: '#23408e'
+                    }).then(function (choice) {
+                        if (choice.isConfirmed) {
+                            window.location.href = showBaseUrl + '/' + result.data.request_id;
+                        }
+                    });
                     return;
                 }
 
-                document.getElementById('generatedStudentName').textContent = result.data.student.full_name;
-                document.getElementById('generatedLinkUrl').textContent = result.data.url;
-                document.getElementById('generatedExpiry').textContent = 'Link expires on ' + (result.data.expires_at || 'the configured date') + '. Send it only to this student.';
-                document.getElementById('whatsappShareBtn').href = result.data.share.whatsapp;
-                document.getElementById('emailShareBtn').href = result.data.share.email;
-                generatedBox.dataset.url = result.data.url;
-                generatedBox.classList.remove('d-none');
-                generatedBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (result.data && result.data.needs_replace) {
+                    confirmReplaceThenGenerate(studentId, result.data.message);
+                    return;
+                }
+
+                if (!result.ok || !result.data.url) {
+                    showNotice(result.data.message || 'Unable to generate a new link.', 'error');
+                    return;
+                }
+
+                showLinkBox(result.data);
                 showToast(result.data.message, 'success');
             })
             .catch(function () {
-                showToast('Unable to generate a link right now.', 'danger');
+                showNotice('Unable to generate a link right now.', 'error');
             });
+    }
+
+    function confirmReplaceThenGenerate(studentId, message) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Replace the existing link?',
+            text: message || 'The link already sent to this student will stop working immediately. Only do this if they lost the previous link.',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, create a new link',
+            cancelButtonText: 'Keep existing link',
+            confirmButtonColor: '#c2410c'
+        }).then(function (result) {
+            if (result.isConfirmed) {
+                generateLink(studentId, true);
+            }
+        });
+    }
+
+    function handleStudentChoice(student) {
+        if (student.existing_status === 'submitted') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Documents already submitted',
+                text: 'This student already uploaded documents. A new link cannot be created until the 7-day retention period ends.',
+                confirmButtonText: 'Open record',
+                showCancelButton: true,
+                confirmButtonColor: '#23408e'
+            }).then(function (result) {
+                if (result.isConfirmed && student.existing_request_id) {
+                    window.location.href = showBaseUrl + '/' + student.existing_request_id;
+                }
+            });
+            return;
+        }
+
+        if (student.existing_status === 'pending') {
+            const sentBy = student.existing_sent_by ? ' by <strong>' + escapeHtml(student.existing_sent_by) + '</strong>' : '';
+            const expires = student.existing_expires_at ? ' and expires on <strong>' + escapeHtml(student.existing_expires_at) + '</strong>' : '';
+            Swal.fire({
+                icon: 'info',
+                title: 'Active link already exists',
+                html: '<p class="mb-2">A submission link was already sent' + sentBy + expires + '.</p><p class="mb-0">Use the existing link so the one already shared with the student keeps working. Create a new link only if they lost it — that will make the previous link stop working.</p>',
+                showCancelButton: true,
+                showDenyButton: !!student.has_recoverable_link,
+                confirmButtonText: student.has_recoverable_link ? 'Use existing link' : 'Create a replacement',
+                denyButtonText: 'Create a new link',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#23408e',
+                denyButtonColor: '#c2410c'
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    if (student.has_recoverable_link) {
+                        generateLink(student.student_id, false);
+                    } else {
+                        confirmReplaceThenGenerate(student.student_id);
+                    }
+                } else if (result.isDenied) {
+                    confirmReplaceThenGenerate(student.student_id);
+                }
+            });
+            return;
+        }
+
+        generateLink(student.student_id, false);
     }
 
     searchBtn.addEventListener('click', searchStudents);
@@ -413,9 +611,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     results.addEventListener('click', function (event) {
-        const button = event.target.closest('[data-student-id]');
-        if (button) {
-            generateLink(button.dataset.studentId);
+        const button = event.target.closest('[data-student]');
+        if (!button) {
+            return;
+        }
+        try {
+            handleStudentChoice(JSON.parse(decodeURIComponent(button.dataset.student)));
+        } catch (error) {
+            showNotice('Could not open that student record.', 'error');
         }
     });
 
@@ -429,6 +632,55 @@ document.addEventListener('DOMContentLoaded', function () {
         }).catch(function () {
             showToast('Copy the link from the box above.', 'danger');
         });
+    });
+
+    emailShareBtn.addEventListener('click', function () {
+        const requestId = generatedBox.dataset.requestId || '';
+        const email = generatedBox.dataset.email || '';
+        if (!requestId) {
+            return;
+        }
+        if (!email) {
+            showNotice('This student has no email on file. Copy the link and share it another way.', 'info');
+            return;
+        }
+
+        emailShareBtn.disabled = true;
+        fetch(emailUrlTemplate.replace('__ID__', requestId), {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf
+            }
+        })
+            .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+            .then(function (result) {
+                emailShareBtn.disabled = false;
+                if (result.ok) {
+                    showNotice(result.data.message, 'success');
+                    return;
+                }
+                const mailto = generatedBox.dataset.mailto || '';
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Email was not sent',
+                    text: result.data.message || 'The server could not send the email. Copy the link, or try your mail app.',
+                    showCancelButton: true,
+                    confirmButtonText: 'Copy link',
+                    cancelButtonText: mailto ? 'Open mail app' : 'Close',
+                    confirmButtonColor: '#23408e'
+                }).then(function (choice) {
+                    if (choice.isConfirmed) {
+                        document.getElementById('copyLinkBtn').click();
+                    } else if (choice.dismiss === Swal.DismissReason.cancel && mailto) {
+                        window.location.href = mailto;
+                    }
+                });
+            })
+            .catch(function () {
+                emailShareBtn.disabled = false;
+                showNotice('The email could not be sent. Copy the link and share it another way.', 'error');
+            });
     });
 });
 </script>

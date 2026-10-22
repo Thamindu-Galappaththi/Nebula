@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\StudentDocumentSubmissionLinkMail;
 use App\Models\Student;
 use App\Models\StudentDocumentFile;
 use App\Models\StudentDocumentRequest;
@@ -10,6 +11,7 @@ use App\Notifications\StudentDocumentsSubmittedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -63,7 +65,9 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertSee('loadTab', false)
             ->assertSee('doc-pagination', false)
             ->assertSee('doc-search-row', false)
-            ->assertSee('doc-tab', false);
+            ->assertSee('doc-tab', false)
+            ->assertSee('doc-hero-art', false)
+            ->assertSee('Send email to student');
     }
 
     public function test_status_tabs_load_by_ajax_without_full_page_markup(): void
@@ -291,5 +295,95 @@ class StudentDocumentCollectionTest extends TestCase
 
         $this->get(route('student.documents.portal', ['token' => $token]))
             ->assertNotFound();
+    }
+
+    public function test_clicking_the_same_student_reuses_the_existing_active_link(): void
+    {
+        $first = $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
+            ->assertOk()
+            ->assertJsonPath('created', true);
+
+        $second = $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
+            ->assertOk()
+            ->assertJsonPath('created', false)
+            ->assertJsonPath('reused', true);
+
+        $this->assertSame($first->json('url'), $second->json('url'));
+        $this->assertSame(1, StudentDocumentRequest::count());
+
+        $token = basename(parse_url($first->json('url'), PHP_URL_PATH));
+        $this->get(route('student.documents.portal', ['token' => $token]))
+            ->assertOk()
+            ->assertSee('Submit your documents');
+    }
+
+    public function test_staff_can_replace_an_active_link_only_when_forced(): void
+    {
+        $firstUrl = $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
+            ->json('url');
+
+        $second = $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), [
+                'student_id' => $this->student->student_id,
+                'force_new' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('created', true)
+            ->assertJsonPath('replaced', true);
+
+        $this->assertNotSame($firstUrl, $second->json('url'));
+        $this->assertSame(1, StudentDocumentRequest::count());
+
+        $oldToken = basename(parse_url($firstUrl, PHP_URL_PATH));
+        $newToken = basename(parse_url($second->json('url'), PHP_URL_PATH));
+
+        $this->get(route('student.documents.portal', ['token' => $oldToken]))
+            ->assertNotFound();
+        $this->get(route('student.documents.portal', ['token' => $newToken]))
+            ->assertOk()
+            ->assertSee('Submit your documents');
+    }
+
+    public function test_share_by_email_sends_the_submission_link_to_the_student(): void
+    {
+        Mail::fake();
+
+        $url = $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
+            ->json('url');
+
+        $request = StudentDocumentRequest::first();
+
+        $this->actingAs($this->actor)
+            ->postJson(route('student.documents.email', $request))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        Mail::assertSent(StudentDocumentSubmissionLinkMail::class, function (StudentDocumentSubmissionLinkMail $mail) use ($url) {
+            return $mail->hasTo($this->student->email) && $mail->submissionUrl === $url;
+        });
+    }
+
+    public function test_share_by_email_requires_a_student_email_address(): void
+    {
+        Mail::fake();
+
+        $this->student->email = null;
+        $this->student->save();
+
+        $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id]);
+
+        $request = StudentDocumentRequest::first();
+
+        $this->actingAs($this->actor)
+            ->postJson(route('student.documents.email', $request))
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        Mail::assertNothingSent();
     }
 }

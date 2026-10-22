@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\StudentDocumentSubmissionLinkMail;
 use App\Models\Student;
 use App\Models\StudentDocumentFile;
 use App\Models\StudentDocumentRequest;
@@ -11,6 +12,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -41,6 +43,10 @@ class StudentDocumentCollectionService
             ->get()
             ->map(function (Student $student) {
                 $openRequest = $this->latestOpenRequest($student);
+                $status = $openRequest?->status;
+                if ($openRequest && $openRequest->status === StudentDocumentRequest::STATUS_PENDING && !$openRequest->isPending()) {
+                    $status = StudentDocumentRequest::STATUS_EXPIRED;
+                }
 
                 return [
                     'student_id' => $student->student_id,
@@ -52,13 +58,18 @@ class StudentDocumentCollectionService
                     'mobile_phone' => $student->mobile_phone,
                     'whatsapp_phone' => $student->whatsapp_phone,
                     'institute_location' => $student->institute_location,
-                    'existing_status' => $openRequest?->status,
+                    'existing_status' => $status,
                     'existing_request_id' => $openRequest?->id,
+                    'existing_expires_at' => $openRequest?->link_expires_at
+                        ? $openRequest->link_expires_at->copy()->timezone('Asia/Colombo')->format('Y-m-d H:i')
+                        : null,
+                    'existing_sent_by' => $openRequest?->creator?->name,
+                    'has_recoverable_link' => $openRequest?->isPending() && $this->urlForRequest($openRequest) !== null,
                 ];
             });
     }
 
-    public function generateLink(Student $student, User $staff): array
+    public function generateLink(Student $student, User $staff, bool $forceNew = false): array
     {
         $existingSubmitted = StudentDocumentRequest::query()
             ->where('student_id', $student->student_id)
@@ -70,6 +81,10 @@ class StudentDocumentCollectionService
         if ($existingSubmitted) {
             return [
                 'created' => false,
+                'reused' => false,
+                'replaced' => false,
+                'blocked' => true,
+                'needs_replace' => false,
                 'message' => 'This student already has documents waiting for review. A new link can be generated after the retention period ends.',
                 'request' => $existingSubmitted,
                 'url' => null,
@@ -77,55 +92,104 @@ class StudentDocumentCollectionService
             ];
         }
 
-        $plainToken = bin2hex(random_bytes(32));
-        $tokenHash = hash('sha256', $plainToken);
-
-        $request = StudentDocumentRequest::query()
+        $pending = StudentDocumentRequest::query()
+            ->with(['student', 'creator'])
             ->where('student_id', $student->student_id)
             ->where('status', StudentDocumentRequest::STATUS_PENDING)
             ->latest('id')
             ->first();
 
-        $payload = [
-            'token_hash' => $tokenHash,
-            'student_id' => $student->student_id,
-            'status' => StudentDocumentRequest::STATUS_PENDING,
-            'notification_status' => StudentDocumentRequest::NOTIFICATION_PENDING,
-            'document_deletion_status' => StudentDocumentRequest::DELETION_RETAINED,
-            'link_expires_at' => now()->addDays((int) config('student_documents.link_ttl_days', 14)),
-            'submitted_at' => null,
-            'retention_expires_at' => null,
-            'notified_at' => null,
-            'reviewed_at' => null,
-            'reviewed_by' => null,
-            'purged_at' => null,
-            'submitted_full_name' => null,
-            'submitted_id_value' => null,
-            'submitted_email' => null,
-            'submitted_phone' => null,
-            'submitted_notes' => null,
-            'submitted_file_count' => 0,
-        ];
+        if ($pending && $pending->isPending() && !$forceNew) {
+            $url = $this->urlForRequest($pending);
+            if ($url) {
+                return [
+                    'created' => false,
+                    'reused' => true,
+                    'replaced' => false,
+                    'blocked' => false,
+                    'needs_replace' => false,
+                    'message' => 'This student already has an active submission link. The original link is still valid.',
+                    'request' => $pending,
+                    'url' => $url,
+                    'share' => $this->shareLinks($student, $url),
+                ];
+            }
 
-        if ($request) {
-            $request->fill($payload);
-            $request->created_by = $staff->getKey();
-            $request->save();
-        } else {
-            $request = new StudentDocumentRequest($payload);
-            $request->created_by = $staff->getKey();
-            $request->save();
+            return [
+                'created' => false,
+                'reused' => false,
+                'replaced' => false,
+                'blocked' => false,
+                'needs_replace' => true,
+                'message' => 'An active link was already sent, but the original URL cannot be recovered. Create a replacement only if the student no longer has the previous link.',
+                'request' => $pending,
+                'url' => null,
+                'share' => null,
+            ];
         }
+
+        $request = $pending ?: new StudentDocumentRequest();
+        $replaced = $pending && $pending->isPending() && $forceNew;
+        $plainToken = $this->assignNewToken($request, $student, $staff);
 
         $url = route('student.documents.portal', ['token' => $plainToken]);
 
         return [
             'created' => true,
-            'message' => 'Unique submission link generated.',
+            'reused' => false,
+            'replaced' => $replaced,
+            'blocked' => false,
+            'needs_replace' => false,
+            'message' => $replaced
+                ? 'A new link was created. The previous link will no longer work.'
+                : 'Unique submission link generated.',
             'request' => $request->fresh(['student', 'creator']),
             'url' => $url,
             'share' => $this->shareLinks($student, $url),
         ];
+    }
+
+    public function urlForRequest(StudentDocumentRequest $request): ?string
+    {
+        if ($request->status !== StudentDocumentRequest::STATUS_PENDING) {
+            return null;
+        }
+
+        try {
+            $token = $request->access_token;
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (!is_string($token) || !preg_match('/^[a-f0-9]{64}$/', $token)) {
+            return null;
+        }
+
+        return route('student.documents.portal', ['token' => $token]);
+    }
+
+    public function sendLinkEmail(StudentDocumentRequest $request): void
+    {
+        $student = $request->student;
+        $email = trim((string) ($student?->email ?? ''));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('This student has no valid email address on file. Copy the link instead.');
+        }
+
+        if (!$request->isPending()) {
+            throw new RuntimeException('This submission link is no longer active.');
+        }
+
+        $url = $this->urlForRequest($request);
+        if (!$url) {
+            throw new RuntimeException('The original link cannot be recovered. Create a replacement link first.');
+        }
+
+        $expiresAt = $request->link_expires_at
+            ? $request->link_expires_at->copy()->timezone('Asia/Colombo')->format('Y-m-d H:i')
+            : null;
+
+        Mail::to($email)->send(new StudentDocumentSubmissionLinkMail($student, $url, $expiresAt));
     }
 
     public function findByToken(string $token): ?StudentDocumentRequest
@@ -283,6 +347,7 @@ class StudentDocumentCollectionService
         $request->document_deletion_status = StudentDocumentRequest::DELETION_PURGED;
         $request->purged_at = now();
         $request->token_hash = null;
+        $request->access_token = null;
         $request->submitted_full_name = null;
         $request->submitted_id_value = null;
         $request->submitted_email = null;
@@ -367,9 +432,41 @@ class StudentDocumentCollectionService
             ->values();
     }
 
+    private function assignNewToken(StudentDocumentRequest $request, Student $student, User $staff): string
+    {
+        $plainToken = bin2hex(random_bytes(32));
+
+        $request->fill([
+            'token_hash' => hash('sha256', $plainToken),
+            'access_token' => $plainToken,
+            'student_id' => $student->student_id,
+            'status' => StudentDocumentRequest::STATUS_PENDING,
+            'notification_status' => StudentDocumentRequest::NOTIFICATION_PENDING,
+            'document_deletion_status' => StudentDocumentRequest::DELETION_RETAINED,
+            'link_expires_at' => now()->addDays((int) config('student_documents.link_ttl_days', 14)),
+            'submitted_at' => null,
+            'retention_expires_at' => null,
+            'notified_at' => null,
+            'reviewed_at' => null,
+            'reviewed_by' => null,
+            'purged_at' => null,
+            'submitted_full_name' => null,
+            'submitted_id_value' => null,
+            'submitted_email' => null,
+            'submitted_phone' => null,
+            'submitted_notes' => null,
+            'submitted_file_count' => 0,
+        ]);
+        $request->created_by = $staff->getKey();
+        $request->save();
+
+        return $plainToken;
+    }
+
     private function latestOpenRequest(Student $student): ?StudentDocumentRequest
     {
         return StudentDocumentRequest::query()
+            ->with('creator')
             ->where('student_id', $student->student_id)
             ->whereIn('status', [
                 StudentDocumentRequest::STATUS_PENDING,

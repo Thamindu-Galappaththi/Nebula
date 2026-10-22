@@ -187,6 +187,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/student-documents/notifications', [StudentDocumentCollectionController::class, 'notifications'])->name('student.documents.notifications');
         Route::post('/student-documents/notifications/{notification}/read', [StudentDocumentCollectionController::class, 'markNotificationRead'])->name('student.documents.notifications.read');
         Route::get('/student-documents/files/{documentFile}', [StudentDocumentCollectionController::class, 'file'])->name('student.documents.file');
+        Route::post('/student-documents/{documentRequest}/email', [StudentDocumentCollectionController::class, 'email'])->name('student.documents.email');
         Route::post('/student-documents/{documentRequest}/review', [StudentDocumentCollectionController::class, 'review'])->name('student.documents.review');
         Route::get('/student-documents/{documentRequest}', [StudentDocumentCollectionController::class, 'show'])->name('student.documents.show');
     });
