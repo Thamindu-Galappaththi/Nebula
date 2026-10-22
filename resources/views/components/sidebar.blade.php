@@ -57,6 +57,7 @@
                 RoleHelper::hasPermission($role, 'student.view') ||
                 RoleHelper::hasPermission($role, 'course.badge') ||
                 RoleHelper::hasPermission($role, 'student.profile') ||
+                RoleHelper::hasPermission($role, 'student.document.collection') ||
                 RoleHelper::hasPermission($role, 'termination.tracking')
                 )
                 <li class="nav-small-cap">
@@ -122,6 +123,14 @@
                     <a class="sidebar-link {{ Route::currentRouteName() == 'student_management.profile' ? 'active' : '' }}" href="{{ $studentProfileUrl }}">
                         <span><i class="ti ti-id"></i></span>
                         <span class="hide-menu">Student Profile</span>
+                    </a>
+                </li>
+            @endif
+            @if(RoleHelper::hasPermission($role, 'student.document.collection'))
+                <li class="sidebar-item">
+                    <a class="sidebar-link {{ request()->routeIs('student.documents.*') ? 'active' : '' }}" href="{{ route('student.documents.index') }}">
+                        <span><i class="ti ti-files"></i></span>
+                        <span class="hide-menu">Document Collection</span>
                     </a>
                 </li>
             @endif

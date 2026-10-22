@@ -18,6 +18,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('audit:prune')
             ->dailyAt('01:15')
             ->withoutOverlapping();
+
+        $schedule->command('student-documents:purge')
+            ->dailyAt('01:30')
+            ->withoutOverlapping();
     }
 
     /**

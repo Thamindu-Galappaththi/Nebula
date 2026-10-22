@@ -284,7 +284,8 @@ const permissions = {
         { name: 'student.other.information', url: '/student-other-information', description: 'Student Other Information' },
         { name: 'student.list', url: '/student-list', description: 'Student List' },
         { name: 'student.profile', url: '/student-profile', description: 'Student Profile' },
-        { name: 'student.view', url: '/student-view', description: 'Student View' }
+        { name: 'student.view', url: '/student-view', description: 'Student View' },
+        { name: 'student.document.collection', url: '/student-documents', description: 'Student Document Collection' }
     ],
     registrations: [
         { name: 'course.registration', url: '/course-registration', description: 'Course Registration' },

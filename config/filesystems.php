@@ -44,6 +44,13 @@ return [
             'throw' => false,
         ],
 
+        'student_documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/student_documents'),
+            'visibility' => 'private',
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

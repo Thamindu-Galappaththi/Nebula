@@ -26,6 +26,7 @@ return [
                 ['label' => 'Student Lists', 'route' => 'student_management.list', 'icon' => 'ti ti-menu', 'permission' => 'student.list'],
                 ['label' => 'All Students View', 'route' => 'students.view', 'icon' => 'ti ti-users'],
                 ['label' => 'Badges Generation', 'route' => 'badges.generate', 'icon' => 'ti ti-id-badge', 'permission' => 'badges.generate'],
+                ['label' => 'Document Collection', 'route' => 'student.documents.index', 'icon' => 'ti ti-files', 'permission' => 'student.document.collection'],
                 ['label' => 'Student Profile', 'route' => 'student.profile', 'icon' => 'ti ti-id', 'permission' => 'student.profile', 'is_profile' => true],
                 ['label' => 'Termination Tracking', 'route' => 'termination.tracking', 'icon' => 'ti ti-user-exclamation', 'permission' => 'termination.tracking'],
             ],

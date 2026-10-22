@@ -166,6 +166,11 @@ class Student extends Model
         return $this->hasOne(StudentOtherInformation::class, 'student_id', 'student_id');
     }
 
+    public function documentRequests()
+    {
+        return $this->hasMany(StudentDocumentRequest::class, 'student_id', 'student_id');
+    }
+
     /* =======================
      * Query Scopes
      * ======================= */

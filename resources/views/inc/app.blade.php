@@ -230,6 +230,35 @@
                 max-width: min(calc(100vw - 1.5rem), 24rem);
             }
         }
+        .doc-notify-toggle {
+            position: relative;
+            color: #23408e;
+        }
+        .doc-notify-badge {
+            position: absolute;
+            top: 4px;
+            right: 2px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            border-radius: 999px;
+            background: #dc3545;
+            color: #fff;
+            font-size: 11px;
+            line-height: 18px;
+            text-align: center;
+            display: none;
+        }
+        .doc-notify-menu {
+            width: min(calc(100vw - 1.5rem), 22rem);
+            max-height: 22rem;
+            overflow: auto;
+        }
+        .doc-notify-item {
+            white-space: normal;
+            font-size: 0.86rem;
+            line-height: 1.35;
+        }
     </style>
 
     <script nonce="{{ $cspNonce }}">
@@ -288,6 +317,21 @@
                             <div class="user-name">
                                 <li class="nav-item mr-10" id="greeting"></li>
                             </div>
+                            @if(auth()->check() && \App\Helpers\RoleHelper::hasPermission(auth()->user()->getRoleList(), 'student.document.collection') && Route::has('student.documents.notifications'))
+                            <li class="nav-item dropdown">
+                                <a class="nav-link nav-icon-hover doc-notify-toggle" href="#" role="button" id="docNotifyToggle" data-bs-toggle="dropdown" aria-expanded="false" title="Document notifications">
+                                    <i class="ti ti-bell fs-6"></i>
+                                    <span class="doc-notify-badge" id="docNotifyBadge">0</span>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end dropdown-menu-animate-up outline-shadow doc-notify-menu" aria-labelledby="docNotifyToggle">
+                                    <div class="px-3 py-2 fw-semibold">Document submissions</div>
+                                    <div id="docNotifyList" class="message-body">
+                                        <div class="dropdown-item text-muted">Loading...</div>
+                                    </div>
+                                    <a class="dropdown-item text-primary" href="{{ route('student.documents.index') }}">Open document collection</a>
+                                </div>
+                            </li>
+                            @endif
                             <li class="nav-item">
                                 <div class="dropdown-menu dropdown-menu-end dropdown-menu-animate-up"
                                     aria-labelledby="drop1">
@@ -405,6 +449,61 @@
         });
     </script>
     <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+    @if(auth()->check() && \App\Helpers\RoleHelper::hasPermission(auth()->user()->getRoleList(), 'student.document.collection') && Route::has('student.documents.notifications'))
+    <script nonce="{{ $cspNonce }}">
+        document.addEventListener('DOMContentLoaded', function () {
+            const badge = document.getElementById('docNotifyBadge');
+            const list = document.getElementById('docNotifyList');
+            if (!badge || !list) {
+                return;
+            }
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            function renderNotifications(payload) {
+                badge.textContent = payload.unread > 9 ? '9+' : String(payload.unread);
+                badge.style.display = payload.unread > 0 ? 'inline-block' : 'none';
+
+                if (!payload.notifications.length) {
+                    list.innerHTML = '<div class="dropdown-item text-muted">No document notifications yet.</div>';
+                    return;
+                }
+
+                list.innerHTML = payload.notifications.map(function (item) {
+                    const unread = item.read ? '' : ' fw-semibold';
+                    return '<a class="dropdown-item doc-notify-item' + unread + '" href="' + item.url + '" data-notification-id="' + item.id + '">' +
+                        '<div>' + item.message + '</div>' +
+                        '<small class="text-muted">' + item.created_at + '</small>' +
+                        '</a>';
+                }).join('');
+            }
+
+            fetch(@json(route('student.documents.notifications')), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (response) { return response.json(); })
+                .then(renderNotifications)
+                .catch(function () {
+                    list.innerHTML = '<div class="dropdown-item text-muted">Unable to load notifications.</div>';
+                });
+
+            list.addEventListener('click', function (event) {
+                const link = event.target.closest('[data-notification-id]');
+                if (!link) {
+                    return;
+                }
+                fetch(@json(url('/student-documents/notifications')) + '/' + link.dataset.notificationId + '/read', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+            });
+        });
+    </script>
+    @endif
     @if($isEmbed)
     <script nonce="{{ $cspNonce }}">
         (function() {

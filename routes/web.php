@@ -27,6 +27,8 @@ use App\Http\Controllers\{
     StudentListController,
     StudentOtherInformationController,
     StudentProfileController,
+    StudentDocumentCollectionController,
+    StudentDocumentSubmissionController,
     StudentRegistraionController,
     TimetableController,
     ProjectClearanceController,
@@ -100,6 +102,14 @@ Route::post('/spreadsheet/store-attendance', [SpreadSheetController::class, 'sto
 Route::get('/verify-badge/{code}', [BadgeController::class, 'verify'])->name('badges.verify');
 
 // ============================================================================
+// STUDENT DOCUMENT SUBMISSION PORTAL (Public unique links)
+// ============================================================================
+Route::middleware('throttle:student-documents')->group(function () {
+    Route::get('/document-submit/{token}', [StudentDocumentSubmissionController::class, 'show'])->name('student.documents.portal');
+    Route::post('/document-submit/{token}', [StudentDocumentSubmissionController::class, 'store'])->name('student.documents.portal.submit');
+});
+
+// ============================================================================
 // AUTHENTICATED ROUTES
 // ============================================================================
 Route::middleware(['auth', 'prevent-back-history'])->group(function () {
@@ -167,6 +177,18 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/missing-data/restore/semesters', [MissingDataRestoreController::class, 'semesters'])->name('missing.data.restore.semesters');
         Route::post('/missing-data/restore/preview', [MissingDataRestoreController::class, 'preview'])->name('missing.data.restore.preview');
         Route::post('/missing-data/restore/commit', [MissingDataRestoreController::class, 'commit'])->name('missing.data.restore.commit');
+    });
+
+    // Student Document Collection
+    Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Program Administrator (level 02) Trainee,Student Counselor,Student Counselor Trainee,Developer'])->group(function () {
+        Route::get('/student-documents', [StudentDocumentCollectionController::class, 'index'])->name('student.documents.index');
+        Route::post('/student-documents/search', [StudentDocumentCollectionController::class, 'search'])->name('student.documents.search');
+        Route::post('/student-documents/generate', [StudentDocumentCollectionController::class, 'generate'])->name('student.documents.generate');
+        Route::get('/student-documents/notifications', [StudentDocumentCollectionController::class, 'notifications'])->name('student.documents.notifications');
+        Route::post('/student-documents/notifications/{notification}/read', [StudentDocumentCollectionController::class, 'markNotificationRead'])->name('student.documents.notifications.read');
+        Route::get('/student-documents/files/{documentFile}', [StudentDocumentCollectionController::class, 'file'])->name('student.documents.file');
+        Route::post('/student-documents/{documentRequest}/review', [StudentDocumentCollectionController::class, 'review'])->name('student.documents.review');
+        Route::get('/student-documents/{documentRequest}', [StudentDocumentCollectionController::class, 'show'])->name('student.documents.show');
     });
 
     // Student Other Information
