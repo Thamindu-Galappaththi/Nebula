@@ -206,6 +206,17 @@ class StudentDocumentCollectionTest extends TestCase
         $this->assertSame(StudentDocumentRequest::STATUS_PENDING, StudentDocumentRequest::first()->status);
     }
 
+    public function test_missing_document_record_shows_a_branded_not_found_page(): void
+    {
+        $this->actingAs($this->actor)
+            ->get('/student-documents/999999')
+            ->assertNotFound()
+            ->assertSee('This document record was not found')
+            ->assertSee('Back to document collection')
+            ->assertSee('Requested: /student-documents/999999')
+            ->assertDontSee('>Not Found<', false);
+    }
+
     public function test_invalid_or_guessable_links_do_not_open_a_submission_page(): void
     {
         $this->get(route('student.documents.portal', ['token' => 'abc']))

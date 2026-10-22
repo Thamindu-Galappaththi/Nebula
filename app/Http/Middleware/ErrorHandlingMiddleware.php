@@ -76,8 +76,7 @@ class ErrorHandlingMiddleware
                 ], 404);
             }
 
-            return redirect()->back()
-                ->with('error', 'The requested resource was not found.');
+            return response()->view('errors.404', ['exception' => $e], 404);
         } catch (NotFoundHttpException $e) {
             Log::warning('Page not found', [
                 'url' => $request->fullUrl(),
@@ -91,7 +90,7 @@ class ErrorHandlingMiddleware
                 ], 404);
             }
 
-            return response()->view('errors.404', [], 404);
+            return response()->view('errors.404', ['exception' => $e], 404);
         } catch (MethodNotAllowedHttpException $e) {
             Log::warning('Method not allowed', [
                 'url' => $request->fullUrl(),
