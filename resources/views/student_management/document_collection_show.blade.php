@@ -153,6 +153,10 @@
         flex-wrap: wrap;
         gap: 0.5rem;
     }
+    .doc-share-box.is-busy .doc-actions {
+        pointer-events: none;
+        opacity: 0.72;
+    }
 </style>
 
 <div class="container-fluid px-2 px-md-3">
@@ -320,13 +324,38 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const emailBtn = document.getElementById('emailShowLinkBtn');
+    function setShowShareBusy(busy) {
+        box.classList.toggle('is-busy', busy);
+        box.setAttribute('aria-busy', busy ? 'true' : 'false');
+        box.querySelectorAll('.doc-actions .btn, .doc-actions a').forEach(function (el) {
+            el.classList.toggle('disabled', busy);
+            if (el.tagName === 'BUTTON') {
+                el.disabled = busy;
+            }
+            if (el.tagName === 'A') {
+                el.setAttribute('aria-disabled', busy ? 'true' : 'false');
+                el.tabIndex = busy ? -1 : 0;
+            }
+        });
+        if (emailBtn) {
+            emailBtn.innerHTML = busy
+                ? '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending email...'
+                : 'Send email to student';
+            if (!busy) {
+                emailBtn.disabled = !box.dataset.email;
+            }
+        }
+    }
     if (emailBtn) {
         emailBtn.addEventListener('click', function () {
+            if (box.classList.contains('is-busy')) {
+                return;
+            }
             if (!box.dataset.email) {
                 notice('This student has no email on file. Copy the link instead.', 'info');
                 return;
             }
-            emailBtn.disabled = true;
+            setShowShareBusy(true);
             fetch(emailUrl, {
                 method: 'POST',
                 headers: {
@@ -336,11 +365,11 @@ document.addEventListener('DOMContentLoaded', function () {
             })
                 .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
                 .then(function (result) {
-                    emailBtn.disabled = false;
+                    setShowShareBusy(false);
                     notice(result.data.message || (result.ok ? 'Email sent.' : 'The email could not be sent.'), result.ok ? 'success' : 'error');
                 })
                 .catch(function () {
-                    emailBtn.disabled = false;
+                    setShowShareBusy(false);
                     notice('The email could not be sent. Copy the link and share it another way.', 'error');
                 });
         });

@@ -101,6 +101,13 @@
         flex-wrap: wrap;
         gap: 0.5rem;
     }
+    .doc-share-box.is-busy .doc-actions {
+        pointer-events: none;
+        opacity: 0.72;
+    }
+    .doc-share-box.is-busy .doc-actions .btn {
+        cursor: wait;
+    }
     .doc-tabs {
         display: flex;
         flex-wrap: wrap;
@@ -634,10 +641,31 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    function setShareBusy(busy) {
+        generatedBox.classList.toggle('is-busy', busy);
+        generatedBox.setAttribute('aria-busy', busy ? 'true' : 'false');
+        generatedBox.querySelectorAll('.doc-actions .btn, .doc-actions a').forEach(function (el) {
+            el.classList.toggle('disabled', busy);
+            if (el.tagName === 'BUTTON') {
+                el.disabled = busy;
+            }
+            if (el.tagName === 'A') {
+                el.setAttribute('aria-disabled', busy ? 'true' : 'false');
+                el.tabIndex = busy ? -1 : 0;
+            }
+        });
+        emailShareBtn.innerHTML = busy
+            ? '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending email...'
+            : 'Send email to student';
+        if (!busy) {
+            emailShareBtn.disabled = !generatedBox.dataset.email;
+        }
+    }
+
     emailShareBtn.addEventListener('click', function () {
         const requestId = generatedBox.dataset.requestId || '';
         const email = generatedBox.dataset.email || '';
-        if (!requestId) {
+        if (!requestId || generatedBox.classList.contains('is-busy')) {
             return;
         }
         if (!email) {
@@ -645,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        emailShareBtn.disabled = true;
+        setShareBusy(true);
         fetch(emailUrlTemplate.replace('__ID__', requestId), {
             method: 'POST',
             headers: {
@@ -655,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
             .then(function (result) {
-                emailShareBtn.disabled = false;
+                setShareBusy(false);
                 if (result.ok) {
                     showNotice(result.data.message, 'success');
                     return;
@@ -678,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             })
             .catch(function () {
-                emailShareBtn.disabled = false;
+                setShareBusy(false);
                 showNotice('The email could not be sent. Copy the link and share it another way.', 'error');
             });
     });

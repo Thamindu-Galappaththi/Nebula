@@ -8,6 +8,7 @@ use App\Models\StudentDocumentFile;
 use App\Models\StudentDocumentRequest;
 use App\Models\User;
 use App\Notifications\StudentDocumentsSubmittedNotification;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -67,7 +68,9 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertSee('doc-search-row', false)
             ->assertSee('doc-tab', false)
             ->assertSee('doc-hero-art', false)
-            ->assertSee('Send email to student');
+            ->assertSee('Send email to student')
+            ->assertSee('Sending email...', false)
+            ->assertSee('spinner-border', false);
     }
 
     public function test_status_tabs_load_by_ajax_without_full_page_markup(): void
@@ -362,21 +365,36 @@ class StudentDocumentCollectionTest extends TestCase
     public function test_share_by_email_sends_the_submission_link_to_the_student(): void
     {
         Mail::fake();
+        Carbon::setTestNow(Carbon::parse('2026-10-22 16:56:00', 'Asia/Colombo'));
 
-        $url = $this->actingAs($this->actor)
-            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
-            ->json('url');
+        try {
+            $url = $this->actingAs($this->actor)
+                ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
+                ->json('url');
 
-        $request = StudentDocumentRequest::first();
+            $request = StudentDocumentRequest::first();
 
-        $this->actingAs($this->actor)
-            ->postJson(route('student.documents.email', $request))
-            ->assertOk()
-            ->assertJsonPath('success', true);
+            $this->actingAs($this->actor)
+                ->postJson(route('student.documents.email', $request))
+                ->assertOk()
+                ->assertJsonPath('success', true);
 
-        Mail::assertSent(StudentDocumentSubmissionLinkMail::class, function (StudentDocumentSubmissionLinkMail $mail) use ($url) {
-            return $mail->hasTo($this->student->email) && $mail->submissionUrl === $url;
-        });
+            Mail::assertSent(StudentDocumentSubmissionLinkMail::class, function (StudentDocumentSubmissionLinkMail $mail) use ($url) {
+                $html = $mail->render();
+
+                return $mail->hasTo($this->student->email)
+                    && $mail->submissionUrl === $url
+                    && $mail->envelope()->subject === 'Please submit your documents to Nebula'
+                    && $mail->expiresAt === '2026-11-05, 4:56 PM'
+                    && str_contains($html, 'align="center"')
+                    && str_contains($html, 'This link expires on')
+                    && str_contains($html, '2026-11-05, 4:56 PM')
+                    && !str_contains($html, 'Sri Lanka time')
+                    && str_contains($html, 'Open document submission');
+            });
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_share_by_email_requires_a_student_email_address(): void

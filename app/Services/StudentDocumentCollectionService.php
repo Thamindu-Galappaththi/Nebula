@@ -8,6 +8,7 @@ use App\Models\StudentDocumentFile;
 use App\Models\StudentDocumentRequest;
 use App\Models\User;
 use App\Notifications\StudentDocumentsSubmittedNotification;
+use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -60,9 +61,7 @@ class StudentDocumentCollectionService
                     'institute_location' => $student->institute_location,
                     'existing_status' => $status,
                     'existing_request_id' => $openRequest?->id,
-                    'existing_expires_at' => $openRequest?->link_expires_at
-                        ? $openRequest->link_expires_at->copy()->timezone('Asia/Colombo')->format('Y-m-d H:i')
-                        : null,
+                    'existing_expires_at' => $this->formatColomboExpiry($openRequest?->link_expires_at),
                     'existing_sent_by' => $openRequest?->creator?->name,
                     'has_recoverable_link' => $openRequest?->isPending() && $this->urlForRequest($openRequest) !== null,
                 ];
@@ -185,9 +184,7 @@ class StudentDocumentCollectionService
             throw new RuntimeException('The original link cannot be recovered. Create a replacement link first.');
         }
 
-        $expiresAt = $request->link_expires_at
-            ? $request->link_expires_at->copy()->timezone('Asia/Colombo')->format('Y-m-d H:i')
-            : null;
+        $expiresAt = $this->formatColomboExpiry($request->link_expires_at);
 
         Mail::to($email)->send(new StudentDocumentSubmissionLinkMail($student, $url, $expiresAt));
     }
@@ -443,7 +440,7 @@ class StudentDocumentCollectionService
             'status' => StudentDocumentRequest::STATUS_PENDING,
             'notification_status' => StudentDocumentRequest::NOTIFICATION_PENDING,
             'document_deletion_status' => StudentDocumentRequest::DELETION_RETAINED,
-            'link_expires_at' => now()->addDays((int) config('student_documents.link_ttl_days', 14)),
+            'link_expires_at' => now('Asia/Colombo')->addDays((int) config('student_documents.link_ttl_days', 14)),
             'submitted_at' => null,
             'retention_expires_at' => null,
             'notified_at' => null,
@@ -461,6 +458,17 @@ class StudentDocumentCollectionService
         $request->save();
 
         return $plainToken;
+    }
+
+    public function formatColomboExpiry(?\DateTimeInterface $value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        return Carbon::parse($value)
+            ->timezone('Asia/Colombo')
+            ->format('Y-m-d, g:i A');
     }
 
     private function latestOpenRequest(Student $student): ?StudentDocumentRequest

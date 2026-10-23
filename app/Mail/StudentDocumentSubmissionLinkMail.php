@@ -23,14 +23,15 @@ class StudentDocumentSubmissionLinkMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Submit your documents to Nebula',
+            subject: 'Please submit your documents to Nebula',
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.student_document_link',
+            html: 'emails.student_document_link',
+            text: 'emails.student_document_link_text',
         );
     }
 };

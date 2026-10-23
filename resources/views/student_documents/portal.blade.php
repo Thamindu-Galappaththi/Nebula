@@ -33,10 +33,18 @@
         body.is-form .portal-shell {
             justify-content: flex-start;
         }
+        body.is-status .portal-shell {
+            max-width: 640px;
+            padding: 1.5rem 1.25rem;
+        }
         .portal-logo {
             max-width: 120px;
             margin: 0 auto 0.7rem;
             display: block;
+        }
+        body.is-status .portal-logo {
+            max-width: 168px;
+            margin-bottom: 1.15rem;
         }
         .portal-card {
             width: 100%;
@@ -48,7 +56,19 @@
             padding: 1.15rem 1.2rem;
         }
         body.is-status .portal-card .card-body {
-            padding: 1.4rem 1.3rem;
+            padding: 2.4rem 2.2rem 2.25rem;
+        }
+        .portal-status-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1.3;
+            margin: 0 0 0.8rem;
+            color: #1b2c5b;
+        }
+        .portal-status-copy {
+            font-size: 1.05rem;
+            line-height: 1.65;
+            margin: 0;
         }
         .portal-title { font-size: 1.2rem; margin-bottom: 0.3rem; }
         .portal-intro { font-size: 0.9rem; margin-bottom: 0.7rem; }
@@ -79,9 +99,35 @@
         .details-grid .span-2 { grid-column: 1 / -1; }
         .preview-list { display: grid; gap: 0.4rem; font-size: 0.9rem; }
         .portal-actions { padding-top: 0.4rem; }
-        .instruction-list { margin-bottom: 0.7rem; }
+        .instruction-list {
+            list-style: none;
+            margin: 0 0 1rem;
+            padding: 0;
+        }
+        .instruction-list li {
+            position: relative;
+            padding-left: 1.2rem;
+            margin-bottom: 0.55rem;
+            line-height: 1.55;
+        }
+        .instruction-list li:last-child {
+            margin-bottom: 0;
+        }
+        .instruction-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.55em;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #23408e;
+        }
         @media (max-width: 767.98px) {
             .portal-shell { padding: 0.75rem 0.7rem 1rem; }
+            body.is-status .portal-shell { padding: 1.1rem 0.85rem; }
+            body.is-status .portal-card .card-body { padding: 1.7rem 1.25rem 1.6rem; }
+            .portal-status-title { font-size: 1.3rem; }
             .details-grid { grid-template-columns: 1fr; }
             .portal-actions .btn { width: 100%; }
         }
@@ -94,14 +140,14 @@
         <div class="card portal-card">
             <div class="card-body">
                 @if($state === 'invalid')
-                    <h1 class="h5 text-center">This link is not valid</h1>
-                    <p class="text-muted text-center mb-0">The document submission link is missing, incorrect, or has already been removed. Please contact the staff member who sent it.</p>
+                    <h1 class="portal-status-title text-center">This link is not valid</h1>
+                    <p class="text-muted text-center portal-status-copy">The document submission link is missing, incorrect, or has already been removed. Please contact the staff member who sent it.</p>
                 @elseif($state === 'expired')
-                    <h1 class="h5 text-center">This link has expired</h1>
-                    <p class="text-muted text-center mb-0">The submission window for this unique link has ended. Ask your Nebula staff contact to send a new link if you still need to upload documents.</p>
+                    <h1 class="portal-status-title text-center">This link has expired</h1>
+                    <p class="text-muted text-center portal-status-copy">The submission window for this unique link has ended. Ask your Nebula staff contact to send a new link if you still need to upload documents.</p>
                 @elseif($state === 'submitted')
-                    <h1 class="h5 text-center">Documents submitted</h1>
-                    <p class="text-muted text-center mb-0">Thank you. Your documents were received and the relevant staff members have been notified. Keep a copy of your files for your own records. Nebula will automatically delete the uploaded copies after seven days.</p>
+                    <h1 class="portal-status-title text-center">Documents submitted</h1>
+                    <p class="text-muted text-center portal-status-copy">Thank you. Your documents were received and the relevant staff members have been notified. Keep a copy of your files for your own records. Nebula will automatically delete the uploaded copies after seven days.</p>
                 @else
                     <h1 class="h4 text-center portal-title">Submit your documents</h1>
                     <p class="text-center text-muted portal-intro">This page is only for {{ $student->full_name ?? 'the invited student' }}. Do not share this link.</p>
