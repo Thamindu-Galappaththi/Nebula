@@ -78,6 +78,37 @@ class MissingDataRestoreTest extends TestCase
             ->assertSee('Download template');
     }
 
+    public function test_page_is_hidden_when_menu_flag_is_false(): void
+    {
+        config(['missing_data.menu_visible' => false]);
+
+        $this->actingAs($this->actor)
+            ->get(route('missing.data.restore'))
+            ->assertNotFound();
+    }
+
+    public function test_sidebar_omits_restore_missing_data_when_hidden(): void
+    {
+        config(['missing_data.menu_visible' => false]);
+
+        $this->actingAs($this->actor);
+
+        $html = view('components.sidebar')->render();
+
+        $this->assertStringNotContainsString('Restore Missing Data', $html);
+    }
+
+    public function test_sidebar_shows_restore_missing_data_when_enabled(): void
+    {
+        config(['missing_data.menu_visible' => true]);
+
+        $this->actingAs($this->actor);
+
+        $html = view('components.sidebar')->render();
+
+        $this->assertStringContainsString('Restore Missing Data', $html);
+    }
+
     public function test_program_admin_is_denied(): void
     {
         $admin = User::forceCreate([
