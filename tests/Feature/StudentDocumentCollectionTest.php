@@ -513,4 +513,43 @@ class StudentDocumentCollectionTest extends TestCase
 
         Mail::assertNothingSent();
     }
+
+    public function test_staff_layout_polls_notifications_without_refresh(): void
+    {
+        config(['student_documents.menu_visible' => true]);
+
+        $this->actingAs($this->actor)
+            ->get(route('student.documents.index'))
+            ->assertOk()
+            ->assertSee('id="docNotifyToggle"', false)
+            ->assertSee('loadNotifications', false)
+            ->assertSee('setInterval', false)
+            ->assertSee('showInAppToast', false)
+            ->assertDontSee('enableWebPush')
+            ->assertDontSee('sw-document-notifications.js');
+    }
+
+    public function test_notification_feed_includes_unread_count_without_refresh(): void
+    {
+        $url = $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
+            ->json('url');
+        $token = basename(parse_url($url, PHP_URL_PATH));
+
+        $this->post(route('student.documents.portal.submit', ['token' => $token]), [
+            'full_name' => 'Alpha Student',
+            'id_value' => '200012345678',
+            'email' => 'alpha.student@nebula.lk',
+            'phone' => '0712345678',
+            'nic_document' => UploadedFile::fake()->image('nic.jpg'),
+            'birth_certificate' => UploadedFile::fake()->image('birth.jpg'),
+        ])->assertRedirect();
+
+        $this->actingAs($this->actor)
+            ->getJson(route('student.documents.notifications'))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('unread', 1)
+            ->assertJsonPath('notifications.0.message', 'Alpha Student submitted documents for review.');
+    }
 }

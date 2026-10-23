@@ -491,6 +491,15 @@
             }
 
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const notificationsUrl = @json(route('student.documents.notifications'));
+            let knownUnread = null;
+            let knownLatestId = null;
+
+            function escapeHtml(value) {
+                return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+                });
+            }
 
             function renderNotifications(payload) {
                 badge.textContent = payload.unread > 9 ? '9+' : String(payload.unread);
@@ -503,21 +512,89 @@
 
                 list.innerHTML = payload.notifications.map(function (item) {
                     const unread = item.read ? '' : ' fw-semibold';
-                    return '<a class="dropdown-item doc-notify-item' + unread + '" href="' + item.url + '" data-notification-id="' + item.id + '">' +
-                        '<div>' + item.message + '</div>' +
-                        '<small class="text-muted">' + item.created_at + '</small>' +
+                    return '<a class="dropdown-item doc-notify-item' + unread + '" href="' + escapeHtml(item.url) + '" data-notification-id="' + escapeHtml(item.id) + '">' +
+                        '<div>' + escapeHtml(item.message) + '</div>' +
+                        '<small class="text-muted">' + escapeHtml(item.created_at) + '</small>' +
                         '</a>';
                 }).join('');
             }
 
-            fetch(@json(route('student.documents.notifications')), {
-                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-            })
-                .then(function (response) { return response.json(); })
-                .then(renderNotifications)
-                .catch(function () {
-                    list.innerHTML = '<div class="dropdown-item text-muted">Unable to load notifications.</div>';
-                });
+            function showInAppToast(item) {
+                const container = document.querySelector('.toast-container');
+                if (!container || !item) {
+                    return;
+                }
+                const html = '<div class="toast align-items-center text-white bg-primary border-0" role="alert"><div class="d-flex"><div class="toast-body">' +
+                    escapeHtml(item.message || 'A student submitted documents.') +
+                    '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div></div>';
+                container.insertAdjacentHTML('beforeend', html);
+                const toastEl = container.querySelector('.toast:last-child');
+                if (window.bootstrap && bootstrap.Toast) {
+                    new bootstrap.Toast(toastEl, { delay: 6000 }).show();
+                }
+            }
+
+            function showBrowserNotification(item) {
+                if (!item || typeof Notification === 'undefined' || Notification.permission !== 'granted' || !document.hidden) {
+                    return;
+                }
+                try {
+                    new Notification('Document submitted', {
+                        body: item.message || 'A student submitted documents for review.',
+                        icon: @json(asset('images/logos/favicon.jpg'))
+                    });
+                } catch (error) {}
+            }
+
+            function loadNotifications(options) {
+                options = options || {};
+                fetch(notificationsUrl, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (payload) {
+                        const previousUnread = knownUnread;
+                        const previousLatest = knownLatestId;
+                        const latest = payload.notifications && payload.notifications[0] ? payload.notifications[0] : null;
+                        renderNotifications(payload);
+                        knownUnread = payload.unread;
+                        knownLatestId = latest ? latest.id : null;
+                        if (options.silent || previousUnread === null) {
+                            return;
+                        }
+                        const isNew = latest && latest.id !== previousLatest && !latest.read;
+                        if (payload.unread > previousUnread || isNew) {
+                            showInAppToast(latest);
+                            showBrowserNotification(latest);
+                        }
+                    })
+                    .catch(function () {
+                        if (knownUnread === null) {
+                            list.innerHTML = '<div class="dropdown-item text-muted">Unable to load notifications.</div>';
+                        }
+                    });
+            }
+
+            function requestBrowserNotifications() {
+                if (typeof Notification === 'undefined' || Notification.permission !== 'default') {
+                    return;
+                }
+                Notification.requestPermission().catch(function () {});
+            }
+
+            loadNotifications({ silent: true });
+            setInterval(function () { loadNotifications(); }, 12000);
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden) {
+                    loadNotifications({ silent: true });
+                }
+            });
+            const toggle = document.getElementById('docNotifyToggle');
+            if (toggle) {
+                toggle.addEventListener('click', function () {
+                    requestBrowserNotifications();
+                }, { once: true });
+            }
 
             list.addEventListener('click', function (event) {
                 const link = event.target.closest('[data-notification-id]');
@@ -531,6 +608,8 @@
                         'X-CSRF-TOKEN': csrf,
                         'X-Requested-With': 'XMLHttpRequest'
                     }
+                }).then(function () {
+                    loadNotifications({ silent: true });
                 });
             });
         });

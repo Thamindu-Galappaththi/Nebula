@@ -14,8 +14,9 @@ use RuntimeException;
 
 class StudentDocumentCollectionController extends Controller
 {
-    public function __construct(private StudentDocumentCollectionService $documents)
-    {
+    public function __construct(
+        private StudentDocumentCollectionService $documents
+    ) {
     }
 
     public function index(Request $request)
