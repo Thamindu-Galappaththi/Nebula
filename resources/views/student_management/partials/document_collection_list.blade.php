@@ -1,4 +1,4 @@
-<div class="doc-list" data-current-status="{{ $status }}">
+<div class="doc-list" data-current-status="{{ $status }}" @if(isset($counts)) data-counts='@json($counts)' @endif>
     <div class="doc-table-scroll">
         <table class="table align-middle mb-0">
             <thead>

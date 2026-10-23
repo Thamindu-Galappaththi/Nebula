@@ -397,6 +397,33 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function updateTabCounts(counts) {
+        if (!counts || typeof counts !== 'object') {
+            return;
+        }
+        document.querySelectorAll('.doc-tab').forEach(function (tab) {
+            const badge = tab.querySelector('.doc-tab-count');
+            const key = tab.dataset.status;
+            if (!badge || !Object.prototype.hasOwnProperty.call(counts, key)) {
+                return;
+            }
+            badge.textContent = String(counts[key] ?? 0);
+        });
+    }
+
+    function applyListHtml(html) {
+        listWrap.innerHTML = html;
+        const countsEl = listWrap.querySelector('[data-counts]');
+        if (!countsEl || !countsEl.dataset.counts) {
+            return;
+        }
+        try {
+            updateTabCounts(JSON.parse(countsEl.dataset.counts));
+        } catch (error) {
+            // Keep the previous tab counts if the payload is not valid JSON.
+        }
+    }
+
     function loadTab(status) {
         const url = indexUrl + '?status=' + encodeURIComponent(status);
         listWrap.style.opacity = '0.55';
@@ -409,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then(function (response) { return response.text(); })
             .then(function (html) {
-                listWrap.innerHTML = html;
+                applyListHtml(html);
                 listWrap.style.opacity = '1';
                 setActiveTab(status);
                 if (window.history && window.history.pushState) {

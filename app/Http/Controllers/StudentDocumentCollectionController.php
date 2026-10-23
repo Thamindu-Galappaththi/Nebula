@@ -28,6 +28,7 @@ class StudentDocumentCollectionController extends Controller
             return view('student_management.partials.document_collection_list', [
                 'requests' => $requests,
                 'status' => $status,
+                'counts' => $counts,
             ]);
         }
 

@@ -66,6 +66,8 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertSee('doc-tabs', false)
             ->assertSee('data-status="pending"', false)
             ->assertSee('loadTab', false)
+            ->assertSee('updateTabCounts', false)
+            ->assertSee('applyListHtml', false)
             ->assertSee('doc-pagination', false)
             ->assertSee('doc-search-row', false)
             ->assertSee('clearSearchResults', false)
@@ -86,6 +88,70 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertSee('doc-list', false)
             ->assertSee('doc-pagination', false)
             ->assertDontSee('Find a student');
+    }
+
+    public function test_ajax_tab_payload_includes_updated_status_counts(): void
+    {
+        StudentDocumentRequest::forceCreate([
+            'student_id' => $this->student->student_id,
+            'created_by' => $this->actor->user_id,
+            'status' => StudentDocumentRequest::STATUS_PENDING,
+            'token_hash' => hash('sha256', 'pending-link-one'),
+            'link_expires_at' => now()->addDays(14),
+            'notification_status' => StudentDocumentRequest::NOTIFICATION_PENDING,
+            'document_deletion_status' => StudentDocumentRequest::DELETION_RETAINED,
+        ]);
+
+        $first = $this->actingAs($this->actor)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('student.documents.index', ['status' => 'pending']))
+            ->assertOk()
+            ->assertSee('data-counts', false);
+
+        $this->assertSame(1, $this->countsFromListHtml($first->getContent())['pending']);
+
+        $secondStudent = Student::forceCreate([
+            'title'              => 'Ms',
+            'name_with_initials' => 'B. Student',
+            'full_name'          => 'Beta Student',
+            'id_type'            => 'National id',
+            'id_value'           => '200098765432',
+            'gender'             => 'Female',
+            'email'              => 'beta.student@nebula.lk',
+            'mobile_phone'       => '0718765432',
+            'status'             => 'Unmarried',
+            'academic_status'    => Student::ACADEMIC_ACTIVE,
+            'institute_location' => 'Welisara',
+        ]);
+
+        StudentDocumentRequest::forceCreate([
+            'student_id' => $secondStudent->student_id,
+            'created_by' => $this->actor->user_id,
+            'status' => StudentDocumentRequest::STATUS_PENDING,
+            'token_hash' => hash('sha256', 'pending-link-two'),
+            'link_expires_at' => now()->addDays(14),
+            'notification_status' => StudentDocumentRequest::NOTIFICATION_PENDING,
+            'document_deletion_status' => StudentDocumentRequest::DELETION_RETAINED,
+        ]);
+
+        $second = $this->actingAs($this->actor)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('student.documents.index', ['status' => 'pending']))
+            ->assertOk();
+
+        $counts = $this->countsFromListHtml($second->getContent());
+        $this->assertSame(2, $counts['pending']);
+        $this->assertSame(2, $counts['all']);
+    }
+
+    private function countsFromListHtml(string $html): array
+    {
+        $this->assertMatchesRegularExpression("/data-counts='([^']*)'/", $html);
+        preg_match("/data-counts='([^']*)'/", $html, $matches);
+        $counts = json_decode(html_entity_decode($matches[1], ENT_QUOTES), true);
+        $this->assertIsArray($counts);
+
+        return $counts;
     }
 
     public function test_document_list_paginates_ten_per_page_with_refresh_links(): void
