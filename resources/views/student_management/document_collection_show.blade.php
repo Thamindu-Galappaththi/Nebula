@@ -97,30 +97,81 @@
         padding: 1rem 1.1rem;
         margin-top: 1rem;
         font-weight: 500;
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
     .doc-callout.is-info { background: #eaf2ff; color: #23408e; }
     .doc-callout.is-warning { background: #fff4d6; color: #7a5b10; }
     .doc-callout.is-success { background: #e3f8ed; color: #0f7a45; }
+    .doc-flash {
+        display: inline-flex;
+        align-items: flex-start;
+        width: fit-content;
+        max-width: 100%;
+        margin: 0 0 1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+        transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .doc-flash.is-hiding {
+        opacity: 0;
+        transform: translateY(-6px);
+        pointer-events: none;
+    }
     .doc-file-card {
+        display: flex;
+        flex-direction: column;
         background: #fff;
-        border-radius: 18px;
+        border-radius: 16px;
         box-shadow: 0 10px 28px rgba(27, 44, 91, 0.07);
         height: 100%;
     }
+    .doc-file-title {
+        margin: 0 0 0.15rem;
+        min-height: 1.4em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .doc-file-meta {
+        margin: 0 0 0.75rem;
+        min-height: 1.35em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
     .doc-preview {
         width: 100%;
-        min-height: 280px;
+        height: 168px;
+        flex: 0 0 168px;
         border: 1px solid #e4ebf6;
-        border-radius: 14px;
+        border-radius: 12px;
         background: #f7f9fd;
         overflow: hidden;
     }
     .doc-preview iframe,
     .doc-preview img {
         width: 100%;
-        min-height: 280px;
+        height: 168px;
         border: 0;
         object-fit: contain;
+    }
+    .doc-file-actions {
+        margin-top: auto;
+        padding-top: 0.85rem;
+        min-height: 54px;
+        display: flex;
+        align-items: flex-end;
+    }
+    .doc-show-page.is-busy .doc-show-actions .btn:not(.btn-outline-light),
+    .doc-show-page.is-busy .doc-file-actions .btn,
+    .doc-show-page.is-reviewed .doc-show-actions .btn-warning {
+        pointer-events: none;
+        opacity: 0.65;
     }
     @media (max-width: 991.98px) {
         .doc-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -130,6 +181,11 @@
         .doc-info-grid { grid-template-columns: 1fr; }
         .doc-show-actions .btn,
         .doc-file-actions .btn { width: 100%; }
+        .doc-preview,
+        .doc-preview iframe,
+        .doc-preview img { height: 148px; }
+        .doc-preview { flex-basis: 148px; }
+        .doc-flash { display: flex; }
     }
     .doc-share-box {
         border-radius: 16px;
@@ -160,7 +216,7 @@
 </style>
 
 <div class="container-fluid px-2 px-md-3">
-    <div class="doc-show-page">
+    <div class="doc-show-page{{ $documentRequest->reviewed_at ? ' is-reviewed' : '' }}">
         <div class="doc-show-hero">
             <div class="doc-show-actions">
                 <a href="{{ route('student.documents.index') }}" class="btn btn-light">Back to collection</a>
@@ -168,9 +224,9 @@
                     <a href="{{ route('student_management.profile', ['studentId' => $documentRequest->student_id]) }}" class="btn btn-outline-light">Open student profile</a>
                 @endif
                 @if($documentRequest->documentsAreAvailable())
-                    <form method="POST" action="{{ route('student.documents.review', $documentRequest) }}" class="d-inline">
+                    <form method="POST" action="{{ route('student.documents.review', $documentRequest) }}" class="d-inline" id="docReviewForm">
                         @csrf
-                        <button type="submit" class="btn btn-warning" {{ $documentRequest->reviewed_at ? 'disabled' : '' }}>
+                        <button type="submit" class="btn btn-warning" id="docReviewBtn" {{ $documentRequest->reviewed_at ? 'disabled' : '' }}>
                             {{ $documentRequest->reviewed_at ? 'Already reviewed' : 'Mark as reviewed' }}
                         </button>
                     </form>
@@ -185,7 +241,7 @@
         </div>
 
         @if(session('success'))
-            <div class="doc-callout is-success">{{ session('success') }}</div>
+            <div class="doc-callout doc-flash is-success" id="docReviewFlash">{{ session('success') }}</div>
         @endif
         @if(session('error'))
             <div class="doc-callout is-warning">{{ session('error') }}</div>
@@ -265,11 +321,11 @@
         @if($documentRequest->documentsAreAvailable())
             <div class="row g-3 mt-1">
                 @foreach($documentRequest->files as $file)
-                    <div class="col-lg-6">
-                        <div class="doc-file-card p-3 p-md-4">
-                            <h5 class="mb-1">{{ $types[$file->document_type]['label'] ?? ucfirst(str_replace('_', ' ', $file->document_type)) }}</h5>
-                            <p class="text-muted mb-3">{{ $file->original_filename }} · {{ number_format($file->size_bytes / 1024, 1) }} KB</p>
-                            <div class="doc-preview mb-3">
+                    <div class="col-sm-6 col-xl-4">
+                        <div class="doc-file-card p-3">
+                            <h5 class="doc-file-title">{{ $types[$file->document_type]['label'] ?? ucfirst(str_replace('_', ' ', $file->document_type)) }}</h5>
+                            <p class="text-muted doc-file-meta" title="{{ $file->original_filename }} · {{ number_format($file->size_bytes / 1024, 1) }} KB">{{ $file->original_filename }} · {{ number_format($file->size_bytes / 1024, 1) }} KB</p>
+                            <div class="doc-preview">
                                 @if(str_starts_with((string) $file->mime_type, 'image/'))
                                     <img src="{{ route('student.documents.file', ['documentFile' => $file, 'inline' => 1]) }}" alt="Uploaded document preview">
                                 @else
@@ -286,6 +342,44 @@
         @endif
     </div>
 </div>
+<script nonce="{{ $cspNonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+    const page = document.querySelector('.doc-show-page');
+    const flash = document.getElementById('docReviewFlash');
+    if (flash) {
+        window.setTimeout(function () {
+            flash.classList.add('is-hiding');
+            window.setTimeout(function () {
+                if (flash.parentNode) {
+                    flash.remove();
+                }
+            }, 400);
+        }, 10000);
+    }
+
+    const reviewForm = document.getElementById('docReviewForm');
+    const reviewBtn = document.getElementById('docReviewBtn');
+    if (reviewForm && reviewBtn && !reviewBtn.disabled) {
+        reviewForm.addEventListener('submit', function () {
+            if (!page) {
+                return;
+            }
+            page.classList.add('is-busy');
+            reviewBtn.disabled = true;
+            reviewBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Marking reviewed...';
+            page.querySelectorAll('.doc-show-actions .btn:not(.btn-outline-light), .doc-file-actions .btn').forEach(function (el) {
+                el.classList.add('disabled');
+                if (el.tagName === 'BUTTON') {
+                    el.disabled = true;
+                } else {
+                    el.setAttribute('aria-disabled', 'true');
+                    el.tabIndex = -1;
+                }
+            });
+        });
+    }
+});
+</script>
 @if($documentRequest->status === 'pending')
 <script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">

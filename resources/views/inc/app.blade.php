@@ -231,28 +231,56 @@
             }
         }
         .doc-notify-toggle {
-            position: relative;
             color: #23408e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: visible;
+        }
+        .doc-notify-icon {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            overflow: visible;
         }
         .doc-notify-badge {
             position: absolute;
-            top: 4px;
-            right: 2px;
-            min-width: 18px;
-            height: 18px;
+            top: -7px;
+            right: -8px;
+            min-width: 16px;
+            height: 16px;
             padding: 0 4px;
             border-radius: 999px;
             background: #dc3545;
             color: #fff;
-            font-size: 11px;
-            line-height: 18px;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 16px;
             text-align: center;
             display: none;
+            z-index: 1;
         }
         .doc-notify-menu {
             width: min(calc(100vw - 1.5rem), 22rem);
-            max-height: 22rem;
-            overflow: auto;
+            overflow: hidden;
+            padding: 0.35rem 0;
+        }
+        .doc-notify-heading {
+            padding: 0.55rem 1rem 0.35rem;
+            font-weight: 600;
+        }
+        .doc-notify-list {
+            max-height: 16.5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+            overscroll-behavior: contain;
+        }
+        .doc-notify-footer {
+            border-top: 1px solid #edf1f7;
+            padding-top: 0.15rem;
         }
         .doc-notify-item {
             white-space: normal;
@@ -320,15 +348,19 @@
                             @if(auth()->check() && \App\Helpers\RoleHelper::hasPermission(auth()->user()->getRoleList(), 'student.document.collection') && Route::has('student.documents.notifications'))
                             <li class="nav-item dropdown">
                                 <a class="nav-link nav-icon-hover doc-notify-toggle" href="#" role="button" id="docNotifyToggle" data-bs-toggle="dropdown" aria-expanded="false" title="Document notifications">
-                                    <i class="ti ti-bell fs-6"></i>
-                                    <span class="doc-notify-badge" id="docNotifyBadge">0</span>
+                                    <span class="doc-notify-icon">
+                                        <i class="ti ti-bell fs-6"></i>
+                                        <span class="doc-notify-badge" id="docNotifyBadge">0</span>
+                                    </span>
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-end dropdown-menu-animate-up outline-shadow doc-notify-menu" aria-labelledby="docNotifyToggle">
-                                    <div class="px-3 py-2 fw-semibold">Document submissions</div>
-                                    <div id="docNotifyList" class="message-body">
+                                    <div class="doc-notify-heading">Document submissions</div>
+                                    <div id="docNotifyList" class="doc-notify-list message-body">
                                         <div class="dropdown-item text-muted">Loading...</div>
                                     </div>
-                                    <a class="dropdown-item text-primary" href="{{ route('student.documents.index') }}">Open document collection</a>
+                                    <div class="doc-notify-footer">
+                                        <a class="dropdown-item text-primary" href="{{ route('student.documents.index') }}">Open document collection</a>
+                                    </div>
                                 </div>
                             </li>
                             @endif

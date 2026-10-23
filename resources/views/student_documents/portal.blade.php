@@ -97,7 +97,45 @@
             margin-bottom: 0.7rem;
         }
         .details-grid .span-2 { grid-column: 1 / -1; }
-        .preview-list { display: grid; gap: 0.4rem; font-size: 0.9rem; }
+        .preview-list { display: grid; gap: 0.55rem; font-size: 0.9rem; }
+        .preview-item {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem 0.55rem;
+            align-items: baseline;
+        }
+        .preview-file-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem 0.7rem;
+        }
+        .preview-file-link {
+            background: none;
+            border: 0;
+            padding: 0;
+            color: #23408e;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 0.15em;
+            cursor: pointer;
+            word-break: break-word;
+            text-align: left;
+        }
+        .preview-file-link:hover,
+        .preview-file-link:focus {
+            color: #1f3f9a;
+        }
+        .portal-preview-image {
+            max-height: 70vh;
+            object-fit: contain;
+        }
+        .portal-preview-frame {
+            width: 100%;
+            height: 70vh;
+            border: 0;
+            border-radius: 12px;
+            background: #f7f9fd;
+        }
         .portal-actions { padding-top: 0.4rem; }
         .instruction-list {
             list-style: none;
@@ -266,6 +304,94 @@
             const panels = document.querySelectorAll('.step-panel');
             const dots = document.querySelectorAll('[data-step-dot]');
             const maxOther = {{ (int) ($maxOtherFiles ?? 3) }};
+            const previewStore = {};
+            const previewUrls = [];
+
+            function escapeHtml(value) {
+                return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+                });
+            }
+
+            function revokePreviewUrls() {
+                previewUrls.splice(0).forEach(function (url) {
+                    URL.revokeObjectURL(url);
+                });
+            }
+
+            function filesFrom(input) {
+                return input && input.files ? Array.from(input.files) : [];
+            }
+
+            function isImage(file) {
+                return file && /^image\//.test(file.type);
+            }
+
+            function isPdf(file) {
+                return file && (file.type === 'application/pdf' || /\.pdf$/i.test(file.name));
+            }
+
+            function fileButton(file, key) {
+                return '<button type="button" class="preview-file-link" data-preview-key="' + escapeHtml(key) + '">' + escapeHtml(file.name) + '</button>';
+            }
+
+            function fileGroup(label, files, prefix) {
+                if (!files.length) {
+                    return '<div class="preview-item"><strong>' + escapeHtml(label) + ':</strong> <span class="text-muted">None selected</span></div>';
+                }
+
+                const buttons = files.map(function (file, index) {
+                    const key = prefix + '-' + index;
+                    previewStore[key] = file;
+                    return fileButton(file, key);
+                }).join('');
+
+                return '<div class="preview-item"><strong>' + escapeHtml(label) + ':</strong> <span class="preview-file-list">' + buttons + '</span></div>';
+            }
+
+            function buildFileReview() {
+                revokePreviewUrls();
+                Object.keys(previewStore).forEach(function (key) {
+                    delete previewStore[key];
+                });
+
+                document.getElementById('reviewFiles').innerHTML =
+                    fileGroup('NIC', filesFrom(document.getElementById('nic_document')), 'nic') +
+                    fileGroup('Birth certificate', filesFrom(document.getElementById('birth_certificate')), 'birth') +
+                    fileGroup('Supporting', filesFrom(document.getElementById('other_documents')), 'other') +
+                    '<p class="small text-muted mb-0">Click a file name to view it.</p>';
+            }
+
+            function openPreview(file) {
+                const url = URL.createObjectURL(file);
+                previewUrls.push(url);
+
+                if (isImage(file)) {
+                    Swal.fire({
+                        title: file.name,
+                        imageUrl: url,
+                        imageAlt: file.name,
+                        confirmButtonText: 'Close',
+                        confirmButtonColor: '#23408e',
+                        width: '42rem',
+                        customClass: { image: 'portal-preview-image' }
+                    });
+                    return;
+                }
+
+                if (isPdf(file)) {
+                    Swal.fire({
+                        title: file.name,
+                        html: '<iframe class="portal-preview-frame" src="' + url + '" title="Document preview"></iframe>',
+                        width: '52rem',
+                        confirmButtonText: 'Close',
+                        confirmButtonColor: '#23408e'
+                    });
+                    return;
+                }
+
+                window.open(url, '_blank', 'noopener');
+            }
 
             function showNotice(title, text) {
                 if (!window.Swal) {
@@ -288,13 +414,6 @@
                 dots.forEach(function (dot) {
                     dot.classList.toggle('is-active', Number(dot.dataset.stepDot) <= step);
                 });
-            }
-
-            function fileLabel(input) {
-                if (!input || !input.files || !input.files.length) {
-                    return 'Not selected';
-                }
-                return Array.from(input.files).map(function (file) { return file.name; }).join(', ');
             }
 
             document.querySelectorAll('[data-next-step]').forEach(function (button) {
@@ -326,13 +445,21 @@
                         document.getElementById('reviewId').textContent = document.getElementById('id_value').value;
                         document.getElementById('reviewEmail').textContent = document.getElementById('email').value;
                         document.getElementById('reviewPhone').textContent = document.getElementById('phone').value;
-                        document.getElementById('reviewFiles').innerHTML =
-                            '<div class="preview-item"><strong>NIC:</strong> ' + fileLabel(nic) + '</div>' +
-                            '<div class="preview-item"><strong>Birth certificate:</strong> ' + fileLabel(birth) + '</div>' +
-                            '<div class="preview-item"><strong>Supporting:</strong> ' + fileLabel(other) + '</div>';
+                        buildFileReview();
                     }
                     showStep(next);
                 });
+            });
+
+            document.getElementById('reviewFiles').addEventListener('click', function (event) {
+                const button = event.target.closest('[data-preview-key]');
+                if (!button) {
+                    return;
+                }
+                const file = previewStore[button.dataset.previewKey];
+                if (file) {
+                    openPreview(file);
+                }
             });
 
             document.querySelectorAll('[data-prev-step]').forEach(function (button) {

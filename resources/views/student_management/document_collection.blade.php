@@ -609,11 +609,25 @@ document.addEventListener('DOMContentLoaded', function () {
         generateLink(student.student_id, false);
     }
 
+    function clearSearchResults() {
+        results.innerHTML = '';
+    }
+
     searchBtn.addEventListener('click', searchStudents);
     searchInput.addEventListener('keydown', function (event) {
         if (event.key === 'Enter') {
             event.preventDefault();
             searchStudents();
+        }
+    });
+    searchInput.addEventListener('search', function () {
+        if (!searchInput.value.trim()) {
+            clearSearchResults();
+        }
+    });
+    searchInput.addEventListener('input', function () {
+        if (!searchInput.value.trim()) {
+            clearSearchResults();
         }
     });
 
