@@ -90,6 +90,19 @@
 .student-profile-page .nebula-select-menu {
     max-width: 100%;
 }
+.student-profile-page select.form-select.profile-locked,
+.student-profile-page .nebula-select:has(select.profile-locked) .nebula-select-toggle {
+    pointer-events: none;
+    background-color: #fff;
+    color: var(--bs-body-color, #212529);
+    opacity: 1;
+    cursor: default;
+}
+.student-profile-page select.form-select.profile-locked:focus,
+.student-profile-page .nebula-select:has(select.profile-locked) .nebula-select-toggle:focus {
+    box-shadow: none;
+    border-color: var(--bs-border-color, #dee2e6);
+}
 .student-profile-tabs-wrap {
     max-width: 100%;
     overflow-x: auto;
@@ -284,6 +297,9 @@
 
 @php
   $student = $student ?? null;
+  $campuses = $campuses ?? \App\Support\StudentQualificationOptions::campuses();
+  $btecCourses = $btecCourses ?? \App\Support\StudentQualificationOptions::btecCourses();
+  $currentInstitute = $student?->institute_location ?? '';
   $status = $student?->academic_status ?? 'active';
   $studentDob = $student?->birthday
     ? \Illuminate\Support\Carbon::parse($student->birthday)->format('Y-m-d')
@@ -404,7 +420,15 @@
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentInstitute" class="col-sm-3 col-form-label fw-bold">Institute <span class="text-danger">*</span></label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" id="studentInstitute" value="{{ $student?->institute_location ?? '' }}" readonly>
+                  <select class="form-select profile-locked" id="studentInstitute">
+                    <option value="" @selected($currentInstitute === '')>Select an Institute Location</option>
+                    @foreach($campuses as $campus)
+                    <option value="{{ $campus['id'] }}" @selected($currentInstitute === $campus['id'] || $currentInstitute === $campus['name'])>{{ $campus['name'] }}</option>
+                    @endforeach
+                    @if($currentInstitute !== '' && !in_array($currentInstitute, array_column($campuses, 'id'), true) && !in_array($currentInstitute, array_column($campuses, 'name'), true))
+                    <option value="{{ $currentInstitute }}" selected>{{ $currentInstitute }}</option>
+                    @endif
+                  </select>
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
@@ -446,7 +470,7 @@
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentFoundation" class="col-sm-3 col-form-label fw-bold">Foundation Program (CAIT)</label>
                 <div class="col-sm-9">
-                  <select class="form-select" id="studentFoundation" disabled>
+                  <select class="form-select profile-locked" id="studentFoundation">
                     <option value="0" @selected(!($student?->foundation_program))>Not Completed</option>
                     <option value="1" @selected((bool) $student?->foundation_program)>Completed</option>
                   </select>
@@ -455,9 +479,20 @@
               <div class="mb-3 row align-items-center mx-3">
                 <label for="studentBtec" class="col-sm-3 col-form-label fw-bold">BTEC Level 3</label>
                 <div class="col-sm-9">
-                  <select class="form-select" id="studentBtec" disabled>
+                  <select class="form-select profile-locked" id="studentBtec">
                     <option value="0" @selected(!($student?->btec_completed))>Not Completed</option>
                     <option value="1" @selected((bool) $student?->btec_completed)>Completed</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mb-3 row align-items-center mx-3 {{ ($student?->btec_completed) ? '' : 'd-none' }}" id="studentBtecCourseRow">
+                <label for="studentBtecCourse" class="col-sm-3 col-form-label fw-bold">BTEC Course</label>
+                <div class="col-sm-9">
+                  <select class="form-select profile-locked" id="studentBtecCourse">
+                    <option value="">Select the BTEC Course</option>
+                    @foreach($btecCourses as $course)
+                    <option value="{{ $course['course_name'] }}" @selected(($student?->btec_course === $course['course_name']) || ((string) $student?->btec_course === (string) $course['id']))>{{ $course['course_name'] }}</option>
+                    @endforeach
                   </select>
                 </div>
               </div>
@@ -1748,7 +1783,7 @@ $(function(){
     $('#studentName').val(student.full_name || '');
     $('#studentNIC').val(student.id_value || '');
     $('#studentIndexNo').val(student.registration_id || '');
-    $('#studentInstitute').val(student.institute_location || '');
+    setProfileSelectValue('#studentInstitute', matchSelectValue('#studentInstitute', student.institute_location));
     if (student.birthday) {
       const raw = String(student.birthday).split('T')[0];
       $('#studentDOB').val(window.toLocalDateString ? window.toLocalDateString(raw) : raw);
@@ -1761,8 +1796,13 @@ $(function(){
     $('#studentHomePhone').val(student.home_phone || '');
     $('#studentEmergencyContact').val(student.emergency_contact_number || '');
     $('#studentAddress').val(student.address || '');
-    $('#studentFoundation').val(student.foundation_program ? '1' : '0');
-    $('#studentBtec').val(student.btec_completed ? '1' : '0');
+    function qualificationFlag(value) {
+      return (value === true || value === 1 || value === '1') ? '1' : '0';
+    }
+    setProfileSelectValue('#studentFoundation', qualificationFlag(student.foundation_program));
+    setProfileSelectValue('#studentBtec', qualificationFlag(student.btec_completed));
+    setProfileSelectValue('#studentBtecCourse', matchSelectValue('#studentBtecCourse', student.btec_course));
+    toggleProfileBtecCourse();
     $('#studentSpecialNeeds').val(student.special_needs || '');
     $('#studentExtraCurricular').val(student.extracurricular_activities || '');
     $('#studentFuturePotentials').val(student.future_potentials || '');
@@ -2029,15 +2069,47 @@ $(function(){
     }
   };
 
+  function setProfileSelectValue(selector, value) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.value = value == null ? '' : String(value);
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function matchSelectValue(selector, value) {
+    const el = document.querySelector(selector);
+    if (!el) return value || '';
+    const raw = String(value || '');
+    if (!raw) return '';
+    const match = Array.from(el.options).find(function(opt) {
+      return opt.value === raw || opt.text.trim() === raw;
+    });
+    return match ? match.value : raw;
+  }
+
+  function toggleProfileBtecCourse() {
+    const completed = $('#studentBtec').val() === '1';
+    $('#studentBtecCourseRow').toggleClass('d-none', !completed);
+    if (!completed) {
+      setProfileSelectValue('#studentBtecCourse', '');
+    }
+  }
+
+  function setProfileDropdownsLocked(locked) {
+    $('#studentInstitute,#studentFoundation,#studentBtec,#studentBtecCourse').toggleClass('profile-locked', locked);
+  }
+
+  $('#studentBtec').on('change', toggleProfileBtecCourse);
+
   // ----- Personal edit buttons -----
   $('#showEditPersonalInfoBtn').on('click', function(){
-    $('#studentTitle,#studentName,#studentNIC,#studentIndexNo,#studentInstitute,#studentDOB,#studentGender,#studentEmail,#studentMobile,#studentHomePhone,#studentEmergencyContact,#studentAddress,#studentSpecialNeeds,#studentExtraCurricular,#studentFuturePotentials').prop('readonly',false);
-    $('#studentFoundation,#studentBtec').prop('disabled', false);
+    $('#studentTitle,#studentName,#studentNIC,#studentIndexNo,#studentDOB,#studentGender,#studentEmail,#studentMobile,#studentHomePhone,#studentEmergencyContact,#studentAddress,#studentSpecialNeeds,#studentExtraCurricular,#studentFuturePotentials').prop('readonly',false);
+    setProfileDropdownsLocked(false);
     $('#showEditPersonalInfoBtn').hide(); $('#updatePersonalInfoBtn,#cancelEditBtn').show();
   });
   $('#cancelEditBtn').on('click', function(){
-    $('#studentTitle,#studentName,#studentNIC,#studentIndexNo,#studentInstitute,#studentDOB,#studentGender,#studentEmail,#studentMobile,#studentHomePhone,#studentEmergencyContact,#studentAddress,#studentSpecialNeeds,#studentExtraCurricular,#studentFuturePotentials').prop('readonly',true);
-    $('#studentFoundation,#studentBtec').prop('disabled', true);
+    $('#studentTitle,#studentName,#studentNIC,#studentIndexNo,#studentDOB,#studentGender,#studentEmail,#studentMobile,#studentHomePhone,#studentEmergencyContact,#studentAddress,#studentSpecialNeeds,#studentExtraCurricular,#studentFuturePotentials').prop('readonly',true);
+    setProfileDropdownsLocked(true);
     // Clear validation error classes
     $('.is-invalid').removeClass('is-invalid');
     $('#showEditPersonalInfoBtn').show(); $('#updatePersonalInfoBtn,#cancelEditBtn').hide();
@@ -2072,6 +2144,16 @@ $(function(){
       }
     });
     
+    if ($('#studentBtec').val() === '1') {
+      const btecCourse = $('#studentBtecCourse').val();
+      if (!btecCourse || String(btecCourse).trim() === '') {
+        validationErrors.push('BTEC Course');
+        $('#studentBtecCourse').addClass('is-invalid');
+      } else {
+        $('#studentBtecCourse').removeClass('is-invalid');
+      }
+    }
+
     // Email validation
     const email = $('#studentEmail').val();
     if (email && !isValidEmail(email)) {
@@ -2101,6 +2183,7 @@ $(function(){
       address:$('#studentAddress').val(),
       foundation_program:$('#studentFoundation').val(),
       btec_completed:$('#studentBtec').val(),
+      btec_course:$('#studentBtec').val() === '1' ? $('#studentBtecCourse').val() : '',
       special_needs:$('#studentSpecialNeeds').val(),
       extracurricular_activities:$('#studentExtraCurricular').val(),
       future_potentials:$('#studentFuturePotentials').val(),

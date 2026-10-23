@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Student;
+use App\Support\StudentQualificationOptions;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -98,7 +99,11 @@ class StudentRegistrationRequest extends FormRequest
             // CAIT / BTEC qualification
             'foundationComplete' => 'required|boolean',
             'btecCompleted' => 'required|boolean',
-            'btec_course' => 'required_if:btecCompleted,1|nullable',
+            'btec_course' => [
+                'required_if:btecCompleted,1',
+                'nullable',
+                Rule::in(StudentQualificationOptions::btecCourseValues()),
+            ],
             
             'specialNeeds' => 'nullable|string|max:500',
             'extraCurricular' => 'nullable|string|max:500',

@@ -9,6 +9,7 @@ use App\Models\ParentGuardian;
 use App\Models\StudentExam;
 use App\Models\Course;
 use App\Services\FileManagementService;
+use App\Support\StudentQualificationOptions;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Database\QueryException;
@@ -52,19 +53,8 @@ class StudentRegistraionController extends Controller
                 ['id' => 'Driving Licence', 'id_type' => 'Driving Licence']
             ];
 
-            $campuses = [
-                ['id' => 'Welisara', 'name' => 'Nebula Institute of Technology - Welisara'],
-                ['id' => 'Moratuwa', 'name' => 'Nebula Institute of Technology - Moratuwa'],
-                ['id' => 'Peradeniya', 'name' => 'Nebula Institute of Technology - Peradeniya']
-            ];
-
-            $btecCourses = [
-                ['id' => 1, 'course_name' => 'BTEC Level 3 Extended Diploma in Business'],
-                ['id' => 2, 'course_name' => 'BTEC Level 3 Extended Diploma in Computing'],
-                ['id' => 3, 'course_name' => 'BTEC Level 3 Extended Diploma in Engineering'],
-                ['id' => 4, 'course_name' => 'BTEC Level 3 Extended Diploma in Health and Social Care'],
-                ['id' => 5, 'course_name' => 'BTEC Level 3 Extended Diploma in Travel and Tourism']
-            ];
+            $campuses = StudentQualificationOptions::campuses();
+            $btecCourses = StudentQualificationOptions::btecCourses();
 
             $districts = [
                 'Ampara',
@@ -196,6 +186,9 @@ class StudentRegistraionController extends Controller
             $student->institute_location = $request->institute_location;
             $student->foundation_program = $request->boolean('foundationComplete');
             $student->btec_completed = $request->boolean('btecCompleted');
+            $student->btec_course = $student->btec_completed
+                ? StudentQualificationOptions::btecCourseName($request->input('btec_course'))
+                : null;
             $student->special_needs = $request->specialNeeds ?? null;
             $student->extracurricular_activities = $request->extraCurricular ?? null;
             $student->future_potentials = $request->futurePotential ?? null;

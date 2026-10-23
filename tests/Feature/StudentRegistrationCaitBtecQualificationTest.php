@@ -76,6 +76,7 @@ class StudentRegistrationCaitBtecQualificationTest extends TestCase
         $this->assertTrue($student->foundation_program);
         $this->assertTrue($student->btec_completed);
         $this->assertSame('Welisara', $student->institute_location);
+        $this->assertSame('BTEC Level 3 Extended Diploma in Computing', $student->btec_course);
     }
 
     public function test_registration_saves_not_completed_qualification_values(): void
@@ -96,6 +97,7 @@ class StudentRegistrationCaitBtecQualificationTest extends TestCase
         $this->assertNotNull($student);
         $this->assertFalse($student->foundation_program);
         $this->assertFalse($student->btec_completed);
+        $this->assertNull($student->btec_course);
     }
 
     private function validPayload(array $overrides = []): array

@@ -25,6 +25,8 @@ use App\Models\ClearanceRequest;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\UpdateParentInfoRequest;
 use App\Services\FileManagementService;
+use App\Support\StudentQualificationOptions;
+use Illuminate\Validation\Rule;
 
 class StudentProfileController extends Controller
 {
@@ -39,7 +41,7 @@ class StudentProfileController extends Controller
             $studentId = $user->student_id;
         }
         if ($studentId == 0) {
-            return view('student_management.student_profile');
+            return view('student_management.student_profile', $this->qualificationViewData());
         }
         $student = Student::with(['parentGuardian', 'exams', 'otherInformation'])->find($studentId);
         if (!$student) {
@@ -47,7 +49,16 @@ class StudentProfileController extends Controller
         }
         
         Log::info('Student profile parent (Blade):', ['parent' => $student->parent]);
-        return view('student_management.student_profile', compact('student'));
+        return view('student_management.student_profile', $this->qualificationViewData($student));
+    }
+
+    private function qualificationViewData(?Student $student = null): array
+    {
+        return [
+            'student' => $student,
+            'campuses' => StudentQualificationOptions::campuses(),
+            'btecCourses' => StudentQualificationOptions::btecCourses(),
+        ];
     }
 
     // Get student details (AJAX)
@@ -76,6 +87,7 @@ class StudentProfileController extends Controller
             'address',
             'foundation_program',
             'btec_completed',
+            'btec_course',
             'special_needs',
             'extracurricular_activities',
             'future_potentials',
@@ -174,6 +186,11 @@ class StudentProfileController extends Controller
             'name_with_initials' => 'nullable|string|max:255',
             'foundation_program' => 'nullable|boolean',
             'btec_completed' => 'nullable|boolean',
+            'btec_course' => [
+                'required_if:btec_completed,1',
+                'nullable',
+                Rule::in(StudentQualificationOptions::btecCourseValues()),
+            ],
             'special_needs' => 'nullable|string',
             'extracurricular_activities' => 'nullable|string',
             'future_potentials' => 'nullable|string',
@@ -203,6 +220,9 @@ class StudentProfileController extends Controller
         }
         if (array_key_exists('btec_completed', $validatedData)) {
             $student->btec_completed = $request->boolean('btec_completed');
+            $student->btec_course = $student->btec_completed
+                ? StudentQualificationOptions::btecCourseName($request->input('btec_course'))
+                : null;
         }
         if (isset($validatedData['special_needs'])) {
             $student->special_needs = $validatedData['special_needs'];

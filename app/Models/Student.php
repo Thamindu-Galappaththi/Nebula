@@ -60,6 +60,7 @@ class Student extends Model
         'status',
 
         'btec_completed',
+        'btec_course',
         'marketing_survey',
         'blacklisted',
         'user_photo',
