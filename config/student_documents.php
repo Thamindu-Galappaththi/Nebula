@@ -1,6 +1,8 @@
 <?php
 
 return [
+    // Hide the sidebar tab and header bell until the supervisor review is done.
+    'menu_visible' => env('STUDENT_DOCUMENTS_MENU', false),
     'link_ttl_days' => 14,
     'retention_days' => 7,
     'max_file_kb' => 5120,

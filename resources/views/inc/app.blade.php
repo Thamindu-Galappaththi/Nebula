@@ -345,7 +345,7 @@
                             <div class="user-name">
                                 <li class="nav-item mr-10" id="greeting"></li>
                             </div>
-                            @if(auth()->check() && \App\Helpers\RoleHelper::hasPermission(auth()->user()->getRoleList(), 'student.document.collection') && Route::has('student.documents.notifications'))
+                            @if(config('student_documents.menu_visible') && auth()->check() && \App\Helpers\RoleHelper::hasPermission(auth()->user()->getRoleList(), 'student.document.collection') && Route::has('student.documents.notifications'))
                             <li class="nav-item dropdown">
                                 <a class="nav-link nav-icon-hover doc-notify-toggle" href="#" role="button" id="docNotifyToggle" data-bs-toggle="dropdown" aria-expanded="false" title="Document notifications">
                                     <span class="doc-notify-icon">
@@ -481,7 +481,7 @@
         });
     </script>
     <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
-    @if(auth()->check() && \App\Helpers\RoleHelper::hasPermission(auth()->user()->getRoleList(), 'student.document.collection') && Route::has('student.documents.notifications'))
+    @if(config('student_documents.menu_visible') && auth()->check() && \App\Helpers\RoleHelper::hasPermission(auth()->user()->getRoleList(), 'student.document.collection') && Route::has('student.documents.notifications'))
     <script nonce="{{ $cspNonce }}">
         document.addEventListener('DOMContentLoaded', function () {
             const badge = document.getElementById('docNotifyBadge');
