@@ -51,7 +51,7 @@
             {{-- STUDENT MANAGEMENT --}}
             @if(
                 RoleHelper::hasPermission($role, 'student.registration') ||
-                RoleHelper::hasPermission($role, 'missing.data.restore') ||
+                (config('missing_data.menu_visible') && RoleHelper::hasPermission($role, 'missing.data.restore')) ||
                 RoleHelper::hasPermission($role, 'student.other.information') ||
                 RoleHelper::hasPermission($role, 'student.list') ||
                 RoleHelper::hasPermission($role, 'student.view') ||
@@ -72,7 +72,7 @@
                     </a>
                 </li>
             @endif
-            @if(RoleHelper::hasPermission($role, 'missing.data.restore'))
+            @if(config('missing_data.menu_visible') && RoleHelper::hasPermission($role, 'missing.data.restore'))
                 <li class="sidebar-item">
                     <a class="sidebar-link {{ request()->routeIs('missing.data.restore*') ? 'active' : '' }}" href="{{ route('missing.data.restore') }}">
                         <span><i class="ti ti-file-upload"></i></span>

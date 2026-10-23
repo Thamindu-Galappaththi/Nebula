@@ -9,6 +9,9 @@
     @php
         // Determine if any items in this section are visible to this user
         $visible = collect($section['items'])->contains(function($item) use ($roles) {
+            if(isset($item['config']) && !config($item['config'])) {
+                return false;
+            }
             if(isset($item['roles'])) {
                 return RoleHelper::hasAnyRole($roles, $item['roles']);
             }
@@ -31,7 +34,9 @@
         @foreach($section['items'] as $item)
             @php
                 $hasAccess = true;
-                if(isset($item['roles'])) {
+                if(isset($item['config']) && !config($item['config'])) {
+                    $hasAccess = false;
+                } elseif(isset($item['roles'])) {
                     $hasAccess = RoleHelper::hasAnyRole($roles, $item['roles']);
                 } elseif(isset($item['permission'])) {
                     $hasAccess = RoleHelper::hasPermission($roles, $item['permission']);

@@ -13,6 +13,11 @@ class MissingDataRestoreController extends Controller
 {
     public function __construct(private MissingDataRestoreService $restore)
     {
+        $this->middleware(function ($request, $next) {
+            abort_unless(config('missing_data.menu_visible'), 404);
+
+            return $next($request);
+        });
     }
 
     public function index()
