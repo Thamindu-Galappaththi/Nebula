@@ -393,11 +393,55 @@
                         <label for="institute_location" class="col-sm-2 col-form-label">Institute<span class="text-danger">*</span></label>
                         <div class="col-sm-10">
                             <select class="form-select" id="institute_location" name="institute_location" required>
-                                <option selected disabled>Select an Institute Location</option>
+                                <option selected disabled value="">Select an Institute Location</option>
                                 @foreach($campuses as $campus)
                                 <option value="{{ $campus['id'] }}">{{ $campus['name'] }}</option>
                                 @endforeach
                             </select>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label">Foundation program (CAIT)<span class="text-danger">*</span></label>
+                        <div class="col-sm-10">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="foundationComplete" id="foundationYes" value="1" required>
+                                <label class="form-check-label" for="foundationYes">Completed</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="foundationComplete" id="foundationNo" value="0" required>
+                                <label class="form-check-label" for="foundationNo">Not Completed</label>
+                            </div>
+                            <div id="foundationCompleteError" class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <label class="col-sm-2 col-form-label">BTEC Level 3<span class="text-danger">*</span></label>
+                        <div class="col-sm-10">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="btecCompleted" id="btecCompleted" value="1" required>
+                                <label class="form-check-label" for="btecCompleted">Completed</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="btecCompleted" id="btecNotCompleted" value="0" required>
+                                <label class="form-check-label" for="btecNotCompleted">Not Completed</label>
+                            </div>
+                            <div id="btecCompletedError" class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                    </div>
+
+                    <div id="courseSelectionSection" style="display: none;" class="row mb-3">
+                        <label for="btec_course" class="col-sm-2 col-form-label">BTEC Course<span class="text-danger">*</span></label>
+                        <div class="col-sm-10">
+                            <select class="form-select" id="btec_course" name="btec_course">
+                                <option selected disabled value="">Select the BTEC Course</option>
+                                @foreach($btecCourses as $course)
+                                <option value="{{ $course['id'] }}">{{ $course['course_name'] }}</option>
+                                @endforeach
+                            </select>
+                            <div class="invalid-feedback">Please fill out this field.</div>
                         </div>
                     </div>
 
@@ -568,6 +612,29 @@ function showToast(message, type) {
 
 document.addEventListener('DOMContentLoaded', function() {
     // BTEC Course Selection Toggle
+    const btecCompletedRadio = document.getElementById('btecCompleted');
+    const btecNotCompletedRadio = document.getElementById('btecNotCompleted');
+    const courseSelectionSection = document.getElementById('courseSelectionSection');
+
+    function toggleBtecCourse() {
+        if (btecCompletedRadio && btecCompletedRadio.checked) {
+            courseSelectionSection.style.display = 'flex';
+            document.getElementById('btec_course').required = true;
+        } else {
+            courseSelectionSection.style.display = 'none';
+            const btecCourse = document.getElementById('btec_course');
+            btecCourse.required = false;
+            btecCourse.value = '';
+            btecCourse.classList.remove('is-invalid');
+        }
+    }
+    if (btecCompletedRadio) {
+        btecCompletedRadio.addEventListener('change', toggleBtecCourse);
+    }
+    if (btecNotCompletedRadio) {
+        btecNotCompletedRadio.addEventListener('change', toggleBtecCourse);
+    }
+
     // Marketing Survey - Handle "Other" option visibility
     const marketingSurveySelect = document.getElementById('marketing_survey');
     const marketingSurveyOther = document.getElementById('marketing_survey_other');
@@ -1052,6 +1119,10 @@ setupPhoneValidator('emergencyContactNo', 'emergencyContactNoError');
         // clear old states
         form.querySelectorAll('.is-invalid').forEach(el=>el.classList.remove('is-invalid'));
         form.querySelectorAll('.invalid-feedback.dynamic').forEach(el=>el.remove());
+        ['foundationCompleteError','btecCompletedError'].forEach(function(id){
+            const el = document.getElementById(id);
+            if (el) el.style.display = '';
+        });
         summary.classList.add('d-none');
         summary.innerHTML = '';
 
@@ -1059,7 +1130,7 @@ setupPhoneValidator('emergencyContactNo', 'emergencyContactNoError');
         const requiredIds = [
             'title','nameWithInitials','fullName','birthday','gender',
             'identificationType','idValue','address','district','email','mobilePhone',
-            'pending_result','institute_location','parentName','parentContactNo','parentAddress','emergencyContactNo'
+            'pending_result','institute_location','foundationComplete','btecCompleted','parentName','parentContactNo','parentAddress','emergencyContactNo'
         ];
         const requiredErrors = [];
         requiredIds.forEach(function(id){
@@ -1084,9 +1155,17 @@ setupPhoneValidator('emergencyContactNo', 'emergencyContactNoError');
                 if (!val || val === '#' || val.toLowerCase().includes('select')) val = '';
             } else if (field.type === 'radio' || field.type === 'checkbox') {
                 const name = field.name;
+                const group = form.querySelectorAll(`[name="${name}"]`);
                 const checked = form.querySelectorAll(`[name="${name}"]:checked`).length > 0;
                 if (!checked) {
-                    requiredErrors.push(`${(document.querySelector(`label[for="${field.id}"]`) && document.querySelector(`label[for="${field.id}"]`).textContent.trim()) || name}: Please make a selection.`);
+                    const groupLabel = field.closest('.row') ? field.closest('.row').querySelector('label') : null;
+                    const labelText = groupLabel ? groupLabel.textContent.replace('*','').trim() : name;
+                    requiredErrors.push(`${labelText}: Please fill out this field.`);
+                    group.forEach(function(radio){ radio.classList.add('is-invalid'); });
+                    const groupError = document.getElementById(name + 'Error');
+                    if (groupError) {
+                        groupError.style.display = 'block';
+                    }
                 }
                 return;
             } else {
@@ -1096,9 +1175,9 @@ setupPhoneValidator('emergencyContactNo', 'emergencyContactNoError');
             if (!val) {
                 const labelEl = document.querySelector(`label[for="${field.id}"]`);
                 const labelText = labelEl ? labelEl.textContent.replace('*','').trim() : id;
-                requiredErrors.push(`${labelText}: This field is required.`);
+                requiredErrors.push(`${labelText}: Please fill out this field.`);
                 field.classList.add('is-invalid');
-                const fb = document.createElement('div'); fb.className = 'invalid-feedback dynamic'; fb.textContent = 'This field is required.'; if (field.parentNode) field.parentNode.appendChild(fb);
+                const fb = document.createElement('div'); fb.className = 'invalid-feedback dynamic'; fb.textContent = 'Please fill out this field.'; if (field.parentNode) field.parentNode.appendChild(fb);
             }
         });
         if (requiredErrors.length) {

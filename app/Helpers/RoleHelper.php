@@ -52,6 +52,7 @@ class RoleHelper
             'student.list',
             'student.profile',
             'student.view',
+            'student.document.collection',
             'termination.tracking',
 
             // FINANCIAL            
@@ -78,6 +79,7 @@ class RoleHelper
             'student.list',
             'student.profile',
             'student.view',
+            'student.document.collection',
             'termination.tracking',
 
             // REGISTRATIONS
@@ -127,6 +129,7 @@ class RoleHelper
             'student.other.information',
             'student.profile',
             'student.list',
+            'student.document.collection',
             'termination.tracking',
             
             // REGISTRATIONS
@@ -184,6 +187,7 @@ class RoleHelper
             'student.other.information',
             'student.list',
             'student.profile',
+            'student.document.collection',
 
             // REGISTRATIONS
             'semester.registration',
@@ -221,6 +225,7 @@ class RoleHelper
             'student.list',
             'student.view',
             'student.profile',
+            'student.document.collection',
 
             // REGISTRATIONS
             'course.registration',
@@ -254,6 +259,7 @@ class RoleHelper
             'student.registration',
             'student.list',
             'student.view',
+            'student.document.collection',
 
             // REGISTRATIONS
             'course.registration',
@@ -391,7 +397,8 @@ class RoleHelper
             'student.other.information',
             'student.list',
             'student.view',
-            'student.profile',         
+            'student.profile',
+            'student.document.collection',
             'termination.tracking',
             'course.change',
             'missing.data.restore',
@@ -581,6 +588,7 @@ class RoleHelper
             'student.exam.result.management',
             'student.list',
             'missing.data.restore',
+            'student.document.collection',
         ];
 
         foreach ($studentManagementRoutes as $route) {

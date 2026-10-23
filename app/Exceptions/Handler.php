@@ -125,6 +125,8 @@ class Handler extends ExceptionHandler
                     'message' => 'The requested resource was not found.'
                 ], 404);
             }
+
+            return response()->view('errors.404', ['exception' => $e], 404);
         });
 
         $this->renderable(function (NotFoundHttpException $e, $request) {
@@ -134,6 +136,8 @@ class Handler extends ExceptionHandler
                     'message' => 'The requested page was not found.'
                 ], 404);
             }
+
+            return response()->view('errors.404', ['exception' => $e], 404);
         });
 
         $this->renderable(function (MethodNotAllowedHttpException $e, $request) {

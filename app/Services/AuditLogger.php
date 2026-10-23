@@ -37,6 +37,8 @@ class AuditLogger
         'password_resets',
         'personal_access_tokens',
         'migrations',
+        'notifications',
+        'student_document_files',
         'telescope_entries',
         'telescope_entries_tags',
         'telescope_monitoring',
@@ -48,6 +50,14 @@ class AuditLogger
         'remember_token',
         'api_token',
         'token',
+        'token_hash',
+        'stored_path',
+        'checksum',
+        'original_filename',
+        'submitted_id_value',
+        'submitted_email',
+        'submitted_phone',
+        'submitted_notes',
         'secret',
         'otp',
         'pin',
@@ -342,12 +352,13 @@ class AuditLogger
         }
 
         $path = $context['path'] ?? ($request ? '/' . ltrim($request->path(), '/') : null);
+        $url = $context['url'] ?? ($request ? $request->fullUrl() : null);
 
         return [
             'method' => $context['method'] ?? ($request ? $request->method() : null),
             'route' => $context['route'] ?? optional($request?->route())->getName(),
-            'url' => $context['url'] ?? ($request ? $request->fullUrl() : null),
-            'path' => $path === '//' ? '/' : $path,
+            'url' => $this->redactSensitiveUrl($url),
+            'path' => $this->redactSensitiveUrl($path === '//' ? '/' : $path),
             'ip_address' => $ip,
             'location' => implode(' / ', array_unique(array_filter($locationParts))) ?: null,
             'user_agent' => $context['user_agent'] ?? ($request ? substr((string) $request->userAgent(), 0, 500) : null),
@@ -456,5 +467,14 @@ class AuditLogger
         }
 
         return Str::limit((string) $value, $max, '');
+    }
+
+    private function redactSensitiveUrl(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        return preg_replace('#(/document-submit/)[A-Za-z0-9]+#', '$1***', $value);
     }
 }

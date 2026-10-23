@@ -93,7 +93,7 @@ class ContentSecurityPolicy
             . "img-src $imgList; "
             . "connect-src $connectList; "
             . "font-src $fontList; "
-            . "frame-src 'self' https://nebulastudentportal.slt.lk; "
+            . "frame-src 'self' blob: https://nebulastudentportal.slt.lk; "
             . "media-src 'self'; "
             . "manifest-src 'self'; "
             . "worker-src 'self' blob:; "

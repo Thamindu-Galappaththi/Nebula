@@ -124,6 +124,38 @@ class StudentProfileTest extends TestCase
             ->assertJsonPath('student.birthday', '2000-01-15');
     }
 
+    public function test_profile_shows_cait_and_btec_qualification_values(): void
+    {
+        $student = $this->makeStudent('199011122V', [
+            'foundation_program' => true,
+            'btec_completed'     => true,
+            'btec_course'        => 'BTEC Level 3 Extended Diploma in Computing',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->get('/student/profile/' . $student->student_id)
+            ->assertOk()
+            ->assertSee('Foundation Program (CAIT)')
+            ->assertSee('BTEC Level 3')
+            ->assertSee('BTEC Course')
+            ->assertSee('Nebula Institute of Technology - Welisara')
+            ->assertSee('BTEC Level 3 Extended Diploma in Computing')
+            ->assertSee('id="studentInstitute"', false)
+            ->assertSee('id="studentFoundation"', false)
+            ->assertSee('id="studentBtec"', false)
+            ->assertSee('id="studentBtecCourse"', false)
+            ->assertDontSee('id="studentFoundation" disabled', false)
+            ->assertDontSee('id="studentBtec" disabled', false)
+            ->assertDontSee('data-nebula-select="off"', false);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student-details-by-nic?nic=199011122V')
+            ->assertOk()
+            ->assertJsonPath('student.foundation_program', true)
+            ->assertJsonPath('student.btec_completed', true)
+            ->assertJsonPath('student.btec_course', 'BTEC Level 3 Extended Diploma in Computing');
+    }
+
     public function test_unknown_nic_returns_not_found_message(): void
     {
         $this->actingAs($this->actor)
