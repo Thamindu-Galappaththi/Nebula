@@ -444,6 +444,24 @@
                 </div>
               </div>
               <div class="mb-3 row align-items-center mx-3">
+                <label for="studentFoundation" class="col-sm-3 col-form-label fw-bold">Foundation Program (CAIT)</label>
+                <div class="col-sm-9">
+                  <select class="form-select" id="studentFoundation" disabled>
+                    <option value="0" @selected(!($student?->foundation_program))>Not Completed</option>
+                    <option value="1" @selected((bool) $student?->foundation_program)>Completed</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mb-3 row align-items-center mx-3">
+                <label for="studentBtec" class="col-sm-3 col-form-label fw-bold">BTEC Level 3</label>
+                <div class="col-sm-9">
+                  <select class="form-select" id="studentBtec" disabled>
+                    <option value="0" @selected(!($student?->btec_completed))>Not Completed</option>
+                    <option value="1" @selected((bool) $student?->btec_completed)>Completed</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mb-3 row align-items-center mx-3">
                 <label for="studentSpecialNeeds" class="col-sm-3 col-form-label fw-bold">Special Needs</label>
                 <div class="col-sm-9">
                   <textarea class="form-control" id="studentSpecialNeeds" rows="2" readonly>{{ $student?->special_needs ?? '' }}</textarea>
@@ -1743,6 +1761,8 @@ $(function(){
     $('#studentHomePhone').val(student.home_phone || '');
     $('#studentEmergencyContact').val(student.emergency_contact_number || '');
     $('#studentAddress').val(student.address || '');
+    $('#studentFoundation').val(student.foundation_program ? '1' : '0');
+    $('#studentBtec').val(student.btec_completed ? '1' : '0');
     $('#studentSpecialNeeds').val(student.special_needs || '');
     $('#studentExtraCurricular').val(student.extracurricular_activities || '');
     $('#studentFuturePotentials').val(student.future_potentials || '');
@@ -2011,11 +2031,13 @@ $(function(){
 
   // ----- Personal edit buttons -----
   $('#showEditPersonalInfoBtn').on('click', function(){
-    $('#studentTitle,#studentName,#studentNIC,#studentIndexNo,#studentInstitute,#studentDOB,#studentGender,#studentEmail,#studentMobile,#studentHomePhone,#studentEmergencyContact,#studentAddress,#studentFoundation,#studentSpecialNeeds,#studentExtraCurricular,#studentFuturePotentials').prop('readonly',false);
+    $('#studentTitle,#studentName,#studentNIC,#studentIndexNo,#studentInstitute,#studentDOB,#studentGender,#studentEmail,#studentMobile,#studentHomePhone,#studentEmergencyContact,#studentAddress,#studentSpecialNeeds,#studentExtraCurricular,#studentFuturePotentials').prop('readonly',false);
+    $('#studentFoundation,#studentBtec').prop('disabled', false);
     $('#showEditPersonalInfoBtn').hide(); $('#updatePersonalInfoBtn,#cancelEditBtn').show();
   });
   $('#cancelEditBtn').on('click', function(){
-    $('#studentTitle,#studentName,#studentNIC,#studentIndexNo,#studentInstitute,#studentDOB,#studentGender,#studentEmail,#studentMobile,#studentHomePhone,#studentEmergencyContact,#studentAddress,#studentFoundation,#studentSpecialNeeds,#studentExtraCurricular,#studentFuturePotentials').prop('readonly',true);
+    $('#studentTitle,#studentName,#studentNIC,#studentIndexNo,#studentInstitute,#studentDOB,#studentGender,#studentEmail,#studentMobile,#studentHomePhone,#studentEmergencyContact,#studentAddress,#studentSpecialNeeds,#studentExtraCurricular,#studentFuturePotentials').prop('readonly',true);
+    $('#studentFoundation,#studentBtec').prop('disabled', true);
     // Clear validation error classes
     $('.is-invalid').removeClass('is-invalid');
     $('#showEditPersonalInfoBtn').show(); $('#updatePersonalInfoBtn,#cancelEditBtn').hide();
@@ -2077,6 +2099,8 @@ $(function(){
       home_phone:$('#studentHomePhone').val(),
       emergency_contact_number:$('#studentEmergencyContact').val(),
       address:$('#studentAddress').val(),
+      foundation_program:$('#studentFoundation').val(),
+      btec_completed:$('#studentBtec').val(),
       special_needs:$('#studentSpecialNeeds').val(),
       extracurricular_activities:$('#studentExtraCurricular').val(),
       future_potentials:$('#studentFuturePotentials').val(),

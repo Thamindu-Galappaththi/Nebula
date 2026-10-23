@@ -94,6 +94,11 @@ class StudentRegistrationRequest extends FormRequest
                 'after:1900-01-01'
             ],
             'institute_location' => 'required|in:Welisara,Moratuwa,Peradeniya',
+
+            // CAIT / BTEC qualification
+            'foundationComplete' => 'required|boolean',
+            'btecCompleted' => 'required|boolean',
+            'btec_course' => 'required_if:btecCompleted,1|nullable',
             
             'specialNeeds' => 'nullable|string|max:500',
             'extraCurricular' => 'nullable|string|max:500',
@@ -235,6 +240,9 @@ class StudentRegistrationRequest extends FormRequest
             'birthday.before' => 'Date of birth cannot be in the future.',
             'birthday.after' => 'Date of birth must be after 1900.',
             'institute_location.required' => 'Please select an institute location.',
+            'foundationComplete.required' => 'Please fill out this field.',
+            'btecCompleted.required' => 'Please fill out this field.',
+            'btec_course.required_if' => 'Please fill out this field.',
             'parentName.required' => 'Parent/Guardian name is required.',
             'parentName.regex' => 'Parent/Guardian name can only contain letters and spaces.',
             'parentContactNo.required' => 'Parent/Guardian contact number is required.',
@@ -284,6 +292,9 @@ class StudentRegistrationRequest extends FormRequest
             'whatsappPhone' => 'WhatsApp phone',
             'birthday' => 'date of birth',
             'institute_location' => 'institute location',
+            'foundationComplete' => 'foundation program completion',
+            'btecCompleted' => 'BTEC completion',
+            'btec_course' => 'BTEC course',
             'specialNeeds' => 'special needs',
             'extraCurricular' => 'extracurricular activities',
             'futurePotential' => 'future potential',

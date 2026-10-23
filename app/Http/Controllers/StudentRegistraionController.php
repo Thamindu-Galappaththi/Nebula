@@ -58,6 +58,14 @@ class StudentRegistraionController extends Controller
                 ['id' => 'Peradeniya', 'name' => 'Nebula Institute of Technology - Peradeniya']
             ];
 
+            $btecCourses = [
+                ['id' => 1, 'course_name' => 'BTEC Level 3 Extended Diploma in Business'],
+                ['id' => 2, 'course_name' => 'BTEC Level 3 Extended Diploma in Computing'],
+                ['id' => 3, 'course_name' => 'BTEC Level 3 Extended Diploma in Engineering'],
+                ['id' => 4, 'course_name' => 'BTEC Level 3 Extended Diploma in Health and Social Care'],
+                ['id' => 5, 'course_name' => 'BTEC Level 3 Extended Diploma in Travel and Tourism']
+            ];
+
             $districts = [
                 'Ampara',
                 'Anuradhapura',
@@ -90,7 +98,7 @@ class StudentRegistraionController extends Controller
             // Get exam types from StudentExam model
             $examTypes = StudentExam::getExamTypes();
 
-            return view('student_management..student_registration', compact('titles', 'genders', 'idTypes', 'campuses', 'districts', 'examTypes'));
+            return view('student_management..student_registration', compact('titles', 'genders', 'idTypes', 'campuses', 'districts', 'btecCourses', 'examTypes'));
         } else {
             return redirect()->route('login')->with('error', 'You are not authorized to access this page.');
         }
@@ -186,6 +194,8 @@ class StudentRegistraionController extends Controller
             $student->whatsapp_phone = $request->whatsappPhone;
             $student->birthday = $request->birthday;
             $student->institute_location = $request->institute_location;
+            $student->foundation_program = $request->boolean('foundationComplete');
+            $student->btec_completed = $request->boolean('btecCompleted');
             $student->special_needs = $request->specialNeeds ?? null;
             $student->extracurricular_activities = $request->extraCurricular ?? null;
             $student->future_potentials = $request->futurePotential ?? null;
