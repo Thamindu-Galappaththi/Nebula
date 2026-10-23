@@ -12,38 +12,43 @@
         $idTypeLabel = str_ireplace(' id', ' ID', isset($student) ? ($student->id_type ?? 'National ID') : 'National ID');
     @endphp
     <style nonce="{{ $cspNonce }}">
+        html {
+            height: 100%;
+        }
         html, body {
             min-height: 100%;
+            min-height: 100dvh;
         }
         body {
             margin: 0;
             background: #eef3fb;
+            overflow-x: hidden;
         }
         .portal-shell {
+            min-height: 100%;
             min-height: 100vh;
-            max-width: 760px;
+            min-height: 100dvh;
+            max-width: 880px;
             width: 100%;
             margin: 0 auto;
-            padding: 1rem 0.9rem 1.25rem;
+            padding: clamp(1rem, 3vh, 1.75rem) 1.15rem 1.5rem;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            box-sizing: border-box;
-        }
-        body.is-form .portal-shell {
             justify-content: flex-start;
+            box-sizing: border-box;
         }
         body.is-status .portal-shell {
             max-width: 640px;
             padding: 1.5rem 1.25rem;
+            justify-content: center;
         }
         .portal-logo {
-            max-width: 120px;
-            margin: 0 auto 0.7rem;
+            max-width: 176px;
+            margin: 0 auto 0.85rem;
             display: block;
         }
         body.is-status .portal-logo {
-            max-width: 168px;
+            max-width: 188px;
             margin-bottom: 1.15rem;
         }
         .portal-card {
@@ -53,7 +58,7 @@
             box-shadow: 0 10px 30px rgba(35, 64, 142, 0.08);
         }
         .portal-card .card-body {
-            padding: 1.15rem 1.2rem;
+            padding: 1.5rem 1.75rem;
         }
         body.is-status .portal-card .card-body {
             padding: 2.4rem 2.2rem 2.25rem;
@@ -161,12 +166,41 @@
             border-radius: 50%;
             background: #23408e;
         }
-        @media (max-width: 767.98px) {
-            .portal-shell { padding: 0.75rem 0.7rem 1rem; }
+        @media (max-width: 991.98px) {
+            .portal-logo {
+                max-width: 176px;
+                margin-bottom: 0.85rem;
+            }
+            body.is-form .portal-shell {
+                min-height: 100vh;
+                min-height: 100dvh;
+                justify-content: flex-start;
+                padding: 0.85rem 0.7rem max(0.9rem, env(safe-area-inset-bottom));
+            }
+            body.is-form .portal-card .card-body {
+                padding: 1.15rem 1.2rem;
+            }
+            body.is-form .portal-card,
+            body.is-form .portal-card .card-body,
+            body.is-form #documentSubmitForm,
+            body.is-form .step-panel.is-active {
+                flex: none;
+                min-height: 0;
+                height: auto;
+            }
+            body.is-form .step-panel.is-active {
+                display: block;
+            }
+            body.is-form .portal-actions {
+                margin-top: 0.85rem;
+                padding-top: 0.15rem;
+            }
             body.is-status .portal-shell { padding: 1.1rem 0.85rem; }
             body.is-status .portal-card .card-body { padding: 1.7rem 1.25rem 1.6rem; }
             .portal-status-title { font-size: 1.3rem; }
             .details-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 767.98px) {
             .portal-actions .btn { width: 100%; }
         }
         .swal2-container { z-index: 20000; }
