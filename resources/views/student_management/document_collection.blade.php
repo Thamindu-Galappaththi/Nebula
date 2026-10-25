@@ -424,8 +424,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function loadTab(status) {
-        const url = indexUrl + '?status=' + encodeURIComponent(status);
+    function statusFromUrl(url) {
+        try {
+            return new URL(url, window.location.origin).searchParams.get('status') || 'submitted';
+        } catch (error) {
+            return 'submitted';
+        }
+    }
+
+    function loadList(url, push) {
         listWrap.style.opacity = '0.55';
 
         fetch(url, {
@@ -438,9 +445,9 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (html) {
                 applyListHtml(html);
                 listWrap.style.opacity = '1';
-                setActiveTab(status);
-                if (window.history && window.history.pushState) {
-                    window.history.pushState({ status: status }, '', url);
+                setActiveTab(statusFromUrl(url));
+                if (push && window.history && window.history.pushState) {
+                    window.history.pushState({ url: url }, '', url);
                 }
             })
             .catch(function () {
@@ -449,11 +456,40 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    function loadTab(status) {
+        loadList(indexUrl + '?status=' + encodeURIComponent(status), true);
+    }
+
     document.querySelectorAll('.doc-tab').forEach(function (tab) {
         tab.addEventListener('click', function (event) {
             event.preventDefault();
             loadTab(tab.dataset.status);
         });
+    });
+
+    listWrap.addEventListener('click', function (event) {
+        const link = event.target.closest('.doc-pagination a');
+        if (!link || !listWrap.contains(link)) {
+            return;
+        }
+
+        const href = link.getAttribute('href');
+        const item = link.closest('.page-item');
+        if (!href || href === '#' || (item && (item.classList.contains('disabled') || item.classList.contains('active')))) {
+            event.preventDefault();
+            return;
+        }
+
+        event.preventDefault();
+        loadList(link.href, true);
+    });
+
+    window.addEventListener('popstate', function () {
+        const indexPath = new URL(indexUrl, window.location.origin).pathname;
+        if (window.location.pathname !== indexPath) {
+            return;
+        }
+        loadList(window.location.href, false);
     });
 
     function statusLabel(status) {

@@ -66,9 +66,11 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertSee('doc-tabs', false)
             ->assertSee('data-status="pending"', false)
             ->assertSee('loadTab', false)
+            ->assertSee('loadList', false)
             ->assertSee('updateTabCounts', false)
             ->assertSee('applyListHtml', false)
             ->assertSee('doc-pagination', false)
+            ->assertSee("closest('.doc-pagination a')", false)
             ->assertSee('doc-search-row', false)
             ->assertSee('clearSearchResults', false)
             ->assertSee("addEventListener('search'", false)
@@ -154,7 +156,7 @@ class StudentDocumentCollectionTest extends TestCase
         return $counts;
     }
 
-    public function test_document_list_paginates_ten_per_page_with_refresh_links(): void
+    public function test_document_list_paginates_ten_per_page_without_full_page_refresh(): void
     {
         for ($i = 1; $i <= 11; $i++) {
             StudentDocumentRequest::forceCreate([
@@ -173,7 +175,18 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertOk()
             ->assertSee('page=2', false)
             ->assertSee('Showing 1–10 of 11')
-            ->assertSee('doc-pagination-nav', false);
+            ->assertSee('doc-pagination-nav', false)
+            ->assertSee('loadList', false)
+            ->assertSee("closest('.doc-pagination a')", false);
+
+        $this->actingAs($this->actor)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('student.documents.index', ['status' => 'pending', 'page' => 2]))
+            ->assertOk()
+            ->assertSee('Showing 11–11 of 11')
+            ->assertSee('doc-pagination', false)
+            ->assertDontSee('Find a student')
+            ->assertDontSee('Document Collection');
     }
 
     public function test_unauthorized_staff_cannot_open_document_collection_page(): void
@@ -522,7 +535,11 @@ class StudentDocumentCollectionTest extends TestCase
             ->get(route('student.documents.index'))
             ->assertOk()
             ->assertSee('id="docNotifyToggle"', false)
+            ->assertSee('id="docNotifyClear"', false)
+            ->assertSee('btn btn-primary btn-sm doc-notify-clear', false)
+            ->assertSee('Clear all')
             ->assertSee('loadNotifications', false)
+            ->assertSee('clearNotificationsUrl', false)
             ->assertSee('setInterval', false)
             ->assertSee('showInAppToast', false)
             ->assertSee('showBrowserNotification', false)
@@ -554,5 +571,51 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('unread', 1)
             ->assertJsonPath('notifications.0.message', 'Alpha Student submitted documents for review.');
+    }
+
+    public function test_staff_can_clear_only_their_own_document_notifications(): void
+    {
+        $url = $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
+            ->json('url');
+        $token = basename(parse_url($url, PHP_URL_PATH));
+
+        $this->post(route('student.documents.portal.submit', ['token' => $token]), [
+            'full_name' => 'Alpha Student',
+            'id_value' => '200012345678',
+            'email' => 'alpha.student@nebula.lk',
+            'phone' => '0712345678',
+            'nic_document' => UploadedFile::fake()->image('nic.jpg'),
+            'birth_certificate' => UploadedFile::fake()->image('birth.jpg'),
+        ])->assertRedirect();
+
+        $otherStaff = User::forceCreate([
+            'name'          => 'Other Admin',
+            'email'         => 'docs-other@nebula.lk',
+            'password'      => Hash::make('password'),
+            'user_role'     => 'Program Administrator (level 01)',
+            'status'        => '1',
+            'user_location' => 'Welisara',
+        ]);
+
+        $documentRequest = StudentDocumentRequest::query()->latest('id')->first();
+        $otherStaff->notify(new StudentDocumentsSubmittedNotification($documentRequest));
+
+        $this->assertSame(1, $this->actor->notifications()->count());
+        $this->assertSame(1, $otherStaff->notifications()->count());
+
+        $this->actingAs($this->actor)
+            ->postJson(route('student.documents.notifications.clear'))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertSame(0, $this->actor->fresh()->notifications()->count());
+        $this->assertSame(1, $otherStaff->fresh()->notifications()->count());
+
+        $this->actingAs($this->actor)
+            ->getJson(route('student.documents.notifications'))
+            ->assertOk()
+            ->assertJsonPath('unread', 0)
+            ->assertJsonCount(0, 'notifications');
     }
 }

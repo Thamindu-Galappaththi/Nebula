@@ -268,8 +268,25 @@
             padding: 0.35rem 0;
         }
         .doc-notify-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
             padding: 0.55rem 1rem 0.35rem;
             font-weight: 600;
+        }
+        .doc-notify-clear {
+            --bs-btn-padding-y: 0.18rem;
+            --bs-btn-padding-x: 0.65rem;
+            --bs-btn-font-size: 0.72rem;
+            --bs-btn-font-weight: 600;
+            --bs-btn-line-height: 1.2;
+            --bs-btn-border-radius: 0.35rem;
+            white-space: nowrap;
+        }
+        .doc-notify-clear:disabled {
+            opacity: 0.45;
+            cursor: default;
         }
         .doc-notify-enable {
             display: none;
@@ -400,7 +417,10 @@
                                     </span>
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-end dropdown-menu-animate-up outline-shadow doc-notify-menu" aria-labelledby="docNotifyToggle">
-                                    <div class="doc-notify-heading">Document submissions</div>
+                                    <div class="doc-notify-heading">
+                                        <span>Document submissions</span>
+                                        <button type="button" class="btn btn-primary btn-sm doc-notify-clear" id="docNotifyClear" hidden>Clear all</button>
+                                    </div>
                                     <button type="button" class="doc-notify-enable" id="docNotifyEnable">Enable desktop alerts</button>
                                     <div id="docNotifyList" class="doc-notify-list message-body">
                                         <div class="dropdown-item text-muted">Loading...</div>
@@ -540,9 +560,11 @@
 
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const notificationsUrl = @json(route('student.documents.notifications'));
+            const clearNotificationsUrl = @json(route('student.documents.notifications.clear'));
             const documentsIndexUrl = @json(route('student.documents.index'));
             const notificationIcon = @json(asset('images/logos/favicon.jpg'));
             const enableButton = document.getElementById('docNotifyEnable');
+            const clearButton = document.getElementById('docNotifyClear');
             let knownUnread = null;
             let knownLatestId = null;
             let lastNotifiedId = null;
@@ -559,8 +581,13 @@
             function renderNotifications(payload) {
                 badge.textContent = payload.unread > 9 ? '9+' : String(payload.unread);
                 badge.style.display = payload.unread > 0 ? 'inline-block' : 'none';
+                const hasItems = Array.isArray(payload.notifications) && payload.notifications.length > 0;
+                if (clearButton) {
+                    clearButton.hidden = !hasItems;
+                    clearButton.disabled = !hasItems;
+                }
 
-                if (!payload.notifications.length) {
+                if (!hasItems) {
                     list.innerHTML = '<div class="dropdown-item text-muted">No document notifications yet.</div>';
                     return;
                 }
@@ -813,6 +840,34 @@
                                 url: documentsIndexUrl
                             });
                         }
+                    });
+                });
+            }
+            if (clearButton) {
+                clearButton.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (clearButton.disabled) {
+                        return;
+                    }
+                    clearButton.disabled = true;
+                    fetch(clearNotificationsUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }).then(function (response) {
+                        if (!response.ok) {
+                            throw new Error('Unable to clear notifications.');
+                        }
+                        knownUnread = 0;
+                        knownLatestId = null;
+                        lastNotifiedId = null;
+                        return loadNotifications();
+                    }).catch(function () {
+                        clearButton.disabled = false;
                     });
                 });
             }

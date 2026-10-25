@@ -209,6 +209,15 @@ class StudentDocumentCollectionController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function clearNotifications()
+    {
+        Auth::user()->notifications()
+            ->where('type', StudentDocumentsSubmittedNotification::class)
+            ->delete();
+
+        return response()->json(['success' => true]);
+    }
+
     private function markRelatedNotificationsRead(StudentDocumentRequest $documentRequest): void
     {
         Auth::user()->unreadNotifications
