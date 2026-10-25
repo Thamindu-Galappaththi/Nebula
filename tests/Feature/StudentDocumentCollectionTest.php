@@ -525,8 +525,11 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertSee('loadNotifications', false)
             ->assertSee('setInterval', false)
             ->assertSee('showInAppToast', false)
-            ->assertDontSee('enableWebPush')
-            ->assertDontSee('sw-document-notifications.js');
+            ->assertSee('showBrowserNotification', false)
+            ->assertSee('notifyNewDocument', false)
+            ->assertSee('id="docNotifyToastHost"', false)
+            ->assertSee('Enable desktop alerts', false)
+            ->assertSee('new Notification', false);
     }
 
     public function test_notification_feed_includes_unread_count_without_refresh(): void

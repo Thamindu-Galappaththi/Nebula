@@ -271,6 +271,16 @@
             padding: 0.55rem 1rem 0.35rem;
             font-weight: 600;
         }
+        .doc-notify-enable {
+            display: none;
+            border: 0;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            color: #23408e;
+            font-size: 0.82rem;
+            padding: 0.35rem 1rem 0.55rem;
+        }
         .doc-notify-list {
             max-height: 16.5rem;
             overflow-x: hidden;
@@ -286,6 +296,42 @@
             white-space: normal;
             font-size: 0.86rem;
             line-height: 1.35;
+        }
+        .doc-live-toast {
+            position: fixed !important;
+            right: 16px !important;
+            bottom: 16px !important;
+            z-index: 2147483647 !important;
+            width: 360px;
+            max-width: calc(100vw - 24px);
+            background: #23408e !important;
+            color: #fff !important;
+            border: 0;
+            border-radius: 10px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+            padding: 14px 40px 14px 16px;
+            display: block !important;
+            cursor: pointer;
+        }
+        .doc-live-toast-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .doc-live-toast-body {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .doc-live-toast-close {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            border: 0;
+            background: transparent;
+            color: #fff;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
         }
     </style>
 
@@ -355,6 +401,7 @@
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-end dropdown-menu-animate-up outline-shadow doc-notify-menu" aria-labelledby="docNotifyToggle">
                                     <div class="doc-notify-heading">Document submissions</div>
+                                    <button type="button" class="doc-notify-enable" id="docNotifyEnable">Enable desktop alerts</button>
                                     <div id="docNotifyList" class="doc-notify-list message-body">
                                         <div class="dropdown-item text-muted">Loading...</div>
                                     </div>
@@ -481,6 +528,7 @@
         });
     </script>
     <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+    <div id="docNotifyToastHost" aria-live="assertive" aria-atomic="true"></div>
     @if(config('student_documents.menu_visible') && auth()->check() && \App\Helpers\RoleHelper::hasPermission(auth()->user()->getRoleList(), 'student.document.collection') && Route::has('student.documents.notifications'))
     <script nonce="{{ $cspNonce }}">
         document.addEventListener('DOMContentLoaded', function () {
@@ -492,8 +540,15 @@
 
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const notificationsUrl = @json(route('student.documents.notifications'));
+            const documentsIndexUrl = @json(route('student.documents.index'));
+            const notificationIcon = @json(asset('images/logos/favicon.jpg'));
+            const enableButton = document.getElementById('docNotifyEnable');
             let knownUnread = null;
             let knownLatestId = null;
+            let lastNotifiedId = null;
+            let notificationsPrimed = false;
+            let pendingVisibleToast = null;
+            let audioContext = null;
 
             function escapeHtml(value) {
                 return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
@@ -520,80 +575,246 @@
             }
 
             function showInAppToast(item) {
-                const container = document.querySelector('.toast-container');
-                if (!container || !item) {
+                if (!item) {
                     return;
                 }
-                const html = '<div class="toast align-items-center text-white bg-primary border-0" role="alert"><div class="d-flex"><div class="toast-body">' +
-                    escapeHtml(item.message || 'A student submitted documents.') +
-                    '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div></div>';
-                container.insertAdjacentHTML('beforeend', html);
-                const toastEl = container.querySelector('.toast:last-child');
-                if (window.bootstrap && bootstrap.Toast) {
-                    new bootstrap.Toast(toastEl, { delay: 6000 }).show();
-                }
+                document.querySelectorAll('.doc-live-toast').forEach(function (existing) {
+                    existing.remove();
+                });
+                const toastEl = document.createElement('div');
+                toastEl.className = 'doc-live-toast';
+                toastEl.setAttribute('role', 'alert');
+                const closeBtn = document.createElement('button');
+                closeBtn.type = 'button';
+                closeBtn.className = 'doc-live-toast-close';
+                closeBtn.setAttribute('aria-label', 'Close');
+                closeBtn.textContent = 'x';
+                const titleEl = document.createElement('div');
+                titleEl.className = 'doc-live-toast-title';
+                titleEl.textContent = 'Document submitted';
+                const bodyEl = document.createElement('div');
+                bodyEl.className = 'doc-live-toast-body';
+                bodyEl.textContent = item.message || 'A student submitted documents.';
+                toastEl.appendChild(closeBtn);
+                toastEl.appendChild(titleEl);
+                toastEl.appendChild(bodyEl);
+                closeBtn.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    toastEl.remove();
+                });
+                toastEl.addEventListener('click', function () {
+                    if (item.url) {
+                        window.location.href = item.url;
+                    }
+                });
+                document.body.appendChild(toastEl);
+                setTimeout(function () {
+                    if (toastEl.parentNode) {
+                        toastEl.remove();
+                    }
+                }, 15000);
             }
 
-            function showBrowserNotification(item) {
-                if (!item || typeof Notification === 'undefined' || Notification.permission !== 'granted' || !document.hidden) {
+            function notificationPermission() {
+                return (typeof Notification === 'undefined') ? 'unsupported' : Notification.permission;
+            }
+
+            function updateEnableButton() {
+                if (!enableButton) {
                     return;
                 }
+                const permission = notificationPermission();
+                enableButton.style.display = permission === 'granted' || permission === 'unsupported' ? 'none' : 'block';
+                enableButton.textContent = permission === 'denied'
+                    ? 'Desktop alerts are blocked in this browser'
+                    : 'Enable desktop alerts';
+            }
+
+            function playNotificationSound() {
                 try {
-                    new Notification('Document submitted', {
-                        body: item.message || 'A student submitted documents for review.',
-                        icon: @json(asset('images/logos/favicon.jpg'))
-                    });
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) {
+                        return;
+                    }
+                    audioContext = audioContext || new AudioCtx();
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume();
+                    }
+                    const now = audioContext.currentTime;
+                    const oscillator = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(880, now);
+                    oscillator.frequency.setValueAtTime(1174, now + 0.12);
+                    gain.gain.setValueAtTime(0.0001, now);
+                    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+                    oscillator.connect(gain);
+                    gain.connect(audioContext.destination);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.55);
                 } catch (error) {}
             }
 
-            function loadNotifications(options) {
-                options = options || {};
+            function showBrowserNotification(item, onResult) {
+                const done = typeof onResult === 'function' ? onResult : function () {};
+                if (!item || notificationPermission() !== 'granted') {
+                    done(false);
+                    return false;
+                }
+                try {
+                    let settled = false;
+                    const finish = function (shown) {
+                        if (settled) {
+                            return;
+                        }
+                        settled = true;
+                        done(shown);
+                    };
+                    const notification = new Notification('Document submitted', {
+                        body: item.message || 'A student submitted documents for review.',
+                        icon: notificationIcon,
+                        tag: 'nebula-document-' + Date.now(),
+                        silent: false
+                    });
+                    notification.onshow = function () {
+                        finish(true);
+                    };
+                    notification.onerror = function () {
+                        finish(false);
+                    };
+                    notification.onclick = function () {
+                        window.focus();
+                        if (item.url) {
+                            window.location.href = item.url;
+                        }
+                        notification.close();
+                    };
+                    setTimeout(function () {
+                        finish(false);
+                    }, 600);
+                    return true;
+                } catch (error) {
+                    done(false);
+                    return false;
+                }
+            }
+
+            function notifyNewDocument(item) {
+                if (!item || item.id === lastNotifiedId) {
+                    return;
+                }
+                lastNotifiedId = item.id;
+                if (document.hidden) {
+                    pendingVisibleToast = item;
+                    if (notificationPermission() === 'granted') {
+                        showBrowserNotification(item);
+                    }
+                    return;
+                }
+                playNotificationSound();
+                showInAppToast(item);
+            }
+
+            function loadNotifications() {
                 fetch(notificationsUrl, {
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    cache: 'no-store'
                 })
                     .then(function (response) { return response.json(); })
                     .then(function (payload) {
-                        const previousUnread = knownUnread;
-                        const previousLatest = knownLatestId;
                         const latest = payload.notifications && payload.notifications[0] ? payload.notifications[0] : null;
                         renderNotifications(payload);
-                        knownUnread = payload.unread;
+                        const unread = Number(payload.unread || 0);
+                        const shouldNotify = notificationsPrimed
+                            && latest
+                            && !latest.read
+                            && latest.id !== lastNotifiedId
+                            && (unread > (knownUnread || 0) || latest.id !== knownLatestId);
+                        knownUnread = unread;
                         knownLatestId = latest ? latest.id : null;
-                        if (options.silent || previousUnread === null) {
-                            return;
-                        }
-                        const isNew = latest && latest.id !== previousLatest && !latest.read;
-                        if (payload.unread > previousUnread || isNew) {
-                            showInAppToast(latest);
-                            showBrowserNotification(latest);
+                        notificationsPrimed = true;
+                        if (shouldNotify) {
+                            notifyNewDocument(latest);
                         }
                     })
                     .catch(function () {
-                        if (knownUnread === null) {
+                        if (!notificationsPrimed) {
                             list.innerHTML = '<div class="dropdown-item text-muted">Unable to load notifications.</div>';
                         }
                     });
             }
 
-            function requestBrowserNotifications() {
-                if (typeof Notification === 'undefined' || Notification.permission !== 'default') {
+            function unregisterDocumentServiceWorker() {
+                if (!('serviceWorker' in navigator)) {
                     return;
                 }
-                Notification.requestPermission().catch(function () {});
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                    registrations.forEach(function (registration) {
+                        const scriptUrl = (registration.active && registration.active.scriptURL)
+                            || (registration.installing && registration.installing.scriptURL)
+                            || (registration.waiting && registration.waiting.scriptURL)
+                            || '';
+                        if (scriptUrl.indexOf('sw-document-notifications.js') !== -1) {
+                            registration.unregister();
+                        }
+                    });
+                }).catch(function () {});
             }
 
-            loadNotifications({ silent: true });
-            setInterval(function () { loadNotifications(); }, 12000);
-            document.addEventListener('visibilitychange', function () {
-                if (!document.hidden) {
-                    loadNotifications({ silent: true });
+            function requestBrowserNotifications() {
+                if (typeof Notification === 'undefined' || Notification.permission !== 'default') {
+                    updateEnableButton();
+                    return Promise.resolve(notificationPermission());
                 }
+                return Notification.requestPermission().then(function (permission) {
+                    updateEnableButton();
+                    return permission;
+                }).catch(function () {
+                    updateEnableButton();
+                    return notificationPermission();
+                });
+            }
+
+            unregisterDocumentServiceWorker();
+            updateEnableButton();
+            loadNotifications();
+            setInterval(loadNotifications, 3000);
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden && pendingVisibleToast) {
+                    const pending = pendingVisibleToast;
+                    pendingVisibleToast = null;
+                    playNotificationSound();
+                    showInAppToast(pending);
+                }
+                loadNotifications();
             });
+            document.addEventListener('click', function () {
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+            }, { once: true, capture: true });
             const toggle = document.getElementById('docNotifyToggle');
             if (toggle) {
                 toggle.addEventListener('click', function () {
-                    requestBrowserNotifications();
-                }, { once: true });
+                    updateEnableButton();
+                });
+            }
+            if (enableButton) {
+                enableButton.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    requestBrowserNotifications().then(function (permission) {
+                        if (permission === 'granted') {
+                            notifyNewDocument({
+                                id: 'desktop-alerts-on',
+                                message: 'Desktop alerts are on. New document submissions will appear here.',
+                                url: documentsIndexUrl
+                            });
+                        }
+                    });
+                });
             }
 
             list.addEventListener('click', function (event) {
@@ -609,7 +830,7 @@
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 }).then(function () {
-                    loadNotifications({ silent: true });
+                    loadNotifications();
                 });
             });
         });
