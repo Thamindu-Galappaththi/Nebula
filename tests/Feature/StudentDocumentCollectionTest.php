@@ -66,7 +66,11 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertSee('doc-tabs', false)
             ->assertSee('data-status="pending"', false)
             ->assertSee('loadTab', false)
+            ->assertSee('loadList', false)
+            ->assertSee('updateTabCounts', false)
+            ->assertSee('applyListHtml', false)
             ->assertSee('doc-pagination', false)
+            ->assertSee("closest('.doc-pagination a')", false)
             ->assertSee('doc-search-row', false)
             ->assertSee('clearSearchResults', false)
             ->assertSee("addEventListener('search'", false)
@@ -88,7 +92,71 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertDontSee('Find a student');
     }
 
-    public function test_document_list_paginates_ten_per_page_with_refresh_links(): void
+    public function test_ajax_tab_payload_includes_updated_status_counts(): void
+    {
+        StudentDocumentRequest::forceCreate([
+            'student_id' => $this->student->student_id,
+            'created_by' => $this->actor->user_id,
+            'status' => StudentDocumentRequest::STATUS_PENDING,
+            'token_hash' => hash('sha256', 'pending-link-one'),
+            'link_expires_at' => now()->addDays(14),
+            'notification_status' => StudentDocumentRequest::NOTIFICATION_PENDING,
+            'document_deletion_status' => StudentDocumentRequest::DELETION_RETAINED,
+        ]);
+
+        $first = $this->actingAs($this->actor)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('student.documents.index', ['status' => 'pending']))
+            ->assertOk()
+            ->assertSee('data-counts', false);
+
+        $this->assertSame(1, $this->countsFromListHtml($first->getContent())['pending']);
+
+        $secondStudent = Student::forceCreate([
+            'title'              => 'Ms',
+            'name_with_initials' => 'B. Student',
+            'full_name'          => 'Beta Student',
+            'id_type'            => 'National id',
+            'id_value'           => '200098765432',
+            'gender'             => 'Female',
+            'email'              => 'beta.student@nebula.lk',
+            'mobile_phone'       => '0718765432',
+            'status'             => 'Unmarried',
+            'academic_status'    => Student::ACADEMIC_ACTIVE,
+            'institute_location' => 'Welisara',
+        ]);
+
+        StudentDocumentRequest::forceCreate([
+            'student_id' => $secondStudent->student_id,
+            'created_by' => $this->actor->user_id,
+            'status' => StudentDocumentRequest::STATUS_PENDING,
+            'token_hash' => hash('sha256', 'pending-link-two'),
+            'link_expires_at' => now()->addDays(14),
+            'notification_status' => StudentDocumentRequest::NOTIFICATION_PENDING,
+            'document_deletion_status' => StudentDocumentRequest::DELETION_RETAINED,
+        ]);
+
+        $second = $this->actingAs($this->actor)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('student.documents.index', ['status' => 'pending']))
+            ->assertOk();
+
+        $counts = $this->countsFromListHtml($second->getContent());
+        $this->assertSame(2, $counts['pending']);
+        $this->assertSame(2, $counts['all']);
+    }
+
+    private function countsFromListHtml(string $html): array
+    {
+        $this->assertMatchesRegularExpression("/data-counts='([^']*)'/", $html);
+        preg_match("/data-counts='([^']*)'/", $html, $matches);
+        $counts = json_decode(html_entity_decode($matches[1], ENT_QUOTES), true);
+        $this->assertIsArray($counts);
+
+        return $counts;
+    }
+
+    public function test_document_list_paginates_ten_per_page_without_full_page_refresh(): void
     {
         for ($i = 1; $i <= 11; $i++) {
             StudentDocumentRequest::forceCreate([
@@ -107,7 +175,18 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertOk()
             ->assertSee('page=2', false)
             ->assertSee('Showing 1–10 of 11')
-            ->assertSee('doc-pagination-nav', false);
+            ->assertSee('doc-pagination-nav', false)
+            ->assertSee('loadList', false)
+            ->assertSee("closest('.doc-pagination a')", false);
+
+        $this->actingAs($this->actor)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('student.documents.index', ['status' => 'pending', 'page' => 2]))
+            ->assertOk()
+            ->assertSee('Showing 11–11 of 11')
+            ->assertSee('doc-pagination', false)
+            ->assertDontSee('Find a student')
+            ->assertDontSee('Document Collection');
     }
 
     public function test_unauthorized_staff_cannot_open_document_collection_page(): void
@@ -162,6 +241,12 @@ class StudentDocumentCollectionTest extends TestCase
         $this->get(route('student.documents.portal', ['token' => $token]))
             ->assertOk()
             ->assertSee('Submit your documents')
+            ->assertSee('100dvh', false)
+            ->assertSee('justify-content: flex-start', false)
+            ->assertSee('max-width: 176px', false)
+            ->assertSee('max-width: 880px', false)
+            ->assertDontSee('margin-top: auto', false)
+            ->assertSee('flex: none', false)
             ->assertSee('National ID', false)
             ->assertSee('value="200012345678"', false)
             ->assertSee('National Identity Card')
@@ -440,5 +525,97 @@ class StudentDocumentCollectionTest extends TestCase
             ->assertJsonPath('success', false);
 
         Mail::assertNothingSent();
+    }
+
+    public function test_staff_layout_polls_notifications_without_refresh(): void
+    {
+        config(['student_documents.menu_visible' => true]);
+
+        $this->actingAs($this->actor)
+            ->get(route('student.documents.index'))
+            ->assertOk()
+            ->assertSee('id="docNotifyToggle"', false)
+            ->assertSee('id="docNotifyClear"', false)
+            ->assertSee('btn btn-primary btn-sm doc-notify-clear', false)
+            ->assertSee('Clear all')
+            ->assertSee('loadNotifications', false)
+            ->assertSee('clearNotificationsUrl', false)
+            ->assertSee('setInterval', false)
+            ->assertSee('showInAppToast', false)
+            ->assertSee('showBrowserNotification', false)
+            ->assertSee('notifyNewDocument', false)
+            ->assertSee('id="docNotifyToastHost"', false)
+            ->assertSee('Enable desktop alerts', false)
+            ->assertSee('new Notification', false);
+    }
+
+    public function test_notification_feed_includes_unread_count_without_refresh(): void
+    {
+        $url = $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
+            ->json('url');
+        $token = basename(parse_url($url, PHP_URL_PATH));
+
+        $this->post(route('student.documents.portal.submit', ['token' => $token]), [
+            'full_name' => 'Alpha Student',
+            'id_value' => '200012345678',
+            'email' => 'alpha.student@nebula.lk',
+            'phone' => '0712345678',
+            'nic_document' => UploadedFile::fake()->image('nic.jpg'),
+            'birth_certificate' => UploadedFile::fake()->image('birth.jpg'),
+        ])->assertRedirect();
+
+        $this->actingAs($this->actor)
+            ->getJson(route('student.documents.notifications'))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('unread', 1)
+            ->assertJsonPath('notifications.0.message', 'Alpha Student submitted documents for review.');
+    }
+
+    public function test_staff_can_clear_only_their_own_document_notifications(): void
+    {
+        $url = $this->actingAs($this->actor)
+            ->postJson(route('student.documents.generate'), ['student_id' => $this->student->student_id])
+            ->json('url');
+        $token = basename(parse_url($url, PHP_URL_PATH));
+
+        $this->post(route('student.documents.portal.submit', ['token' => $token]), [
+            'full_name' => 'Alpha Student',
+            'id_value' => '200012345678',
+            'email' => 'alpha.student@nebula.lk',
+            'phone' => '0712345678',
+            'nic_document' => UploadedFile::fake()->image('nic.jpg'),
+            'birth_certificate' => UploadedFile::fake()->image('birth.jpg'),
+        ])->assertRedirect();
+
+        $otherStaff = User::forceCreate([
+            'name'          => 'Other Admin',
+            'email'         => 'docs-other@nebula.lk',
+            'password'      => Hash::make('password'),
+            'user_role'     => 'Program Administrator (level 01)',
+            'status'        => '1',
+            'user_location' => 'Welisara',
+        ]);
+
+        $documentRequest = StudentDocumentRequest::query()->latest('id')->first();
+        $otherStaff->notify(new StudentDocumentsSubmittedNotification($documentRequest));
+
+        $this->assertSame(1, $this->actor->notifications()->count());
+        $this->assertSame(1, $otherStaff->notifications()->count());
+
+        $this->actingAs($this->actor)
+            ->postJson(route('student.documents.notifications.clear'))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertSame(0, $this->actor->fresh()->notifications()->count());
+        $this->assertSame(1, $otherStaff->fresh()->notifications()->count());
+
+        $this->actingAs($this->actor)
+            ->getJson(route('student.documents.notifications'))
+            ->assertOk()
+            ->assertJsonPath('unread', 0)
+            ->assertJsonCount(0, 'notifications');
     }
 }

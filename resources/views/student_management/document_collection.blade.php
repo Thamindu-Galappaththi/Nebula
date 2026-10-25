@@ -397,8 +397,42 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function loadTab(status) {
-        const url = indexUrl + '?status=' + encodeURIComponent(status);
+    function updateTabCounts(counts) {
+        if (!counts || typeof counts !== 'object') {
+            return;
+        }
+        document.querySelectorAll('.doc-tab').forEach(function (tab) {
+            const badge = tab.querySelector('.doc-tab-count');
+            const key = tab.dataset.status;
+            if (!badge || !Object.prototype.hasOwnProperty.call(counts, key)) {
+                return;
+            }
+            badge.textContent = String(counts[key] ?? 0);
+        });
+    }
+
+    function applyListHtml(html) {
+        listWrap.innerHTML = html;
+        const countsEl = listWrap.querySelector('[data-counts]');
+        if (!countsEl || !countsEl.dataset.counts) {
+            return;
+        }
+        try {
+            updateTabCounts(JSON.parse(countsEl.dataset.counts));
+        } catch (error) {
+            // Keep the previous tab counts if the payload is not valid JSON.
+        }
+    }
+
+    function statusFromUrl(url) {
+        try {
+            return new URL(url, window.location.origin).searchParams.get('status') || 'submitted';
+        } catch (error) {
+            return 'submitted';
+        }
+    }
+
+    function loadList(url, push) {
         listWrap.style.opacity = '0.55';
 
         fetch(url, {
@@ -409,11 +443,11 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then(function (response) { return response.text(); })
             .then(function (html) {
-                listWrap.innerHTML = html;
+                applyListHtml(html);
                 listWrap.style.opacity = '1';
-                setActiveTab(status);
-                if (window.history && window.history.pushState) {
-                    window.history.pushState({ status: status }, '', url);
+                setActiveTab(statusFromUrl(url));
+                if (push && window.history && window.history.pushState) {
+                    window.history.pushState({ url: url }, '', url);
                 }
             })
             .catch(function () {
@@ -422,11 +456,40 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    function loadTab(status) {
+        loadList(indexUrl + '?status=' + encodeURIComponent(status), true);
+    }
+
     document.querySelectorAll('.doc-tab').forEach(function (tab) {
         tab.addEventListener('click', function (event) {
             event.preventDefault();
             loadTab(tab.dataset.status);
         });
+    });
+
+    listWrap.addEventListener('click', function (event) {
+        const link = event.target.closest('.doc-pagination a');
+        if (!link || !listWrap.contains(link)) {
+            return;
+        }
+
+        const href = link.getAttribute('href');
+        const item = link.closest('.page-item');
+        if (!href || href === '#' || (item && (item.classList.contains('disabled') || item.classList.contains('active')))) {
+            event.preventDefault();
+            return;
+        }
+
+        event.preventDefault();
+        loadList(link.href, true);
+    });
+
+    window.addEventListener('popstate', function () {
+        const indexPath = new URL(indexUrl, window.location.origin).pathname;
+        if (window.location.pathname !== indexPath) {
+            return;
+        }
+        loadList(window.location.href, false);
     });
 
     function statusLabel(status) {

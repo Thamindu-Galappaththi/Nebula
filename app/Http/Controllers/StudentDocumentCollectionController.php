@@ -14,8 +14,9 @@ use RuntimeException;
 
 class StudentDocumentCollectionController extends Controller
 {
-    public function __construct(private StudentDocumentCollectionService $documents)
-    {
+    public function __construct(
+        private StudentDocumentCollectionService $documents
+    ) {
     }
 
     public function index(Request $request)
@@ -28,6 +29,7 @@ class StudentDocumentCollectionController extends Controller
             return view('student_management.partials.document_collection_list', [
                 'requests' => $requests,
                 'status' => $status,
+                'counts' => $counts,
             ]);
         }
 
@@ -203,6 +205,15 @@ class StudentDocumentCollectionController extends Controller
     {
         $item = Auth::user()->notifications()->where('id', $notification)->firstOrFail();
         $item->markAsRead();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function clearNotifications()
+    {
+        Auth::user()->notifications()
+            ->where('type', StudentDocumentsSubmittedNotification::class)
+            ->delete();
 
         return response()->json(['success' => true]);
     }
