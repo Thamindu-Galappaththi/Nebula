@@ -14,6 +14,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class AttendancePageTest extends TestCase
@@ -65,6 +66,48 @@ class AttendancePageTest extends TestCase
             ->assertSee('Nebula Institute of Technology - Welisara')
             ->assertSee('Nebula Institute of Technology - Moratuwa')
             ->assertSee('Nebula Institute of Technology - Peradeniya');
+    }
+
+    public function test_overall_attendance_counts_lecture_and_tutorial_on_the_same_day_as_two_sessions(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $semester = $this->makeSemester($course, $intake);
+        $module = $this->makeCoreModule($semester);
+        $presentStudent = $this->makeRegisteredStudent($course, $intake, $semester, '199012345V', 'Software Engineering');
+        $partialStudent = $this->makeRegisteredStudent($course, $intake, $semester, '199098765V', 'Software Engineering');
+        $date = now()->toDateString();
+
+        $this->insertAttendance($presentStudent, $course, $intake, $semester, $module, $date, 'lectures', true);
+        $this->insertAttendance($presentStudent, $course, $intake, $semester, $module, $date, 'tutorials', true);
+        $this->insertAttendance($partialStudent, $course, $intake, $semester, $module, $date, 'lectures', true);
+        $this->insertAttendance($partialStudent, $course, $intake, $semester, $module, $date, 'tutorials', false);
+
+        $payload = $this->actingAs($this->actor)
+            ->postJson(route('get.overall.attendance'), [
+                'location' => 'Welisara',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'specialization' => 'Software Engineering',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json();
+
+        $rows = collect($payload['attendance'])->keyBy('student_id');
+        $this->assertSame(2, $rows[$presentStudent->student_id]['total_sessions']);
+        $this->assertSame(2, $rows[$presentStudent->student_id]['attended_sessions']);
+        $this->assertEquals(100, $rows[$presentStudent->student_id]['percentage']);
+        $this->assertSame(2, $rows[$partialStudent->student_id]['total_sessions']);
+        $this->assertSame(1, $rows[$partialStudent->student_id]['attended_sessions']);
+        $this->assertEquals(50, $rows[$partialStudent->student_id]['percentage']);
+
+        $matrixDates = collect($payload['matrix']['rows'])->pluck('date')->all();
+        $this->assertCount(2, $matrixDates);
+        $this->assertTrue(collect($matrixDates)->contains(fn ($label) => str_contains((string) $label, 'Lecture')));
+        $this->assertTrue(collect($matrixDates)->contains(fn ($label) => str_contains((string) $label, 'Tutorial')));
     }
 
     public function test_specific_specialization_with_no_assignments_returns_empty_students(): void
@@ -292,6 +335,36 @@ class AttendancePageTest extends TestCase
 
         $response->assertOk();
         $this->assertStringNotContainsString('CR-199012345V', $this->xlsxText($response->streamedContent()));
+    }
+
+    private function insertAttendance(
+        Student $student,
+        Course $course,
+        Intake $intake,
+        Semester $semester,
+        Module $module,
+        string $date,
+        string $type,
+        bool $present
+    ): void {
+        $row = [
+            'location' => 'Welisara',
+            'course_id' => $course->course_id,
+            'module_id' => $module->module_id,
+            'intake_id' => $intake->intake_id,
+            'semester' => $semester->name,
+            'date' => $date,
+            'student_id' => $student->student_id,
+            'status' => $present ? 1 : 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('attendance', 'attendance_type')) {
+            $row['attendance_type'] = $type;
+        }
+
+        DB::table('attendance')->insert($row);
     }
 
     private function xlsxText(string $binary): string
