@@ -328,6 +328,120 @@ class AttendanceController extends Controller
             ->all();
     }
 
+    private function attendanceTracksSessionType(): bool
+    {
+        return Schema::hasColumn('attendance', 'attendance_type');
+    }
+
+    private function attendanceSessionSelectColumns(): array
+    {
+        $columns = ['date', 'student_id', 'status'];
+        if ($this->attendanceTracksSessionType()) {
+            $columns[] = 'attendance_type';
+        }
+
+        return $columns;
+    }
+
+    private function attendanceTypeLabel(?string $type): string
+    {
+        return match (strtolower(trim((string) ($type ?: 'lectures')))) {
+            'lectures' => 'Lecture',
+            'tutorials' => 'Tutorial',
+            'labs' => 'Lab',
+            'special_lectures' => 'Special Lecture',
+            'other' => 'Other',
+            default => ucwords(str_replace('_', ' ', (string) $type)),
+        };
+    }
+
+    private function attendanceSessionKey($record): string
+    {
+        $date = Carbon::parse($record->date)->toDateString();
+        if (!$this->attendanceTracksSessionType()) {
+            return $date;
+        }
+
+        $type = strtolower(trim((string) ($record->attendance_type ?? 'lectures')));
+
+        return $date . '|' . ($type !== '' ? $type : 'lectures');
+    }
+
+    private function uniqueAttendanceSessions($records)
+    {
+        return collect($records)
+            ->map(function ($record) {
+                $date = Carbon::parse($record->date)->toDateString();
+                $type = $this->attendanceTracksSessionType()
+                    ? strtolower(trim((string) ($record->attendance_type ?? 'lectures')))
+                    : 'lectures';
+                if ($type === '') {
+                    $type = 'lectures';
+                }
+
+                return [
+                    'key' => $this->attendanceSessionKey($record),
+                    'date' => $date,
+                    'type' => $type,
+                    'label' => $this->attendanceTracksSessionType()
+                        ? $date . ' · ' . $this->attendanceTypeLabel($type)
+                        : $date,
+                ];
+            })
+            ->unique('key')
+            ->sortBy([
+                ['date', 'asc'],
+                ['type', 'asc'],
+            ])
+            ->values();
+    }
+
+    private function attendedSessionCount($records, $studentId): int
+    {
+        return $this->uniqueAttendanceSessions(
+            collect($records)
+                ->where('student_id', $studentId)
+                ->filter(fn ($record) => (bool) $record->status)
+        )->count();
+    }
+
+    private function buildAttendanceMatrix($records, array $attendanceData): array
+    {
+        $students = collect($attendanceData)
+            ->map(fn ($item) => [
+                'student_id' => $item['student_id'],
+                'registration_number' => $item['registration_number'],
+                'name_with_initials' => $item['name_with_initials'],
+            ])
+            ->values();
+
+        $statusByStudentAndSession = [];
+        foreach ($records as $record) {
+            $statusByStudentAndSession[$record->student_id][$this->attendanceSessionKey($record)] = (bool) $record->status;
+        }
+
+        $rows = $this->uniqueAttendanceSessions($records)->map(function ($session) use ($students, $statusByStudentAndSession) {
+            $statuses = [];
+            foreach ($students as $student) {
+                $studentId = $student['student_id'];
+                $studentStatusMap = $statusByStudentAndSession[$studentId] ?? [];
+                $statuses[$studentId] = array_key_exists($session['key'], $studentStatusMap)
+                    ? $studentStatusMap[$session['key']]
+                    : null;
+            }
+
+            return [
+                'date' => $session['label'],
+                'statuses' => $statuses,
+            ];
+        })->values();
+
+        return [
+            'students' => $students,
+            'rows' => $rows,
+        ];
+    }
+
     private function normalizeLegacyAttendanceSemesterValues(array $baseConditions, array $lookupValues, string $canonicalSemester): void
     {
         if (empty($lookupValues)) {
@@ -929,18 +1043,14 @@ class AttendanceController extends Controller
         );
 
         if ($isCertificate) {
-            // For certificate courses: Get all attendance sessions (no semester/module filter)
-            $attendanceSessions = \App\Models\Attendance::where('course_id', $courseId)
+            $attendanceRecords = \App\Models\Attendance::where('course_id', $courseId)
                 ->where('intake_id', $intakeId)
                 ->where('location', $location)
                 ->whereNull('semester')
                 ->whereNull('module_id')
-                ->select('date')
-                ->distinct()
-                ->get();
-            $totalSessions = $attendanceSessions->count();
+                ->get($this->attendanceSessionSelectColumns());
+            $totalSessions = $this->uniqueAttendanceSessions($attendanceRecords)->count();
 
-            // Get students registered for the certificate course
             $registrations = \App\Models\CourseRegistration::where('course_id', $courseId)
                 ->where('intake_id', $intakeId)
                 ->where('location', $location)
@@ -953,14 +1063,7 @@ class AttendanceController extends Controller
                 if (!$reg->student) {
                     continue;
                 }
-                $attendedSessions = \App\Models\Attendance::where('course_id', $courseId)
-                    ->where('intake_id', $intakeId)
-                    ->where('location', $location)
-                    ->whereNull('semester')
-                    ->whereNull('module_id')
-                    ->where('student_id', $reg->student_id)
-                    ->where('status', true)
-                    ->count();
+                $attendedSessions = $this->attendedSessionCount($attendanceRecords, $reg->student_id);
                 $attendanceData[] = [
                     'student_id' => $reg->student_id,
                     'registration_number' => $reg->course_registration_id,
@@ -971,57 +1074,10 @@ class AttendanceController extends Controller
                 ];
             }
 
-            $attendanceRecords = \App\Models\Attendance::where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->where('location', $location)
-                ->whereNull('semester')
-                ->whereNull('module_id')
-                ->get(['date', 'student_id', 'status']);
-
-            $matrixDates = $attendanceRecords
-                ->pluck('date')
-                ->map(fn ($date) => Carbon::parse($date)->toDateString())
-                ->unique()
-                ->sort()
-                ->values();
-
-            $statusByStudentAndDate = [];
-            foreach ($attendanceRecords as $record) {
-                $dateKey = Carbon::parse($record->date)->toDateString();
-                $statusByStudentAndDate[$record->student_id][$dateKey] = (bool) $record->status;
-            }
-
-            $matrixStudents = collect($attendanceData)
-                ->map(fn ($item) => [
-                    'student_id' => $item['student_id'],
-                    'registration_number' => $item['registration_number'],
-                    'name_with_initials' => $item['name_with_initials'],
-                ])
-                ->values();
-
-            $matrixRows = $matrixDates->map(function ($date) use ($matrixStudents, $statusByStudentAndDate) {
-                $statuses = [];
-                foreach ($matrixStudents as $student) {
-                    $studentId = $student['student_id'];
-                    $studentStatusMap = $statusByStudentAndDate[$studentId] ?? [];
-                    $statuses[$studentId] = array_key_exists($date, $studentStatusMap)
-                        ? $studentStatusMap[$date]
-                        : null;
-                }
-
-                return [
-                    'date' => $date,
-                    'statuses' => $statuses,
-                ];
-            })->values();
-
             return response()->json([
                 'success' => true,
                 'attendance' => $attendanceData,
-                'matrix' => [
-                    'students' => $matrixStudents,
-                    'rows' => $matrixRows,
-                ],
+                'matrix' => $this->buildAttendanceMatrix($attendanceRecords, $attendanceData),
             ]);
         }
 
@@ -1042,16 +1098,13 @@ class AttendanceController extends Controller
 
         $isCoreModule = $this->isCoreAttendanceModule($semesterId, $moduleId);
 
-        // Get all attendance sessions for this filter (by module)
-        $attendanceSessions = \App\Models\Attendance::where('course_id', $courseId)
+        $attendanceRecords = \App\Models\Attendance::where('course_id', $courseId)
             ->where('intake_id', $intakeId)
             ->where('location', $location)
             ->whereIn('semester', $semesterLookupValues)
             ->where('module_id', $moduleId)
-            ->select('date')
-            ->distinct()
-            ->get();
-        $totalSessions = $attendanceSessions->count();
+            ->get($this->attendanceSessionSelectColumns());
+        $totalSessions = $this->uniqueAttendanceSessions($attendanceRecords)->count();
 
         if ($isCoreModule) {
             // For core modules: Get students registered for the semester
@@ -1093,14 +1146,7 @@ class AttendanceController extends Controller
                 ->where('location', $location)
                 ->first();
 
-            $attendedSessions = \App\Models\Attendance::where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->where('location', $location)
-                ->whereIn('semester', $semesterLookupValues)
-                ->where('module_id', $moduleId)
-                ->where('student_id', $reg->student_id)
-                ->where('status', true)
-                ->count();
+            $attendedSessions = $this->attendedSessionCount($attendanceRecords, $reg->student_id);
             $attendanceData[] = [
                 'student_id' => $reg->student_id,
                 'registration_number' => $courseReg ? $courseReg->course_registration_id : '',
@@ -1111,57 +1157,10 @@ class AttendanceController extends Controller
             ];
         }
 
-        $attendanceRecords = \App\Models\Attendance::where('course_id', $courseId)
-            ->where('intake_id', $intakeId)
-            ->where('location', $location)
-            ->whereIn('semester', $semesterLookupValues)
-            ->where('module_id', $moduleId)
-            ->get(['date', 'student_id', 'status']);
-
-        $matrixDates = $attendanceRecords
-            ->pluck('date')
-            ->map(fn ($date) => Carbon::parse($date)->toDateString())
-            ->unique()
-            ->sort()
-            ->values();
-
-        $statusByStudentAndDate = [];
-        foreach ($attendanceRecords as $record) {
-            $dateKey = Carbon::parse($record->date)->toDateString();
-            $statusByStudentAndDate[$record->student_id][$dateKey] = (bool) $record->status;
-        }
-
-        $matrixStudents = collect($attendanceData)
-            ->map(fn ($item) => [
-                'student_id' => $item['student_id'],
-                'registration_number' => $item['registration_number'],
-                'name_with_initials' => $item['name_with_initials'],
-            ])
-            ->values();
-
-        $matrixRows = $matrixDates->map(function ($date) use ($matrixStudents, $statusByStudentAndDate) {
-            $statuses = [];
-            foreach ($matrixStudents as $student) {
-                $studentId = $student['student_id'];
-                $studentStatusMap = $statusByStudentAndDate[$studentId] ?? [];
-                $statuses[$studentId] = array_key_exists($date, $studentStatusMap)
-                    ? $studentStatusMap[$date]
-                    : null;
-            }
-
-            return [
-                'date' => $date,
-                'statuses' => $statuses,
-            ];
-        })->values();
-
         return response()->json([
             'success' => true,
             'attendance' => $attendanceData,
-            'matrix' => [
-                'students' => $matrixStudents,
-                'rows' => $matrixRows,
-            ],
+            'matrix' => $this->buildAttendanceMatrix($attendanceRecords, $attendanceData),
         ]);
     }
 
@@ -1225,18 +1224,14 @@ class AttendanceController extends Controller
         );
 
         if ($isCertificate) {
-            // For certificate courses: Get all attendance sessions (no semester/module filter)
-            $attendanceSessions = \App\Models\Attendance::where('course_id', $courseId)
+            $attendanceRecords = \App\Models\Attendance::where('course_id', $courseId)
                 ->where('intake_id', $intakeId)
                 ->where('location', $location)
                 ->whereNull('semester')
                 ->whereNull('module_id')
-                ->select('date')
-                ->distinct()
-                ->get();
-            $totalSessions = $attendanceSessions->count();
+                ->get($this->attendanceSessionSelectColumns());
+            $totalSessions = $this->uniqueAttendanceSessions($attendanceRecords)->count();
 
-            // Get students registered for the certificate course
             $registrations = \App\Models\CourseRegistration::where('course_id', $courseId)
                 ->where('intake_id', $intakeId)
                 ->where('location', $location)
@@ -1249,14 +1244,7 @@ class AttendanceController extends Controller
                 if (!$reg->student) {
                     continue;
                 }
-                $attendedSessions = \App\Models\Attendance::where('course_id', $courseId)
-                    ->where('intake_id', $intakeId)
-                    ->where('location', $location)
-                    ->whereNull('semester')
-                    ->whereNull('module_id')
-                    ->where('student_id', $reg->student_id)
-                    ->where('status', true)
-                    ->count();
+                $attendedSessions = $this->attendedSessionCount($attendanceRecords, $reg->student_id);
 
                 $excelData[] = [
                     $reg->course_registration_id ?? $this->resolveCourseRegistrationId($reg->student_id, $courseId, $intakeId, $location) ?? $reg->student->student_id,
@@ -1294,16 +1282,13 @@ class AttendanceController extends Controller
 
         $isCoreModule = $this->isCoreAttendanceModule($semesterId, $moduleId);
 
-        // Get all attendance sessions for this filter (by module)
-        $attendanceSessions = \App\Models\Attendance::where('course_id', $courseId)
+        $attendanceRecords = \App\Models\Attendance::where('course_id', $courseId)
             ->where('intake_id', $intakeId)
             ->where('location', $location)
             ->whereIn('semester', $semesterLookupValues)
             ->where('module_id', $moduleId)
-            ->select('date')
-            ->distinct()
-            ->get();
-        $totalSessions = $attendanceSessions->count();
+            ->get($this->attendanceSessionSelectColumns());
+        $totalSessions = $this->uniqueAttendanceSessions($attendanceRecords)->count();
 
         if ($isCoreModule) {
             // For core modules: Get students registered for the semester
@@ -1338,14 +1323,7 @@ class AttendanceController extends Controller
             if (!$reg->student) {
                 continue;
             }
-            $attendedSessions = \App\Models\Attendance::where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->where('location', $location)
-                ->whereIn('semester', $semesterLookupValues)
-                ->where('module_id', $moduleId)
-                ->where('student_id', $reg->student_id)
-                ->where('status', true)
-                ->count();
+            $attendedSessions = $this->attendedSessionCount($attendanceRecords, $reg->student_id);
 
             $excelData[] = [
                 $this->resolveCourseRegistrationId($reg->student_id, $courseId, $intakeId, $location) ?? $reg->student->student_id,
