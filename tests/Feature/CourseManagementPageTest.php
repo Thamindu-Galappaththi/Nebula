@@ -51,6 +51,10 @@ class CourseManagementPageTest extends TestCase
             ->assertSee('data-label="Course Name"', false)
             ->assertSee('resetFilterSelect', false)
             ->assertSee(route('course.export'), false)
+            ->assertSee('Pearson', false)
+            ->assertSee('>Other</option>', false)
+            ->assertSee('conducted-by-field', false)
+            ->assertSee('otherConductedByInput', false)
             ->getContent();
 
         $this->assertStringContainsString('value="10"', $html);
@@ -134,6 +138,44 @@ class CourseManagementPageTest extends TestCase
         $this->assertStringContainsString('Degree Course 11', $csv);
         $this->assertStringNotContainsString('Certificate Course', $csv);
         $this->assertStringContainsString('Degree Program', $csv);
+    }
+
+    public function test_other_conducted_by_is_saved_for_later_dropdown_use(): void
+    {
+        $course = $this->makeCourse('Old Course Name');
+
+        $this->actingAs($this->actor)
+            ->post(route('course.update', $course->course_id), [
+                'location'            => 'Welisara',
+                'course_type'         => 'degree',
+                'semester_format'     => 'alphabetical',
+                'course_name'         => 'Updated Course Name',
+                'no_of_semesters'     => 6,
+                'duration_years'      => 2,
+                'duration_months'     => 6,
+                'duration_days'       => 0,
+                'min_credits'         => 90,
+                'entry_qualification' => 'Diploma or equivalent',
+                'conducted_by'        => 'Other',
+                'other_conducted_by'  => 'City University',
+                'course_medium'       => 'English',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('course.conducted_by', 'City University');
+
+        $this->assertDatabaseHas('courses', [
+            'course_id'    => $course->course_id,
+            'conducted_by' => 'City University',
+        ]);
+        $this->assertDatabaseHas('conducted_by_options', [
+            'name' => 'City University',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->get(route('course.management'))
+            ->assertOk()
+            ->assertSee('value="City University"', false);
     }
 
     private function makeCourse(string $name, string $type = 'degree'): Course

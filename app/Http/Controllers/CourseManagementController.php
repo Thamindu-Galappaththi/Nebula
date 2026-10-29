@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\ConductedByOption;
 use App\Models\Course;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -36,6 +37,8 @@ class CourseManagementController extends Controller
      */
     public function storeCourseData(Request $request)
     {
+        $this->normalizeConductedBy($request);
+
         $validatedData = $request->validate([
             'location' => ['required', Rule::in(['Welisara', 'Moratuwa', 'Peradeniya'])],
             'course_type' => ['required', Rule::in(['degree', 'diploma', 'certificate'])],
@@ -101,6 +104,7 @@ class CourseManagementController extends Controller
 
             $courseData['added_by'] = Auth::id();
             $course = Course::create($courseData);
+            ConductedByOption::remember($course->conducted_by);
 
             DB::commit();
 
@@ -250,6 +254,8 @@ class CourseManagementController extends Controller
             return response()->json(['success' => false, 'message' => 'Course not found'], 404);
         }
 
+        $this->normalizeConductedBy($request);
+
         $validatedData = $request->validate([
             'location' => ['required', Rule::in(['Welisara', 'Moratuwa', 'Peradeniya'])],
             'course_type' => ['required', Rule::in(['degree', 'diploma', 'certificate'])],
@@ -310,6 +316,7 @@ class CourseManagementController extends Controller
             }
 
             $course->update($courseData);
+            ConductedByOption::remember($course->conducted_by);
 
             // Keep intakes.course_name in sync if the course name changed,
             // so legacy name-based lookups continue to work after a rename.
@@ -361,7 +368,18 @@ class CourseManagementController extends Controller
             'courses' => $courses,
             'filters' => $filters,
             'perPage' => $perPage,
+            'conductedByOptions' => ConductedByOption::names(),
         ];
+    }
+
+    private function normalizeConductedBy(Request $request): void
+    {
+        $value = trim((string) $request->input('conducted_by', ''));
+        if (strcasecmp($value, 'Other') === 0) {
+            $value = trim((string) $request->input('other_conducted_by', ''));
+        }
+
+        $request->merge(['conducted_by' => $value]);
     }
 
     private function courseFilters(Request $request): array
