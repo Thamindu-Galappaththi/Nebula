@@ -35,7 +35,16 @@ class UserManagementPageTest extends TestCase
             ->assertSee('value="Welisara"', false)
             ->assertSee('Nebula Institute of Technology – Welisara', false)
             ->assertSee('data-user-location=', false)
-            ->assertSee('setEditUserLocation', false);
+            ->assertSee('setEditUserLocation', false)
+            ->assertSee('Payment Analyst', false);
+    }
+
+    public function test_create_user_form_includes_payment_analyst_role(): void
+    {
+        $this->actingAs($this->actor)
+            ->get(route('create.user'))
+            ->assertOk()
+            ->assertSee('Payment Analyst', false);
     }
 
     public function test_delete_user_uses_sweetalert_instead_of_js_confirm(): void

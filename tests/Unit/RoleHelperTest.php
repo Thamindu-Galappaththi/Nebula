@@ -116,6 +116,25 @@ class RoleHelperTest extends TestCase
         $this->assertArrayHasKey('Bursar', $roles);
         $this->assertArrayHasKey('Project Tutor', $roles);
         $this->assertArrayHasKey('Marketing Manager', $roles);
+        $this->assertArrayHasKey('Payment Analyst', $roles);
+    }
+
+    public function test_payment_analyst_only_has_analytics_dashboard_access(): void
+    {
+        $this->assertTrue(RoleHelper::hasPermission('Payment Analyst', 'payment.dashboard'));
+        $this->assertTrue(RoleHelper::hasPermission('Payment Analyst', 'payment.summary'));
+        $this->assertTrue(RoleHelper::hasPermission('Payment Analyst', 'user.profile'));
+
+        $this->assertFalse(RoleHelper::hasPermission('Payment Analyst', 'dashboard'));
+        $this->assertFalse(RoleHelper::hasPermission('Payment Analyst', 'payment'));
+        $this->assertFalse(RoleHelper::hasPermission('Payment Analyst', 'payment.plan'));
+        $this->assertFalse(RoleHelper::hasPermission('Payment Analyst', 'student.registration'));
+        $this->assertFalse(RoleHelper::hasPermission('Payment Analyst', 'student.list'));
+        $this->assertFalse(RoleHelper::hasPermission('Payment Analyst', 'create.user'));
+        $this->assertFalse(RoleHelper::canAccessStudentManagement('Payment Analyst'));
+        $this->assertFalse(RoleHelper::canAccessAcademicManagement('Payment Analyst'));
+        $this->assertFalse(RoleHelper::canAccessClearance('Payment Analyst'));
+        $this->assertFalse(RoleHelper::canAccessAttendance('Payment Analyst'));
     }
 
     public function test_role_helper_get_role_permissions()

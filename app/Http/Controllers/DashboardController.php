@@ -85,6 +85,10 @@ class DashboardController extends Controller
         if ($userRole === 'Developer') {
             return redirect()->route('developer.dashboard');
         }
+
+        if ($userRole === 'Payment Analyst') {
+            return redirect()->route('payment.summary');
+        }
         
         // Default fallback
         return view('dashboard', compact('user', 'welcomeMessage', 'permissions', 'availableFeatures'));
@@ -104,6 +108,7 @@ class DashboardController extends Controller
             'Bursar' => 'Welcome Bursar! You can manage financial and student records.',
             'Project Tutor' => 'Welcome Project Tutor! You can manage project clearance and attendance.',
             'Marketing Manager' => 'Welcome Marketing Manager! Track campaign performance and student acquisition metrics.',
+            'Payment Analyst' => 'Welcome Payment Analyst! You can view the Payment Analytics Dashboard.',
             'Developer' => 'Welcome Developer! You have full system access to all features and functionalities.'
         ];
         
@@ -137,6 +142,9 @@ class DashboardController extends Controller
             'Marketing Manager' => [
                 'Marketing Analytics' => ['Campaign Performance', 'Channel ROI', 'Conversion Metrics', 'Student Acquisition'],
                 'Student Overview' => ['Registration Tracking', 'Demographic Insights', 'Enrollment Trends']
+            ],
+            'Payment Analyst' => [
+                'Financial' => ['Payment Analytics Dashboard'],
             ],
             'Librarian' => [
                 'Clearance Management' => ['Library Clearance']

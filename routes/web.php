@@ -784,7 +784,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // ========================================================================
     // PAYMENT SUMMARY
     // ========================================================================
-    Route::middleware(['auth', 'role:DGM,Bursar,Marketing Manager,Developer,Student Counselor,Program Administrator (level 01),Program Administrator (level 02)'])->group(function () {
+    Route::middleware(['auth', 'role:DGM,Bursar,Marketing Manager,Payment Analyst,Developer,Student Counselor,Program Administrator (level 01),Program Administrator (level 02)'])->group(function () {
         Route::get('/payments/summary', [PaymentSummaryController::class, 'index'])->name('payment.summary');
         Route::get('/payments/summary/filter', [PaymentSummaryController::class, 'filter'])->name('payment.summary.filter');
         Route::get('/payments/summary/courses-by-location', [PaymentSummaryController::class, 'getCoursesByLocation'])->name('payment.summary.courses.by.location');
