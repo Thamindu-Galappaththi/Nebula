@@ -291,6 +291,49 @@ class AttendanceController extends Controller
             ->exists();
     }
 
+    private function coreModuleAttendanceRegistrations(
+        $semesterId,
+        $courseId,
+        $intakeId,
+        $location,
+        ?array $specializedStudentIds
+    ) {
+        $semesterQuery = \App\Models\SemesterRegistration::query()
+            ->where('semester_registrations.semester_id', $semesterId)
+            ->where('semester_registrations.course_id', $courseId)
+            ->where('semester_registrations.intake_id', $intakeId)
+            ->where('semester_registrations.location', $location)
+            ->where('semester_registrations.status', 'registered');
+
+        if ((clone $semesterQuery)->exists()) {
+            if (is_array($specializedStudentIds)) {
+                $semesterQuery->whereIn('semester_registrations.student_id', $specializedStudentIds);
+            }
+
+            return $semesterQuery
+                ->leftJoin('course_registration as cr', function ($join) {
+                    $join->on('semester_registrations.student_id', '=', 'cr.student_id')
+                        ->on('semester_registrations.course_id', '=', 'cr.course_id')
+                        ->on('semester_registrations.intake_id', '=', 'cr.intake_id')
+                        ->on('semester_registrations.location', '=', 'cr.location');
+                })
+                ->with('student')
+                ->get(['semester_registrations.*', 'cr.course_registration_id as course_registration_id']);
+        }
+
+        $courseQuery = CourseRegistration::query()
+            ->where('course_id', $courseId)
+            ->where('intake_id', $intakeId)
+            ->where('location', $location)
+            ->where('status', 'Registered');
+
+        if (is_array($specializedStudentIds)) {
+            $courseQuery->whereIn('student_id', $specializedStudentIds);
+        }
+
+        return $courseQuery->with('student')->get();
+    }
+
     private function resolveCourseRegistrationId($studentId, $courseId, $intakeId, $location): ?string
     {
         return CourseRegistration::where('student_id', $studentId)
@@ -621,25 +664,13 @@ class AttendanceController extends Controller
         $isCoreModule = $this->isCoreAttendanceModule($semesterId, $moduleId);
 
         if ($isCoreModule) {
-            $semesterRegistrationQuery = \App\Models\SemesterRegistration::where('semester_id', $semesterId)
-                ->where('semester_registrations.course_id', $courseId)
-                ->where('semester_registrations.intake_id', $intakeId)
-                ->where('semester_registrations.location', $location)
-                ->where('semester_registrations.status', 'registered');
-
-            if (is_array($specializedStudentIds)) {
-                $semesterRegistrationQuery->whereIn('semester_registrations.student_id', $specializedStudentIds);
-            }
-
-            $students = $semesterRegistrationQuery
-                ->leftJoin('course_registration as cr', function($join) {
-                    $join->on('semester_registrations.student_id', '=', 'cr.student_id')
-                        ->on('semester_registrations.course_id', '=', 'cr.course_id')
-                        ->on('semester_registrations.intake_id', '=', 'cr.intake_id')
-                        ->on('semester_registrations.location', '=', 'cr.location');
-                })
-                ->with('student')
-                ->get(['semester_registrations.*', 'cr.course_registration_id as course_registration_id'])
+            $students = $this->coreModuleAttendanceRegistrations(
+                $semesterId,
+                $courseId,
+                $intakeId,
+                $location,
+                $specializedStudentIds
+            )
                 ->map(fn ($reg) => $this->mapAttendanceStudent($reg))
                 ->filter()
                 ->unique('student_id')
@@ -1107,18 +1138,13 @@ class AttendanceController extends Controller
         $totalSessions = $this->uniqueAttendanceSessions($attendanceRecords)->count();
 
         if ($isCoreModule) {
-            // For core modules: Get students registered for the semester
-            $semesterRegistrationQuery = \App\Models\SemesterRegistration::where('semester_id', $semesterId)
-                ->where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->where('location', $location)
-                ->where('status', 'registered');
-
-            if (is_array($specializedStudentIds)) {
-                $semesterRegistrationQuery->whereIn('student_id', $specializedStudentIds);
-            }
-
-            $registrations = $semesterRegistrationQuery->with('student')->get();
+            $registrations = $this->coreModuleAttendanceRegistrations(
+                $semesterId,
+                $courseId,
+                $intakeId,
+                $location,
+                $specializedStudentIds
+            );
         } else {
             // For elective modules: Get students registered for the specific module
             $moduleManagementQuery = \App\Models\ModuleManagement::where('module_id', $moduleId)
@@ -1291,18 +1317,13 @@ class AttendanceController extends Controller
         $totalSessions = $this->uniqueAttendanceSessions($attendanceRecords)->count();
 
         if ($isCoreModule) {
-            // For core modules: Get students registered for the semester
-            $semesterRegistrationQuery = \App\Models\SemesterRegistration::where('semester_id', $semesterId)
-                ->where('course_id', $courseId)
-                ->where('intake_id', $intakeId)
-                ->where('location', $location)
-                ->where('status', 'registered');
-
-            if (is_array($specializedStudentIds)) {
-                $semesterRegistrationQuery->whereIn('student_id', $specializedStudentIds);
-            }
-
-            $registrations = $semesterRegistrationQuery->with('student')->get();
+            $registrations = $this->coreModuleAttendanceRegistrations(
+                $semesterId,
+                $courseId,
+                $intakeId,
+                $location,
+                $specializedStudentIds
+            );
         } else {
             // For elective modules: Get students registered for the specific module
             $moduleManagementQuery = \App\Models\ModuleManagement::where('module_id', $moduleId)
@@ -1436,22 +1457,19 @@ class AttendanceController extends Controller
                     );
 
                     if ($isCore && $semester) {
-                        $semesterRegistrationQuery = \App\Models\SemesterRegistration::where('semester_id', $semesterId)
-                            ->where('course_id', $courseId)
-                            ->where('intake_id', $intakeId)
-                            ->where('location', $location)
-                            ->where('status', 'registered');
-
-                        if (is_array($specializedStudentIds)) {
-                            $semesterRegistrationQuery->whereIn('student_id', $specializedStudentIds);
-                        }
-
-                        $regs = $semesterRegistrationQuery->with('student')->get();
+                        $regs = $this->coreModuleAttendanceRegistrations(
+                            $semesterId,
+                            $courseId,
+                            $intakeId,
+                            $location,
+                            $specializedStudentIds
+                        );
 
                         foreach ($regs as $r) {
                             if ($r->student) {
                                 $students->push([
-                                    $this->resolveCourseRegistrationId($r->student_id, $courseId, $intakeId, $location)
+                                    $r->course_registration_id
+                                        ?? $this->resolveCourseRegistrationId($r->student_id, $courseId, $intakeId, $location)
                                         ?? $r->student->registration_id
                                         ?? $r->student->student_id,
                                     $r->student->name_with_initials ?: $r->student->full_name
