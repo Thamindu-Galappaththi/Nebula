@@ -19,13 +19,18 @@ use App\Models\StudentClearance;
 use App\Models\StudentOtherInformation;
 use App\Models\Intake;
 use App\Models\Batch;
+use App\Models\SemesterRegistration;
+use App\Models\SpecializationRegistration;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use App\Models\StudentStatusHistory;
 use App\Models\ClearanceRequest;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\UpdateParentInfoRequest;
 use App\Services\FileManagementService;
 use App\Support\StudentQualificationOptions;
+use App\Support\UserTrackingData;
 use Illuminate\Validation\Rule;
 
 class StudentProfileController extends Controller
@@ -316,10 +321,7 @@ class StudentProfileController extends Controller
             ->get();
 
         $history = $registrations->map(function ($registration) {
-            $semesterReg = \App\Models\SemesterRegistration::where('student_id', $registration->student_id)
-                ->where('course_id', $registration->course_id)
-                ->where('intake_id', $registration->intake_id)
-                ->first();
+            $currentSpec = $this->historySpecializationFor($registration);
 
             return [
                 'id' => $registration->id,
@@ -328,8 +330,8 @@ class StudentProfileController extends Controller
                 'intake' => $registration->intake->batch ?? 'N/A',
                 'status' => $registration->status ?? 'N/A',
                 'full_grade' => $registration->full_grade ?? '',
-                'specialization' => $semesterReg ? $semesterReg->specialization : ($registration->specialization ?? ''),
-                'specializations' => $this->specializationsForCourse($registration->course),
+                'specialization' => $currentSpec,
+                'specializations' => $this->historySpecializationOptions($registration->course, $currentSpec),
             ];
         });
 
@@ -354,122 +356,53 @@ class StudentProfileController extends Controller
     // API: Update course registration grade and specialization
     public function updateCourseRegistrationGrade(Request $request, $id)
     {
-        // Validate inputs
         $validated = $request->validate([
             'full_grade' => 'nullable|string|max:255',
             'specialization' => 'nullable|string|max:255',
         ]);
 
-        // Specialization membership is maintained only on the dedicated
-        // Specialization Registration page. Keep accepting this legacy field
-        // so older clients can still update a grade, but never persist it here.
-        unset($validated['specialization']);
-
-        $registration = \App\Models\CourseRegistration::find($id);
+        $registration = CourseRegistration::with('course')->find($id);
         if (!$registration) {
             return response()->json(['success' => false, 'message' => 'Registration not found.'], 404);
         }
 
-        try {
-            \Illuminate\Support\Facades\DB::beginTransaction();
+        $specialization = trim((string) ($validated['specialization'] ?? ''));
+        $allowed = $this->historySpecializationOptions(
+            $registration->course,
+            $this->historySpecializationFor($registration)
+        );
+        if ($specialization !== '' && !in_array($specialization, $allowed, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid specialization for this course.',
+            ], 422);
+        }
 
-            // Update only the full_grade column on the course_registration table using query builder
-            \Illuminate\Support\Facades\DB::table('course_registration')
+        try {
+            DB::beginTransaction();
+
+            DB::table('course_registration')
                 ->where('id', $registration->id)
                 ->update(array_merge([
                     'full_grade' => $validated['full_grade'] ?? null,
-                    'updated_at' => now()
-                ], \App\Support\UserTrackingData::forUpdate()));
+                    'updated_at' => now(),
+                ], UserTrackingData::forUpdateOn('course_registration')));
 
-            // Update or create the corresponding semester_registration so specialization is persisted
-            $semesterReg = \App\Models\SemesterRegistration::where('student_id', $registration->student_id)
-                ->where('course_id', $registration->course_id)
-                ->where('intake_id', $registration->intake_id)
-                ->first();
+            $finalSpec = $this->persistHistorySpecialization($registration, $specialization);
 
-            if (!$semesterReg) {
-                // Determine the semester_id for this course+intake. Prefer exact match, fall back to latest semester for the course.
-                $semester = \App\Models\Semester::where('course_id', $registration->course_id)
-                    ->where('intake_id', $registration->intake_id)
-                    ->first();
+            DB::commit();
 
-                if (!$semester) {
-                    // fallback: most recent semester for the course (if any)
-                    $semester = \App\Models\Semester::where('course_id', $registration->course_id)
-                        ->orderBy('start_date', 'desc')
-                        ->first();
-                }
-
-                if (!$semester) {
-                    // No semester found - for certificate courses we don't require a semester_registration.
-                    $course = \App\Models\Course::find($registration->course_id);
-                    if ($course && strtolower($course->course_type) === 'certificate') {
-                        // If specialization present in request, persist it on the course_registration row only if the column exists
-                        if (array_key_exists('specialization', $validated)) {
-                            $newSpec = $validated['specialization'] !== '' ? $validated['specialization'] : ($registration->specialization ?? null);
-                            if (\Illuminate\Support\Facades\Schema::hasColumn('course_registration', 'specialization')) {
-                                \Illuminate\Support\Facades\DB::table('course_registration')
-                                    ->where('id', $registration->id)
-                                    ->update(array_merge(
-                                        ['specialization' => $newSpec, 'updated_at' => now()],
-                                        \App\Support\UserTrackingData::forUpdate()
-                                    ));
-                                // Read authoritative value from DB
-                                $finalSpec = \Illuminate\Support\Facades\DB::table('course_registration')->where('id', $registration->id)->value('specialization');
-                            } else {
-                                // Column not present; log and return the intended specialization value without DB write
-                                \Illuminate\Support\Facades\Log::warning('course_registration.specialization column missing; skipping persist', ['registration_id' => $registration->id]);
-                                $finalSpec = $newSpec;
-                            }
-                        } else {
-                            $finalSpec = $registration->specialization ?? null;
-                        }
-
-                        // Commit and return authoritative specialization
-                        \Illuminate\Support\Facades\DB::commit();
-                        return response()->json([ 'success' => true, 'specialization' => $finalSpec ]);
-                    }
-                    // fallback: most recent semester for the course (if any)
-                    $semester = \App\Models\Semester::where('course_id', $registration->course_id)
-                        ->orderBy('start_date', 'desc')
-                        ->first();
-                }
-
-                // Normalize status to allowed enum values
-                $allowedStatuses = ['registered', 'pending', 'cancelled'];
-                $regStatus = strtolower(trim((string)($registration->status ?? '')));
-                $statusToSet = in_array($regStatus, $allowedStatuses) ? $regStatus : 'registered';
-
-                // create a minimal semester registration record with a valid semester_id
-                $semesterReg = \App\Models\SemesterRegistration::create([
-                    'student_id' => $registration->student_id,
-                    'semester_id' => $semester->id,
-                    'course_id' => $registration->course_id,
-                    'intake_id' => $registration->intake_id,
-                    'location' => $registration->location ?? null,
-                    'status' => $statusToSet,
-                    'full_grade' => $validated['full_grade'] ?? null,
-                    'registration_date' => $registration->created_at ?? now(),
-                ]);
-            }
-
-            if (array_key_exists('specialization', $validated)) {
-                // Preserve existing specialization when incoming is empty string
-                $newSpec = $validated['specialization'] !== '' ? $validated['specialization'] : $semesterReg->specialization;
-                $semesterReg->specialization = $newSpec;
-                $semesterReg->save();
-            }
-
-            \Illuminate\Support\Facades\DB::commit();
-
-            // Return the final stored specialization so client can update UI from authoritative source
             return response()->json([
                 'success' => true,
-                'specialization' => $semesterReg->specialization
+                'specialization' => $finalSpec,
+                'full_grade' => $validated['full_grade'] ?? null,
             ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            \Illuminate\Support\Facades\Log::error('Database error updating course registration grade/specialization', ['message' => $e->getMessage(), 'registration_id' => $id]);
+            DB::rollBack();
+            Log::error('Database error updating course registration grade/specialization', [
+                'message' => $e->getMessage(),
+                'registration_id' => $id,
+            ]);
             return response()->json(['success' => false, 'message' => 'Failed to update registration.'], 500);
         }
     }
@@ -2023,6 +1956,86 @@ class StudentProfileController extends Controller
                 'message' => 'Failed to update A/L exam results. Please try again.',
             ], 500);
         }
+    }
+
+    private function historySpecializationFor($registration): string
+    {
+        if (Schema::hasTable('specialization_registrations')) {
+            $spec = SpecializationRegistration::query()
+                ->where('student_id', $registration->student_id)
+                ->where('course_id', $registration->course_id)
+                ->where('intake_id', $registration->intake_id)
+                ->where('status', 'registered')
+                ->value('specialization');
+
+            if (filled($spec)) {
+                return trim((string) $spec);
+            }
+        }
+
+        $semesterReg = SemesterRegistration::query()
+            ->where('student_id', $registration->student_id)
+            ->where('course_id', $registration->course_id)
+            ->where('intake_id', $registration->intake_id)
+            ->whereNotNull('specialization')
+            ->where('specialization', '<>', '')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($semesterReg) {
+            return trim((string) $semesterReg->specialization);
+        }
+
+        return '';
+    }
+
+    private function historySpecializationOptions($course, string $current): array
+    {
+        $specs = array_values(array_filter(
+            $this->specializationsForCourse($course),
+            fn ($spec) => strcasecmp((string) $spec, 'Common') !== 0
+        ));
+
+        if ($current !== '' && strcasecmp($current, 'Common') !== 0 && !in_array($current, $specs, true)) {
+            $specs[] = $current;
+        }
+
+        return $specs;
+    }
+
+    private function persistHistorySpecialization(CourseRegistration $registration, string $specialization): string
+    {
+        if (Schema::hasTable('specialization_registrations')) {
+            $match = [
+                'student_id' => $registration->student_id,
+                'course_id' => $registration->course_id,
+                'intake_id' => $registration->intake_id,
+            ];
+
+            if ($specialization === '') {
+                SpecializationRegistration::where($match)->delete();
+            } else {
+                $location = (string) ($registration->location ?: ($registration->course->location ?? ''));
+                SpecializationRegistration::updateOrCreate($match, [
+                    'location' => $location,
+                    'specialization' => $specialization,
+                    'status' => 'registered',
+                ]);
+            }
+        }
+
+        if (Schema::hasTable('semester_registrations') && Schema::hasColumn('semester_registrations', 'specialization')) {
+            SemesterRegistration::query()
+                ->where('student_id', $registration->student_id)
+                ->where('course_id', $registration->course_id)
+                ->where('intake_id', $registration->intake_id)
+                ->update(array_merge(
+                    ['specialization' => $specialization !== '' ? $specialization : null],
+                    UserTrackingData::forUpdateOn('semester_registrations')
+                ));
+        }
+
+        return $specialization;
     }
 
     private function specializationsForCourse($course): array

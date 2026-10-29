@@ -12,6 +12,8 @@ use App\Models\ParentGuardian;
 use App\Models\PaymentDetail;
 use App\Models\PaymentInstallment;
 use App\Models\Semester;
+use App\Models\SemesterRegistration;
+use App\Models\SpecializationRegistration;
 use App\Models\Student;
 use App\Models\StudentExam;
 use App\Models\StudentPaymentPlan;
@@ -146,7 +148,7 @@ class StudentProfileTest extends TestCase
             ->assertSee('id="studentBtecCourse"', false)
             ->assertDontSee('id="studentFoundation" disabled', false)
             ->assertDontSee('id="studentBtec" disabled', false)
-            ->assertDontSee('data-nebula-select="off"', false);
+            ->assertDontSee('id="studentInstitute" data-nebula-select="off"', false);
 
         $this->actingAs($this->actor)
             ->getJson('/api/student-details-by-nic?nic=199011122V')
@@ -545,6 +547,179 @@ class StudentProfileTest extends TestCase
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['guardian_contact_number', 'emergency_contact_number']);
+    }
+
+    public function test_profile_page_history_table_is_mobile_ready(): void
+    {
+        $this->actingAs($this->actor)
+            ->get('/student/profile/0')
+            ->assertOk()
+            ->assertSee('id="historyTable"', false)
+            ->assertSee('data-label="Specialization"', false)
+            ->assertSee('class="form-select specialization-select"', false)
+            ->assertSee('setHistorySelectVisible', false)
+            ->assertSee('history-actions-cell', false)
+            ->assertSee('populateHistorySpecSelect', false)
+            ->assertDontSee('data-nebula-select="off"', false)
+            ->assertSee('(No Specialization)', false)
+            ->assertSee('isHistoryCommonSpec', false)
+            ->assertSee('historySpecLabel', false)
+            ->assertSee("return historySpecValue(value) || '-';", false);
+    }
+
+    public function test_history_reads_specialization_from_specialization_registrations(): void
+    {
+        $setup = $this->makeHistoryStudent(['Cyber Security', 'Data Analytics']);
+        SpecializationRegistration::forceCreate([
+            'student_id'     => $setup['student']->student_id,
+            'course_id'      => $setup['course']->course_id,
+            'intake_id'      => $setup['intake']->intake_id,
+            'location'       => 'Welisara',
+            'specialization' => 'Cyber Security',
+            'status'         => 'registered',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $setup['student']->student_id . '/history')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('history.0.specialization', 'Cyber Security')
+            ->assertJsonPath('history.0.specializations', ['Cyber Security', 'Data Analytics']);
+    }
+
+    public function test_history_keeps_current_specialization_in_options_after_course_mismatch(): void
+    {
+        $setup = $this->makeHistoryStudent(['Cyber Security', 'Data Analytics']);
+        SemesterRegistration::forceCreate([
+            'student_id'         => $setup['student']->student_id,
+            'semester_id'        => $setup['semester']->id,
+            'course_id'          => $setup['course']->course_id,
+            'intake_id'          => $setup['intake']->intake_id,
+            'location'           => 'Welisara',
+            'specialization'     => 'Electrical & Electronic Engineering',
+            'status'             => 'registered',
+            'registration_date'  => now()->toDateString(),
+        ]);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $setup['student']->student_id . '/history')
+            ->assertOk()
+            ->assertJsonPath('history.0.specialization', 'Electrical & Electronic Engineering')
+            ->assertJsonPath('history.0.specializations', [
+                'Cyber Security',
+                'Data Analytics',
+                'Electrical & Electronic Engineering',
+            ]);
+    }
+
+    public function test_history_edit_persists_specialization_and_grade(): void
+    {
+        $setup = $this->makeHistoryStudent(['Cyber Security', 'Data Analytics']);
+        SemesterRegistration::forceCreate([
+            'student_id'         => $setup['student']->student_id,
+            'semester_id'        => $setup['semester']->id,
+            'course_id'          => $setup['course']->course_id,
+            'intake_id'          => $setup['intake']->intake_id,
+            'location'           => 'Welisara',
+            'specialization'     => 'Electrical & Electronic Engineering',
+            'status'             => 'registered',
+            'registration_date'  => now()->toDateString(),
+        ]);
+
+        $this->actingAs($this->actor)
+            ->postJson('/api/course-registration/' . $setup['registration']->id . '/update-grade', [
+                'full_grade'     => 'A',
+                'specialization' => 'Cyber Security',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('specialization', 'Cyber Security')
+            ->assertJsonPath('full_grade', 'A');
+
+        $this->assertDatabaseHas('course_registration', [
+            'id'         => $setup['registration']->id,
+            'full_grade' => 'A',
+        ]);
+        $this->assertDatabaseHas('specialization_registrations', [
+            'student_id'     => $setup['student']->student_id,
+            'course_id'      => $setup['course']->course_id,
+            'intake_id'      => $setup['intake']->intake_id,
+            'specialization' => 'Cyber Security',
+            'status'         => 'registered',
+        ]);
+        $this->assertDatabaseHas('semester_registrations', [
+            'student_id'     => $setup['student']->student_id,
+            'course_id'      => $setup['course']->course_id,
+            'intake_id'      => $setup['intake']->intake_id,
+            'specialization' => 'Cyber Security',
+        ]);
+    }
+
+    public function test_history_edit_can_clear_specialization(): void
+    {
+        $setup = $this->makeHistoryStudent(['Cyber Security']);
+        SpecializationRegistration::forceCreate([
+            'student_id'     => $setup['student']->student_id,
+            'course_id'      => $setup['course']->course_id,
+            'intake_id'      => $setup['intake']->intake_id,
+            'location'       => 'Welisara',
+            'specialization' => 'Cyber Security',
+            'status'         => 'registered',
+        ]);
+
+        $this->actingAs($this->actor)
+            ->postJson('/api/course-registration/' . $setup['registration']->id . '/update-grade', [
+                'full_grade'     => '',
+                'specialization' => '',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('specialization', '');
+
+        $this->assertDatabaseMissing('specialization_registrations', [
+            'student_id' => $setup['student']->student_id,
+            'course_id'  => $setup['course']->course_id,
+            'intake_id'  => $setup['intake']->intake_id,
+        ]);
+    }
+
+    public function test_history_options_exclude_common(): void
+    {
+        $setup = $this->makeHistoryStudent(['Common', 'Cyber Security', 'Data Analytics']);
+
+        $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $setup['student']->student_id . '/history')
+            ->assertOk()
+            ->assertJsonPath('history.0.specializations', ['Cyber Security', 'Data Analytics']);
+    }
+
+    public function test_history_edit_rejects_unknown_specialization(): void
+    {
+        $setup = $this->makeHistoryStudent(['Cyber Security']);
+
+        $this->actingAs($this->actor)
+            ->postJson('/api/course-registration/' . $setup['registration']->id . '/update-grade', [
+                'specialization' => 'Not A Real Spec',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    private function makeHistoryStudent(array $specializations): array
+    {
+        $setup = $this->makePaymentStudent();
+        $setup['course']->specializations = $specializations;
+        $setup['course']->save();
+        $setup['semester'] = Semester::forceCreate([
+            'name'       => 'Semester 1',
+            'course_id'  => $setup['course']->course_id,
+            'intake_id'  => $setup['intake']->intake_id,
+            'start_date' => now()->toDateString(),
+            'end_date'   => now()->addMonths(6)->toDateString(),
+            'status'     => 'active',
+        ]);
+
+        return $setup;
     }
 
     private function makePaymentStudent(array $intakeAttrs = []): array

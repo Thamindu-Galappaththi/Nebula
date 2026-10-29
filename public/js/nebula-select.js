@@ -106,7 +106,7 @@
     function positionMenu() {
       const pad = 12;
       const toggleRect = toggle.getBoundingClientRect();
-      const width = Math.max(120, Math.min(toggleRect.width, window.innerWidth - pad * 2));
+      const width = Math.min(toggleRect.width, window.innerWidth - pad * 2);
       let left = toggleRect.left;
       if (left + width > window.innerWidth - pad) {
         left = window.innerWidth - pad - width;

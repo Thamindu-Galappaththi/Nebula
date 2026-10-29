@@ -182,12 +182,29 @@
     flex-wrap: wrap;
     gap: 0.35rem;
 }
-.specialization-cell {
-    min-width: 0;
-    max-width: 16rem;
+#history .table-responsive {
+    overflow: visible;
 }
-.specialization-cell .nebula-select {
+#historyTable .specialization-select,
+#historyTable .grade-input {
+    width: 100%;
     min-width: 0;
+    max-width: 100%;
+}
+.specialization-cell {
+    min-width: 12rem;
+    max-width: 22rem;
+    overflow: visible;
+}
+.specialization-cell .nebula-select,
+.specialization-cell .nebula-select-sm {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.specialization-cell .nebula-select-toggle {
+    width: 100%;
 }
 .student-profile-tabs-wrap::-webkit-scrollbar {
     height: 8px;
@@ -275,9 +292,82 @@
     }
     .history-action-buttons {
         flex-direction: column;
+        width: 100%;
     }
     .history-action-buttons .btn {
         width: 100%;
+    }
+    #historyTable thead {
+        display: none;
+    }
+    #historyTable,
+    #historyTable tbody,
+    #historyTable tr,
+    #historyTable td {
+        display: block;
+        width: 100%;
+    }
+    #historyTable tbody tr {
+        margin-bottom: 0.85rem;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 0.75rem 0.9rem;
+        background: #fff;
+    }
+    #historyTable td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        border: 0;
+        border-bottom: 1px solid #f1f3f5;
+        padding: 0.45rem 0;
+        max-width: none;
+    }
+    #historyTable td:last-child {
+        border-bottom: 0;
+    }
+    #historyTable td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #6c757d;
+        flex: 0 0 38%;
+        max-width: 38%;
+    }
+    #historyTable td[data-label=""]::before {
+        display: none;
+    }
+    #historyTable .specialization-cell,
+    #historyTable .full-grade-cell {
+        flex-direction: column;
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+    #historyTable .specialization-cell::before,
+    #historyTable .full-grade-cell::before {
+        flex: 0 0 auto;
+        max-width: none;
+    }
+    #historyTable .specialization-select,
+    #historyTable .grade-input,
+    #historyTable .nebula-select,
+    #historyTable .nebula-select-sm,
+    #historyTable .nebula-select-toggle {
+        width: 100%;
+        max-width: 100%;
+        flex: 1 1 auto;
+    }
+    #historyTable .history-actions-cell {
+        justify-content: flex-end;
+        align-items: stretch;
+    }
+    #historyTable .empty-row td {
+        display: block;
+        text-align: center;
+        border: 0;
+    }
+    #historyTable .empty-row td::before {
+        display: none;
     }
     .success-message,
     .error-message {
@@ -889,7 +979,7 @@
             <div class="tab-pane fade" id="history">
               <h5 class="fw-bold mb-3">Course Registration History</h5>
               <div class="table-responsive">
-              <table class="table table-bordered">
+              <table id="historyTable" class="table table-bordered">
                 <thead class="bg-primary text-white">
                   <tr>
                     <th>Course</th>
@@ -2681,6 +2771,63 @@ $(function(){
   });
 
   // ----- History tab -----
+  function historySpecSelect($tr){
+    return $tr.find('.specialization-select');
+  }
+
+  function setHistorySelectVisible($select, visible){
+    const select = $select.get(0);
+    if (!select) return;
+    select.hidden = false;
+    select.style.display = visible ? '' : 'none';
+    const wrap = select.closest('.nebula-select');
+    if (wrap) {
+      wrap.style.display = visible ? '' : 'none';
+    }
+  }
+
+  function isHistoryCommonSpec(value){
+    return String(value ?? '').trim().toLowerCase() === 'common';
+  }
+
+  function historySpecValue(value){
+    const spec = String(value ?? '').trim();
+    if (!spec || spec === '-' || isHistoryCommonSpec(spec)) {
+      return '';
+    }
+    return spec;
+  }
+
+  function historySpecLabel(value){
+    return historySpecValue(value) || '-';
+  }
+
+  function populateHistorySpecSelect($select, specs, current){
+    const seen = {};
+    const $options = $('<select></select>');
+    $options.append('<option value="">(No Specialization)</option>');
+    const selectedCurrent = isHistoryCommonSpec(current) ? '' : String(current || '').trim();
+    (Array.isArray(specs) ? specs : []).concat(selectedCurrent ? [selectedCurrent] : []).forEach(function(spec){
+      const value = String(spec ?? '').trim();
+      if (!value || isHistoryCommonSpec(value) || seen[value]) return;
+      seen[value] = true;
+      $options.append($('<option></option>').val(value).text(value));
+    });
+    $select.html($options.html());
+    $select.val(selectedCurrent);
+    $select.trigger('change');
+  }
+
+  function setHistoryRowEditing($tr, editing){
+    $tr.find('.grade-text').toggle(!editing);
+    $tr.find('.grade-input').toggle(editing);
+    $tr.find('.edit-grade-btn').toggle(!editing);
+    $tr.find('.save-grade-btn,.cancel-grade-btn').toggle(editing);
+    $tr.find('.specialization-text').toggle(!editing);
+    setHistorySelectVisible(historySpecSelect($tr), editing);
+    $tr.find('.save-grade-btn').prop('disabled', false);
+  }
+
   function fetchCourseRegistrationHistory(){
     const sid = $('#studentIdHidden').val();
     if (!sid) return;
@@ -2689,27 +2836,27 @@ $(function(){
       if (res.success && res.history && res.history.length) {
         res.history.forEach(h => {
           const specs = Array.isArray(h.specializations) ? h.specializations : [];
-          const currentSpec = h.specialization || '';
+          const currentSpec = historySpecValue(h.specialization);
           const specOptions = [`<option value="">(No Specialization)</option>`]
-            .concat(specs.map(spec => {
+            .concat(specs.filter(spec => !isHistoryCommonSpec(spec)).map(spec => {
               const value = String(spec ?? '');
               const selected = value === String(currentSpec) ? ' selected' : '';
               return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(value)}</option>`;
             }))
             .join('');
-          $tb.append(`<tr data-id="${escapeHtml(h.id)}" data-course-id="${escapeHtml(h.course_id)}">
-            <td>${escapeHtml(h.course_name)}</td>
-            <td>${escapeHtml(h.intake)}</td>
-            <td>${escapeHtml(h.status)}</td>
-            <td class="specialization-cell">
-              <span class="specialization-text">${escapeHtml(currentSpec)}</span>
-              <select class="form-select form-select-sm specialization-select" style="display:none;">${specOptions}</select>
+          const $row = $(`<tr data-id="${escapeHtml(h.id)}" data-course-id="${escapeHtml(h.course_id)}">
+            <td data-label="Course">${escapeHtml(h.course_name)}</td>
+            <td data-label="Intake">${escapeHtml(h.intake)}</td>
+            <td data-label="Status">${escapeHtml(h.status)}</td>
+            <td class="specialization-cell" data-label="Specialization">
+              <span class="specialization-text">${escapeHtml(historySpecLabel(currentSpec))}</span>
+              <select class="form-select specialization-select" style="display:none;">${specOptions}</select>
             </td>
-            <td class="full-grade-cell">
+            <td class="full-grade-cell" data-label="Overall Grade">
               <span class="grade-text">${escapeHtml(h.full_grade || '')}</span>
               <input type="text" class="form-control grade-input" style="display:none;" value="${escapeHtml(h.full_grade || '')}">
             </td>
-            <td>
+            <td class="history-actions-cell" data-label="Action">
               <div class="history-action-buttons">
                 <button type="button" class="btn btn-sm btn-primary edit-grade-btn">Edit</button>
                 <button type="button" class="btn btn-sm btn-success save-grade-btn" style="display:none;">Save</button>
@@ -2717,59 +2864,34 @@ $(function(){
               </div>
             </td>
           </tr>`);
+          $row.data('specializations', specs);
+          $row.data('specialization', currentSpec);
+          $tb.append($row);
         });
       } else {
-        $tb.append('<tr><td colspan="6" class="text-center">No registration history found.</td></tr>');
+        $tb.append('<tr class="empty-row"><td colspan="6" class="text-center" data-label="">No registration history found.</td></tr>');
       }
     }).fail(function(){
-      $('#historyTableBody').html('<tr><td colspan="6" class="text-center text-danger">Error loading history.</td></tr>');
+      $('#historyTableBody').html('<tr class="empty-row"><td colspan="6" class="text-center text-danger" data-label="">Error loading history.</td></tr>');
     });
   }
 
-  // --- Grade & Specialization Edit/Save/Cancel Handlers ---
   $(document).on('click', '.edit-grade-btn', function(){
     const $tr = $(this).closest('tr');
-    $tr.find('.grade-text').hide();
-    $tr.find('.grade-input').show().focus();
-    $tr.find('.edit-grade-btn').hide();
-    $tr.find('.save-grade-btn,.cancel-grade-btn').show();
-
-    // Specialization dropdown
-    const courseId = $tr.data('course-id');
-    const $specCell = $tr.find('.specialization-cell');
-    const $specText = $specCell.find('.specialization-text');
-    const $specSelect = $specCell.find('.specialization-select');
-    $specText.hide();
-    $specSelect.show();
-
-    // Load specializations for this course
-    $.get('/api/course/' + courseId + '/specializations', function(res){
-      $specSelect.empty();
-      $specSelect.append(`<option value="">(No Specialization)</option>`);
-      if(res.success && res.specializations && res.specializations.length){
-        res.specializations.forEach(function(spec){
-          if(spec && spec.toString().trim()!=='') {
-            $specSelect.append(`<option value="${spec}">${spec}</option>`);
-          }
-        });
-      }
-      const current = $specText.text().trim();
-      $specSelect.val(current !== '' ? current : '');
-    }).fail(function(){
-      $specSelect.empty().append(`<option value="">(No Specialization)</option>`);
-    });
+    const $specSelect = historySpecSelect($tr);
+    const current = historySpecValue($tr.data('specialization'));
+    const specs = $tr.data('specializations') || [];
+    populateHistorySpecSelect($specSelect, specs, current);
+    setHistoryRowEditing($tr, true);
+    $tr.find('.grade-input').focus();
   });
 
   $(document).on('click', '.cancel-grade-btn', function(){
     const $tr = $(this).closest('tr');
-    $tr.find('.grade-input').hide();
-    $tr.find('.grade-text').show();
-    $tr.find('.edit-grade-btn').show();
-    $tr.find('.save-grade-btn,.cancel-grade-btn').hide();
-
-    const $specCell = $tr.find('.specialization-cell');
-    $specCell.find('.specialization-select').hide();
-    $specCell.find('.specialization-text').show();
+    $tr.find('.grade-input').val($tr.find('.grade-text').text());
+    const current = historySpecValue($tr.data('specialization'));
+    populateHistorySpecSelect(historySpecSelect($tr), $tr.data('specializations') || [], current);
+    setHistoryRowEditing($tr, false);
   });
 
   $(document).on('click', '.save-grade-btn', function(e){
@@ -2778,8 +2900,12 @@ $(function(){
     const id = $tr.data('id');
     if (!id) return showErrorMessage('Invalid registration record.');
 
+    const $saveBtn = $tr.find('.save-grade-btn');
+    if ($saveBtn.prop('disabled')) return;
+
     const grade = $tr.find('.grade-input').val().trim();
-    const specialization = $tr.find('.specialization-select').val();
+    const specialization = historySpecSelect($tr).val() || '';
+    $saveBtn.prop('disabled', true);
 
     $.ajax({
       url: '/api/course-registration/' + id + '/update-grade',
@@ -2791,61 +2917,22 @@ $(function(){
       },
       success: function(res){
         if(res.success){
-          // refresh history from server to reflect DB state (authoritative)
           fetchCourseRegistrationHistory();
           showSuccessMessage('Grade and specialization updated successfully!');
         } else {
+          $saveBtn.prop('disabled', false);
           showErrorMessage(res.message || 'Failed to update.');
         }
       },
       error: function(xhr){
+        $saveBtn.prop('disabled', false);
         if(xhr && xhr.status === 419){
           showErrorMessage('Session expired. Please refresh the page and try again.');
+        } else if (xhr && xhr.status === 422) {
+          showErrorMessage((xhr.responseJSON && xhr.responseJSON.message) || 'Invalid specialization for this course.');
         } else {
           showErrorMessage('Error updating. Check the browser console / network tab for details.');
         }
-      }
-    });
-  });
-
-  $(document).on('click', '.cancel-grade-btn', function(){
-    const $tr = $(this).closest('tr');
-    $tr.find('.grade-input').hide();
-    $tr.find('.grade-text').show();
-    $tr.find('.edit-grade-btn').show();
-    $tr.find('.save-grade-btn,.cancel-grade-btn').hide();
-
-    // Specialization dropdown
-    const $specCell = $tr.find('.specialization-cell');
-    $specCell.find('.specialization-select').hide();
-    $specCell.find('.specialization-text').show();
-  });
-
-  $(document).on('click', '.save-grade-btn', function(){
-    const $tr = $(this).closest('tr');
-    const id = $tr.data('id');
-    const grade = $tr.find('.grade-input').val().trim();
-    const specialization = $tr.find('.specialization-select').val();
-    if (!id) return showErrorMessage('Invalid registration record.');
-    $.ajax({
-      url: '/api/course-registration/' + id + '/update-grade',
-      method: 'POST',
-      data: { full_grade: grade, specialization: specialization, _token: '{{ csrf_token() }}' },
-      success: function(res){
-        if(res.success){
-          $tr.find('.grade-text').text(grade).show();
-          $tr.find('.grade-input').hide();
-          $tr.find('.edit-grade-btn').show();
-          $tr.find('.save-grade-btn,.cancel-grade-btn').hide();
-          $tr.find('.specialization-text').text(specialization).show();
-          $tr.find('.specialization-select').hide();
-          showSuccessMessage('Grade and specialization updated successfully!');
-        }else{
-          showErrorMessage(res.message || 'Failed to update.');
-        }
-      },
-      error: function(){
-        showErrorMessage('Error updating.');
       }
     });
   });
