@@ -133,6 +133,32 @@ class AttendancePageTest extends TestCase
             ->assertJsonPath('students', []);
     }
 
+    public function test_core_attendance_falls_back_to_course_registration_when_semester_registration_is_missing(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $semester = $this->makeSemester($course, $intake);
+        $module = $this->makeSpecializedCompulsoryModule($semester, ['Software Engineering', 'Network Engineering'], 'Networking In The Cloud');
+        $student = $this->makeRegisteredStudent($course, $intake, $semester, '199012345V', 'Software Engineering', false);
+
+        $students = $this->actingAs($this->actor)
+            ->postJson(route('get.students.for.attendance'), [
+                'location' => 'Welisara',
+                'course_type' => 'diploma',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'specialization' => 'Software Engineering',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json('students');
+
+        $this->assertSame([$student->student_id], collect($students)->pluck('student_id')->all());
+        $this->assertSame('CR-199012345V', $students[0]['course_registration_id']);
+    }
+
     public function test_core_module_students_are_scoped_to_specialization(): void
     {
         $course = $this->makeCourse();
@@ -388,7 +414,8 @@ class AttendancePageTest extends TestCase
         Intake $intake,
         Semester $semester,
         string $idValue,
-        ?string $specialization = null
+        ?string $specialization = null,
+        bool $withSemesterRegistration = true
     ): Student {
         $student = $this->makeStudent($idValue);
 
@@ -403,15 +430,17 @@ class AttendancePageTest extends TestCase
             'course_registration_id' => 'CR-' . $idValue,
         ]);
 
-        SemesterRegistration::forceCreate([
-            'student_id'        => $student->student_id,
-            'semester_id'       => $semester->id,
-            'course_id'         => $course->course_id,
-            'intake_id'         => $intake->intake_id,
-            'location'          => 'Welisara',
-            'status'            => 'registered',
-            'registration_date' => now()->toDateString(),
-        ]);
+        if ($withSemesterRegistration) {
+            SemesterRegistration::forceCreate([
+                'student_id'        => $student->student_id,
+                'semester_id'       => $semester->id,
+                'course_id'         => $course->course_id,
+                'intake_id'         => $intake->intake_id,
+                'location'          => 'Welisara',
+                'status'            => 'registered',
+                'registration_date' => now()->toDateString(),
+            ]);
+        }
 
         if ($specialization) {
             SpecializationRegistration::forceCreate([

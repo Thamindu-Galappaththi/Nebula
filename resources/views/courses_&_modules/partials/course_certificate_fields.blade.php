@@ -19,14 +19,7 @@
 </div>
 <div class="col-12 col-md-6">
     <label for="{{ $p }}conducted_by" class="form-label">Conducted by <span class="text-danger">*</span></label>
-    <select class="form-select conducted-by-select" id="{{ $p }}conducted_by" name="conducted_by" @if($req) required @endif>
-        <option selected disabled value="">Select who conducts</option>
-        <option value="SLT-MOBITEL Nebula Institute of Technology">SLT-MOBITEL Nebula Institute of Technology</option>
-        <option value="Pearson">Pearson</option>
-        <option value="University of Hertfordshire">University of Hertfordshire</option>
-        <option value="Other">Other</option>
-    </select>
-    <input type="text" class="form-control mt-2 other-conducted-by" id="{{ $p }}other_conducted_by" name="other_conducted_by" placeholder="Please specify" hidden>
+    @include('courses_&_modules.partials.conducted_by_select', ['prefix' => $p, 'required' => $req])
 </div>
 <div class="col-12 col-md-6">
     <label class="form-label">Duration <span class="text-danger">*</span></label>
@@ -72,14 +65,7 @@
 <div class="row g-2 g-md-3 align-items-md-center mb-3">
     <label for="{{ $p }}conducted_by" class="col-12 col-md-3 col-lg-2 col-form-label">Conducted by <span class="text-danger">*</span></label>
     <div class="col-12 col-md-9 col-lg-10">
-        <select class="form-select conducted-by-select" id="{{ $p }}conducted_by" name="conducted_by" @if($req) required @endif>
-            <option selected disabled value="">Select who conducts</option>
-            <option value="SLT-MOBITEL Nebula Institute of Technology">SLT-MOBITEL Nebula Institute of Technology</option>
-            <option value="Pearson">Pearson</option>
-            <option value="University of Hertfordshire">University of Hertfordshire</option>
-            <option value="Other">Other</option>
-        </select>
-        <input type="text" class="form-control mt-2 other-conducted-by" id="{{ $p }}other_conducted_by" name="other_conducted_by" placeholder="Please specify" hidden>
+        @include('courses_&_modules.partials.conducted_by_select', ['prefix' => $p, 'required' => $req])
     </div>
 </div>
 <div class="row g-2 g-md-3 align-items-md-center mb-3">

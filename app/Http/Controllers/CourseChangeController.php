@@ -68,22 +68,12 @@ class CourseChangeController extends Controller
                 ->get()
                 ->map(function($reg) use ($today) {
                     $startDateRaw = $reg->course_start_date ?? optional($reg->intake)->start_date;
-                    if (!$startDateRaw) {
-                        $reg->is_change_allowed = false;
-                        $reg->change_deadline = null;
-                        $reg->is_future = false;
-                        $reg->course_start_date = null;
-                        return $reg;
-                    }
+                    $startDate = $startDateRaw ? Carbon::parse($startDateRaw) : null;
 
-                    $startDate = Carbon::parse($startDateRaw);
-                    $deadline = $startDate->copy()->addYear();
-                    $now = Carbon::parse($today);
-
-                    $reg->course_start_date = $startDate->toDateString();
-                    $reg->is_change_allowed = $now->lt($deadline);
-                    $reg->change_deadline = $deadline->toDateString();
-                    $reg->is_future = $startDate->toDateString() >= $today;
+                    $reg->course_start_date = $startDate?->toDateString();
+                    $reg->is_change_allowed = true;
+                    $reg->change_deadline = null;
+                    $reg->is_future = $startDate ? $startDate->toDateString() >= $today : false;
                     return $reg;
                 });
 
@@ -526,18 +516,6 @@ private function buildPaymentHistoryPreview($paymentDetails): array
                 'change_type' => $isIntakeOnlyChange ? 'intake_only' : 'course_and_intake'
             ]);
 
-            $startDateRaw = $registration->course_start_date ?? optional($registration->intake)->start_date;
-            if (!$startDateRaw) {
-                throw new \Exception('This registration has no course start date, so it cannot be changed.');
-            }
-
-            $startDate = Carbon::parse($startDateRaw);
-            $deadline = $startDate->copy()->addYear();
-
-            if (Carbon::now()->greaterThanOrEqualTo($deadline)) {
-                throw new \Exception('Course change is only allowed within 1 year from course start date. Start date: ' . $startDate->format('Y-m-d'));
-            }
-
             // Process payment records
             $paymentProcessResult = $this->processPaymentRecords($studentId, $oldCourseId, $registration->id, $oldIntakeId);
 
@@ -770,7 +748,7 @@ private function buildPaymentHistoryPreview($paymentDetails): array
             ->update(array_merge([
                 'status' => 'archived',
                 'updated_at' => now()
-            ], \App\Support\UserTrackingData::forUpdate()));
+            ], \App\Support\UserTrackingData::forUpdateOn('payment_installments')));
 
         Log::info('Updated ' . $installmentsUpdated . ' payment installments');
 
@@ -784,7 +762,7 @@ private function buildPaymentHistoryPreview($paymentDetails): array
 
         // Store payment summary when the optional audit table is available
         if (Schema::hasTable('course_change_payments')) {
-            DB::table('course_change_payments')->insert([
+            $auditPayload = [
                 'student_id' => $studentId,
                 'old_course_id' => $oldCourseId,
                 'old_intake_id' => $oldIntakeId ?? null,
@@ -793,8 +771,13 @@ private function buildPaymentHistoryPreview($paymentDetails): array
                 'remarks' => 'Payment records cancelled due to course change',
                 'created_at' => now(),
                 'updated_at' => now(),
-                ...\App\Support\UserTrackingData::forCreate(),
-            ]);
+            ];
+
+            foreach (\App\Support\UserTrackingData::forCreateOn('course_change_payments') as $column => $value) {
+                $auditPayload[$column] = $value;
+            }
+
+            DB::table('course_change_payments')->insert($auditPayload);
         } else {
             Log::warning('course_change_payments table is missing; skipping payment audit insert.');
         }
@@ -1228,7 +1211,18 @@ private function buildPaymentHistoryPreview($paymentDetails): array
             $payments = PaymentDetail::where('student_id', $studentId)
                 ->where('status', 'cancelled')
                 ->orderBy('updated_at', 'desc')
-                ->get(['id', 'course_registration_id', 'remarks', 'status', 'updated_at']);
+                ->get(['id', 'course_registration_id', 'remarks', 'status', 'updated_at'])
+                ->map(function ($payment) {
+                    return [
+                        'id' => $payment->id,
+                        'course_registration_id' => $payment->course_registration_id,
+                        'remarks' => $payment->remarks,
+                        'status' => $payment->status,
+                        'updated_at' => optional($payment->updated_at)
+                            ->timezone(config('app.timezone'))
+                            ?->format('Y-m-d H:i:s'),
+                    ];
+                });
 
             return response()->json([
                 'status' => 'success',

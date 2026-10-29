@@ -10,6 +10,14 @@
         max-width: 100%;
         min-width: 0;
     }
+    .conducted-by-field {
+        min-width: 0;
+        width: 100%;
+    }
+    .conducted-by-field .other-conducted-by:not([hidden]) {
+        display: block;
+        width: 100%;
+    }
     .course-list-header { gap: 0.75rem; }
     .course-table-scroll {
         overflow-x: auto;
@@ -515,10 +523,24 @@ $(function () {
         });
     }
 
+    function otherConductedByInput(select) {
+        const $field = $(select).closest('.conducted-by-field');
+        if ($field.length) {
+            return $field.find('.other-conducted-by');
+        }
+
+        const $wrap = $(select).closest('.nebula-select');
+        if ($wrap.length) {
+            return $wrap.siblings('.other-conducted-by');
+        }
+
+        return $(select).siblings('.other-conducted-by');
+    }
+
     $(document).on('change', '.conducted-by-select', function () {
-        const $other = $(this).siblings('.other-conducted-by');
+        const $other = otherConductedByInput(this);
         if ($(this).val() === 'Other') {
-            $other.prop('hidden', false).prop('required', true);
+            $other.prop('hidden', false).prop('required', true).trigger('focus');
         } else {
             $other.prop('hidden', true).prop('required', false).val('');
         }
@@ -638,6 +660,34 @@ $(function () {
         return $select.val() === 'Other' ? $other.val() : $select.val();
     }
 
+    function rememberConductedByOption(name) {
+        const value = String(name || '').trim();
+        if (!value || value.toLowerCase() === 'other') {
+            return;
+        }
+
+        document.querySelectorAll('.conducted-by-select').forEach(function (select) {
+            const exists = Array.from(select.options).some(function (opt) {
+                return opt.value === value;
+            });
+            if (exists) {
+                return;
+            }
+
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            const other = Array.from(select.options).find(function (opt) {
+                return opt.value === 'Other';
+            });
+            if (other) {
+                select.insertBefore(option, other);
+            } else {
+                select.appendChild(option);
+            }
+        });
+    }
+
     $('#courseForm').on('submit', function (e) {
         e.preventDefault();
         const type = $('#course_type').val();
@@ -662,6 +712,7 @@ $(function () {
             contentType: false,
             success: function (response) {
                 if (response.success) {
+                    rememberConductedByOption(response.course && response.course.conducted_by);
                     $('#courseForm')[0].reset();
                     $('#courseForm .specialization-fields').prop('hidden', true);
                     $('#courseForm .other-conducted-by').prop('hidden', true).prop('required', false).val('');
@@ -806,6 +857,7 @@ $(function () {
             contentType: false,
             success: function (response) {
                 if (response.success) {
+                    rememberConductedByOption(response.course && response.course.conducted_by);
                     if (editModal) editModal.hide();
                     showAlert('Updated', response.message, 'success').then(function () {
                         loadCourses(window.location.href, false);

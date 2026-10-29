@@ -124,6 +124,86 @@
         .course-change-table td .btn {
             width: 100%;
         }
+        #cancelledPaymentsModal .modal-title {
+            font-size: 1rem;
+            padding-right: 0.5rem;
+        }
+        #cancelledPaymentsModal .modal-footer .btn {
+            width: 100%;
+            min-height: 42px;
+        }
+        .cancelled-payments-table thead {
+            display: none;
+        }
+        .cancelled-payments-table,
+        .cancelled-payments-table tbody,
+        .cancelled-payments-table tr,
+        .cancelled-payments-table td {
+            display: block;
+            width: 100%;
+        }
+        .cancelled-payments-table tbody tr {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+        }
+        .cancelled-payments-table td {
+            border: 0;
+            padding: 0.45rem 0;
+        }
+        .cancelled-payments-table td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .cancelled-payment-cancel {
+            text-align: left !important;
+        }
+        .cancelled-payment-toggle {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+    }
+    #cancelledPaymentsModal .modal-body {
+        overflow-x: hidden;
+        min-width: 0;
+    }
+    .cancelled-payments-table {
+        margin-bottom: 0;
+        width: 100%;
+    }
+    .cancelled-payment-remarks {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        white-space: normal;
+    }
+    .cancelled-payment-updated {
+        white-space: nowrap;
+    }
+    @media (min-width: 768px) {
+        .cancelled-payments-table th:nth-child(1),
+        .cancelled-payments-table td:nth-child(1) {
+            white-space: nowrap;
+            width: 8rem;
+        }
+        .cancelled-payments-table th:nth-child(3),
+        .cancelled-payments-table td:nth-child(3) {
+            white-space: nowrap;
+            width: 11rem;
+        }
+        .cancelled-payments-table th:nth-child(4),
+        .cancelled-payments-table td:nth-child(4) {
+            white-space: nowrap;
+            width: 5rem;
+        }
     }
 </style>
 
@@ -247,13 +327,6 @@
                                 <span id="paymentWarningText"></span>
                             </div>
 
-                            <!-- Year Warning -->
-                            <div id="yearWarning" class="alert alert-danger d-none">
-                                <i class="ti ti-alert-octagon me-2"></i>
-                                <strong>Course Change Not Allowed!</strong>
-                                <span id="yearWarningText"></span>
-                            </div>
-
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Select New Course</label>
@@ -297,6 +370,7 @@
                             </div>
 
                             <div class="mt-3">
+                                <div id="submitError" class="alert alert-danger d-none" role="alert"></div>
                                 <div class="alert alert-info">
                                     <i class="ti ti-info-circle me-2"></i>
                                     <small>
@@ -381,7 +455,7 @@
 
             <!-- Cancelled Payments Remarks Modal -->
             <div class="modal fade" id="cancelledPaymentsModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
+                <div class="modal-dialog modal-lg modal-fullscreen-md-down">
                     <div class="modal-content">
                         <div class="modal-header bg-secondary text-white">
                             <h5 class="modal-title">
@@ -465,7 +539,7 @@
 </div>
 
 <!-- Toast Container -->
-<div class="toast-container position-fixed top-0 end-0 p-3 course-change-toast" style="z-index: 1090">
+<div class="toast-container position-fixed top-0 end-0 p-3 course-change-toast" style="z-index: 2000">
     <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert">
         <div class="d-flex">
             <div class="toast-body">
@@ -575,6 +649,22 @@ function showToast(message, type = 'success') {
     toast.show();
 }
 
+function getBsModal(elementId) {
+    const el = document.getElementById(elementId);
+    return el ? bootstrap.Modal.getOrCreateInstance(el) : null;
+}
+
+function cleanupOrphanedModalBackdrops() {
+    if (document.querySelector('.modal.show')) {
+        return;
+    }
+
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+}
+
 function getPaymentTypeLabel(type) {
     const labels = {
         course_fee: 'Course Fee',
@@ -648,8 +738,7 @@ function showPaymentHistoryPreview(data) {
         `;
     }
 
-    const previewModal = new bootstrap.Modal(document.getElementById('paymentHistoryPreviewModal'));
-    previewModal.show();
+    getBsModal('paymentHistoryPreviewModal')?.show();
 }
 
 function showPaymentPlanPanel(totalPaidAmount) {
@@ -676,12 +765,13 @@ function refreshPaymentPlanFrame() {
     }
 }
 
-async function showCancelledPayments() {
+async function showCancelledPayments(options = {}) {
     if (!studentId) {
         showAlert('Please search a student first', 'warning');
         return;
     }
 
+    const refreshOnly = Boolean(options.refreshOnly);
     const content = document.getElementById('cancelledPaymentsContent');
     content.innerHTML = `
         <div class="text-center py-3">
@@ -692,8 +782,9 @@ async function showCancelledPayments() {
         </div>
     `;
 
-    const modal = new bootstrap.Modal(document.getElementById('cancelledPaymentsModal'));
-    modal.show();
+    if (!refreshOnly) {
+        getBsModal('cancelledPaymentsModal')?.show();
+    }
 
     try {
         const response = await fetch(`{{ url('registration/course-change/cancelled-payments') }}/${studentId}`);
@@ -717,11 +808,11 @@ async function showCancelledPayments() {
             const isCancelled = isCancelledByRemarks(payment.remarks || '');
             rowsHtml += `
                 <tr>
-                    <td>${escapeHtml(payment.course_registration_id ?? '-')}</td>
-                    <td>${escapeHtml(payment.remarks ?? '-')}</td>
-                    <td>${escapeHtml(payment.updated_at ?? '-')}</td>
-                    <td class="text-center">
-                        <input type="checkbox" class="cancelled-payment-toggle"
+                    <td data-label="Registration ID">${escapeHtml(payment.course_registration_id ?? '-')}</td>
+                    <td data-label="Remarks" class="cancelled-payment-remarks">${escapeHtml(payment.remarks ?? '-')}</td>
+                    <td data-label="Updated" class="cancelled-payment-updated">${escapeHtml(payment.updated_at ?? '-')}</td>
+                    <td data-label="Cancel" class="text-center cancelled-payment-cancel">
+                        <input type="checkbox" class="form-check-input cancelled-payment-toggle"
                                data-payment-id="${escapeHtml(payment.id)}"
                                ${isCancelled ? 'checked' : ''}>
                     </td>
@@ -731,7 +822,7 @@ async function showCancelledPayments() {
 
         content.innerHTML = `
             <div class="table-responsive">
-                <table class="table table-bordered align-middle">
+                <table class="table table-bordered align-middle cancelled-payments-table">
                     <thead class="table-light">
                         <tr>
                             <th>Registration ID</th>
@@ -770,8 +861,7 @@ async function showChangeLogs() {
         </div>
     `;
 
-    const modal = new bootstrap.Modal(document.getElementById('courseChangeLogsModal'));
-    modal.show();
+    getBsModal('courseChangeLogsModal')?.show();
 
     try {
         const response = await fetch(`{{ url('registration/course-change/change-history') }}/${studentId}`);
@@ -907,11 +997,14 @@ async function toggleCancelledPaymentStatus(paymentId, isChecked) {
             throw new Error(data.message || 'Failed to update payment');
         }
 
-        await showCancelledPayments();
+        await showCancelledPayments({ refreshOnly: true });
     } catch (error) {
         console.error('Update payment status error:', error);
         showAlert('Failed to update payment status: ' + error.message, 'danger');
-        await showCancelledPayments();
+        const toggle = document.querySelector(`.cancelled-payment-toggle[data-payment-id="${paymentId}"]`);
+        if (toggle) {
+            toggle.checked = !isChecked;
+        }
     }
 }
 
@@ -924,6 +1017,24 @@ function clearErrors() {
             el.textContent = '';
         }
     });
+    hideSubmitError();
+}
+
+function hideSubmitError() {
+    const banner = document.getElementById('submitError');
+    if (banner) {
+        banner.classList.add('d-none');
+        banner.textContent = '';
+    }
+}
+
+function showSubmitError(message) {
+    const banner = document.getElementById('submitError');
+    if (banner) {
+        banner.textContent = message;
+        banner.classList.remove('d-none');
+    }
+    showToast(message, 'error');
 }
 
 // Show error
@@ -1111,34 +1222,12 @@ async function showChangeModal(regId, courseId, intakeId, startDate) {
     // Clear previous errors and reset modal
     clearErrors();
     document.getElementById('paymentWarning').classList.add('d-none');
-    document.getElementById('yearWarning').classList.add('d-none');
     document.getElementById('course_select').innerHTML = '<option value="">Loading...</option>';
     resetSelect(document.getElementById('new_intake'), 'Select course first');
     document.getElementById('generated_id').value = '';
     document.getElementById('submitBtn').disabled = true;
     document.getElementById('generateBtn').disabled = true;
-    
-    // Check if within 1 year from course start date
-    const referenceDate = new Date(startDate);
-    const deadline = new Date(referenceDate);
-    deadline.setFullYear(deadline.getFullYear() + 1);
 
-    if (new Date() >= deadline) {
-        const warningDiv = document.getElementById('yearWarning');
-        const warningText = document.getElementById('yearWarningText');
-        
-        warningText.textContent = `Course start date is ${window.toLocalDateString(referenceDate)}. Course changes are only allowed within 1 year from the start date.`;
-        warningDiv.classList.remove('d-none');
-        
-        // Disable modal buttons
-        document.getElementById('submitBtn').disabled = true;
-        
-        // Show modal anyway for information
-        const modal = new bootstrap.Modal(document.getElementById('changeCourseModal'));
-        modal.show();
-        return;
-    }
-    
     // Check payment status
     try {
         const response = await fetch("{{ route('course.change.check.payment') }}", {
@@ -1171,8 +1260,7 @@ async function showChangeModal(regId, courseId, intakeId, startDate) {
     await loadCourses();
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('changeCourseModal'));
-    modal.show();
+    getBsModal('changeCourseModal')?.show();
 }
 
 // Load courses
@@ -1374,10 +1462,11 @@ async function submitChange() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('changeCourseModal'));
     
     if (!intakeId || !newCourseRegId) {
-        showAlert('Please select both intake and generate ID first', 'warning');
+        showSubmitError('Please select both intake and generate ID first');
         return;
     }
-    
+
+    hideSubmitError();
     submitBtn.innerHTML = '<i class="ti ti-loader spinner me-2"></i>Processing...';
     submitBtn.disabled = true;
     
@@ -1386,7 +1475,8 @@ async function submitChange() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
             },
             body: JSON.stringify({
                 registration_id: selectedRegistration,
@@ -1394,8 +1484,14 @@ async function submitChange() {
                 new_course_registration_id: newCourseRegId
             })
         });
-        
-        const data = await response.json();
+
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            showSubmitError('Course change failed. Please try again.');
+            return;
+        }
         
         if (data.status === 'success') {
             // Close modal
@@ -1431,8 +1527,7 @@ async function submitChange() {
                     </div>
                 `;
                 
-                const paymentModal = new bootstrap.Modal(document.getElementById('paymentSummaryModal'));
-                paymentModal.show();
+                getBsModal('paymentSummaryModal')?.show();
             } else {
                 // Show simple success alert
                 showAlert(data.message || 'Course / intake updated successfully', 'success');
@@ -1446,11 +1541,11 @@ async function submitChange() {
             }, 1500);
             
         } else {
-            showAlert(data.message || 'Error changing course', 'danger');
+            showSubmitError(data.message || 'Error changing course');
         }
         
     } catch (error) {
-        showAlert('Error submitting change: ' + error.message, 'danger');
+        showSubmitError('Error submitting change: ' + error.message);
     } finally {
         submitBtn.innerHTML = '<i class="ti ti-check me-2"></i>Confirm Change';
         submitBtn.disabled = false;
@@ -1478,13 +1573,18 @@ document.addEventListener('DOMContentLoaded', function() {
         resetSelect(document.getElementById('new_intake'), 'Select course first');
         document.getElementById('generated_id').value = '';
         document.getElementById('paymentWarning').classList.add('d-none');
-        document.getElementById('yearWarning').classList.add('d-none');
         document.getElementById('submitBtn').disabled = true;
         document.getElementById('generateBtn').disabled = true;
         clearErrors();
         selectedRegistration = null;
         paymentInfo = null;
+        cleanupOrphanedModalBackdrops();
     });
+
+    ['cancelledPaymentsModal', 'courseChangeLogsModal', 'paymentSummaryModal', 'paymentHistoryPreviewModal']
+        .forEach(id => {
+            document.getElementById(id)?.addEventListener('hidden.bs.modal', cleanupOrphanedModalBackdrops);
+        });
     
     document.getElementById('logsBtn')?.addEventListener('click', showChangeLogs);
     document.getElementById('remarksBtn')?.addEventListener('click', showCancelledPayments);
