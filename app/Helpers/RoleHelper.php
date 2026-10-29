@@ -17,6 +17,7 @@ class RoleHelper
         'Bursar' => 'Bursar',
         'Project Tutor' => 'Project Tutor',
         'Marketing Manager' => 'Marketing Manager',
+        'Payment Analyst' => 'Payment Analyst',
         'Developer' => 'Developer',
     ];
 
@@ -30,6 +31,7 @@ class RoleHelper
         'Student Counselor',
         'Student Counselor Trainee',
         'Marketing Manager',
+        'Payment Analyst',
         'Bursar',
         'Project Tutor',
         'Librarian',
@@ -336,6 +338,12 @@ class RoleHelper
             // FOOTER
             'user.profile',
             'team.phase.index'
+        ],
+
+        'Payment Analyst' => [
+            'payment.dashboard',
+            'payment.summary',
+            'user.profile',
         ],
 
         'Bursar' => [

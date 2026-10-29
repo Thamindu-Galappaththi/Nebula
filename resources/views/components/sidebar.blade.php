@@ -17,10 +17,10 @@
     <nav class="sidebar-nav scroll-sidebar" data-simplebar="">
         <ul class="metismenu" id="menu">
             {{-- HOME --}}
+            @if(RoleHelper::hasPermission($role, 'dashboard'))
             <li class="nav-small-cap">
                 <span class="nav-small-cap-text">HOME</span>
             </li>
-            @if(RoleHelper::hasPermission($role, 'dashboard'))
                 <li class="sidebar-item">
                     <a class="sidebar-link {{ Route::currentRouteName() == 'dashboard' ? 'active' : '' }}" href="{{ route('dashboard') }}">
                         <span><i class="ti ti-layout-dashboard"></i></span>
@@ -445,7 +445,7 @@
             @endif
             @if(RoleHelper::hasPermission($role, 'payment.dashboard'))
                 <li class="sidebar-item">
-                    <a class="sidebar-link {{ request()->routeIs('payment.summary') ? 'active' : '' }}"href="{{ route('payment.summary') }}">
+                    <a class="sidebar-link {{ request()->routeIs('payment.summary', 'payment.analytics', 'payment.comparison') ? 'active' : '' }}" href="{{ route('payment.summary') }}">
                         <span><i class="ti ti-chart-pie"></i></span>
                         <span class="hide-menu">Payment Dashboard</span>
                     </a>
