@@ -261,6 +261,15 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="mb-3 row mx-0">
+                                <label for="degree_session_start" class="col-md-2 col-form-label fw-bold">Session time</label>
+                                <div class="col-md-10 d-flex flex-wrap gap-2 align-items-center">
+                                    <input type="time" class="form-control" id="degree_session_start" name="session_start" style="max-width: 10rem;" aria-label="Session start">
+                                    <span class="text-muted">to</span>
+                                    <input type="time" class="form-control" id="degree_session_end" name="session_end" style="max-width: 10rem;" aria-label="Session end">
+                                    <span class="small text-muted">Optional. Use when the same module has two lectures on one day (for example 09:00–11:00 and 12:00–14:00).</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -360,6 +369,15 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="mb-3 row mx-0">
+                                <label for="cert_session_start" class="col-md-2 col-form-label fw-bold">Session time</label>
+                                <div class="col-md-10 d-flex flex-wrap gap-2 align-items-center">
+                                    <input type="time" class="form-control" id="cert_session_start" name="session_start" style="max-width: 10rem;" aria-label="Session start">
+                                    <span class="text-muted">to</span>
+                                    <input type="time" class="form-control" id="cert_session_end" name="session_end" style="max-width: 10rem;" aria-label="Session end">
+                                    <span class="small text-muted">Optional. Use when the same course has two lectures on one day.</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -436,6 +454,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const degreeModule = document.getElementById('degree_module');
     const degreeDate = document.getElementById('degree_date');
     const degreeAttendanceType = document.getElementById('degree_attendance_type');
+    const degreeSessionStart = document.getElementById('degree_session_start');
+    const degreeSessionEnd = document.getElementById('degree_session_end');
     
     // Certificate Tab Elements
     const certLocation = document.getElementById('cert_location');
@@ -443,6 +463,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const certIntake = document.getElementById('cert_intake');
     const certDate = document.getElementById('cert_date');
     const certAttendanceType = document.getElementById('cert_attendance_type');
+    const certSessionStart = document.getElementById('cert_session_start');
+    const certSessionEnd = document.getElementById('cert_session_end');
     
     // Degree-specific elements
     const degreeAttendanceTableBody = document.getElementById('degreeAttendanceTableBody');
@@ -663,6 +685,15 @@ document.addEventListener('DOMContentLoaded', function() {
         updateBulkImportSection();
     });
 
+    degreeSessionStart.addEventListener('change', function() {
+        maybeFetchDegreeStudents();
+        updateBulkImportSection();
+    });
+
+    degreeSessionEnd.addEventListener('change', function() {
+        updateBulkImportSection();
+    });
+
     // CERTIFICATE TAB EVENT LISTENERS
     certLocation.addEventListener('change', function() {
         resetAndDisable(certCourse, 'Select a Course');
@@ -692,6 +723,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     certAttendanceType.addEventListener('change', function() {
         maybeFetchCertStudents();
+    });
+
+    certSessionStart.addEventListener('change', function() {
+        maybeFetchCertStudents();
+        updateBulkImportSection();
+    });
+
+    certSessionEnd.addEventListener('change', function() {
+        updateBulkImportSection();
     });
 
     // Validation functions
@@ -1036,6 +1076,8 @@ document.addEventListener('DOMContentLoaded', function() {
             params.append('module_id', degreeModule.value || '');
             params.append('date', degreeDate.value || '');
             params.append('attendance_type', degreeAttendanceType.value || '');
+            params.append('session_start', degreeSessionStart.value || '');
+            params.append('session_end', degreeSessionEnd.value || '');
             degreeBulk.style.display = '';
             degreeDownloadTemplateBtn.href = '{{ route('attendance.download.template') }}?' + params.toString();
         } else {
@@ -1051,6 +1093,8 @@ document.addEventListener('DOMContentLoaded', function() {
             params.append('module_id', '');
             params.append('date', certDate.value || '');
             params.append('attendance_type', certAttendanceType.value || '');
+            params.append('session_start', certSessionStart.value || '');
+            params.append('session_end', certSessionEnd.value || '');
             certBulk.style.display = '';
             certDownloadTemplateBtn.href = '{{ route('attendance.download.template') }}?' + params.toString();
         } else {
@@ -1079,6 +1123,9 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast('Warning', 'Please select all filters and mark attendance for at least one student.', 'warning');
             return;
         }
+
+        data.session_start = degreeSessionStart.value || '';
+        data.session_end = degreeSessionEnd.value || '';
         
         showSpinner(true);
         fetch('/store-attendance', {
@@ -1123,6 +1170,9 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast('Warning', 'Please select all filters and mark attendance for at least one student.', 'warning');
             return;
         }
+
+        data.session_start = certSessionStart.value || '';
+        data.session_end = certSessionEnd.value || '';
         
         showSpinner(true);
         fetch('/store-attendance', {
@@ -1212,6 +1262,8 @@ document.addEventListener('DOMContentLoaded', function() {
         payload.append('module_id', degreeModule.value || '');
         payload.append('date', degreeDate.value || '');
         payload.append('attendance_type', degreeAttendanceType.value || '');
+        payload.append('session_start', degreeSessionStart.value || '');
+        payload.append('session_end', degreeSessionEnd.value || '');
         payload.append('_token', '{{ csrf_token() }}');
 
         showSpinner(true);
@@ -1270,6 +1322,8 @@ document.addEventListener('DOMContentLoaded', function() {
         payload.append('module_id', '');
         payload.append('date', certDate.value || '');
         payload.append('attendance_type', certAttendanceType.value || '');
+        payload.append('session_start', certSessionStart.value || '');
+        payload.append('session_end', certSessionEnd.value || '');
         payload.append('_token', '{{ csrf_token() }}');
 
         showSpinner(true);

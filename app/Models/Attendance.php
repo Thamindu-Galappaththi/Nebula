@@ -21,6 +21,8 @@ class Attendance extends Model
         'semester',
         'date',
         'attendance_type',
+        'session_start',
+        'session_end',
         'student_id',
         'status',
         'created_at',
@@ -34,6 +36,8 @@ class Attendance extends Model
         'intake_id' => 'int',
         'student_id' => 'int',
         'date' => 'date',
+        'session_start' => 'datetime:H:i:s',
+        'session_end' => 'datetime:H:i:s',
         'status' => 'boolean',
     ];
 

@@ -382,8 +382,84 @@ class AttendanceController extends Controller
         if ($this->attendanceTracksSessionType()) {
             $columns[] = 'attendance_type';
         }
+        if ($this->attendanceTracksSessionSlot()) {
+            $columns[] = 'session_start';
+            $columns[] = 'session_end';
+        }
 
         return $columns;
+    }
+
+    private function attendanceTracksSessionSlot(): bool
+    {
+        return Schema::hasColumn('attendance', 'session_start');
+    }
+
+    private function normalizeSessionTime(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->format('H:i:s');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function sessionTimeForRecord($record, string $column): string
+    {
+        if (!$this->attendanceTracksSessionSlot()) {
+            return '';
+        }
+
+        $raw = $record->{$column} ?? null;
+        if ($raw === null || $raw === '') {
+            return '';
+        }
+
+        try {
+            return Carbon::parse($raw)->format('H:i:s');
+        } catch (\Throwable $e) {
+            return is_string($raw) ? $raw : '';
+        }
+    }
+
+    private function formatSessionClock(string $time): string
+    {
+        try {
+            return Carbon::parse($time)->format('H:i');
+        } catch (\Throwable $e) {
+            return $time;
+        }
+    }
+
+    private function applySessionSlotFilter($query, ?string $sessionStart)
+    {
+        if (!$this->attendanceTracksSessionSlot()) {
+            return $query;
+        }
+
+        $normalized = $this->normalizeSessionTime($sessionStart);
+        if ($normalized === null) {
+            return $query->whereNull('session_start');
+        }
+
+        return $query->whereTime('session_start', $normalized);
+    }
+
+    private function sessionSlotPayload(?string $start, ?string $end): array
+    {
+        if (!$this->attendanceTracksSessionSlot()) {
+            return [];
+        }
+
+        return [
+            'session_start' => $this->normalizeSessionTime($start),
+            'session_end' => $this->normalizeSessionTime($end),
+        ];
     }
 
     private function attendanceTypeLabel(?string $type): string
@@ -406,8 +482,13 @@ class AttendanceController extends Controller
         }
 
         $type = strtolower(trim((string) ($record->attendance_type ?? 'lectures')));
+        $key = $date . '|' . ($type !== '' ? $type : 'lectures');
 
-        return $date . '|' . ($type !== '' ? $type : 'lectures');
+        if ($this->attendanceTracksSessionSlot()) {
+            $key .= '|' . $this->sessionTimeForRecord($record, 'session_start');
+        }
+
+        return $key;
     }
 
     private function uniqueAttendanceSessions($records)
@@ -421,20 +502,31 @@ class AttendanceController extends Controller
                 if ($type === '') {
                     $type = 'lectures';
                 }
+                $start = $this->sessionTimeForRecord($record, 'session_start');
+                $end = $this->sessionTimeForRecord($record, 'session_end');
+                $label = $this->attendanceTracksSessionType()
+                    ? $date . ' · ' . $this->attendanceTypeLabel($type)
+                    : $date;
+                if ($start !== '') {
+                    $label .= ' · ' . $this->formatSessionClock($start);
+                    if ($end !== '') {
+                        $label .= '–' . $this->formatSessionClock($end);
+                    }
+                }
 
                 return [
                     'key' => $this->attendanceSessionKey($record),
                     'date' => $date,
                     'type' => $type,
-                    'label' => $this->attendanceTracksSessionType()
-                        ? $date . ' · ' . $this->attendanceTypeLabel($type)
-                        : $date,
+                    'session_start' => $start,
+                    'label' => $label,
                 ];
             })
             ->unique('key')
             ->sortBy([
                 ['date', 'asc'],
                 ['type', 'asc'],
+                ['session_start', 'asc'],
             ])
             ->values();
     }
@@ -720,6 +812,8 @@ class AttendanceController extends Controller
                 'intake_id' => 'required|integer',
                 'date' => 'required|date',
                 'attendance_type' => 'nullable|string|in:lectures,labs,special_lectures,tutorials,other',
+                'session_start' => 'nullable|string|max:8',
+                'session_end' => 'nullable|string|max:8',
                 'attendance_data' => 'required|array|min:1'
             ]);
         } else {
@@ -731,6 +825,8 @@ class AttendanceController extends Controller
                 'module_id' => 'required|integer',
                 'date' => 'required|date',
                 'attendance_type' => 'nullable|string|in:lectures,labs,special_lectures,tutorials,other',
+                'session_start' => 'nullable|string|max:8',
+                'session_end' => 'nullable|string|max:8',
                 'attendance_data' => 'required|array|min:1'
             ]);
         }
@@ -755,6 +851,8 @@ class AttendanceController extends Controller
                 if ($hasAttendanceTypeColumn) {
                     $deleteQuery->where('attendance_type', $attendanceType);
                 }
+
+                $this->applySessionSlotFilter($deleteQuery, $request->input('session_start'));
 
                 $deleteQuery->delete();
 
@@ -781,6 +879,11 @@ class AttendanceController extends Controller
                     if ($hasAttendanceTypeColumn) {
                         $record['attendance_type'] = $attendanceType;
                     }
+
+                    $record = array_merge($record, $this->sessionSlotPayload(
+                        $request->input('session_start'),
+                        $request->input('session_end')
+                    ));
 
                     $attendanceRecords[] = $record;
                 }
@@ -837,6 +940,8 @@ class AttendanceController extends Controller
                 $deleteQuery->where('attendance_type', $attendanceType);
             }
 
+            $this->applySessionSlotFilter($deleteQuery, $request->input('session_start'));
+
             $deleteQuery->delete();
 
             // Insert new attendance records
@@ -862,6 +967,11 @@ class AttendanceController extends Controller
                 if ($hasAttendanceTypeColumn) {
                     $record['attendance_type'] = $attendanceType;
                 }
+
+                $record = array_merge($record, $this->sessionSlotPayload(
+                    $request->input('session_start'),
+                    $request->input('session_end')
+                ));
 
                 $attendanceRecords[] = $record;
             }
@@ -911,6 +1021,8 @@ class AttendanceController extends Controller
             'module_id' => 'required|integer',
             'date' => 'required|date',
             'attendance_type' => 'nullable|string|in:lectures,labs,special_lectures,tutorials,other',
+            'session_start' => 'nullable|string|max:8',
+            'session_end' => 'nullable|string|max:8',
             'specialization' => 'nullable|string|max:255'
         ]);
 
@@ -981,6 +1093,8 @@ class AttendanceController extends Controller
             if ($request->filled('attendance_type') && Schema::hasColumn('attendance', 'attendance_type')) {
                 $attendance->where('attendance_type', $request->attendance_type);
             }
+
+            $this->applySessionSlotFilter($attendance, $request->input('session_start'));
 
             $attendance = $attendance->with('student')->get();
 
@@ -1564,6 +1678,8 @@ class AttendanceController extends Controller
             'intake_id' => 'required|integer',
             'date' => 'required|date',
             'attendance_type' => 'nullable|string|in:lectures,labs,special_lectures,tutorials,other',
+            'session_start' => 'nullable|string|max:8',
+            'session_end' => 'nullable|string|max:8',
             'attendance_file' => 'required|file'
         ];
 
@@ -1721,6 +1837,11 @@ class AttendanceController extends Controller
                 $record['attendance_type'] = $attendanceType;
             }
 
+            $record = array_merge($record, $this->sessionSlotPayload(
+                $request->input('session_start'),
+                $request->input('session_end')
+            ));
+
             $attendanceRecords[] = $record;
         }
 
@@ -1757,6 +1878,8 @@ class AttendanceController extends Controller
             if ($hasAttendanceTypeColumn) {
                 $deleteQuery->where('attendance_type', $attendanceType);
             }
+
+            $this->applySessionSlotFilter($deleteQuery, $request->input('session_start'));
 
             $deleteQuery->delete();
 
