@@ -110,6 +110,71 @@ class AttendancePageTest extends TestCase
         $this->assertTrue(collect($matrixDates)->contains(fn ($label) => str_contains((string) $label, 'Tutorial')));
     }
 
+    public function test_overall_attendance_counts_two_lectures_on_the_same_day_as_two_sessions(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $semester = $this->makeSemester($course, $intake);
+        $module = $this->makeCoreModule($semester);
+        $student = $this->makeRegisteredStudent($course, $intake, $semester, '199012345V', 'Software Engineering');
+        $date = now()->toDateString();
+
+        $this->insertAttendance($student, $course, $intake, $semester, $module, $date, 'lectures', true, '09:00:00', '11:00:00');
+        $this->insertAttendance($student, $course, $intake, $semester, $module, $date, 'lectures', true, '12:00:00', '14:00:00');
+
+        $payload = $this->actingAs($this->actor)
+            ->postJson(route('get.overall.attendance'), [
+                'location' => 'Welisara',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'specialization' => 'Software Engineering',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json();
+
+        $row = collect($payload['attendance'])->firstWhere('student_id', $student->student_id);
+        $this->assertSame(2, $row['total_sessions']);
+        $this->assertSame(2, $row['attended_sessions']);
+        $this->assertEquals(100, $row['percentage']);
+
+        $matrixDates = collect($payload['matrix']['rows'])->pluck('date')->all();
+        $this->assertCount(2, $matrixDates);
+        $this->assertTrue(collect($matrixDates)->contains(fn ($label) => str_contains((string) $label, '09:00')));
+        $this->assertTrue(collect($matrixDates)->contains(fn ($label) => str_contains((string) $label, '12:00')));
+    }
+
+    public function test_overall_attendance_does_not_count_duplicate_lecture_resaves_as_two_sessions(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $semester = $this->makeSemester($course, $intake);
+        $module = $this->makeCoreModule($semester);
+        $student = $this->makeRegisteredStudent($course, $intake, $semester, '199012345V', 'Software Engineering');
+        $date = now()->toDateString();
+
+        $this->insertAttendance($student, $course, $intake, $semester, $module, $date, 'lectures', true);
+        $this->insertAttendance($student, $course, $intake, $semester, $module, $date, 'lectures', true);
+
+        $payload = $this->actingAs($this->actor)
+            ->postJson(route('get.overall.attendance'), [
+                'location' => 'Welisara',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'specialization' => 'Software Engineering',
+            ])
+            ->assertOk()
+            ->json();
+
+        $row = collect($payload['attendance'])->firstWhere('student_id', $student->student_id);
+        $this->assertSame(1, $row['total_sessions']);
+        $this->assertSame(1, $row['attended_sessions']);
+    }
+
     public function test_specific_specialization_with_no_assignments_returns_empty_students(): void
     {
         $course = $this->makeCourse();
@@ -371,7 +436,9 @@ class AttendancePageTest extends TestCase
         Module $module,
         string $date,
         string $type,
-        bool $present
+        bool $present,
+        ?string $sessionStart = null,
+        ?string $sessionEnd = null
     ): void {
         $row = [
             'location' => 'Welisara',
@@ -388,6 +455,11 @@ class AttendancePageTest extends TestCase
 
         if (Schema::hasColumn('attendance', 'attendance_type')) {
             $row['attendance_type'] = $type;
+        }
+
+        if (Schema::hasColumn('attendance', 'session_start')) {
+            $row['session_start'] = $sessionStart;
+            $row['session_end'] = $sessionEnd;
         }
 
         DB::table('attendance')->insert($row);
