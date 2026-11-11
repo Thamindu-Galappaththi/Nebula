@@ -3,6 +3,7 @@
 @section('title', 'NEBULA | Overall Attendance')
 
 @section('content')
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
     .overall-attendance-page,
     .overall-attendance-page .card,
@@ -470,6 +471,7 @@
 @endsection
 
 @push('scripts')
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
 /* HTML Escape Helper Function */
 function escapeHtml(text) {
@@ -1347,24 +1349,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function deleteAttendanceSession(session) {
         const label = (session.date || '') + ' · ' + (session.type_label || session.attendance_type || 'session');
-        if (!window.confirm('Delete the attendance session ' + label + '? Present and absent marks for that session will be removed. This cannot be undone.')) {
-            return;
-        }
-        const payload = Object.assign(currentSessionScope(session.kind), {
-            original_date: session.date || session.session_date,
-            original_attendance_type: session.attendance_type || 'lectures',
-            original_session_start: session.session_start || ''
+        Swal.fire({
+            title: 'Delete this session?',
+            text: 'Delete ' + label + '? Present and absent marks for that session will be removed. This cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            focusCancel: true
+        }).then(function (result) {
+            if (!result.isConfirmed) {
+                return;
+            }
+            const payload = Object.assign(currentSessionScope(session.kind), {
+                original_date: session.date || session.session_date,
+                original_attendance_type: session.attendance_type || 'lectures',
+                original_session_start: session.session_start || ''
+            });
+            postSessionRequest('{{ route('attendance.session.delete') }}', payload)
+                .then(data => {
+                    showToast('Success', data.message || 'Session deleted.', 'success');
+                    const kind = session.kind || overallSessionScopeKind;
+                    if (kind === 'cert') {
+                        renderSessionsTable(data.sessions, certSessionsTableBody, 'cert');
+                        fetchCertOverallAttendance();
+                    } else {
+                        renderSessionsTable(data.sessions, degreeSessionsTableBody, 'degree');
+                        fetchDegreeOverallAttendance();
+                    }
+                })
+                .catch(error => showToast('Error', error.message, 'error'));
         });
-        postSessionRequest('{{ route('attendance.session.delete') }}', payload)
-            .then(data => {
-                showToast('Success', data.message || 'Session deleted.', 'success');
-                if ((session.kind || overallSessionScopeKind) === 'cert') {
-                    fetchCertOverallAttendance();
-                } else {
-                    fetchDegreeOverallAttendance();
-                }
-            })
-            .catch(error => showToast('Error', error.message, 'error'));
     }
 
     document.getElementById('sessionSaveBtn').addEventListener('click', function() {

@@ -47,6 +47,9 @@ class AttendancePageTest extends TestCase
             ->assertSee('attendance-table', false)
             ->assertSee('attendance-bulk-actions', false)
             ->assertSee('attendance-file-picker', false)
+            ->assertSee('sweetalert2@11.22.0', false)
+            ->assertSee('Swal.fire', false)
+            ->assertDontSee('window.confirm', false)
             ->assertSee('Nebula Institute of Technology - Welisara')
             ->assertSee('Nebula Institute of Technology - Moratuwa')
             ->assertSee('Nebula Institute of Technology - Peradeniya');
@@ -64,6 +67,9 @@ class AttendancePageTest extends TestCase
             ->assertSee('Export to PDF')
             ->assertSee('Export to Excel')
             ->assertSee('Manage Sessions')
+            ->assertSee('sweetalert2@11.22.0', false)
+            ->assertSee('Swal.fire', false)
+            ->assertDontSee('window.confirm', false)
             ->assertSee('Nebula Institute of Technology - Welisara')
             ->assertSee('Nebula Institute of Technology - Moratuwa')
             ->assertSee('Nebula Institute of Technology - Peradeniya');
@@ -213,7 +219,8 @@ class AttendancePageTest extends TestCase
                 'original_session_start' => '',
             ])
             ->assertOk()
-            ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('sessions', []);
 
         $this->assertDatabaseMissing('attendance', [
             'student_id' => $student->student_id,

@@ -3,6 +3,7 @@
 @section('title', 'NEBULA | Attendance')
 
 @section('content')
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
     .attendance-page,
     .attendance-page .card,
@@ -474,6 +475,7 @@
 @endsection
 
 @push('scripts')
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     let degreeStudents = [];
@@ -998,23 +1000,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function deleteMarkedSession(session) {
         const label = (session.date || '') + ' · ' + (session.type_label || session.attendance_type || 'session');
-        if (!window.confirm('Delete the attendance session ' + label + '? Present and absent marks for that session will be removed. This cannot be undone.')) {
-            return;
-        }
-        postSessionRequest('{{ route('attendance.session.delete') }}', Object.assign(currentMarkSessionScope(session.kind), {
-            original_date: session.date,
-            original_attendance_type: session.attendance_type || 'lectures',
-            original_session_start: session.session_start || ''
-        }))
-        .then(data => {
-            showToast('Success', data.message || 'Session deleted.', 'success');
-            if (session.kind === 'cert') {
-                maybeFetchCertSavedSessions();
-            } else {
-                maybeFetchDegreeSavedSessions();
+        Swal.fire({
+            title: 'Delete this session?',
+            text: 'Delete ' + label + '? Present and absent marks for that session will be removed. This cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            focusCancel: true
+        }).then(function (result) {
+            if (!result.isConfirmed) {
+                return;
             }
-        })
-        .catch(error => showToast('Error', error.message, 'error'));
+            postSessionRequest('{{ route('attendance.session.delete') }}', Object.assign(currentMarkSessionScope(session.kind), {
+                original_date: session.date,
+                original_attendance_type: session.attendance_type || 'lectures',
+                original_session_start: session.session_start || ''
+            }))
+            .then(data => {
+                showToast('Success', data.message || 'Session deleted.', 'success');
+                if (session.kind === 'cert') {
+                    renderSavedSessions(data.sessions || [], certSavedSessionsBody, certSavedSessionsSection, 'cert');
+                    maybeFetchCertSavedSessions();
+                } else {
+                    renderSavedSessions(data.sessions || [], degreeSavedSessionsBody, degreeSavedSessionsSection, 'degree');
+                    maybeFetchDegreeSavedSessions();
+                }
+            })
+            .catch(error => showToast('Error', error.message, 'error'));
+        });
     }
 
     const sessionSaveBtn = document.getElementById('sessionSaveBtn');

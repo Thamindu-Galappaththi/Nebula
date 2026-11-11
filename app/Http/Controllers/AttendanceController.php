@@ -420,10 +420,12 @@ class AttendanceController extends Controller
         }
 
         try {
-            return Carbon::parse($raw)->format('H:i:s');
+            $formatted = Carbon::parse($raw)->format('H:i:s');
         } catch (\Throwable $e) {
             return is_string($raw) ? $raw : '';
         }
+
+        return $formatted === '00:00:00' ? '' : $formatted;
     }
 
     private function formatSessionClock(string $time): string
@@ -680,6 +682,29 @@ class AttendanceController extends Controller
         $this->applySessionSlotFilter($query, $sessionStart);
 
         return $query;
+    }
+
+    private function sessionIdentityRecord(string $date, ?string $type, ?string $sessionStart): object
+    {
+        return (object) [
+            'date' => $date,
+            'attendance_type' => $type ?: 'lectures',
+            'session_start' => $this->normalizeSessionTime($sessionStart),
+            'session_end' => null,
+            'student_id' => 0,
+            'status' => false,
+        ];
+    }
+
+    private function recordsForAttendanceSession($scopeQuery, string $date, ?string $type, ?string $sessionStart)
+    {
+        $targetKey = $this->attendanceSessionKey($this->sessionIdentityRecord($date, $type, $sessionStart));
+
+        return $scopeQuery->clone()
+            ->whereDate('date', $date)
+            ->get()
+            ->filter(fn ($record) => $this->attendanceSessionKey($record) === $targetKey)
+            ->values();
     }
 
     private function attendanceSessionScopeRules(Request $request, bool $requireOriginalSession = false): array
@@ -1350,13 +1375,12 @@ class AttendanceController extends Controller
         $newStart = $this->normalizeSessionTime($request->input('session_start'));
         $newEnd = $this->normalizeSessionTime($request->input('session_end'));
 
-        $sessionQuery = $this->constrainAttendanceSession(
-            $query->clone(),
+        $records = $this->recordsForAttendanceSession(
+            $query,
             $originalDate,
             $originalType,
             $originalStart
         );
-        $records = $sessionQuery->get();
 
         if ($records->isEmpty()) {
             return response()->json([
@@ -1371,12 +1395,12 @@ class AttendanceController extends Controller
             || ($newStart ?? '') !== ($originalStartNormalized ?? '');
 
         if ($identityChanged) {
-            $conflictExists = $this->constrainAttendanceSession(
-                $query->clone(),
+            $conflictExists = $this->recordsForAttendanceSession(
+                $query,
                 $newDate,
                 $newType,
                 $request->input('session_start')
-            )->exists();
+            )->isNotEmpty();
 
             if ($conflictExists) {
                 return response()->json([
@@ -1448,14 +1472,15 @@ class AttendanceController extends Controller
             return response()->json(['success' => false, 'message' => 'Semester not found.'], 404);
         }
 
-        $sessionQuery = $this->constrainAttendanceSession(
+        $originalDate = Carbon::parse($request->original_date)->toDateString();
+        $records = $this->recordsForAttendanceSession(
             $query,
-            Carbon::parse($request->original_date)->toDateString(),
+            $originalDate,
             $request->input('original_attendance_type', 'lectures'),
             $request->input('original_session_start')
         );
 
-        $count = $sessionQuery->count();
+        $count = $records->count();
         if ($count === 0) {
             return response()->json([
                 'success' => false,
@@ -1463,7 +1488,11 @@ class AttendanceController extends Controller
             ], 404);
         }
 
-        $sessionQuery->delete();
+        Attendance::whereIn('id', $records->pluck('id')->all())->delete();
+
+        $remaining = $this->presentAttendanceSessions(
+            $query->get($this->attendanceSessionSelectColumns())
+        );
 
         Log::info('Attendance session deleted', [
             'date' => $request->original_date,
@@ -1476,6 +1505,7 @@ class AttendanceController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Attendance session deleted for ' . $count . ' student' . ($count === 1 ? '' : 's') . '.',
+            'sessions' => $remaining,
         ]);
     }
 
