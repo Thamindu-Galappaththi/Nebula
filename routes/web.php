@@ -475,6 +475,9 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/attendance/download-template', [AttendanceController::class, 'downloadTemplate'])->name('attendance.download.template');
         Route::post('/attendance/import', [AttendanceController::class, 'importAttendance'])->name('attendance.import');
         Route::post('/get-attendance-history', [AttendanceController::class, 'getAttendanceHistory'])->name('get.attendance.history');
+        Route::post('/attendance/sessions', [AttendanceController::class, 'listAttendanceSessions'])->name('attendance.sessions');
+        Route::post('/attendance/session/update', [AttendanceController::class, 'updateAttendanceSession'])->name('attendance.session.update');
+        Route::post('/attendance/session/delete', [AttendanceController::class, 'deleteAttendanceSession'])->name('attendance.session.delete');
         Route::get('/debug-attendance-data', [AttendanceController::class, 'debugData'])->name('debug.attendance.data');
         Route::redirect('/student-attendance-management', '/attendance');
     });

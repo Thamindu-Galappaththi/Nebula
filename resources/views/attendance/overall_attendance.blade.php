@@ -106,6 +106,16 @@
         color: #6c757d;
         font-size: 0.72rem;
     }
+    .session-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        margin-top: 0.35rem;
+    }
+    .session-row-actions .btn {
+        font-size: 0.72rem;
+        padding: 0.15rem 0.45rem;
+    }
     @media (max-width: 767.98px) {
         .overall-attendance-page h2 {
             font-size: 1.25rem;
@@ -271,6 +281,9 @@
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="degree-matrix-tab" data-bs-toggle="tab" data-bs-target="#degree-matrix-panel" type="button" role="tab">Date x Students</button>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="degree-sessions-tab" data-bs-toggle="tab" data-bs-target="#degree-sessions-panel" type="button" role="tab">Manage Sessions</button>
+                            </li>
                         </ul>
 
                         <div class="tab-content" id="degreeResultTabContent">
@@ -308,6 +321,24 @@
                                         <tbody id="degreeMatrixBody">
                                             <!-- Dynamic body -->
                                         </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="degree-sessions-panel" role="tabpanel">
+                                <h4 class="text-center mb-3">Saved Sessions</h4>
+                                <p class="text-muted">If a session was saved with the wrong date or type (for example Lab instead of Lecture), edit or delete it here. Editing keeps the present and absent marks.</p>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered overall-summary-table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Type</th>
+                                                <th>Time</th>
+                                                <th>Students</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="degreeSessionsTableBody"></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -367,6 +398,9 @@
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="cert-matrix-tab" data-bs-toggle="tab" data-bs-target="#cert-matrix-panel" type="button" role="tab">Date x Students</button>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="cert-sessions-tab" data-bs-toggle="tab" data-bs-target="#cert-sessions-panel" type="button" role="tab">Manage Sessions</button>
+                            </li>
                         </ul>
 
                         <div class="tab-content" id="certResultTabContent">
@@ -407,6 +441,24 @@
                                     </table>
                                 </div>
                             </div>
+                            <div class="tab-pane fade" id="cert-sessions-panel" role="tabpanel">
+                                <h4 class="text-center mb-3">Saved Sessions</h4>
+                                <p class="text-muted">If a session was saved with the wrong date or type (for example Lab instead of Lecture), edit or delete it here. Editing keeps the present and absent marks.</p>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered overall-summary-table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Type</th>
+                                                <th>Time</th>
+                                                <th>Students</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="certSessionsTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -414,6 +466,7 @@
         </div>
     </div>
 </div>
+@include('attendance.partials.session_manager')
 @endsection
 
 @push('scripts')
@@ -482,6 +535,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const degreeSection = document.getElementById('degreeOverallAttendanceSection');
     const degreeMatrixHead = document.getElementById('degreeMatrixHead');
     const degreeMatrixBody = document.getElementById('degreeMatrixBody');
+    const degreeSessionsTableBody = document.getElementById('degreeSessionsTableBody');
+    let overallSessionScopeKind = 'degree';
     
     // Certificate Tab Elements
     const certLocation = document.getElementById('cert_location');
@@ -491,6 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const certSection = document.getElementById('certOverallAttendanceSection');
     const certMatrixHead = document.getElementById('certMatrixHead');
     const certMatrixBody = document.getElementById('certMatrixBody');
+    const certSessionsTableBody = document.getElementById('certSessionsTableBody');
     
     // Tab event listeners
     const degreeTabBtn = document.getElementById('degree-tab');
@@ -963,6 +1019,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (degreeMatrixBody) {
                 degreeMatrixBody.innerHTML = '';
             }
+            if (degreeSessionsTableBody) {
+                degreeSessionsTableBody.innerHTML = '';
+            }
             return;
         }
         degreeSection.style.display = '';
@@ -988,7 +1047,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 degreeTableBody.innerHTML = '<tr><td colspan="5" class="text-center">No data found.</td></tr>';
             }
 
-            renderAttendanceMatrix(data.matrix, degreeMatrixHead, degreeMatrixBody);
+            renderAttendanceMatrix(data.matrix, degreeMatrixHead, degreeMatrixBody, 'degree');
+            renderSessionsTable(data.sessions, degreeSessionsTableBody, 'degree');
         });
     }
 
@@ -1044,6 +1104,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (certMatrixBody) {
                 certMatrixBody.innerHTML = '';
             }
+            if (certSessionsTableBody) {
+                certSessionsTableBody.innerHTML = '';
+            }
             return;
         }
         certSection.style.display = '';
@@ -1069,11 +1132,178 @@ document.addEventListener('DOMContentLoaded', function() {
                 certTableBody.innerHTML = '<tr><td colspan="5" class="text-center">No data found.</td></tr>';
             }
 
-            renderAttendanceMatrix(data.matrix, certMatrixHead, certMatrixBody);
+            renderAttendanceMatrix(data.matrix, certMatrixHead, certMatrixBody, 'cert');
+            renderSessionsTable(data.sessions, certSessionsTableBody, 'cert');
         });
     }
 
-    function renderAttendanceMatrix(matrix, headEl, bodyEl) {
+    function currentSessionScope(kind) {
+        if (kind === 'cert') {
+            return {
+                location: certLocation.value,
+                course_id: certCourse.value,
+                intake_id: certIntake.value,
+                semester: null,
+                module_id: null,
+                course_type: 'certificate'
+            };
+        }
+        return {
+            location: degreeLocation.value,
+            course_id: degreeCourse.value,
+            intake_id: degreeIntake.value,
+            specialization: degreeSpecialization.value,
+            semester: degreeSemester.value,
+            module_id: degreeModule.value,
+            course_type: degreeCourseType.value
+        };
+    }
+
+    function sessionTimeLabel(session) {
+        const start = session.session_start || '';
+        const end = session.session_end || '';
+        if (start && end) return start + '–' + end;
+        if (start) return start;
+        return '—';
+    }
+
+    function sessionActionButtons(session, kind) {
+        const payload = encodeURIComponent(JSON.stringify({
+            date: session.date || session.session_date || '',
+            attendance_type: session.attendance_type || 'lectures',
+            type_label: session.type_label || '',
+            session_start: session.session_start || '',
+            session_end: session.session_end || '',
+            student_count: session.student_count || 0,
+            kind: kind
+        }));
+        return `<div class="session-row-actions">
+            <button type="button" class="btn btn-outline-primary session-edit-btn" data-session="${payload}">Edit</button>
+            <button type="button" class="btn btn-outline-danger session-delete-btn" data-session="${payload}">Delete</button>
+        </div>`;
+    }
+
+    function renderSessionsTable(sessions, bodyEl, kind) {
+        if (!bodyEl) return;
+        const rows = Array.isArray(sessions) ? sessions : [];
+        if (!rows.length) {
+            bodyEl.innerHTML = '<tr><td colspan="5" class="text-center">No saved sessions found.</td></tr>';
+            return;
+        }
+        bodyEl.innerHTML = '';
+        rows.forEach(session => {
+            bodyEl.insertAdjacentHTML('beforeend', `<tr>
+                <td>${escapeHtml(session.date || '')}</td>
+                <td>${escapeHtml(session.type_label || session.attendance_type || '')}</td>
+                <td>${escapeHtml(sessionTimeLabel(session))}</td>
+                <td>${escapeHtml(String(session.student_count || 0))}</td>
+                <td>${sessionActionButtons(session, kind)}</td>
+            </tr>`);
+        });
+        bindSessionActionButtons(bodyEl);
+    }
+
+    function parseSessionButton(button) {
+        try {
+            return JSON.parse(decodeURIComponent(button.getAttribute('data-session') || ''));
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function bindSessionActionButtons(root) {
+        if (!root) return;
+        root.querySelectorAll('.session-edit-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const session = parseSessionButton(this);
+                if (session) openSessionEditor(session);
+            });
+        });
+        root.querySelectorAll('.session-delete-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const session = parseSessionButton(this);
+                if (session) deleteAttendanceSession(session);
+            });
+        });
+    }
+
+    function openSessionEditor(session) {
+        overallSessionScopeKind = session.kind || 'degree';
+        document.getElementById('session_original_date').value = session.date || session.session_date || '';
+        document.getElementById('session_original_type').value = session.attendance_type || 'lectures';
+        document.getElementById('session_original_start').value = session.session_start || '';
+        document.getElementById('session_edit_date').value = session.date || session.session_date || '';
+        document.getElementById('session_edit_type').value = session.attendance_type || 'lectures';
+        document.getElementById('session_edit_start').value = session.session_start || '';
+        document.getElementById('session_edit_end').value = session.session_end || '';
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('attendanceSessionModal')).show();
+    }
+
+    function postSessionRequest(url, payload) {
+        showSpinner(true);
+        return fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+            body: JSON.stringify(payload)
+        }).then(async response => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Request failed');
+            }
+            return data;
+        }).finally(() => showSpinner(false));
+    }
+
+    function deleteAttendanceSession(session) {
+        const label = (session.date || '') + ' · ' + (session.type_label || session.attendance_type || 'session');
+        if (!window.confirm('Delete the attendance session ' + label + '? Present and absent marks for that session will be removed. This cannot be undone.')) {
+            return;
+        }
+        const payload = Object.assign(currentSessionScope(session.kind), {
+            original_date: session.date || session.session_date,
+            original_attendance_type: session.attendance_type || 'lectures',
+            original_session_start: session.session_start || ''
+        });
+        postSessionRequest('{{ route('attendance.session.delete') }}', payload)
+            .then(data => {
+                showToast('Success', data.message || 'Session deleted.', 'success');
+                if ((session.kind || overallSessionScopeKind) === 'cert') {
+                    fetchCertOverallAttendance();
+                } else {
+                    fetchDegreeOverallAttendance();
+                }
+            })
+            .catch(error => showToast('Error', error.message, 'error'));
+    }
+
+    document.getElementById('sessionSaveBtn').addEventListener('click', function() {
+        const payload = Object.assign(currentSessionScope(overallSessionScopeKind), {
+            original_date: document.getElementById('session_original_date').value,
+            original_attendance_type: document.getElementById('session_original_type').value,
+            original_session_start: document.getElementById('session_original_start').value,
+            date: document.getElementById('session_edit_date').value,
+            attendance_type: document.getElementById('session_edit_type').value,
+            session_start: document.getElementById('session_edit_start').value,
+            session_end: document.getElementById('session_edit_end').value
+        });
+        if (!payload.date || !payload.attendance_type) {
+            showToast('Warning', 'Please choose a date and attendance type.', 'warning');
+            return;
+        }
+        postSessionRequest('{{ route('attendance.session.update') }}', payload)
+            .then(data => {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('attendanceSessionModal')).hide();
+                showToast('Success', data.message || 'Session updated.', 'success');
+                if (overallSessionScopeKind === 'cert') {
+                    fetchCertOverallAttendance();
+                } else {
+                    fetchDegreeOverallAttendance();
+                }
+            })
+            .catch(error => showToast('Error', error.message, 'error'));
+    });
+
+    function renderAttendanceMatrix(matrix, headEl, bodyEl, kind) {
         if (!headEl || !bodyEl) return;
 
         const students = matrix && Array.isArray(matrix.students) ? matrix.students : [];
@@ -1096,7 +1326,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         bodyEl.innerHTML = '';
         rows.forEach(row => {
-            let rowHtml = `<tr><td>${escapeHtml(row.date || '')}</td>`;
+            const session = {
+                date: row.session_date || '',
+                attendance_type: row.attendance_type || 'lectures',
+                session_start: row.session_start || '',
+                session_end: row.session_end || '',
+                kind: kind
+            };
+            let rowHtml = `<tr><td>${escapeHtml(row.date || '')}${session.date ? sessionActionButtons(session, kind) : ''}</td>`;
             students.forEach(student => {
                 const key = String(student.student_id);
                 const status = row.statuses ? row.statuses[key] : null;
@@ -1112,6 +1349,7 @@ document.addEventListener('DOMContentLoaded', function() {
             rowHtml += '</tr>';
             bodyEl.insertAdjacentHTML('beforeend', rowHtml);
         });
+        bindSessionActionButtons(bodyEl);
     }
 
     // Populate dropdown with items

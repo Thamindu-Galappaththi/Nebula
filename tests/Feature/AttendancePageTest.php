@@ -63,6 +63,7 @@ class AttendancePageTest extends TestCase
             ->assertSee('overall-export-actions', false)
             ->assertSee('Export to PDF')
             ->assertSee('Export to Excel')
+            ->assertSee('Manage Sessions')
             ->assertSee('Nebula Institute of Technology - Welisara')
             ->assertSee('Nebula Institute of Technology - Moratuwa')
             ->assertSee('Nebula Institute of Technology - Peradeniya');
@@ -144,6 +145,116 @@ class AttendancePageTest extends TestCase
         $this->assertCount(2, $matrixDates);
         $this->assertTrue(collect($matrixDates)->contains(fn ($label) => str_contains((string) $label, '09:00')));
         $this->assertTrue(collect($matrixDates)->contains(fn ($label) => str_contains((string) $label, '12:00')));
+    }
+
+    public function test_staff_can_correct_a_session_saved_on_the_wrong_date_and_type(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $semester = $this->makeSemester($course, $intake);
+        $module = $this->makeCoreModule($semester);
+        $student = $this->makeRegisteredStudent($course, $intake, $semester, '199012345V', 'Software Engineering');
+        $wrongDate = now()->subDay()->toDateString();
+        $correctDate = now()->toDateString();
+
+        $this->insertAttendance($student, $course, $intake, $semester, $module, $wrongDate, 'labs', true);
+
+        $this->actingAs($this->actor)
+            ->postJson(route('attendance.session.update'), [
+                'location' => 'Welisara',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'original_date' => $wrongDate,
+                'original_attendance_type' => 'labs',
+                'original_session_start' => '',
+                'date' => $correctDate,
+                'attendance_type' => 'lectures',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('attendance', [
+            'student_id' => $student->student_id,
+            'module_id' => $module->module_id,
+            'date' => $correctDate,
+            'attendance_type' => 'lectures',
+            'status' => 1,
+        ]);
+        $this->assertDatabaseMissing('attendance', [
+            'student_id' => $student->student_id,
+            'module_id' => $module->module_id,
+            'date' => $wrongDate,
+            'attendance_type' => 'labs',
+        ]);
+    }
+
+    public function test_staff_can_delete_an_attendance_session(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $semester = $this->makeSemester($course, $intake);
+        $module = $this->makeCoreModule($semester);
+        $student = $this->makeRegisteredStudent($course, $intake, $semester, '199012345V', 'Software Engineering');
+        $date = now()->toDateString();
+
+        $this->insertAttendance($student, $course, $intake, $semester, $module, $date, 'labs', true);
+
+        $this->actingAs($this->actor)
+            ->postJson(route('attendance.session.delete'), [
+                'location' => 'Welisara',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'original_date' => $date,
+                'original_attendance_type' => 'labs',
+                'original_session_start' => '',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseMissing('attendance', [
+            'student_id' => $student->student_id,
+            'module_id' => $module->module_id,
+            'date' => $date,
+        ]);
+    }
+
+    public function test_correcting_a_session_does_not_overwrite_another_existing_session(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $semester = $this->makeSemester($course, $intake);
+        $module = $this->makeCoreModule($semester);
+        $student = $this->makeRegisteredStudent($course, $intake, $semester, '199012345V', 'Software Engineering');
+        $date = now()->toDateString();
+
+        $this->insertAttendance($student, $course, $intake, $semester, $module, $date, 'lectures', true);
+        $this->insertAttendance($student, $course, $intake, $semester, $module, $date, 'labs', false);
+
+        $this->actingAs($this->actor)
+            ->postJson(route('attendance.session.update'), [
+                'location' => 'Welisara',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'original_date' => $date,
+                'original_attendance_type' => 'labs',
+                'original_session_start' => '',
+                'date' => $date,
+                'attendance_type' => 'lectures',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('attendance', [
+            'student_id' => $student->student_id,
+            'attendance_type' => 'labs',
+            'status' => 0,
+        ]);
     }
 
     public function test_overall_attendance_does_not_count_duplicate_lecture_resaves_as_two_sessions(): void
