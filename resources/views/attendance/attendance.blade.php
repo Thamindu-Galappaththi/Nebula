@@ -132,7 +132,8 @@
             display: block;
             width: 100%;
         }
-        .attendance-table tbody tr[data-student-row] {
+        .attendance-table tbody tr[data-student-row],
+        .attendance-table tbody tr[data-session-row] {
             border: 1px solid #e5e7eb;
             border-radius: 12px;
             margin-bottom: 12px;
@@ -922,12 +923,12 @@ document.addEventListener('DOMContentLoaded', function() {
         sectionEl.style.display = '';
         bodyEl.innerHTML = '';
         rows.forEach(session => {
-            bodyEl.insertAdjacentHTML('beforeend', `<tr>
-                <td>${escapeHtml(session.date || '')}</td>
-                <td>${escapeHtml(session.type_label || session.attendance_type || '')}</td>
-                <td>${escapeHtml(sessionTimeLabel(session))}</td>
-                <td>${escapeHtml(String(session.student_count || 0))}</td>
-                <td>${sessionActionButtons(session, kind)}</td>
+            bodyEl.insertAdjacentHTML('beforeend', `<tr data-session-row>
+                <td data-label="Date">${escapeHtml(session.date || '')}</td>
+                <td data-label="Type">${escapeHtml(session.type_label || session.attendance_type || '')}</td>
+                <td data-label="Time">${escapeHtml(sessionTimeLabel(session))}</td>
+                <td data-label="Students">${escapeHtml(String(session.student_count || 0))}</td>
+                <td data-label="Actions">${sessionActionButtons(session, kind)}</td>
             </tr>`);
         });
         bindSessionActionButtons(bodyEl);
@@ -1010,7 +1011,9 @@ document.addEventListener('DOMContentLoaded', function() {
             confirmButtonText: 'Yes, delete',
             cancelButtonText: 'Cancel',
             reverseButtons: true,
-            focusCancel: true
+            focusCancel: true,
+            width: 'min(26rem, calc(100vw - 1.5rem))',
+            customClass: { popup: 'attendance-swal' }
         }).then(function (result) {
             if (!result.isConfirmed) {
                 return;

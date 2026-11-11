@@ -147,7 +147,8 @@
             display: block;
             width: 100%;
         }
-        .overall-summary-table tbody tr[data-student-row] {
+        .overall-summary-table tbody tr[data-student-row],
+        .overall-summary-table tbody tr[data-session-row] {
             border: 1px solid #e5e7eb;
             border-radius: 12px;
             margin-bottom: 12px;
@@ -172,6 +173,21 @@
         .attendance-matrix-legend {
             justify-content: flex-start !important;
             flex-wrap: wrap;
+        }
+        .attendance-matrix-table th:first-child,
+        .attendance-matrix-table td:first-child {
+            white-space: normal;
+            min-width: 8.5rem;
+        }
+        .session-row-actions {
+            width: 100%;
+        }
+        .session-row-actions .btn {
+            flex: 1 1 auto;
+            min-height: 2rem;
+        }
+        .nav-tabs .nav-link {
+            font-size: 0.9rem;
         }
     }
 </style>
@@ -1285,12 +1301,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         bodyEl.innerHTML = '';
         rows.forEach(session => {
-            bodyEl.insertAdjacentHTML('beforeend', `<tr>
-                <td>${escapeHtml(session.date || '')}</td>
-                <td>${escapeHtml(session.type_label || session.attendance_type || '')}</td>
-                <td>${escapeHtml(sessionTimeLabel(session))}</td>
-                <td>${escapeHtml(String(session.student_count || 0))}</td>
-                <td>${sessionActionButtons(session, kind)}</td>
+            bodyEl.insertAdjacentHTML('beforeend', `<tr data-session-row>
+                <td data-label="Date">${escapeHtml(session.date || '')}</td>
+                <td data-label="Type">${escapeHtml(session.type_label || session.attendance_type || '')}</td>
+                <td data-label="Time">${escapeHtml(sessionTimeLabel(session))}</td>
+                <td data-label="Students">${escapeHtml(String(session.student_count || 0))}</td>
+                <td data-label="Actions">${sessionActionButtons(session, kind)}</td>
             </tr>`);
         });
         bindSessionActionButtons(bodyEl);
@@ -1359,7 +1375,9 @@ document.addEventListener('DOMContentLoaded', function() {
             confirmButtonText: 'Yes, delete',
             cancelButtonText: 'Cancel',
             reverseButtons: true,
-            focusCancel: true
+            focusCancel: true,
+            width: 'min(26rem, calc(100vw - 1.5rem))',
+            customClass: { popup: 'attendance-swal' }
         }).then(function (result) {
             if (!result.isConfirmed) {
                 return;
