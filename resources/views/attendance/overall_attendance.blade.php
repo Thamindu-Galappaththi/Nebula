@@ -470,8 +470,6 @@
 @endsection
 
 @push('scripts')
-<script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
-<script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.0/jspdf.plugin.autotable.min.js" integrity="sha384-VA0FoBFnoj52hvJgGJB/86X6Ymgc+m/+C9RHXKKzH0qDAaY6MHnY5C97eYjQIqRj" crossorigin="anonymous"></script>
 <script nonce="{{ $cspNonce }}">
 /* HTML Escape Helper Function */
 function escapeHtml(text) {
@@ -547,6 +545,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const certMatrixHead = document.getElementById('certMatrixHead');
     const certMatrixBody = document.getElementById('certMatrixBody');
     const certSessionsTableBody = document.getElementById('certSessionsTableBody');
+    let degreeOverallAbort = null;
+    let certOverallAbort = null;
     
     // Tab event listeners
     const degreeTabBtn = document.getElementById('degree-tab');
@@ -680,7 +680,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchDegreeSpecializations();
             fetchDegreeIntakes(degreeCourse.value, degreeLocation.value);
         }
-        fetchDegreeOverallAttendance();
+        degreeSection.style.display = 'none';
     });
 
     degreeIntake.addEventListener('change', function() {
@@ -706,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
     degreeSpecialization.addEventListener('change', function() {
         resetAndDisable(degreeModule, 'Select a Module');
         maybeFetchDegreeModules();
-        fetchDegreeOverallAttendance();
+        degreeSection.style.display = 'none';
     });
 
     // CERTIFICATE TAB EVENT LISTENERS
@@ -724,7 +724,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (certCourse.value && certLocation.value) {
             fetchCertIntakes(certCourse.value, certLocation.value);
         }
-        fetchCertOverallAttendance();
+        certSection.style.display = 'none';
     });
 
     certIntake.addEventListener('change', fetchCertOverallAttendance);
@@ -746,11 +746,60 @@ document.addEventListener('DOMContentLoaded', function() {
         return y;
     }
 
+    function loadScript(src, integrity) {
+        return new Promise(function (resolve, reject) {
+            const existing = document.querySelector('script[src="' + src + '"]');
+            if (existing) {
+                if (existing.getAttribute('data-loaded') === '1') {
+                    resolve();
+                    return;
+                }
+                existing.addEventListener('load', resolve, { once: true });
+                existing.addEventListener('error', reject, { once: true });
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = true;
+            script.nonce = '{{ $cspNonce }}';
+            if (integrity) {
+                script.integrity = integrity;
+                script.crossOrigin = 'anonymous';
+            }
+            script.addEventListener('load', function () {
+                script.setAttribute('data-loaded', '1');
+                resolve();
+            }, { once: true });
+            script.addEventListener('error', reject, { once: true });
+            document.head.appendChild(script);
+        });
+    }
+
+    function loadPdfLibs() {
+        return loadScript(
+            'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+            'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'
+        ).then(function () {
+            return loadScript(
+                'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.0/jspdf.plugin.autotable.min.js',
+                'sha384-VA0FoBFnoj52hvJgGJB/86X6Ymgc+m/+C9RHXKKzH0qDAaY6MHnY5C97eYjQIqRj'
+            );
+        });
+    }
+
     function exportSummaryPdf(options) {
-        if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+        loadPdfLibs().then(function () {
+            if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+                showToast('Error', 'PDF export is unavailable. Please refresh the page and try again.', 'error');
+                return;
+            }
+            runSummaryPdf(options);
+        }).catch(function () {
             showToast('Error', 'PDF export is unavailable. Please refresh the page and try again.', 'error');
-            return;
-        }
+        });
+    }
+
+    function runSummaryPdf(options) {
         const doc = new window.jspdf.jsPDF();
         if (typeof doc.autoTable !== 'function') {
             showToast('Error', 'PDF export is unavailable. Please refresh the page and try again.', 'error');
@@ -919,6 +968,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // DEGREE FETCH FUNCTIONS
     function fetchDegreeCourses(location, courseType) {
+        resetAndDisable(degreeCourse, 'Loading courses...');
         const url = `/attendance/get-courses-by-location?location=${encodeURIComponent(location)}&course_type=${encodeURIComponent(courseType)}`;
         fetch(url)
             .then(response => response.json())
@@ -937,6 +987,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function fetchDegreeIntakes(courseId, location) {
+        resetAndDisable(degreeIntake, 'Loading intakes...');
         fetch(`/attendance/get-intakes/${courseId}/${location}`)
             .then(response => response.json())
             .then(data => {
@@ -951,6 +1002,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function fetchDegreeSemesters(courseId, intakeId) {
+        resetAndDisable(degreeSemester, 'Loading semesters...');
         fetch(`/attendance/get-semesters?course_id=${encodeURIComponent(courseId)}&intake_id=${encodeURIComponent(intakeId)}`)
             .then(response => response.json())
             .then(data => {
@@ -972,6 +1024,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function fetchDegreeModules() {
+        resetAndDisable(degreeModule, 'Loading modules...');
         const data = {
             location: degreeLocation.value,
             course_id: degreeCourse.value,
@@ -1025,10 +1078,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         degreeSection.style.display = '';
+        if (degreeTableBody) {
+            degreeTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Loading attendance...</td></tr>';
+        }
+        if (degreeOverallAbort) {
+            degreeOverallAbort.abort();
+        }
+        degreeOverallAbort = new AbortController();
+        showSpinner(true);
         fetch('/get-overall-attendance', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            signal: degreeOverallAbort.signal
         })
         .then(response => response.json())
         .then(data => {
@@ -1049,11 +1111,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
             renderAttendanceMatrix(data.matrix, degreeMatrixHead, degreeMatrixBody, 'degree');
             renderSessionsTable(data.sessions, degreeSessionsTableBody, 'degree');
+        })
+        .catch(function (error) {
+            if (error && error.name === 'AbortError') {
+                return;
+            }
+            degreeTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load attendance.</td></tr>';
+        })
+        .finally(function () {
+            showSpinner(false);
         });
     }
 
     // CERTIFICATE FETCH FUNCTIONS
     function fetchCertCourses(location) {
+        resetAndDisable(certCourse, 'Loading courses...');
         const url = `/attendance/get-courses-by-location?location=${encodeURIComponent(location)}&course_type=certificate`;
         fetch(url)
             .then(response => response.json())
@@ -1072,6 +1144,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function fetchCertIntakes(courseId, location) {
+        resetAndDisable(certIntake, 'Loading intakes...');
         fetch(`/attendance/get-intakes/${courseId}/${location}`)
             .then(response => response.json())
             .then(data => {
@@ -1110,10 +1183,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         certSection.style.display = '';
+        if (certTableBody) {
+            certTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Loading attendance...</td></tr>';
+        }
+        if (certOverallAbort) {
+            certOverallAbort.abort();
+        }
+        certOverallAbort = new AbortController();
+        showSpinner(true);
         fetch('/get-overall-attendance', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            signal: certOverallAbort.signal
         })
         .then(response => response.json())
         .then(data => {
@@ -1134,6 +1216,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
             renderAttendanceMatrix(data.matrix, certMatrixHead, certMatrixBody, 'cert');
             renderSessionsTable(data.sessions, certSessionsTableBody, 'cert');
+        })
+        .catch(function (error) {
+            if (error && error.name === 'AbortError') {
+                return;
+            }
+            certTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load attendance.</td></tr>';
+        })
+        .finally(function () {
+            showSpinner(false);
         });
     }
 

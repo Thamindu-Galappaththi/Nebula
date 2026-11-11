@@ -485,9 +485,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // Overall Attendance
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Bursar,Marketing Manager,Developer'])->group(function () {
         Route::get('/overall-attendance', function () {
-            $courses = App\Models\Course::all();
-            $intakes = App\Models\Intake::all();
-            return view('attendance.overall_attendance', compact('courses', 'intakes'));
+            return view('attendance.overall_attendance');
         })->name('overall.attendance');
         Route::post('/get-overall-attendance', [AttendanceController::class, 'getOverallAttendance'])->name('get.overall.attendance');
         Route::post('/download-attendance-excel', [AttendanceController::class, 'downloadAttendanceExcel'])->name('download.attendance.excel');
