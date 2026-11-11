@@ -3,6 +3,7 @@
 @section('title', 'NEBULA | Attendance')
 
 @section('content')
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.css">
 <style nonce="{{ $cspNonce }}">
     .attendance-page,
     .attendance-page .card,
@@ -131,7 +132,8 @@
             display: block;
             width: 100%;
         }
-        .attendance-table tbody tr[data-student-row] {
+        .attendance-table tbody tr[data-student-row],
+        .attendance-table tbody tr[data-session-row] {
             border: 1px solid #e5e7eb;
             border-radius: 12px;
             margin-bottom: 12px;
@@ -273,6 +275,26 @@
                         </div>
                     </div>
 
+                    <div id="degreeSavedSessionsSection" class="mb-4" style="display:none;">
+                        <hr class="my-4">
+                        <h5>Saved sessions</h5>
+                        <p class="text-muted">If a session was saved with the wrong date or type, edit or delete it here. Editing keeps the present and absent marks.</p>
+                        <div class="table-responsive">
+                            <table class="table table-bordered attendance-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Time</th>
+                                        <th>Students</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="degreeSavedSessionsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- Degree Bulk Import Section -->
                     <div id="degreeBulkImportSection" class="mb-4" style="display:none;">
                         <hr class="my-4">
@@ -381,6 +403,26 @@
                         </div>
                     </div>
 
+                    <div id="certSavedSessionsSection" class="mb-4" style="display:none;">
+                        <hr class="my-4">
+                        <h5>Saved sessions</h5>
+                        <p class="text-muted">If a session was saved with the wrong date or type, edit or delete it here. Editing keeps the present and absent marks.</p>
+                        <div class="table-responsive">
+                            <table class="table table-bordered attendance-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Time</th>
+                                        <th>Students</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="certSavedSessionsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- Certificate Bulk Import Section -->
                     <div id="certBulkImportSection" class="mb-4" style="display:none;">
                         <hr class="my-4">
@@ -430,9 +472,11 @@
         </div>
     </div>
 </div>
+@include('attendance.partials.session_manager')
 @endsection
 
 @push('scripts')
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11.22.0/dist/sweetalert2.min.js"></script>
 <script nonce="{{ $cspNonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     let degreeStudents = [];
@@ -456,6 +500,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const degreeAttendanceType = document.getElementById('degree_attendance_type');
     const degreeSessionStart = document.getElementById('degree_session_start');
     const degreeSessionEnd = document.getElementById('degree_session_end');
+    const degreeSavedSessionsSection = document.getElementById('degreeSavedSessionsSection');
+    const degreeSavedSessionsBody = document.getElementById('degreeSavedSessionsBody');
+    let markSessionScopeKind = 'degree';
     
     // Certificate Tab Elements
     const certLocation = document.getElementById('cert_location');
@@ -465,6 +512,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const certAttendanceType = document.getElementById('cert_attendance_type');
     const certSessionStart = document.getElementById('cert_session_start');
     const certSessionEnd = document.getElementById('cert_session_end');
+    const certSavedSessionsSection = document.getElementById('certSavedSessionsSection');
+    const certSavedSessionsBody = document.getElementById('certSavedSessionsBody');
     
     // Degree-specific elements
     const degreeAttendanceTableBody = document.getElementById('degreeAttendanceTableBody');
@@ -765,6 +814,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function maybeFetchDegreeStudents() {
+        maybeFetchDegreeSavedSessions();
         if (allDegreeFilled()) {
             fetchDegreeStudentsForAttendance();
         } else {
@@ -774,12 +824,247 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function maybeFetchCertStudents() {
+        maybeFetchCertSavedSessions();
         if (allCertFilled()) {
             fetchCertStudentsForAttendance();
         } else {
             hideCertResults();
             updateBulkImportSection();
         }
+    }
+
+    function degreeModuleScopeReady() {
+        return degreeLocation.value && degreeCourseType.value && degreeCourse.value &&
+            degreeIntake.value && hasDegreeSpecializationSelection() && degreeSemester.value && degreeModule.value;
+    }
+
+    function certIntakeScopeReady() {
+        return certLocation.value && certCourse.value && certIntake.value;
+    }
+
+    function currentMarkSessionScope(kind) {
+        if (kind === 'cert') {
+            return {
+                location: certLocation.value,
+                course_id: certCourse.value,
+                intake_id: certIntake.value,
+                semester: null,
+                module_id: null,
+                course_type: 'certificate'
+            };
+        }
+        return {
+            location: degreeLocation.value,
+            course_id: degreeCourse.value,
+            intake_id: degreeIntake.value,
+            specialization: degreeSpecialization.value,
+            semester: degreeSemester.value,
+            module_id: degreeModule.value,
+            course_type: degreeCourseType.value
+        };
+    }
+
+    function sessionTimeLabel(session) {
+        const start = session.session_start || '';
+        const end = session.session_end || '';
+        if (start && end) return start + '–' + end;
+        if (start) return start;
+        return '—';
+    }
+
+    function sessionActionButtons(session, kind) {
+        const payload = encodeURIComponent(JSON.stringify({
+            date: session.date || '',
+            attendance_type: session.attendance_type || 'lectures',
+            type_label: session.type_label || '',
+            session_start: session.session_start || '',
+            session_end: session.session_end || '',
+            student_count: session.student_count || 0,
+            kind: kind
+        }));
+        return `<div class="d-flex flex-wrap gap-1">
+            <button type="button" class="btn btn-sm btn-outline-primary session-edit-btn" data-session="${payload}">Edit</button>
+            <button type="button" class="btn btn-sm btn-outline-danger session-delete-btn" data-session="${payload}">Delete</button>
+        </div>`;
+    }
+
+    function parseSessionButton(button) {
+        try {
+            return JSON.parse(decodeURIComponent(button.getAttribute('data-session') || ''));
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function bindSessionActionButtons(root) {
+        if (!root) return;
+        root.querySelectorAll('.session-edit-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const session = parseSessionButton(this);
+                if (session) openSessionEditor(session);
+            });
+        });
+        root.querySelectorAll('.session-delete-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const session = parseSessionButton(this);
+                if (session) deleteMarkedSession(session);
+            });
+        });
+    }
+
+    function renderSavedSessions(sessions, bodyEl, sectionEl, kind) {
+        if (!bodyEl || !sectionEl) return;
+        const rows = Array.isArray(sessions) ? sessions : [];
+        if (!rows.length) {
+            sectionEl.style.display = 'none';
+            bodyEl.innerHTML = '';
+            return;
+        }
+        sectionEl.style.display = '';
+        bodyEl.innerHTML = '';
+        rows.forEach(session => {
+            bodyEl.insertAdjacentHTML('beforeend', `<tr data-session-row>
+                <td data-label="Date">${escapeHtml(session.date || '')}</td>
+                <td data-label="Type">${escapeHtml(session.type_label || session.attendance_type || '')}</td>
+                <td data-label="Time">${escapeHtml(sessionTimeLabel(session))}</td>
+                <td data-label="Students">${escapeHtml(String(session.student_count || 0))}</td>
+                <td data-label="Actions">${sessionActionButtons(session, kind)}</td>
+            </tr>`);
+        });
+        bindSessionActionButtons(bodyEl);
+    }
+
+    function maybeFetchDegreeSavedSessions() {
+        if (!degreeModuleScopeReady()) {
+            if (degreeSavedSessionsSection) degreeSavedSessionsSection.style.display = 'none';
+            return;
+        }
+        fetch('{{ route('attendance.sessions') }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+            body: JSON.stringify(currentMarkSessionScope('degree'))
+        })
+        .then(response => response.json())
+        .then(data => {
+            renderSavedSessions(data.sessions || [], degreeSavedSessionsBody, degreeSavedSessionsSection, 'degree');
+        })
+        .catch(() => {
+            if (degreeSavedSessionsSection) degreeSavedSessionsSection.style.display = 'none';
+        });
+    }
+
+    function maybeFetchCertSavedSessions() {
+        if (!certIntakeScopeReady()) {
+            if (certSavedSessionsSection) certSavedSessionsSection.style.display = 'none';
+            return;
+        }
+        fetch('{{ route('attendance.sessions') }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+            body: JSON.stringify(currentMarkSessionScope('cert'))
+        })
+        .then(response => response.json())
+        .then(data => {
+            renderSavedSessions(data.sessions || [], certSavedSessionsBody, certSavedSessionsSection, 'cert');
+        })
+        .catch(() => {
+            if (certSavedSessionsSection) certSavedSessionsSection.style.display = 'none';
+        });
+    }
+
+    function openSessionEditor(session) {
+        markSessionScopeKind = session.kind || 'degree';
+        document.getElementById('session_original_date').value = session.date || '';
+        document.getElementById('session_original_type').value = session.attendance_type || 'lectures';
+        document.getElementById('session_original_start').value = session.session_start || '';
+        document.getElementById('session_edit_date').value = session.date || '';
+        document.getElementById('session_edit_type').value = session.attendance_type || 'lectures';
+        document.getElementById('session_edit_start').value = session.session_start || '';
+        document.getElementById('session_edit_end').value = session.session_end || '';
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('attendanceSessionModal')).show();
+    }
+
+    function postSessionRequest(url, payload) {
+        showSpinner(true);
+        return fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+            body: JSON.stringify(payload)
+        }).then(async response => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Request failed');
+            }
+            return data;
+        }).finally(() => showSpinner(false));
+    }
+
+    function deleteMarkedSession(session) {
+        const label = (session.date || '') + ' · ' + (session.type_label || session.attendance_type || 'session');
+        Swal.fire({
+            title: 'Delete this session?',
+            text: 'Delete ' + label + '? Present and absent marks for that session will be removed. This cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            focusCancel: true,
+            width: 'min(26rem, calc(100vw - 1.5rem))',
+            customClass: { popup: 'attendance-swal' }
+        }).then(function (result) {
+            if (!result.isConfirmed) {
+                return;
+            }
+            postSessionRequest('{{ route('attendance.session.delete') }}', Object.assign(currentMarkSessionScope(session.kind), {
+                original_date: session.date,
+                original_attendance_type: session.attendance_type || 'lectures',
+                original_session_start: session.session_start || ''
+            }))
+            .then(data => {
+                showToast('Success', data.message || 'Session deleted.', 'success');
+                if (session.kind === 'cert') {
+                    renderSavedSessions(data.sessions || [], certSavedSessionsBody, certSavedSessionsSection, 'cert');
+                    maybeFetchCertSavedSessions();
+                } else {
+                    renderSavedSessions(data.sessions || [], degreeSavedSessionsBody, degreeSavedSessionsSection, 'degree');
+                    maybeFetchDegreeSavedSessions();
+                }
+            })
+            .catch(error => showToast('Error', error.message, 'error'));
+        });
+    }
+
+    const sessionSaveBtn = document.getElementById('sessionSaveBtn');
+    if (sessionSaveBtn) {
+        sessionSaveBtn.addEventListener('click', function() {
+            const payload = Object.assign(currentMarkSessionScope(markSessionScopeKind), {
+                original_date: document.getElementById('session_original_date').value,
+                original_attendance_type: document.getElementById('session_original_type').value,
+                original_session_start: document.getElementById('session_original_start').value,
+                date: document.getElementById('session_edit_date').value,
+                attendance_type: document.getElementById('session_edit_type').value,
+                session_start: document.getElementById('session_edit_start').value,
+                session_end: document.getElementById('session_edit_end').value
+            });
+            if (!payload.date || !payload.attendance_type) {
+                showToast('Warning', 'Please choose a date and attendance type.', 'warning');
+                return;
+            }
+            postSessionRequest('{{ route('attendance.session.update') }}', payload)
+                .then(data => {
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('attendanceSessionModal')).hide();
+                    showToast('Success', data.message || 'Session updated.', 'success');
+                    if (markSessionScopeKind === 'cert') {
+                        maybeFetchCertSavedSessions();
+                    } else {
+                        maybeFetchDegreeSavedSessions();
+                    }
+                })
+                .catch(error => showToast('Error', error.message, 'error'));
+        });
     }
 
     // Helper to populate dropdowns

@@ -475,6 +475,9 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         Route::get('/attendance/download-template', [AttendanceController::class, 'downloadTemplate'])->name('attendance.download.template');
         Route::post('/attendance/import', [AttendanceController::class, 'importAttendance'])->name('attendance.import');
         Route::post('/get-attendance-history', [AttendanceController::class, 'getAttendanceHistory'])->name('get.attendance.history');
+        Route::post('/attendance/sessions', [AttendanceController::class, 'listAttendanceSessions'])->name('attendance.sessions');
+        Route::post('/attendance/session/update', [AttendanceController::class, 'updateAttendanceSession'])->name('attendance.session.update');
+        Route::post('/attendance/session/delete', [AttendanceController::class, 'deleteAttendanceSession'])->name('attendance.session.delete');
         Route::get('/debug-attendance-data', [AttendanceController::class, 'debugData'])->name('debug.attendance.data');
         Route::redirect('/student-attendance-management', '/attendance');
     });
@@ -482,9 +485,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     // Overall Attendance
     Route::middleware(['role:DGM,Program Administrator (level 01),Program Administrator (level 02),Bursar,Marketing Manager,Developer'])->group(function () {
         Route::get('/overall-attendance', function () {
-            $courses = App\Models\Course::all();
-            $intakes = App\Models\Intake::all();
-            return view('attendance.overall_attendance', compact('courses', 'intakes'));
+            return view('attendance.overall_attendance');
         })->name('overall.attendance');
         Route::post('/get-overall-attendance', [AttendanceController::class, 'getOverallAttendance'])->name('get.overall.attendance');
         Route::post('/download-attendance-excel', [AttendanceController::class, 'downloadAttendanceExcel'])->name('download.attendance.excel');
