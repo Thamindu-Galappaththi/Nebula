@@ -24,6 +24,7 @@ use App\Models\SpecializationRegistration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Carbon\Carbon;
 use App\Models\StudentStatusHistory;
 use App\Models\ClearanceRequest;
 use Illuminate\Support\Facades\Storage;
@@ -1267,6 +1268,54 @@ class StudentProfileController extends Controller
     }
 
 
+    private function studentAttendanceSessionKey($record): string
+    {
+        $date = Carbon::parse($record->date)->toDateString();
+        $type = strtolower(trim((string) ($record->attendance_type ?? 'lectures')));
+        if ($type === '') {
+            $type = 'lectures';
+        }
+
+        $start = '';
+        $rawStart = $record->session_start ?? null;
+        if ($rawStart !== null && $rawStart !== '') {
+            try {
+                $start = Carbon::parse($rawStart)->format('H:i:s');
+            } catch (\Throwable $e) {
+                $start = is_string($rawStart) ? $rawStart : '';
+            }
+        }
+
+        return $date . '|' . $type . '|' . $start;
+    }
+
+    private function summarizeStudentAttendance($records)
+    {
+        return collect($records)
+            ->groupBy(fn ($record) => $record->module_id ?: 'course')
+            ->map(function ($moduleRecords) {
+                $firstRecord = $moduleRecords->first();
+                $moduleName = optional($firstRecord->module)->module_name ?: 'N/A';
+
+                $sessions = $moduleRecords->groupBy(fn ($record) => $this->studentAttendanceSessionKey($record));
+                $totalDays = $sessions->count();
+                $presentDays = $sessions
+                    ->filter(fn ($sessionRecords) => $sessionRecords->contains(fn ($record) => (bool) $record->status))
+                    ->count();
+                $absentDays = max(0, $totalDays - $presentDays);
+                $attendancePercent = $totalDays > 0 ? round(($presentDays / $totalDays) * 100, 2) : 0;
+
+                return [
+                    'module_name' => $moduleName,
+                    'total_days' => $totalDays,
+                    'present_days' => $presentDays,
+                    'absent_days' => $absentDays,
+                    'attendance_percent' => $attendancePercent . '%',
+                ];
+            })
+            ->values();
+    }
+
     // API: Get attendance records for a specific student, course, and semester
     public function getAttendance($studentId, $courseId, $semester)
     {
@@ -1300,7 +1349,7 @@ class StudentProfileController extends Controller
             $query = \App\Models\Attendance::where('student_id', (int)$studentId)
                 ->where('course_id', (int)$courseId)
                 ->whereIn('semester', $semesterLookupValues)
-                ->with('module');
+                ->with(['module', 'course']);
 
             $attendanceRecords = $query->get();
             
@@ -1313,43 +1362,10 @@ class StudentProfileController extends Controller
                 return response()->json(['success' => true, 'attendance' => []]);
             }
 
-            // Group by module_id and transform the data
-            $attendance = $attendanceRecords
-                ->groupBy('module_id')
-                ->map(function ($records, $moduleId) {
-                    $firstRecord = $records->first();
-                    
-                    // Safely access module relationship
-                    $moduleName = optional($firstRecord->module)->module_name ?? 'N/A';
-                    $totalDays = $records->count();
-                    
-                    // Count present (status = 1 or true) and absent (status = 0 or false)
-                    $presentDays = 0;
-                    $absentDays = 0;
-                    
-                    foreach ($records as $record) {
-                        // Handle both integer (0/1) and boolean representations
-                        $status = $record->status;
-                        if ($status === true || $status == 1 || $status === '1') {
-                            $presentDays++;
-                        } elseif ($status === false || $status == 0 || $status === '0') {
-                            $absentDays++;
-                        }
-                    }
-                    
-                    $attendancePercent = $totalDays > 0 ? round(($presentDays / $totalDays) * 100, 2) : 0;
-                    
-                    return [
-                        'module_name' => $moduleName,
-                        'total_days' => $totalDays,
-                        'present_days' => $presentDays,
-                        'absent_days' => $absentDays,
-                        'attendance_percent' => $attendancePercent
-                    ];
-                })
-                ->values();
-
-            return response()->json(['success' => true, 'attendance' => $attendance]);
+            return response()->json([
+                'success' => true,
+                'attendance' => $this->summarizeStudentAttendance($attendanceRecords),
+            ]);
         } catch (\Exception $e) {
             \Log::error('Error fetching attendance', [
                 'student_id' => $studentId,
@@ -1422,7 +1438,7 @@ class StudentProfileController extends Controller
                     $q->whereNull('semester')
                       ->orWhere('semester', '');
                 })
-                ->with('module');
+                ->with(['module', 'course']);
 
             $attendanceRecords = $query->get();
             
@@ -1435,33 +1451,9 @@ class StudentProfileController extends Controller
                 return response()->json(['success' => true, 'attendance' => []]);
             }
 
-            // Group by module_id and transform the data
-            $attendance = $attendanceRecords
-                ->groupBy('module_id')
-                ->map(function ($records, $moduleId) {
-                    $firstRecord = $records->first();
-                    
-                    // Safely access module relationship
-                    $moduleName = optional($firstRecord->module)->module_name ?? 'N/A';
-                    $totalDays = $records->count();
-                    $presentDays = $records->where('status', 'present')->count();
-                    $absentDays = $records->where('status', 'absent')->count();
-                    
-                    $attendancePercent = $totalDays > 0 ? round(($presentDays / $totalDays) * 100, 2) : 0;
-                    
-                    return [
-                        'module_name' => $moduleName,
-                        'total_days' => $totalDays,
-                        'present_days' => $presentDays,
-                        'absent_days' => $absentDays,
-                        'attendance_percent' => $attendancePercent . '%'
-                    ];
-                })
-                ->values();
-
             return response()->json([
                 'success' => true,
-                'attendance' => $attendance
+                'attendance' => $this->summarizeStudentAttendance($attendanceRecords),
             ]);
         } catch (\Exception $e) {
             \Log::error('Error in getAttendanceForCertificate', [

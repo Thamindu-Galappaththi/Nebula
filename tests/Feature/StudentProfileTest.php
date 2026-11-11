@@ -18,6 +18,8 @@ use App\Models\Student;
 use App\Models\StudentExam;
 use App\Models\StudentPaymentPlan;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -705,6 +707,52 @@ class StudentProfileTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
+    public function test_certificate_profile_attendance_counts_present_and_absent_correctly_and_shows_na_without_module(): void
+    {
+        $setup = $this->makePaymentStudent();
+        $setup['course']->course_type = 'certificate';
+        $setup['course']->save();
+
+        $date = now()->toDateString();
+        for ($i = 0; $i < 13; $i++) {
+            $this->insertProfileAttendance($setup, now()->subDays($i)->toDateString(), true);
+        }
+        $this->insertProfileAttendance($setup, now()->subDays(13)->toDateString(), false);
+        $this->insertProfileAttendance($setup, now()->subDays(14)->toDateString(), false);
+
+        $row = $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $setup['student']->student_id . '/course/' . $setup['course']->course_id . '/attendance')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json('attendance.0');
+
+        $this->assertSame('N/A', $row['module_name']);
+        $this->assertSame(15, $row['total_days']);
+        $this->assertSame(13, $row['present_days']);
+        $this->assertSame(2, $row['absent_days']);
+        $this->assertSame('86.67%', $row['attendance_percent']);
+    }
+
+    public function test_certificate_profile_attendance_does_not_count_duplicate_resaves_twice(): void
+    {
+        $setup = $this->makePaymentStudent();
+        $setup['course']->course_type = 'certificate';
+        $setup['course']->save();
+        $date = now()->toDateString();
+
+        $this->insertProfileAttendance($setup, $date, true);
+        $this->insertProfileAttendance($setup, $date, true);
+
+        $row = $this->actingAs($this->actor)
+            ->getJson('/api/student/' . $setup['student']->student_id . '/course/' . $setup['course']->course_id . '/attendance')
+            ->assertOk()
+            ->json('attendance.0');
+
+        $this->assertSame(1, $row['total_days']);
+        $this->assertSame(1, $row['present_days']);
+        $this->assertSame(0, $row['absent_days']);
+    }
+
     private function makeHistoryStudent(array $specializations): array
     {
         $setup = $this->makePaymentStudent();
@@ -761,5 +809,27 @@ class StudentProfileTest extends TestCase
         ]);
 
         return compact('student', 'course', 'intake', 'registration');
+    }
+
+    private function insertProfileAttendance(array $setup, string $date, bool $present): void
+    {
+        $row = [
+            'location' => 'Welisara',
+            'course_id' => $setup['course']->course_id,
+            'intake_id' => $setup['intake']->intake_id,
+            'module_id' => null,
+            'semester' => null,
+            'date' => $date,
+            'student_id' => $setup['student']->student_id,
+            'status' => $present ? 1 : 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('attendance', 'attendance_type')) {
+            $row['attendance_type'] = 'lectures';
+        }
+
+        DB::table('attendance')->insert($row);
     }
 }
