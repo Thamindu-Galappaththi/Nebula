@@ -550,6 +550,31 @@ class AttendancePageTest extends TestCase
         $this->assertStringNotContainsString('CR-199012345V', $this->xlsxText($response->streamedContent()));
     }
 
+    public function test_semester_assigned_elective_without_enrolments_lists_class_students(): void
+    {
+        $course = $this->makeCourse();
+        $intake = $this->makeIntake($course);
+        $semester = $this->makeSemester($course, $intake);
+        $module = $this->makeElectiveModule($semester, [], 'Calculus To Solve Engineering Problems');
+        $student = $this->makeRegisteredStudent($course, $intake, $semester, '199012345V', 'Software Engineering');
+
+        $students = $this->actingAs($this->actor)
+            ->postJson(route('get.students.for.attendance'), [
+                'location' => 'Welisara',
+                'course_type' => 'diploma',
+                'course_id' => $course->course_id,
+                'intake_id' => $intake->intake_id,
+                'semester' => $semester->id,
+                'module_id' => $module->module_id,
+                'specialization' => 'Common',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json('students');
+
+        $this->assertSame([$student->student_id], collect($students)->pluck('student_id')->all());
+    }
+
     private function insertAttendance(
         Student $student,
         Course $course,
