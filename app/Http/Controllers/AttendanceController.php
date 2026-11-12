@@ -279,6 +279,49 @@ class AttendanceController extends Controller
             ->exists();
     }
 
+    private function attendanceUsesSemesterClassList(
+        $semesterId,
+        $moduleId,
+        $courseId,
+        $intakeId,
+        $location,
+        string $semesterStorageValue
+    ): bool {
+        if ($this->isCoreAttendanceModule($semesterId, $moduleId)) {
+            return true;
+        }
+
+        $hasIndividualEnrolments = \App\Models\ModuleManagement::query()
+            ->where('module_id', $moduleId)
+            ->where('course_id', $courseId)
+            ->where('intake_id', $intakeId)
+            ->where('location', $location)
+            ->where(function ($query) use ($semesterStorageValue, $semesterId) {
+                $query->where('semester', $semesterStorageValue)
+                    ->orWhere('semester', (string) $semesterId);
+            })
+            ->exists();
+
+        if ($hasIndividualEnrolments) {
+            return false;
+        }
+
+        $row = DB::table('semester_module')
+            ->where('semester_id', $semesterId)
+            ->where('module_id', $moduleId)
+            ->select('specialization', 'specializations')
+            ->first();
+
+        if (!$row) {
+            return false;
+        }
+
+        return \App\Support\SemesterModuleSpecializationHelper::decodeList(
+            $row->specializations,
+            $row->specialization
+        ) === null;
+    }
+
     private function coreModuleAttendanceRegistrations(
         $semesterId,
         $courseId,
@@ -955,8 +998,14 @@ class AttendanceController extends Controller
             'module_id' => $moduleId,
         ], $semesterLookupValues, $semesterStorageValue);
 
-        // Check if this is a core module (assigned to semester) or elective module
-        $isCoreModule = $this->isCoreAttendanceModule($semesterId, $moduleId);
+        $isCoreModule = $this->attendanceUsesSemesterClassList(
+            $semesterId,
+            $moduleId,
+            $courseId,
+            $intakeId,
+            $location,
+            $semesterStorageValue
+        );
 
         if ($isCoreModule) {
             $students = $this->coreModuleAttendanceRegistrations(
@@ -1596,7 +1645,14 @@ class AttendanceController extends Controller
         $semesterStorageValue = $this->getAttendanceSemesterStorageValue($semester);
         $semesterLookupValues = $this->getAttendanceSemesterLookupValues($semester);
 
-        $isCoreModule = $this->isCoreAttendanceModule($semesterId, $moduleId);
+        $isCoreModule = $this->attendanceUsesSemesterClassList(
+            $semesterId,
+            $moduleId,
+            $courseId,
+            $intakeId,
+            $location,
+            $semesterStorageValue
+        );
 
         $attendanceRecords = \App\Models\Attendance::where('course_id', $courseId)
             ->where('intake_id', $intakeId)
@@ -1752,7 +1808,14 @@ class AttendanceController extends Controller
             'module_id' => $moduleId,
         ], $semesterLookupValues, $semesterStorageValue);
 
-        $isCoreModule = $this->isCoreAttendanceModule($semesterId, $moduleId);
+        $isCoreModule = $this->attendanceUsesSemesterClassList(
+            $semesterId,
+            $moduleId,
+            $courseId,
+            $intakeId,
+            $location,
+            $semesterStorageValue
+        );
 
         $attendanceRecords = \App\Models\Attendance::where('course_id', $courseId)
             ->where('intake_id', $intakeId)
@@ -1882,7 +1945,14 @@ class AttendanceController extends Controller
                     }
 
                     $isCore = $semester
-                        ? $this->isCoreAttendanceModule($semesterId, $moduleId)
+                        ? $this->attendanceUsesSemesterClassList(
+                            $semesterId,
+                            $moduleId,
+                            $courseId,
+                            $intakeId,
+                            $location,
+                            $this->getAttendanceSemesterStorageValue($semester)
+                        )
                         : false;
 
                     $moduleScope = $semester
